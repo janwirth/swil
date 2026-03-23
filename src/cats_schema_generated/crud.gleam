@@ -153,10 +153,33 @@ fn read_many_sql(
   }
 }
 
+fn has_identity(cat: Cat) -> Bool {
+  case cat.name {
+    Some(_) -> True
+    None -> False
+  }
+}
+
+fn missing_identity_error(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
+  case sqlight.query(
+    "this is not valid sql -- at least one identity field must be provided for upsert",
+    on: conn,
+    with: [],
+    expecting: decode.success(Nil),
+  ) {
+    Error(err) -> Error(err)
+    Ok(_) -> Ok(Nil)
+  }
+}
+
 pub fn cats(conn: sqlight.Connection) -> CatsDb {
   CatsDb(
     migrate: fn() { migrate.migrate_idemptotent(conn) },
     upsert_one: fn(cat: Cat) -> Result(CatRow, sqlight.Error) {
+      use _ <- result.try(case has_identity(cat) {
+        True -> Ok(Nil)
+        False -> missing_identity_error(conn)
+      })
       let stamp = 1
       case cat.name {
         Some(name_str) -> {
@@ -185,21 +208,10 @@ pub fn cats(conn: sqlight.Connection) -> CatsDb {
           })
         }
         None -> {
-          let ins =
-            "insert into cats (name, age, created_at, updated_at, deleted_at) values (?, ?, ?, ?, null)"
-          use _ <- result.try(sqlight.query(
-            ins,
-            on: conn,
-            with: [
-              sqlight.nullable(sqlight.text, option.None),
-              sqlight.nullable(sqlight.int, cat.age),
-              sqlight.int(stamp),
-              sqlight.int(stamp),
-            ],
-            expecting: decode.success(Nil),
-          ))
+          use _ <- result.try(missing_identity_error(conn))
+          // Unreachable: missing_identity_error always returns Error.
           sqlight.query(
-            "select id, created_at, updated_at, deleted_at, name, age from cats where id = last_insert_rowid()",
+            "select id, created_at, updated_at, deleted_at, name, age from cats where id = -1",
             on: conn,
             with: [],
             expecting: cat_row_decoder(),
