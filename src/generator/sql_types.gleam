@@ -1,5 +1,6 @@
 import glance
 import gleam/list
+import gleam/option.{None}
 import gleam/string
 import gleamgen/render as gleamgen_render
 import gleamgen/types as gleamgen_types

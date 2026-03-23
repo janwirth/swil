@@ -23,9 +23,9 @@ pub fn hello_world_test() {
 
 pub fn sqlite_v1_replay_with_queries_test() {
   use conn <- sqlight.with_connection(":memory:")
-  let assert Ok(Nil) = migrations_v1.migrate_idemptotent(conn)
-  let assert Ok(Nil) = migrations_v1.migrate_idemptotent(conn)
-  let assert Ok(Nil) = migrations_v1.migrate_idemptotent(conn)
+  let assert Ok(Nil) = migrations_v1.migrate_idempotent(conn)
+  let assert Ok(Nil) = migrations_v1.migrate_idempotent(conn)
+  let assert Ok(Nil) = migrations_v1.migrate_idempotent(conn)
 
   let assert Ok(Nil) = operations_v1.insert_nubi(conn)
   let assert Ok(rows) = operations_v1.read_nubi(conn)
@@ -34,9 +34,9 @@ pub fn sqlite_v1_replay_with_queries_test() {
 
 pub fn sqlite_v2_mix_and_match_replay_with_queries_test() {
   use conn <- sqlight.with_connection(":memory:")
-  let assert Ok(Nil) = migrations_v2.migrate_idemptotent(conn)
-  let assert Ok(Nil) = migrations_v1.migrate_idemptotent(conn)
-  let assert Ok(Nil) = migrations_v2.migrate_idemptotent(conn)
+  let assert Ok(Nil) = migrations_v2.migrate_idempotent(conn)
+  let assert Ok(Nil) = migrations_v1.migrate_idempotent(conn)
+  let assert Ok(Nil) = migrations_v2.migrate_idempotent(conn)
 
   let assert Ok(Nil) = operations_v2.insert_biffy(conn)
   let assert Ok(Nil) = operations_v2.update_biffy_age(conn)
@@ -46,10 +46,10 @@ pub fn sqlite_v2_mix_and_match_replay_with_queries_test() {
 
 pub fn sqlite_v3_mix_and_match_replay_with_queries_test() {
   use conn <- sqlight.with_connection(":memory:")
-  let assert Ok(Nil) = migrations_v3.migrate_idemptotent(conn)
-  let assert Ok(Nil) = migrations_v1.migrate_idemptotent(conn)
-  let assert Ok(Nil) = migrations_v2.migrate_idemptotent(conn)
-  let assert Ok(Nil) = migrations_v3.migrate_idemptotent(conn)
+  let assert Ok(Nil) = migrations_v3.migrate_idempotent(conn)
+  let assert Ok(Nil) = migrations_v1.migrate_idempotent(conn)
+  let assert Ok(Nil) = migrations_v2.migrate_idempotent(conn)
+  let assert Ok(Nil) = migrations_v3.migrate_idempotent(conn)
 
   let assert Ok(Nil) = operations_v1.insert_nubi(conn)
   let assert Ok(Nil) = operations_v3.insert_ginny(conn)

@@ -47,7 +47,7 @@ pub fn generate_full(module: String) -> GeneratedStructure {
     let assert Ok(crud_update) = todo
     let assert Ok(crud_upsert) = todo
     GeneratedStructure(
-        migrate: migration_generator.generate(module, "idemptotent"),
+        migrate: migration_generator.generate(module, "idempotent"),
 
         entry: entry,
         resource: resource,

@@ -1,47 +1,72 @@
 import glance
 import gleam/list
+import gleam/option.{Some}
 import gleam/string
 
 import generator/schema_context
 import generator/sql_types
+import gleamgen/render as gleamgen_render
+import gleamgen/types as gleamgen_types
 
 pub fn generate(module: String, version: String) -> String {
   let assert Ok(ctx) = schema_context.migration_context(module)
-  generate_migration(ctx, version)
+  generate_migration(ctx, version, ctx.table)
 }
 
-fn generate_migration(ctx: schema_context.MigrationContext, version: String) -> String {
-  let has_tail_expression = version == "idemptotent"
-  let column_lines = render_column_lines(ctx.columns, ctx.table, has_tail_expression)
-  let identity_lines = case version == "idemptotent" {
-    True -> render_identity_indexes(ctx.table, ctx.identity_labels)
+fn generate_migration(
+  ctx: schema_context.MigrationContext,
+  version: String,
+  module_name: String,
+) -> String {
+  let has_tail_expression = version == "idempotent"
+  let column_lines =
+    render_column_lines(ctx.columns, module_name, has_tail_expression)
+  let identity_lines = case version == "idempotent" {
+    True -> render_identity_indexes(module_name, ctx.identity_labels)
     False -> "\n"
   }
+  let assert Ok(return_rendered) =
+    gleamgen_types.render_type(
+      gleamgen_types.result(
+        gleamgen_types.nil,
+        gleamgen_types.custom_type(Some("sqlight"), "Error", []),
+      ),
+    )
+  let return_type = gleamgen_render.to_string(return_rendered)
+  let assert Ok(conn_rendered) =
+    gleamgen_types.render_type(
+      gleamgen_types.custom_type(Some("sqlight"), "Connection", []),
+    )
+  let conn_type = gleamgen_render.to_string(conn_rendered)
   "import gleam/result\n"
   <> "\n"
   <> "import help/migrate as migration_help\n"
   <> "import sqlight\n"
   <> "\n"
-  <> "pub fn migrate_idemptotent(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {\n"
+  <> "pub fn migrate_idempotent(conn: "
+  <> conn_type
+  <> ") -> "
+  <> return_type
+  <> " {\n"
   <> "  use _ <- result.try(migration_help.ensure_base_table(conn))\n"
   <> column_lines
   <> identity_lines
   <> "}\n"
 }
 
-fn render_identity_indexes(table: String, labels: List(String)) -> String {
+fn render_identity_indexes(module_name: String, labels: List(String)) -> String {
   case labels {
     [] -> "\n"
     _ -> {
       let lines =
         list.map(labels, fn(label) {
-          let idx = table <> "_identity_" <> label <> "_idx"
+          let idx = module_name <> "_identity_" <> label <> "_idx"
           "\n"
           <> "  sqlight.exec(\n"
           <> "    \"create unique index if not exists "
           <> idx
           <> " on "
-          <> table
+          <> module_name
           <> " ("
           <> label
           <> ");\",\n"
@@ -55,18 +80,25 @@ fn render_identity_indexes(table: String, labels: List(String)) -> String {
 
 fn render_column_lines(
   columns: List(#(String, glance.Type)),
-  table: String,
+  module_name: String,
   has_tail_expression: Bool,
 ) -> String {
   let field_count = list.length(columns)
-  build_column_lines(columns, table, 0, field_count, has_tail_expression, [])
+  build_column_lines(
+    columns,
+    module_name,
+    0,
+    field_count,
+    has_tail_expression,
+    [],
+  )
   |> list.reverse
   |> string.join("\n")
 }
 
 fn build_column_lines(
   columns: List(#(String, glance.Type)),
-  table: String,
+  module_name: String,
   index: Int,
   field_count: Int,
   has_tail_expression: Bool,
@@ -76,7 +108,7 @@ fn build_column_lines(
     [#(name, type_), ..rest] -> {
       let sql =
         "alter table "
-        <> table
+        <> module_name
         <> " add column "
         <> name
         <> " "
@@ -89,10 +121,14 @@ fn build_column_lines(
         True -> "  " <> call
         False -> "  use _ <- result.try(" <> call <> ")"
       }
-      build_column_lines(rest, table, index + 1, field_count, has_tail_expression, [
-        line,
-        ..acc
-      ])
+      build_column_lines(
+        rest,
+        module_name,
+        index + 1,
+        field_count,
+        has_tail_expression,
+        [line, ..acc],
+      )
     }
     [] -> acc
   }

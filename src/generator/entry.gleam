@@ -29,7 +29,7 @@ pub fn generate(ctx: SchemaContext) -> String {
     <> "`, row/db types,\n"
     <> "// `"
     <> table_fn
-    <> "` / `migrate_idemptotent`, and `"
+    <> "` / `migrate_idempotent`, and `"
     <> singular
     <> "` (constructor helper).\n"
     <> "\n"
@@ -131,8 +131,6 @@ pub fn generate(ctx: SchemaContext) -> String {
     <> "_with_"
     <> first_identity(ctx)
     <> "("
-    <> first_identity(ctx)
-    <> ", "
     <> upsert_rest_args(ctx)
     <> ")\n"
     <> "}\n"
@@ -147,8 +145,8 @@ pub fn generate(ctx: SchemaContext) -> String {
     <> "(conn)\n"
     <> "}\n"
     <> "\n"
-    <> "pub fn migrate_idemptotent(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {\n"
-    <> "  migrate.migrate_idemptotent(conn)\n"
+    <> "pub fn migrate_idempotent(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {\n"
+    <> "  migrate.migrate_idempotent(conn)\n"
     <> "}\n"
 }
 

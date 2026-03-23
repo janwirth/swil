@@ -29,7 +29,7 @@ pub fn filter_arg(
 
 pub fn cats(conn: sqlight.Connection) -> CatsDb {
   CatsDb(
-    migrate: fn() { migrate.migrate_idemptotent(conn) },
+    migrate: fn() { migrate.migrate_idempotent(conn) },
     upsert_one: fn(cat: CatForUpsert) { crud_upsert.upsert_one(conn, cat) },
     upsert_many: fn(rows: List(CatForUpsert)) { crud_upsert.upsert_many(conn, rows) },
     update_one: fn(id: Int, cat: Cat) { crud_update.update_one(conn, id, cat) },

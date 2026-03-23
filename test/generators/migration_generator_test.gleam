@@ -83,7 +83,7 @@ pub fn generate_migration_fixtures_test() {
 
 pub fn generate_matches_cat_db_migrate_test() {
   let assert Ok(module) = simplifile.read("src/cat_schema.gleam")
-  let actual = migration_generator.generate(module, "idemptotent")
+  let actual = migration_generator.generate(module, "idempotent")
   let assert Ok(expected) = simplifile.read("src/cat_db/migrate.gleam")
   assert actual == expected
 }

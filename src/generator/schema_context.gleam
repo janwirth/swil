@@ -276,15 +276,23 @@ fn expression_identity_labels(expr: glance.Expression) -> List(String) {
   }
 }
 
-fn identity_label_from_call(expr: glance.Expression) -> Option(String) {
+fn identity_label_from_call(expr: glance.Expression) -> Result(String, Nil) {
   case expr {
     glance.Call(_, _fun, args) ->
       case args {
-        [glance.UnlabelledField(inner), ..] -> field_access_last(inner)
-        [glance.LabelledField(_, _, inner), ..] -> field_access_last(inner)
-        _ -> None
+        [glance.UnlabelledField(inner), ..] ->
+          case field_access_last(inner) {
+            Some(s) -> Ok(s)
+            None -> Error(Nil)
+          }
+        [glance.LabelledField(_, _, inner), ..] ->
+          case field_access_last(inner) {
+            Some(s) -> Ok(s)
+            None -> Error(Nil)
+          }
+        _ -> Error(Nil)
       }
-    _ -> None
+    _ -> Error(Nil)
   }
 }
 

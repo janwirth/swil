@@ -1,5 +1,5 @@
 // Main entry for the cats schema: import this module for `Cat`, row/db types,
-// `cats` / `migrate_idemptotent`, and `cat` (constructor helper).
+// `cats` / `migrate_idempotent`, and `cat` (constructor helper).
 
 import gleam/option.{type Option}
 import sqlight
@@ -41,6 +41,6 @@ pub fn cats(conn: sqlight.Connection) -> CatsDb {
   crud.cats(conn)
 }
 
-pub fn migrate_idemptotent(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
-  migrate.migrate_idemptotent(conn)
+pub fn migrate_idempotent(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
+  migrate.migrate_idempotent(conn)
 }
