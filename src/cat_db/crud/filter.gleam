@@ -56,52 +56,52 @@ fn string_operand_part(op: StringRefOrValue) -> #(Bool, String) {
 
 fn instr_where(left: #(Bool, String), right: #(Bool, String)) -> where.Where {
   case left, right {
-  #(True, lc), #(True, rc) -> where.fragment(
-    frag_literal("instr(" <> lc <> ", " <> rc <> ") = 0"),
-  )
-  #(True, lc), #(False, rv) -> where.fragment(
-    frag_prepared(
-      "instr("
-      <>
-      lc
-      <>
-      ", "
-      <>
-      frag_ph
-      <>
-      ") = 0",
-      [frag_string(rv)],
-    ),
-  )
-  #(False, lv), #(True, rc) -> where.fragment(
-    frag_prepared(
-      "instr("
-      <>
-      frag_ph
-      <>
-      ", "
-      <>
-      rc
-      <>
-      ") = 0",
-      [frag_string(lv)],
-    ),
-  )
-  #(False, lv), #(False, rv) -> where.fragment(
-    frag_prepared(
-      "instr("
-      <>
-      frag_ph
-      <>
-      ", "
-      <>
-      frag_ph
-      <>
-      ") = 0",
-      [frag_string(lv), frag_string(rv)],
-    ),
-  )
-}
+    #(True, lc), #(True, rc) -> where.fragment(
+      frag_literal("instr(" <> lc <> ", " <> rc <> ") = 0"),
+    )
+    #(True, lc), #(False, rv) -> where.fragment(
+      frag_prepared(
+        "instr("
+        <>
+        lc
+        <>
+        ", "
+        <>
+        frag_ph
+        <>
+        ") = 0",
+        [frag_string(rv)],
+      ),
+    )
+    #(False, lv), #(True, rc) -> where.fragment(
+      frag_prepared(
+        "instr("
+        <>
+        frag_ph
+        <>
+        ", "
+        <>
+        rc
+        <>
+        ") = 0",
+        [frag_string(lv)],
+      ),
+    )
+    #(False, lv), #(False, rv) -> where.fragment(
+      frag_prepared(
+        "instr("
+        <>
+        frag_ph
+        <>
+        ", "
+        <>
+        frag_ph
+        <>
+        ") = 0",
+        [frag_string(lv), frag_string(rv)],
+      ),
+    )
+  }
 }
 
 pub fn bool_expr_where(

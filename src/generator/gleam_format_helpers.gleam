@@ -20,11 +20,14 @@ fn wrap_loop(
   max_col: Int,
 ) -> String {
   case items {
-    [] -> list.reverse([indent <> current <> ",", ..lines]) |> string.join("\n")
+    [] ->
+      list.reverse([string.concat([indent, current, ","]), ..lines])
+      |> string.join("\n")
     [x, ..xs] -> {
-      let candidate = current <> ", " <> x
-      case string.length(indent <> candidate) > max_col {
-        True -> wrap_loop(indent, xs, x, [indent <> current <> ",", ..lines], max_col)
+      let candidate = string.concat([current, ", ", x])
+      case string.length(string.concat([indent, candidate])) > max_col {
+        True ->
+          wrap_loop(indent, xs, x, [string.concat([indent, current, ","]), ..lines], max_col)
         False -> wrap_loop(indent, xs, candidate, lines, max_col)
       }
     }

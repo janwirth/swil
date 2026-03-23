@@ -1,10 +1,7 @@
-import gleam/option.{type Option, None, Some}
-
 import cat_db/structure.{
   type CatField, AgeField, CreatedAtField, DeletedAtField, IdField, NameField,
   UpdatedAtField,
 }
-import help/filter
 
 pub fn cat_field_sql(field: CatField) -> String {
   case field {
@@ -14,13 +11,5 @@ pub fn cat_field_sql(field: CatField) -> String {
     CreatedAtField -> "created_at"
     UpdatedAtField -> "updated_at"
     DeletedAtField -> "deleted_at"
-  }
-}
-
-pub fn sort_clause(sort: Option(filter.SortOrder(CatField))) -> String {
-  case sort {
-    None -> ""
-    Some(filter.Asc(f)) -> " order by " <> cat_field_sql(f) <> " asc"
-    Some(filter.Desc(f)) -> " order by " <> cat_field_sql(f) <> " desc"
   }
 }

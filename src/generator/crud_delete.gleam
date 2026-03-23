@@ -1,55 +1,59 @@
+import gleam/string
+
 import generator/schema_context.{type SchemaContext}
 
 pub fn generate(ctx: SchemaContext) -> String {
   let table = ctx.table
-  "import cake/delete as cake_delete\n"
-  <> "import cake/where\n"
-  <> "import gleam/dynamic/decode\n"
-  <> "import gleam/list\n"
-  <> "import gleam/result\n"
-  <> "import sqlight\n"
-  <> "\n"
-  <> "import help/cake_sql_exec\n"
-  <> "\n"
-  <> "pub fn delete_one(\n"
-  <> "  conn: sqlight.Connection,\n"
-  <> "  id: Int,\n"
-  <> ") -> Result(Nil, sqlight.Error) {\n"
-  <> "  use _ <- result.try({\n"
-  <> "    let q =\n"
-  <> "      cake_delete.new()\n"
-  <> "      |> cake_delete.table(\""
-  <> table
-  <> "\")\n"
-  <> "      |> cake_delete.where(where.eq(where.col(\"id\"), where.int(id)))\n"
-  <> "      |> cake_delete.to_query\n"
-  <> "    cake_sql_exec.run_write_query(q, decode.success(Nil), conn)\n"
-  <> "  })\n"
-  <> "  Ok(Nil)\n"
-  <> "}\n"
-  <> "\n"
-  <> "pub fn delete_many(\n"
-  <> "  conn: sqlight.Connection,\n"
-  <> "  ids: List(Int),\n"
-  <> ") -> Result(Nil, sqlight.Error) {\n"
-  <> "  case ids {\n"
-  <> "    [] -> Ok(Nil)\n"
-  <> "    _ -> {\n"
-  <> "      use _ <- result.try({\n"
-  <> "        let q =\n"
-  <> "          cake_delete.new()\n"
-  <> "          |> cake_delete.table(\""
-  <> table
-  <> "\")\n"
-  <> "          |> cake_delete.where(where.in(\n"
-  <> "            where.col(\"id\"),\n"
-  <> "            list.map(ids, where.int),\n"
-  <> "          ))\n"
-  <> "          |> cake_delete.to_query\n"
-  <> "        cake_sql_exec.run_write_query(q, decode.success(Nil), conn)\n"
-  <> "      })\n"
-  <> "      Ok(Nil)\n"
-  <> "    }\n"
-  <> "  }\n"
-  <> "}\n"
+  string.concat([
+    "import cake/delete as cake_delete\n",
+    "import cake/where\n",
+    "import gleam/dynamic/decode\n",
+    "import gleam/list\n",
+    "import gleam/result\n",
+    "import sqlight\n",
+    "\n",
+    "import help/cake_sql_exec\n",
+    "\n",
+    "pub fn delete_one(\n",
+    "  conn: sqlight.Connection,\n",
+    "  id: Int,\n",
+    ") -> Result(Nil, sqlight.Error) {\n",
+    "  use _ <- result.try({\n",
+    "    let q =\n",
+    "      cake_delete.new()\n",
+    "      |> cake_delete.table(\"",
+    table,
+    "\")\n",
+    "      |> cake_delete.where(where.eq(where.col(\"id\"), where.int(id)))\n",
+    "      |> cake_delete.to_query\n",
+    "    cake_sql_exec.run_write_query(q, decode.success(Nil), conn)\n",
+    "  })\n",
+    "  Ok(Nil)\n",
+    "}\n",
+    "\n",
+    "pub fn delete_many(\n",
+    "  conn: sqlight.Connection,\n",
+    "  ids: List(Int),\n",
+    ") -> Result(Nil, sqlight.Error) {\n",
+    "  case list.is_empty(ids) {\n",
+    "    [] -> Ok(Nil)\n",
+    "    _ -> {\n",
+    "      use _ <- result.try({\n",
+    "        let q =\n",
+    "          cake_delete.new()\n",
+    "          |> cake_delete.table(\"",
+    table,
+    "\")\n",
+    "          |> cake_delete.where(where.in(\n",
+    "            where.col(\"id\"),\n",
+    "            list.map(ids, where.int),\n",
+    "          ))\n",
+    "          |> cake_delete.to_query\n",
+    "        cake_sql_exec.run_write_query(q, decode.success(Nil), conn)\n",
+    "      })\n",
+    "      Ok(Nil)\n",
+    "    }\n",
+    "  }\n",
+    "}\n",
+  ])
 }
