@@ -5,10 +5,7 @@ import gleam/option.{None, Some}
 import help/filter
 import sqlight
 
-// only supports optional fields
-// runtime code can handle defaults
 
-// hand-written queries with generated query builder
 pub fn cat_older_than(age: Int) -> cats_crud.Filter {
   fn(cat: cats.FilterableCat) {
     filter.Gt(left: cat.age, right: structure.NumValue(value: age))
