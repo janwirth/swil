@@ -8,8 +8,8 @@ import cat_db/crud
 import cat_db/migrate
 import cat_db/resource
 import cat_db/structure
+import cat_schema.{type Cat, Cat}
 
-pub type Cat = resource.Cat
 
 pub type CatForUpsert = resource.CatForUpsert
 
@@ -30,7 +30,7 @@ pub type StringCatField = structure.StringCatField
 pub type CatField = structure.CatField
 
 pub fn cat(name: Option(String), age: Option(Int)) -> Cat {
-  resource.Cat(name:, age:)
+  Cat(name:, age:)
 }
 
 pub fn cat_with_name(name: String, age: Option(Int)) -> CatForUpsert {

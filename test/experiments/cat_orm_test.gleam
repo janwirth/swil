@@ -3,7 +3,7 @@ import cat_example.{
     cat_age_eq, cat_name_excludes, cat_older_than, cat_older_than_and_name_excludes,
 }
 import cat_db/entry as cats
-import cat_db/resource.{Cat}
+import cat_schema.{Cat}
 import cat_db/structure.{AgeField, CatRow, IdField}
 import help/filter
 import gleam/int
