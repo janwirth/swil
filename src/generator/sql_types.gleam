@@ -7,18 +7,18 @@ import gleamgen/types as gleamgen_types
 
 pub fn to_generated_type(
   type_: glance.Type,
-) -> gleamgen_types.GeneratedType(gleamgen_types.Unchecked) {
+) -> gleamgen_types.GeneratedType(gleamgen_types.Dynamic) {
   case type_ {
     glance.NamedType(_, "String", None, []) ->
-      gleamgen_types.string |> gleamgen_types.to_unchecked
+      gleamgen_types.string |> gleamgen_types.to_dynamic
     glance.NamedType(_, "Int", None, []) ->
-      gleamgen_types.int |> gleamgen_types.to_unchecked
+      gleamgen_types.int |> gleamgen_types.to_dynamic
     glance.NamedType(_, "Float", None, []) ->
-      gleamgen_types.float |> gleamgen_types.to_unchecked
+      gleamgen_types.float |> gleamgen_types.to_dynamic
     glance.NamedType(_, "Bool", None, []) ->
-      gleamgen_types.bool |> gleamgen_types.to_unchecked
+      gleamgen_types.bool |> gleamgen_types.to_dynamic
     glance.NamedType(_, "Nil", None, []) ->
-      gleamgen_types.nil |> gleamgen_types.to_unchecked
+      gleamgen_types.nil |> gleamgen_types.to_dynamic
     glance.NamedType(_, name, module, params) ->
       gleamgen_types.custom_type(
         module,
@@ -31,9 +31,9 @@ pub fn to_generated_type(
         "Tuple",
         list.map(elements, to_generated_type),
       )
-    glance.FunctionType(_, _, _) -> gleamgen_types.unchecked()
-    glance.VariableType(_, name) -> gleamgen_types.unchecked_ident(name)
-    glance.HoleType(_, _) -> gleamgen_types.unchecked()
+    glance.FunctionType(_, _, _) -> gleamgen_types.dynamic()
+    glance.VariableType(_, name) -> gleamgen_types.raw(name)
+    glance.HoleType(_, _) -> gleamgen_types.dynamic()
   }
 }
 

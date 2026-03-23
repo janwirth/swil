@@ -1,4 +1,5 @@
 import gleamgen/module as gmod
+import gleamgen/module/definition as gdef
 import gleamgen/render as grender
 
 pub fn render_module(m: gmod.Module) -> String {
@@ -6,6 +7,7 @@ pub fn render_module(m: gmod.Module) -> String {
   |> grender.to_string()
 }
 
-pub fn pub_def(name: String) -> gmod.DefinitionDetails {
-  gmod.DefinitionDetails(name:, is_public: True, attributes: [])
+pub fn pub_def(name: String) -> gdef.Definition {
+  gdef.new(name)
+  |> gdef.with_publicity(True)
 }

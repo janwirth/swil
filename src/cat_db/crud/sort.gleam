@@ -1,15 +1,13 @@
-import cat_db/structure.{
-  type CatField, AgeField, CreatedAtField, DeletedAtField, IdField, NameField,
-  UpdatedAtField,
-}
+import cat_db/structure
 
-pub fn cat_field_sql(field: CatField) -> String {
+
+pub fn cat_field_sql(field: structure.CatField) -> String {
   case field {
-    NameField -> "name"
-    AgeField -> "age"
-    IdField -> "id"
-    CreatedAtField -> "created_at"
-    UpdatedAtField -> "updated_at"
-    DeletedAtField -> "deleted_at"
+    structure.NameField -> "name"
+    structure.AgeField -> "age"
+    structure.IdField -> "id"
+    structure.CreatedAtField -> "created_at"
+    structure.UpdatedAtField -> "updated_at"
+    structure.DeletedAtField -> "deleted_at"
   }
 }

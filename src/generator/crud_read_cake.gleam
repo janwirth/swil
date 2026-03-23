@@ -46,7 +46,7 @@ fn w_is_null() {
 }
 
 fn cake_sql_run_read() {
-  gex.unchecked_ident("cake_sql_exec.run_read_query")
+  gex.raw("cake_sql_exec.run_read_query")
 }
 
 pub fn render_read_one_try_body(
@@ -71,18 +71,18 @@ pub fn render_read_one_try_body(
     gex.call2(
       w_eq(),
       gex.call1(w_col(), gex.string("id")),
-      gex.call1(w_int(), gex.unchecked_ident("id")),
+      gex.call1(w_int(), gex.raw("id")),
     )
   let deleted_null = gex.call1(w_is_null(), gex.call1(w_col(), gex.string("deleted_at")))
   let wh = gex.call1(w_and(), gex.list([id_eq, deleted_null]))
   let sel_w = gex.call2(s_where, sel, wh)
   let q = gex.call1(s_to_q, sel_w)
-  let decoder_call = gex.call0(gex.unchecked_ident(decoder_fn))
+  let decoder_call = gex.call0(gex.raw(decoder_fn))
   let full =
-    gex.call_unchecked(cake_sql_run_read(), [
-      q |> gex.to_unchecked,
-      decoder_call |> gex.to_unchecked,
-      gex.unchecked_ident("conn"),
+    gex.call_dynamic(cake_sql_run_read(), [
+      q |> gex.to_dynamic,
+      decoder_call |> gex.to_dynamic,
+      gex.raw("conn") |> gex.to_dynamic,
     ])
   rex(full)
 }
@@ -102,10 +102,7 @@ pub fn render_read_many_base_select_where(table: String, cols: List(String)) -> 
     )
   let deleted_null = gex.call1(w_is_null(), gex.call1(w_col(), gex.string("deleted_at")))
   let filter_call =
-    gex.call1(
-      gex.unchecked_ident("read_many_filter_where"),
-      gex.unchecked_ident("arg"),
-    )
+    gex.call1(gex.raw("read_many_filter_where"), gex.raw("arg"))
   let wh = gex.call1(w_and(), gex.list([deleted_null, filter_call]))
   rex(gex.call2(s_where, sel, wh))
 }

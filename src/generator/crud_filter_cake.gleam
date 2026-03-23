@@ -11,7 +11,8 @@ import gleamgen/expression as gex
 import gleamgen/expression/case_ as gcase
 import gleamgen/function as gfun
 import gleamgen/import_ as gim
-import gleamgen/matcher as gmatch
+import gleamgen/parameter as gparam
+import gleamgen/pattern as gpat
 import gleamgen/render as grender
 import gleamgen/types as gtypes
 
@@ -60,19 +61,19 @@ fn w_fragment() {
 }
 
 fn frag_lit() {
-  gex.unchecked_ident("frag_literal")
+  gex.raw("frag_literal")
 }
 
 fn frag_prep() {
-  gex.unchecked_ident("frag_prepared")
+  gex.raw("frag_prepared")
 }
 
 fn frag_str() {
-  gex.unchecked_ident("frag_string")
+  gex.raw("frag_string")
 }
 
 fn frag_ph() {
-  gex.unchecked_ident("frag_ph")
+  gex.raw("frag_ph")
 }
 
 fn concat_str(parts: List(gex.Expression(String))) -> gex.Expression(String) {
@@ -85,7 +86,7 @@ pub fn render_where_col(column: String) -> String {
 }
 
 pub fn render_where_int_v() -> String {
-  rex(gex.call1(w_int(), gex.unchecked_ident("v")))
+  rex(gex.call1(w_int(), gex.raw("v")))
 }
 
 pub fn render_instr_where_fn() -> String {
@@ -93,15 +94,15 @@ pub fn render_instr_where_fn() -> String {
   let where_ret = gtypes.custom_type(Some("where"), "Where", [])
   let f =
     gfun.new2(
-      #("left", bool_string),
-      #("right", bool_string),
+      gparam.new("left", bool_string),
+      gparam.new("right", bool_string),
       where_ret,
       fn(left, right) {
         gcase.new(gex.tuple2(left, right))
-        |> gcase.with_matcher(
-          gmatch.tuple2(
-            gmatch.tuple2(gmatch.bool_literal(True), gmatch.variable("lc")),
-            gmatch.tuple2(gmatch.bool_literal(True), gmatch.variable("rc")),
+        |> gcase.with_pattern(
+          gpat.tuple2(
+            gpat.tuple2(gpat.bool_literal(True), gpat.variable("lc")),
+            gpat.tuple2(gpat.bool_literal(True), gpat.variable("rc")),
           ),
           fn(pair) {
             let #(#(_, lc), #(_, rc)) = pair
@@ -116,10 +117,10 @@ pub fn render_instr_where_fn() -> String {
             gex.call1(w_fragment(), gex.call1(frag_lit(), template))
           },
         )
-        |> gcase.with_matcher(
-          gmatch.tuple2(
-            gmatch.tuple2(gmatch.bool_literal(True), gmatch.variable("lc")),
-            gmatch.tuple2(gmatch.bool_literal(False), gmatch.variable("rv")),
+        |> gcase.with_pattern(
+          gpat.tuple2(
+            gpat.tuple2(gpat.bool_literal(True), gpat.variable("lc")),
+            gpat.tuple2(gpat.bool_literal(False), gpat.variable("rv")),
           ),
           fn(pair) {
             let #(#(_, lc), #(_, rv)) = pair
@@ -136,10 +137,10 @@ pub fn render_instr_where_fn() -> String {
             gex.call1(w_fragment(), prepared)
           },
         )
-        |> gcase.with_matcher(
-          gmatch.tuple2(
-            gmatch.tuple2(gmatch.bool_literal(False), gmatch.variable("lv")),
-            gmatch.tuple2(gmatch.bool_literal(True), gmatch.variable("rc")),
+        |> gcase.with_pattern(
+          gpat.tuple2(
+            gpat.tuple2(gpat.bool_literal(False), gpat.variable("lv")),
+            gpat.tuple2(gpat.bool_literal(True), gpat.variable("rc")),
           ),
           fn(pair) {
             let #(#(_, lv), #(_, rc)) = pair
@@ -156,10 +157,10 @@ pub fn render_instr_where_fn() -> String {
             gex.call1(w_fragment(), prepared)
           },
         )
-        |> gcase.with_matcher(
-          gmatch.tuple2(
-            gmatch.tuple2(gmatch.bool_literal(False), gmatch.variable("lv")),
-            gmatch.tuple2(gmatch.bool_literal(False), gmatch.variable("rv")),
+        |> gcase.with_pattern(
+          gpat.tuple2(
+            gpat.tuple2(gpat.bool_literal(False), gpat.variable("lv")),
+            gpat.tuple2(gpat.bool_literal(False), gpat.variable("rv")),
           ),
           fn(pair) {
             let #(#(_, lv), #(_, rv)) = pair
@@ -190,10 +191,10 @@ pub fn render_instr_where_fn() -> String {
 }
 
 pub fn render_bool_expr_where_case_lines() -> String {
-  let b = gex.unchecked_ident("bool_expr_where")
-  let n = gex.unchecked_ident("num_operand_where_value")
-  let s = gex.unchecked_ident("string_operand_part")
-  let i = gex.unchecked_ident("instr_where")
+  let b = gex.raw("bool_expr_where")
+  let n = gex.raw("num_operand_where_value")
+  let s = gex.raw("string_operand_part")
+  let i = gex.raw("instr_where")
   let one = gex.call1(w_int(), gex.int(1))
   let zero = gex.call1(w_int(), gex.int(0))
   string.concat([
@@ -202,14 +203,14 @@ pub fn render_bool_expr_where_case_lines() -> String {
     "\n    filter.LiteralFalse -> ",
     rex(gex.call2(w_eq(), one, zero)),
     "\n    filter.Not(inner) -> ",
-    rex(gex.call1(w_not(), gex.call1(b, gex.unchecked_ident("inner")))),
+    rex(gex.call1(w_not(), gex.call1(b, gex.raw("inner")))),
     "\n    filter.And(left, right) ->\n      ",
     rex(
       gex.call1(
         w_and(),
         gex.list([
-          gex.call1(b, gex.unchecked_ident("left")),
-          gex.call1(b, gex.unchecked_ident("right")),
+          gex.call1(b, gex.raw("left")),
+          gex.call1(b, gex.raw("right")),
         ]),
       ),
     ),
@@ -218,8 +219,8 @@ pub fn render_bool_expr_where_case_lines() -> String {
       gex.call1(
         w_or(),
         gex.list([
-          gex.call1(b, gex.unchecked_ident("left")),
-          gex.call1(b, gex.unchecked_ident("right")),
+          gex.call1(b, gex.raw("left")),
+          gex.call1(b, gex.raw("right")),
         ]),
       ),
     ),
@@ -227,16 +228,16 @@ pub fn render_bool_expr_where_case_lines() -> String {
     rex(
       gex.call2(
         w_gt(),
-        gex.call1(n, gex.unchecked_ident("left")),
-        gex.call1(n, gex.unchecked_ident("right")),
+        gex.call1(n, gex.raw("left")),
+        gex.call1(n, gex.raw("right")),
       ),
     ),
     "\n    filter.Eq(left, right) ->\n      ",
     rex(
       gex.call2(
         w_eq(),
-        gex.call1(n, gex.unchecked_ident("left")),
-        gex.call1(n, gex.unchecked_ident("right")),
+        gex.call1(n, gex.raw("left")),
+        gex.call1(n, gex.raw("right")),
       ),
     ),
     "\n    filter.Ne(left, right) ->\n      ",
@@ -245,8 +246,8 @@ pub fn render_bool_expr_where_case_lines() -> String {
         w_not(),
         gex.call2(
           w_eq(),
-          gex.call1(n, gex.unchecked_ident("left")),
-          gex.call1(n, gex.unchecked_ident("right")),
+          gex.call1(n, gex.raw("left")),
+          gex.call1(n, gex.raw("right")),
         ),
       ),
     ),
@@ -254,8 +255,8 @@ pub fn render_bool_expr_where_case_lines() -> String {
     rex(
       gex.call2(
         i,
-        gex.call1(s, gex.unchecked_ident("left")),
-        gex.call1(s, gex.unchecked_ident("right")),
+        gex.call1(s, gex.raw("left")),
+        gex.call1(s, gex.raw("right")),
       ),
     ),
     "\n",

@@ -26,22 +26,16 @@ pub fn delete_many(conn: sqlight.Connection, ids: List(Int)) -> Result(
   Nil,
   sqlight.Error,
 ) {
-  case list.is_empty(ids) {
-    True -> Ok(Nil)
-    False -> result.try(
-      let q
-      =
-      cake_delete.to_query(
-        cake_delete.where(
-          cake_delete.table(cake_delete.new(), "cats"),
-          where.in(where.col("id"), list.map(ids, where.int)),
-        ),
-      )
-      cake_sql_exec.run_write_query(q, decode.success(Nil), conn),
-      fn(_)
-      ->
-      Result(Nil, sqlight.Error)
-      { Ok(Nil) },
-    )
+  case ids {
+    [] -> Ok(Nil)
+    [..ids] -> result.try({
+        let q = cake_delete.to_query(
+          cake_delete.where(
+            cake_delete.table(cake_delete.new(), "cats"),
+            where.in(where.col("id"), list.map(ids, where.int)),
+          ),
+        )
+        cake_sql_exec.run_write_query(q, decode.success(Nil), conn)
+      }, fn(_) -> Result(Nil, sqlight.Error) { Ok(Nil) })
   }
 }

@@ -1,78 +1,109 @@
 import gleam/list
+import gleam/option.{Some}
 import gleam/string
 
-import generator/gleam_format_helpers
+import generator/gleamgen_emit
 import generator/schema_context.{type SchemaContext, pascal_case_field_label}
 
+import gleamgen/expression as gex
+import gleamgen/expression/case_ as gcase
+import gleamgen/expression/constructor as gcon
+import gleamgen/function as gfun
+import gleamgen/import_ as gim
+import gleamgen/module as gmod
+import gleamgen/parameter as gparam
+import gleamgen/pattern as gpat
+import gleamgen/types as gtypes
+import gleamgen/types/variant as gvariant
+
 pub fn generate(ctx: SchemaContext) -> String {
-  let layer = ctx.layer
-  let fe = ctx.field_enum_name
-  let import_body = sort_structure_import_block(fe, all_field_variant_names(ctx))
-  let cases = field_sql_cases(ctx)
-  string.concat([
-    "import ",
-    layer,
-    "/structure.{\n",
-    import_body,
-    "\n}\n",
-    "\n",
-    "pub fn ",
-    singular_field_fn(ctx),
-    "(field: ",
-    fe,
-    ") -> String {\n",
-    "  case field {\n",
-    cases,
-    "  }\n",
-    "}\n",
-  ])
+  let structure_mod = gim.new([ctx.layer, "structure"])
+  let structure_ref = gim.get_reference(structure_mod)
+  let field_type =
+    gtypes.custom_type(Some(structure_ref), ctx.field_enum_name, [])
+  let fn_name = string.concat([ctx.singular, "_field_sql"])
+  let func =
+    gfun.new1(
+      gparam.new("field", field_type),
+      gtypes.string,
+      fn(field_expr) {
+        build_field_sql_case(ctx, structure_ref, field_expr)
+        |> gcase.build_expression()
+      },
+    )
+  let body =
+    gleamgen_emit.render_module(
+      gmod.with_import(structure_mod, fn(_) {
+        gmod.with_function(gleamgen_emit.pub_def(fn_name), func, fn(_) {
+          gmod.eof()
+        })
+      }),
+    )
+  string.concat(["import ", ctx.layer, "/structure\n", body])
 }
 
-fn singular_field_fn(ctx: SchemaContext) -> String {
-  string.concat([ctx.singular, "_field_sql"])
-}
-
-fn sort_structure_import_block(
-  field_enum: String,
-  variant_names: List(String),
-) -> String {
-  gleam_format_helpers.comma_wrap_lines(
-    "  ",
-    [string.concat(["type ", field_enum]), ..variant_names],
-    gleam_format_helpers.import_list_max_col,
-  )
-}
-
-fn all_field_variant_names(ctx: SchemaContext) -> List(String) {
-  let schema =
-    list.map(ctx.fields, fn(pair) {
-      string.concat([pascal_case_field_label(pair.0), "Field"])
-    })
-  let system =
-    list.map(["Id", "CreatedAt", "UpdatedAt", "DeletedAt"], fn(s) {
-      string.concat([s, "Field"])
-    })
-  list.sort(list.append(schema, system), by: string.compare)
-}
-
-fn field_sql_cases(ctx: SchemaContext) -> String {
-  let schema_cases =
+fn build_field_sql_case(
+  ctx: SchemaContext,
+  structure_ref: String,
+  field_expr: gex.Expression(a),
+) -> gcase.CaseExpression(a, String) {
+  let schema_arms =
     list.map(ctx.fields, fn(pair) {
       let #(label, _) = pair
-      string.concat([
-        "    ",
-        pascal_case_field_label(label),
-        "Field -> \"",
-        label,
-        "\"\n",
-      ])
+      let variant =
+        string.concat([
+          structure_ref,
+          ".",
+          pascal_case_field_label(label),
+          "Field",
+        ])
+      let m =
+        gpat.from_constructor0(
+          gcon.new(gvariant.new(variant) |> gvariant.to_dynamic),
+        )
+      #(m, fn(_) { gex.string(label) })
     })
-    |> string.concat
-  string.concat([
-    schema_cases,
-    "    IdField -> \"id\"\n",
-    "    CreatedAtField -> \"created_at\"\n",
-    "    UpdatedAtField -> \"updated_at\"\n",
-    "    DeletedAtField -> \"deleted_at\"\n",
-  ])
+  let system_arms = [
+    #(
+      gpat.from_constructor0(
+        gcon.new(
+          gvariant.new(string.concat([structure_ref, ".IdField"]))
+          |> gvariant.to_dynamic,
+        ),
+      ),
+      fn(_) { gex.string("id") },
+    ),
+    #(
+      gpat.from_constructor0(
+        gcon.new(
+          gvariant.new(string.concat([structure_ref, ".CreatedAtField"]))
+          |> gvariant.to_dynamic,
+        ),
+      ),
+      fn(_) { gex.string("created_at") },
+    ),
+    #(
+      gpat.from_constructor0(
+        gcon.new(
+          gvariant.new(string.concat([structure_ref, ".UpdatedAtField"]))
+          |> gvariant.to_dynamic,
+        ),
+      ),
+      fn(_) { gex.string("updated_at") },
+    ),
+    #(
+      gpat.from_constructor0(
+        gcon.new(
+          gvariant.new(string.concat([structure_ref, ".DeletedAtField"]))
+          |> gvariant.to_dynamic,
+        ),
+      ),
+      fn(_) { gex.string("deleted_at") },
+    ),
+  ]
+  let arms = list.append(schema_arms, system_arms)
+  list.fold(arms, gcase.new(field_expr), fn(c, arm) {
+    let #(m, h) = arm
+    gcase.with_pattern(c, m, h)
+  })
 }
