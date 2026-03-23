@@ -28,12 +28,12 @@ pub type GeneratedCrudSubmodules {
     )
 }
 
-pub fn generate_structure_from_path(path: String) -> GeneratedStructure {
+pub fn generate_full_from_path(path: String) -> GeneratedStructure {
     let assert Ok(module) = simplifile.read(path)
-    generate_structure(module)
+    generate_full(module)
 }
 
-pub fn generate_structure(module: String) -> GeneratedStructure {
+pub fn generate_full(module: String) -> GeneratedStructure {
     // Build generated output from a schema module.
     // Until all generators are wired, use checked-in cat_db fixtures.
     let assert Ok(entry) = simplifile.read("src/cat_db/entry.gleam")
@@ -68,7 +68,7 @@ pub fn generate_structure(module: String) -> GeneratedStructure {
 pub fn generate_structure_test() {
     let reference_structure = get_references()
     // Golden test: generated output should match checked-in cat_db fixtures.
-    assert reference_structure == generate_structure_from_path("src/cat_schema.gleam")
+    assert reference_structure == generate_full_from_path("src/cat_schema.gleam")
 }
 
 pub fn get_references() -> GeneratedStructure {
