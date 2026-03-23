@@ -60,23 +60,34 @@ fn generate_migration(
 fn render_identity_indexes(module_name: String, labels: List(String)) -> String {
   case labels {
     [] -> "\n"
-    _ -> {
-      let lines =
-        list.map(labels, fn(label) {
-          let idx = module_name <> "_identity_" <> label <> "_idx"
-          "\n"
-          <> "  sqlight.exec(\n"
-          <> "    \"create unique index if not exists "
-          <> idx
-          <> " on "
-          <> module_name
-          <> " ("
-          <> label
-          <> ");\",\n"
-          <> "    conn,\n"
-          <> "  )\n"
-        })
-      string.join(lines, "")
+    [one] -> {
+      let idx = module_name <> "_identity_" <> one <> "_idx"
+      "\n"
+      <> "  sqlight.exec(\n"
+      <> "    \"create unique index if not exists "
+      <> idx
+      <> " on "
+      <> module_name
+      <> " ("
+      <> one
+      <> ");\",\n"
+      <> "    conn,\n"
+      <> "  )\n"
+    }
+    many -> {
+      let cols = string.join(many, ", ")
+      let idx = module_name <> "_identity_idx"
+      "\n"
+      <> "  sqlight.exec(\n"
+      <> "    \"create unique index if not exists "
+      <> idx
+      <> " on "
+      <> module_name
+      <> " ("
+      <> cols
+      <> ");\",\n"
+      <> "    conn,\n"
+      <> "  )\n"
     }
   }
 }

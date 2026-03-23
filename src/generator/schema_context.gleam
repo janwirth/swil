@@ -76,12 +76,15 @@ fn parse_with_parsed(
   parsed: glance.Module,
 ) -> Result(SchemaContext, Nil) {
   use layer <- result.try(extract_layer_module(module_source))
-  use table <- result.try(find_entry_alias(parsed.imports, layer))
   use #(type_name, variant_name, fields) <- result.try(
     extract_schema_type(parsed.custom_types),
   )
+  let table = resolve_table_alias(parsed.imports, layer, type_name)
   let identity_labels = extract_identity_labels(parsed.functions)
-  use primary_identity <- result.try(list_first_result(identity_labels))
+  use _ <- result.try(case identity_labels {
+    [] -> Error(Nil)
+    _ -> Ok(Nil)
+  })
   let singular = decapitalize(type_name)
   let plural_type = type_name <> "s"
   let filterable_name = "Filterable" <> type_name
@@ -92,7 +95,9 @@ fn parse_with_parsed(
   let string_field_enum_name = "String" <> type_name <> "Field"
   let for_upsert_type_name = type_name <> "ForUpsert"
   let for_upsert_variant_name =
-    type_name <> "With" <> capitalize(primary_identity)
+    type_name
+    <> "With"
+    <> string.concat(list.map(identity_labels, pascal_case_field_label))
   Ok(SchemaContext(
     layer: layer,
     table: table,
@@ -111,13 +116,6 @@ fn parse_with_parsed(
     for_upsert_type_name: for_upsert_type_name,
     for_upsert_variant_name: for_upsert_variant_name,
   ))
-}
-
-fn list_first_result(items: List(a)) -> Result(a, Nil) {
-  case items {
-    [] -> Error(Nil)
-    [x, ..] -> Ok(x)
-  }
 }
 
 fn extract_layer_module(source: String) -> Result(String, Nil) {
@@ -181,6 +179,18 @@ fn find_entry_alias_loop(
           }
         False -> find_entry_alias_loop(rest, expected)
       }
+  }
+}
+
+/// Table accessor name: `import <layer>/entry as cats` if present, else `cats` / `dogs` from the schema type.
+fn resolve_table_alias(
+  imports: List(glance.Definition(glance.Import)),
+  layer: String,
+  type_name: String,
+) -> String {
+  case find_entry_alias(imports, layer) {
+    Ok(alias) -> alias
+    Error(_) -> decapitalize(type_name) <> "s"
   }
 }
 
@@ -264,7 +274,7 @@ fn statements_identity_labels(stmts: List(glance.Statement)) -> List(String) {
 fn expression_identity_labels(expr: glance.Expression) -> List(String) {
   case expr {
     glance.List(_, elements, None) ->
-      list.filter_map(elements, identity_label_from_call)
+      list.flat_map(elements, identity_labels_from_identity_call)
     glance.Block(_, inner) ->
       list.flat_map(inner, fn(s) {
         case s {
@@ -276,23 +286,43 @@ fn expression_identity_labels(expr: glance.Expression) -> List(String) {
   }
 }
 
-fn identity_label_from_call(expr: glance.Expression) -> Result(String, Nil) {
+/// Reads `identity.Identity(x.f)`, `Identity2(a.b, a.c)`, etc. (constructor name from AST).
+fn identity_labels_from_identity_call(expr: glance.Expression) -> List(String) {
   case expr {
-    glance.Call(_, _fun, args) ->
-      case args {
-        [glance.UnlabelledField(inner), ..] ->
-          case field_access_last(inner) {
-            Some(s) -> Ok(s)
-            None -> Error(Nil)
-          }
-        [glance.LabelledField(_, _, inner), ..] ->
-          case field_access_last(inner) {
-            Some(s) -> Ok(s)
-            None -> Error(Nil)
-          }
-        _ -> Error(Nil)
+    glance.Call(_, fun, args) ->
+      case field_access_last(fun) {
+        Some("Identity") -> labels_from_call_args(args, 1)
+        Some("Identity2") -> labels_from_call_args(args, 2)
+        Some("Identity3") -> labels_from_call_args(args, 3)
+        _ -> []
       }
-    _ -> Error(Nil)
+    _ -> []
+  }
+}
+
+fn labels_from_call_args(
+  args: List(glance.Field(glance.Expression)),
+  want: Int,
+) -> List(String) {
+  let got = list.take(args, want)
+  case list.length(got) == want {
+    False -> []
+    True ->
+      list.filter_map(got, fn(arg) {
+        case arg {
+          glance.UnlabelledField(inner) ->
+            case field_access_last(inner) {
+              Some(s) -> Ok(s)
+              None -> Error(Nil)
+            }
+          glance.LabelledField(_, _, inner) ->
+            case field_access_last(inner) {
+              Some(s) -> Ok(s)
+              None -> Error(Nil)
+            }
+          glance.ShorthandField(label, _) -> Ok(label)
+        }
+      })
   }
 }
 
@@ -323,4 +353,18 @@ pub fn capitalize(s: String) -> String {
     Ok(#(g, rest)) -> string.uppercase(g) <> rest
     Error(Nil) -> s
   }
+}
+
+fn segment_to_title_case(segment: String) -> String {
+  case string.pop_grapheme(segment) {
+    Ok(#(g, rest)) -> string.uppercase(g) <> rest
+    Error(Nil) -> segment
+  }
+}
+
+/// `is_neutered` → `IsNeutered` for valid Gleam variant names.
+pub fn pascal_case_field_label(label: String) -> String {
+  string.split(label, "_")
+  |> list.map(segment_to_title_case)
+  |> string.concat
 }

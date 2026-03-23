@@ -2,7 +2,7 @@ import glance
 import gleam/list
 import gleam/string
 
-import generator/schema_context.{type SchemaContext, capitalize}
+import generator/schema_context.{type SchemaContext, pascal_case_field_label}
 import generator/sql_types
 
 pub fn generate(ctx: SchemaContext) -> String {
@@ -127,7 +127,7 @@ fn filter_import_block(ctx: SchemaContext) -> String {
 fn sorted_value_constructor_imports(ctx: SchemaContext) -> String {
   let schema_nums =
     list.map(numeric_fields(ctx), fn(pair) {
-      capitalize(pair.0) <> "Int"
+      pascal_case_field_label(pair.0) <> "Int"
     })
   let system_nums =
     list.map(
@@ -136,7 +136,7 @@ fn sorted_value_constructor_imports(ctx: SchemaContext) -> String {
     )
   let schema_strs =
     list.map(string_fields(ctx), fn(pair) {
-      capitalize(pair.0) <> "String"
+      pascal_case_field_label(pair.0) <> "String"
     })
   let refs = ["NumRef", "NumValue", "StringRef", "StringValue"]
   let all =
@@ -162,8 +162,8 @@ fn filterable_refs_body(ctx: SchemaContext) -> String {
       let #(label, typ) = pair
       let rhs = case sql_types.filter_is_string_column(typ) {
         True ->
-          "StringRef(" <> capitalize(label) <> "String)"
-        False -> "NumRef(" <> capitalize(label) <> "Int)"
+          "StringRef(" <> pascal_case_field_label(label) <> "String)"
+        False -> "NumRef(" <> pascal_case_field_label(label) <> "Int)"
       }
       "    " <> label <> ": " <> rhs <> ",\n"
     })
@@ -179,7 +179,7 @@ fn num_operand_cases(ctx: SchemaContext) -> String {
   let schema =
     list.map(numeric_fields(ctx), fn(pair) {
       "    NumRef("
-      <> capitalize(pair.0)
+      <> pascal_case_field_label(pair.0)
       <> "Int) -> #(\""
       <> pair.0
       <> "\", [])\n"
@@ -197,7 +197,7 @@ fn string_operand_cases(ctx: SchemaContext) -> String {
   let schema =
     list.map(string_fields(ctx), fn(pair) {
       "    StringRef("
-      <> capitalize(pair.0)
+      <> pascal_case_field_label(pair.0)
       <> "String) -> #(\""
       <> pair.0
       <> "\", [])\n"

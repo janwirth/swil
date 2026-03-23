@@ -1,6 +1,6 @@
 import gleam/dynamic/decode
 import gleam/list
-import gleam/option.{type Option, None, Some}
+import gleam/option.{type Option, None, Some, map}
 import gleam/result
 import sqlight
 

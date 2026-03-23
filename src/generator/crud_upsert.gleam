@@ -11,21 +11,21 @@ pub fn generate(ctx: SchemaContext) -> String {
   let row = ctx.row_name
   let table = ctx.table
   let singular = ctx.singular
-  let primary = case ctx.identity_labels {
-    [l, ..] -> l
-    [] -> ""
-  }
-  let primary_binding = primary <> "_str"
   let insert_cols = insert_columns_list(ctx)
   let placeholders = insert_values_placeholders(ctx)
-  let conflict = primary
+  let conflict = string.join(ctx.identity_labels, ", ")
   let update_excluded = upsert_update_excluded(ctx)
-  let pattern = upsert_pattern(ctx, primary, primary_binding)
-  let with_lines = upsert_with_values(ctx, primary, primary_binding)
-  let select_where = primary
+  let pattern = upsert_pattern(ctx)
+  let with_lines = upsert_with_values(ctx)
+  let select_where =
+    ctx.identity_labels
+    |> list.map(fn(l) { l <> " = ?" })
+    |> string.join(" and ")
+  let select_with_bindings = upsert_select_with_bindings(ctx)
   let decoder = ctx.singular <> "_row_decoder"
   "import gleam/dynamic/decode\n"
   <> "import gleam/list\n"
+  <> "import gleam/option\n"
   <> "import gleam/result\n"
   <> "import sqlight\n"
   <> "\n"
@@ -88,11 +88,11 @@ pub fn generate(ctx: SchemaContext) -> String {
   <> table
   <> " where "
   <> select_where
-  <> " = ? and deleted_at is null limit 1\",\n"
+  <> " and deleted_at is null limit 1\",\n"
   <> "        on: conn,\n"
-  <> "        with: [sqlight.text("
-  <> primary_binding
-  <> ")],\n"
+  <> "        with: [\n"
+  <> select_with_bindings
+  <> "        ],\n"
   <> "        expecting: "
   <> decoder
   <> "(),\n"
@@ -132,24 +132,23 @@ fn insert_values_placeholders(ctx: SchemaContext) -> String {
 }
 
 fn upsert_update_excluded(ctx: SchemaContext) -> String {
-  let primary = case ctx.identity_labels {
-    [l, ..] -> l
-    [] -> ""
-  }
+  let ids = ctx.identity_labels
   let parts =
-    list.filter(ctx.fields, fn(pair) { pair.0 != primary })
+    ctx.fields
+    |> list.filter(fn(pair) { !list.contains(ids, pair.0) })
     |> list.map(fn(pair) { pair.0 <> " = excluded." <> pair.0 })
   let with_ts =
     list.append(parts, ["updated_at = excluded.updated_at", "deleted_at = null"])
   string.join(with_ts, ", ")
 }
 
-fn upsert_pattern(ctx: SchemaContext, primary: String, binding: String) -> String {
+fn upsert_pattern(ctx: SchemaContext) -> String {
+  let ids = ctx.identity_labels
   let inner =
     list.map(ctx.fields, fn(pair) {
       let #(label, _) = pair
-      case label == primary {
-        True -> label <> ": " <> binding
+      case list.contains(ids, label) {
+        True -> label <> ": " <> label
         False -> label <> ":"
       }
     })
@@ -157,12 +156,13 @@ fn upsert_pattern(ctx: SchemaContext, primary: String, binding: String) -> Strin
   ctx.for_upsert_variant_name <> "(" <> inner <> ")"
 }
 
-fn upsert_with_values(ctx: SchemaContext, primary: String, binding: String) -> String {
+fn upsert_with_values(ctx: SchemaContext) -> String {
+  let ids = ctx.identity_labels
   let lines =
     list.map(ctx.fields, fn(pair) {
       let #(label, typ) = pair
-      let expr = case label == primary {
-        True -> sqlight_param.from_identity_string(binding)
+      let expr = case list.contains(ids, label) {
+        True -> sqlight_param.from_identity_case_column(label, typ)
         False -> sqlight_param.from_pattern_field(label, typ)
       }
       "          " <> expr <> ",\n"
@@ -171,4 +171,13 @@ fn upsert_with_values(ctx: SchemaContext, primary: String, binding: String) -> S
   lines
   <> "          sqlight.int(stamp),\n"
   <> "          sqlight.int(stamp),\n"
+}
+
+fn upsert_select_with_bindings(ctx: SchemaContext) -> String {
+  list.map(ctx.identity_labels, fn(label) {
+    let assert Ok(#(_, typ)) =
+      list.find(ctx.fields, fn(p) { p.0 == label })
+    "          " <> sqlight_param.from_identity_lookup_param(label, typ) <> ",\n"
+  })
+  |> string.concat
 }

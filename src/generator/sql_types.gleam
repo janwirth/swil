@@ -36,6 +36,15 @@ pub fn rendered_type(type_: glance.Type) -> String {
   }
 }
 
+/// Parameter type for `*_with_*` helpers: schema `Option(t)` identity fields use plain `t`.
+pub fn identity_upsert_param_type(type_: glance.Type) -> String {
+  let r = rendered_type(type_)
+  case string.starts_with(r, "Option(") && string.ends_with(r, ")") {
+    True -> string.drop_end(string.drop_start(r, 7), 1)
+    False -> r
+  }
+}
+
 pub fn sql_type(type_: glance.Type) -> String {
   case rendered_type(type_) {
     "Int" -> "int"
@@ -69,7 +78,7 @@ pub fn decode_expression(type_: glance.Type) -> String {
   case rendered_type(type_) {
     "Int" -> "decode.int"
     "Float" -> "decode.float"
-    "Bool" -> "decode.int"
+    "Bool" -> "decode.map(decode.int, fn(i) { i != 0 })"
     "String" -> "decode.string"
     "Nil" -> "decode.int"
     rendered ->
@@ -79,7 +88,8 @@ pub fn decode_expression(type_: glance.Type) -> String {
           case rendered {
             "Option(Int)" -> "decode.optional(decode.int)"
             "Option(Float)" -> "decode.optional(decode.float)"
-            "Option(Bool)" -> "decode.optional(decode.int)"
+            "Option(Bool)" ->
+              "decode.optional(decode.map(decode.int, fn(i) { i != 0 }))"
             "Option(String)" -> "decode.optional(decode.string)"
             _ -> "decode.optional(decode.string)"
           }

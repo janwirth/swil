@@ -1,5 +1,6 @@
 import gleam/dynamic/decode
 import gleam/list
+import gleam/option
 import gleam/result
 import sqlight
 
@@ -12,14 +13,14 @@ pub fn upsert_one(
 ) -> Result(CatRow, sqlight.Error) {
   let stamp = 1
   case cat {
-    CatWithName(name: name_str, age:) -> {
+    CatWithName(name: name, age:) -> {
       let upsert =
         "insert into cats (name, age, created_at, updated_at, deleted_at) values (?, ?, ?, ?, null) on conflict(name) do update set age = excluded.age, updated_at = excluded.updated_at, deleted_at = null"
       use _ <- result.try(sqlight.query(
         upsert,
         on: conn,
         with: [
-          sqlight.text(name_str),
+          sqlight.nullable(sqlight.text, option.Some(name)),
           sqlight.nullable(sqlight.int, age),
           sqlight.int(stamp),
           sqlight.int(stamp),
@@ -29,7 +30,9 @@ pub fn upsert_one(
       sqlight.query(
         "select id, created_at, updated_at, deleted_at, name, age from cats where name = ? and deleted_at is null limit 1",
         on: conn,
-        with: [sqlight.text(name_str)],
+        with: [
+          sqlight.text(name),
+        ],
         expecting: cat_row_decoder(),
       )
       |> result.map(fn(rows) {

@@ -10,10 +10,7 @@ pub fn generate(ctx: SchemaContext) -> String {
   let upsert = ctx.for_upsert_type_name
   let uv = ctx.for_upsert_variant_name
   let singular = ctx.singular
-  let primary = case ctx.identity_labels {
-    [l, ..] -> l
-    [] -> ""
-  }
+  let with_suffix = string.join(ctx.identity_labels, "_")
   let resource_fields =
     list.map(ctx.fields, fn(pair) {
       let #(label, typ) = pair
@@ -23,8 +20,8 @@ pub fn generate(ctx: SchemaContext) -> String {
   let upsert_params =
     list.map(ctx.fields, fn(pair) {
       let #(label, typ) = pair
-      let typ_out = case label == primary {
-        True -> "String"
+      let typ_out = case list.contains(ctx.identity_labels, label) {
+        True -> sql_types.identity_upsert_param_type(typ)
         False -> sql_types.rendered_type(typ)
       }
       label <> ": " <> typ_out
@@ -55,7 +52,7 @@ pub fn generate(ctx: SchemaContext) -> String {
   <> "pub fn "
   <> singular
   <> "_with_"
-  <> primary
+  <> with_suffix
   <> "("
   <> upsert_params
   <> ") -> "

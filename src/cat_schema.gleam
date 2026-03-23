@@ -19,7 +19,6 @@
 import gleam/option.{type Option}
 
 import help/identity
-import cat_db/entry as cats
 
 // SQLITE_LAYER_GENERATION → cat_db/{resource,structure,crud,migrate,entry}.gleam
 
@@ -31,11 +30,10 @@ pub type Cat {
   Cat(name: Option(String), age: Option(Int))
 }
 
-pub fn identities(cat: cats.FilterableCat) {
+pub fn identities(cat: Cat) {
   [
     identity.Identity(cat.name)
-  ] 
-
+  ]
 }
 
 

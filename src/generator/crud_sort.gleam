@@ -1,7 +1,7 @@
 import gleam/list
 import gleam/string
 
-import generator/schema_context.{type SchemaContext, capitalize}
+import generator/schema_context.{type SchemaContext, pascal_case_field_label}
 
 pub fn generate(ctx: SchemaContext) -> String {
   let layer = ctx.layer
@@ -56,7 +56,7 @@ fn sorted_imports(ctx: SchemaContext) -> String {
 
 fn all_field_variant_names(ctx: SchemaContext) -> List(String) {
   let schema =
-    list.map(ctx.fields, fn(pair) { capitalize(pair.0) <> "Field" })
+    list.map(ctx.fields, fn(pair) { pascal_case_field_label(pair.0) <> "Field" })
   let system =
     list.map(
       ["Id", "CreatedAt", "UpdatedAt", "DeletedAt"],
@@ -70,7 +70,7 @@ fn field_sql_cases(ctx: SchemaContext) -> String {
     list.map(ctx.fields, fn(pair) {
       let #(label, _) = pair
       "    "
-      <> capitalize(label)
+      <> pascal_case_field_label(label)
       <> "Field -> \""
       <> label
       <> "\"\n"

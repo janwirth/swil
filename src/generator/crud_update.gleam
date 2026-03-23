@@ -16,7 +16,7 @@ pub fn generate(ctx: SchemaContext) -> String {
   let decoder = ctx.singular <> "_row_decoder"
   "import gleam/dynamic/decode\n"
   <> "import gleam/list\n"
-  <> "import gleam/option.{type Option, None, Some}\n"
+  <> "import gleam/option.{type Option, None, Some, map}\n"
   <> "import gleam/result\n"
   <> "import sqlight\n"
   <> "\n"

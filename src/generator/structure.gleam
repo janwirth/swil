@@ -3,7 +3,7 @@ import gleam/int
 import gleam/list
 import gleam/string
 
-import generator/schema_context.{type SchemaContext, capitalize}
+import generator/schema_context.{type SchemaContext, pascal_case_field_label}
 import generator/sql_types
 
 pub fn generate(ctx: SchemaContext) -> String {
@@ -182,7 +182,7 @@ fn string_schema_fields(ctx: SchemaContext) -> List(#(String, glance.Type)) {
 fn num_field_enum(ctx: SchemaContext) -> String {
   let schema_lines =
     list.map(numeric_schema_fields(ctx), fn(pair) {
-      "  " <> capitalize(pair.0) <> "Int\n"
+      "  " <> pascal_case_field_label(pair.0) <> "Int\n"
     })
     |> string.concat
   schema_lines
@@ -194,13 +194,13 @@ fn num_field_enum(ctx: SchemaContext) -> String {
 
 fn string_field_enum(ctx: SchemaContext) -> String {
   let fields = string_schema_fields(ctx)
-  list.map(fields, fn(pair) { "  " <> capitalize(pair.0) <> "String\n" })
+  list.map(fields, fn(pair) { "  " <> pascal_case_field_label(pair.0) <> "String\n" })
   |> string.concat
 }
 
 fn full_field_enum(ctx: SchemaContext) -> String {
   let schema_lines =
-    list.map(ctx.fields, fn(pair) { "  " <> capitalize(pair.0) <> "Field\n" })
+    list.map(ctx.fields, fn(pair) { "  " <> pascal_case_field_label(pair.0) <> "Field\n" })
     |> string.concat
   schema_lines
   <> "  IdField\n"

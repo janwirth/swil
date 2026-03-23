@@ -118,10 +118,9 @@ pub fn generate(ctx: SchemaContext) -> String {
     <> "pub fn "
     <> singular
     <> "_with_"
-    <> first_identity(ctx)
+    <> identity_suffix(ctx)
     <> "("
-    <> first_identity(ctx)
-    <> ": String"
+    <> upsert_identity_params_signature(ctx)
     <> upsert_rest_params_suffix(ctx)
     <> ") -> "
     <> upsert
@@ -129,9 +128,9 @@ pub fn generate(ctx: SchemaContext) -> String {
     <> "  resource."
     <> singular
     <> "_with_"
-    <> first_identity(ctx)
+    <> identity_suffix(ctx)
     <> "("
-    <> upsert_rest_args(ctx)
+    <> resource_with_helper_args(ctx)
     <> ")\n"
     <> "}\n"
     <> "\n"
@@ -163,46 +162,33 @@ fn join_label_shorthands(fields: List(#(String, a))) -> String {
   }
 }
 
-fn first_identity(ctx: SchemaContext) -> String {
-  case ctx.identity_labels {
-    [l, ..] -> l
-    [] -> ""
-  }
+fn identity_suffix(ctx: SchemaContext) -> String {
+  string.join(ctx.identity_labels, "_")
+}
+
+fn upsert_identity_params_signature(ctx: SchemaContext) -> String {
+  list.map(ctx.identity_labels, fn(label) {
+    let assert Ok(#(_, typ)) =
+      list.find(ctx.fields, fn(pair) { pair.0 == label })
+    label <> ": " <> sql_types.identity_upsert_param_type(typ)
+  })
+  |> string.join(", ")
 }
 
 fn upsert_rest_params_suffix(ctx: SchemaContext) -> String {
-  case ctx.identity_labels {
-    [] -> ""
-    [primary, ..] -> {
-      let rest =
-        ctx.fields
-        |> list.filter(fn(pair) { pair.0 != primary })
-        |> list.map(fn(pair) {
-          let #(label, typ) = pair
-          ", " <> label <> ": " <> sql_types.rendered_type(typ)
-        })
-        |> string.concat
-      rest
-    }
-  }
+  let ids = ctx.identity_labels
+  ctx.fields
+  |> list.filter(fn(pair) { !list.contains(ids, pair.0) })
+  |> list.map(fn(pair) {
+    let #(label, typ) = pair
+    ", " <> label <> ": " <> sql_types.rendered_type(typ)
+  })
+  |> string.concat
 }
 
-fn upsert_rest_args(ctx: SchemaContext) -> String {
-  case ctx.identity_labels {
-    [] ->
-      ctx.fields
-      |> list.map(fn(pair) { pair.0 })
-      |> string.join(", ")
-    [primary, ..] -> {
-      let rest =
-        ctx.fields
-        |> list.filter(fn(pair) { pair.0 != primary })
-        |> list.map(fn(pair) { pair.0 })
-        |> string.join(", ")
-      case rest {
-        "" -> primary
-        _ -> primary <> ", " <> rest
-      }
-    }
-  }
+/// Arguments to `resource.<singular>_with_*` follow schema field order (matches generated resource fn).
+fn resource_with_helper_args(ctx: SchemaContext) -> String {
+  ctx.fields
+  |> list.map(fn(pair) { pair.0 })
+  |> string.join(", ")
 }

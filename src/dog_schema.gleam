@@ -19,7 +19,6 @@
 import gleam/option.{type Option}
 
 import help/identity
-import dog_db/entry as dogs
 
 // SQLITE_LAYER_GENERATION → dog_db/{resource,structure,crud,migrate,entry}.gleam
 
@@ -31,7 +30,7 @@ pub type Dog {
   Dog(name: Option(String), age: Option(Int), is_neutered: Option(Bool))
 }
 
-pub fn identities(dog: dogs.FilterableDog) {
+pub fn identities(dog: Dog) {
   [
     identity.Identity2(dog.name, dog.is_neutered)
   ] 
