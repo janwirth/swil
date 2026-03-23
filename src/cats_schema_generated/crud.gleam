@@ -155,7 +155,7 @@ fn read_many_sql(
 
 pub fn cats(conn: sqlight.Connection) -> CatsDb {
   CatsDb(
-    migrate: fn() { migrate.migrate_v2(conn) },
+    migrate: fn() { migrate.migrate_idemptotent(conn) },
     upsert_one: fn(cat: Cat) -> Result(CatRow, sqlight.Error) {
       let stamp = 1
       case cat.name {

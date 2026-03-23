@@ -27,15 +27,15 @@ pub type NumRefOrValue {
 }
 
 pub type NumCatField {
-  Age
-  Id
-  CreatedAt
-  UpdatedAt
-  DeletedAt
+  AgeInt
+  IdInt
+  CreatedAtInt
+  UpdatedAtInt
+  DeletedAtInt
 }
 
 pub type StringCatField {
-  Name
+  NameString
 }
 
 pub type CatField {
