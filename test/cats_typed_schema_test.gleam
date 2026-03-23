@@ -216,3 +216,51 @@ pub fn cats_migration_idempotent_three_times_test() {
     deleted_at: None,
   ) = row
 }
+
+pub fn cats_update_one_test() {
+  use conn <- sqlight.with_connection(":memory:")
+  let assert Ok(Nil) = cats.cats(conn).migrate()
+
+  let assert Ok(inserted) =
+    cats.cats(conn).upsert_one(Cat(name: Some("Nubi"), age: Some(7)))
+  let assert Ok(Some(updated)) =
+    cats.cats(conn).update_one(inserted.id, Cat(name: Some("Nubi"), age: Some(9)))
+
+  let assert CatRow(
+    value: Cat(name: Some("Nubi"), age: Some(9)),
+    id: 1,
+    created_at: 1,
+    updated_at: 1,
+    deleted_at: None,
+  ) = updated
+}
+
+pub fn cats_update_many_test() {
+  use conn <- sqlight.with_connection(":memory:")
+  let assert Ok(Nil) = cats.cats(conn).migrate()
+
+  let assert Ok(r1) = cats.cats(conn).upsert_one(Cat(name: Some("Nubi"), age: Some(7)))
+  let assert Ok(r2) = cats.cats(conn).upsert_one(Cat(name: Some("Luna"), age: Some(10)))
+
+  let updates = [
+    #(r1.id, Cat(name: Some("Nubi"), age: Some(8))),
+    #(r2.id, Cat(name: Some("Luna"), age: Some(11))),
+    #(999, Cat(name: Some("Ghost"), age: Some(1))),
+  ]
+  let assert Ok([Some(first), Some(second), None]) = cats.cats(conn).update_many(updates)
+
+  let assert CatRow(
+    value: Cat(name: Some("Nubi"), age: Some(8)),
+    id: 1,
+    created_at: 1,
+    updated_at: 1,
+    deleted_at: None,
+  ) = first
+  let assert CatRow(
+    value: Cat(name: Some("Luna"), age: Some(11)),
+    id: 2,
+    created_at: 1,
+    updated_at: 1,
+    deleted_at: None,
+  ) = second
+}
