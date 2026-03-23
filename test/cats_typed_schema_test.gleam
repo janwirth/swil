@@ -191,3 +191,28 @@ pub fn cats_typed_schema_test() {
     ),
   ] = sorted_by_id_asc
 }
+
+pub fn cats_upsert_requires_identity_test() {
+  use conn <- sqlight.with_connection(":memory:")
+  let assert Ok(Nil) = cats.cats(conn).migrate()
+
+  let anonymous = Cat(name: None, age: Some(4))
+  let assert Error(_) = cats.cats(conn).upsert_one(anonymous)
+}
+
+pub fn cats_migration_idempotent_three_times_test() {
+  use conn <- sqlight.with_connection(":memory:")
+  let assert Ok(Nil) = cats.cats(conn).migrate()
+  let assert Ok(Nil) = cats.cats(conn).migrate()
+  let assert Ok(Nil) = cats.cats(conn).migrate()
+
+  let nubi = Cat(name: Some("Nubi"), age: Some(7))
+  let assert Ok(row) = cats.cats(conn).upsert_one(nubi)
+  let assert CatRow(
+    value: Cat(name: Some("Nubi"), age: Some(7)),
+    id: 1,
+    created_at: 1,
+    updated_at: 1,
+    deleted_at: None,
+  ) = row
+}
