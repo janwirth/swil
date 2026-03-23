@@ -9,6 +9,7 @@ import dog_db/migrate
 import dog_db/resource
 import dog_db/structure
 
+
 pub type Dog = resource.Dog
 
 pub type DogForUpsert = resource.DogForUpsert

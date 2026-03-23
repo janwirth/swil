@@ -7,7 +7,7 @@ import cat_db/crud/read as crud_read
 import cat_db/crud/upsert as crud_upsert
 import cat_db/crud/update as crud_update
 import cat_db/migrate
-import cat_db/resource.{type Cat, type CatForUpsert}
+import cat_db/resource.{type CatForUpsert}
 import cat_db/structure.{
   type CatField,
   type CatsDb,
@@ -17,6 +17,7 @@ import cat_db/structure.{
   CatsDb,
 }
 import help/filter
+import cat_schema.{type Cat}
 
 pub type Filter = crud_filter.Filter
 

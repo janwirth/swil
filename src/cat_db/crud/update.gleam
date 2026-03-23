@@ -4,13 +4,13 @@ import gleam/option.{type Option, None, Some, map}
 import gleam/result
 import sqlight
 
-import cat_db/resource.{type Cat}
 import cat_db/structure.{type CatRow, cat_row_decoder}
+import cat_schema.{type Cat}
 
 pub fn update_one(
   conn: sqlight.Connection,
   id: Int,
-  cat: Cat,
+  cat: cat_schema.Cat,
 ) -> Result(Option(CatRow), sqlight.Error) {
   use _ <- result.try(sqlight.query(
     "update cats set name = ?, age = ?, updated_at = ? where id = ? and deleted_at is null",
