@@ -29,18 +29,18 @@ fn generate_migration(
     render_column_lines(ctx.columns, module_name, has_tail_after_columns)
   let identity_lines = render_identity_indexes(module_name, ctx.identity_labels)
   let assert Ok(return_rendered) =
-    gleamgen_types.render_type(
-      gleamgen_types.result(
-        gleamgen_types.nil,
-        gleamgen_types.custom_type(Some("sqlight"), "Error", []),
-      ),
-    )
-  let return_type = flatten_rendered_type(gleamgen_render.to_string(return_rendered))
+    gleamgen_types.render_type(gleamgen_types.result(
+      gleamgen_types.nil,
+      gleamgen_types.custom_type(Some("sqlight"), "Error", []),
+    ))
+  let return_type =
+    flatten_rendered_type(gleamgen_render.to_string(return_rendered))
   let assert Ok(conn_rendered) =
     gleamgen_types.render_type(
       gleamgen_types.custom_type(Some("sqlight"), "Connection", []),
     )
-  let conn_type = flatten_rendered_type(gleamgen_render.to_string(conn_rendered))
+  let conn_type =
+    flatten_rendered_type(gleamgen_render.to_string(conn_rendered))
   "import gleam/result\n"
   <> "\n"
   <> "import help/migrate as migration_help\n"
@@ -129,7 +129,11 @@ fn build_column_lines(
         <> sql_types.sql_type(type_)
         <> ";"
       let call =
-        "migration_help.ensure_column(conn, \"" <> name <> "\", \"" <> sql <> "\")"
+        "migration_help.ensure_column(conn, \""
+        <> name
+        <> "\", \""
+        <> sql
+        <> "\")"
       let is_last = index == field_count - 1
       let line = case is_last && !has_tail_expression {
         True -> "  " <> call

@@ -1,4 +1,3 @@
-
 // ## Opinionated database
 
 // - Simple: define types once; automatic migrations follow.
@@ -31,10 +30,5 @@ pub type Cat {
 }
 
 pub fn identities(cat: Cat) {
-  [
-    identity.Identity(cat.name)
-  ]
+  [identity.Identity(cat.name)]
 }
-
-
-

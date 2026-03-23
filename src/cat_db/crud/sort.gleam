@@ -1,12 +1,7 @@
 import gleam/option.{type Option, None, Some}
 
 import cat_db/structure.{
-  type CatField,
-  AgeField,
-  CreatedAtField,
-  DeletedAtField,
-  IdField,
-  NameField,
+  type CatField, AgeField, CreatedAtField, DeletedAtField, IdField, NameField,
   UpdatedAtField,
 }
 import help/filter

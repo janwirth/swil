@@ -6,6 +6,7 @@ import generator/sqlight_param
 
 pub fn generate(ctx: SchemaContext) -> String {
   let layer = ctx.layer
+  let schema_mod = ctx.schema_module
   let t = ctx.type_name
   let row = ctx.row_name
   let table = ctx.table
@@ -22,15 +23,15 @@ pub fn generate(ctx: SchemaContext) -> String {
   <> "\n"
   <> "import "
   <> layer
-  <> "/resource.{type "
-  <> t
-  <> "}\n"
-  <> "import "
-  <> layer
   <> "/structure.{type "
   <> row
   <> ", "
   <> decoder
+  <> "}\n"
+  <> "import "
+  <> schema_mod
+  <> ".{type "
+  <> t
   <> "}\n"
   <> "\n"
   <> "pub fn update_one(\n"
@@ -39,6 +40,8 @@ pub fn generate(ctx: SchemaContext) -> String {
   <> "  "
   <> singular
   <> ": "
+  <> schema_mod
+  <> "."
   <> t
   <> ",\n"
   <> ") -> Result(Option("

@@ -1,14 +1,8 @@
 import gleam/option.{type Option, None, Some}
 
 import dog_db/structure.{
-  type DogField,
-  AgeField,
-  CreatedAtField,
-  DeletedAtField,
-  IdField,
-  IsNeuteredField,
-  NameField,
-  UpdatedAtField,
+  type DogField, AgeField, CreatedAtField, DeletedAtField, IdField,
+  IsNeuteredField, NameField, UpdatedAtField,
 }
 import help/filter
 

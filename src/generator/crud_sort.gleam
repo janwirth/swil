@@ -58,10 +58,9 @@ fn all_field_variant_names(ctx: SchemaContext) -> List(String) {
   let schema =
     list.map(ctx.fields, fn(pair) { pascal_case_field_label(pair.0) <> "Field" })
   let system =
-    list.map(
-      ["Id", "CreatedAt", "UpdatedAt", "DeletedAt"],
-      fn(s) { s <> "Field" },
-    )
+    list.map(["Id", "CreatedAt", "UpdatedAt", "DeletedAt"], fn(s) {
+      s <> "Field"
+    })
   list.sort(list.append(schema, system), by: string.compare)
 }
 

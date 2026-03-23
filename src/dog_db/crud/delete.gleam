@@ -4,7 +4,10 @@ import gleam/result
 import gleam/string
 import sqlight
 
-pub fn delete_one(conn: sqlight.Connection, id: Int) -> Result(Nil, sqlight.Error) {
+pub fn delete_one(
+  conn: sqlight.Connection,
+  id: Int,
+) -> Result(Nil, sqlight.Error) {
   use _ <- result.try(sqlight.query(
     "delete from dogs where id = ?",
     on: conn,
@@ -14,7 +17,10 @@ pub fn delete_one(conn: sqlight.Connection, id: Int) -> Result(Nil, sqlight.Erro
   Ok(Nil)
 }
 
-pub fn delete_many(conn: sqlight.Connection, ids: List(Int)) -> Result(Nil, sqlight.Error) {
+pub fn delete_many(
+  conn: sqlight.Connection,
+  ids: List(Int),
+) -> Result(Nil, sqlight.Error) {
   case ids {
     [] -> Ok(Nil)
     _ -> {

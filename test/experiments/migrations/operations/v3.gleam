@@ -3,14 +3,18 @@ import gleam/option.{type Option}
 import sqlight
 
 const insert_ginny_sql = "insert into cats (name, age, gender) values ('Ginny', 6, 'female');"
+
 const update_ginny_gender_sql = "update cats set gender = 'male' where name = 'Ginny';"
+
 const read_ginny_sql = "select name, age, gender from cats where name = 'Ginny';"
 
 pub fn insert_ginny(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   sqlight.exec(insert_ginny_sql, conn)
 }
 
-pub fn update_ginny_gender(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
+pub fn update_ginny_gender(
+  conn: sqlight.Connection,
+) -> Result(Nil, sqlight.Error) {
   sqlight.exec(update_ginny_gender_sql, conn)
 }
 

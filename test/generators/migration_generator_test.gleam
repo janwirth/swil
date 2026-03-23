@@ -1,8 +1,8 @@
 // make her a code generator
 // it reads a full gleam module based on type 
 
-import gleeunit
 import generator/migration as migration_generator
+import gleeunit
 import simplifile
 
 pub const cat_v1 = "
@@ -11,6 +11,7 @@ pub type Cat {
     Cat(name: String)
 }
 "
+
 pub const cat_v2 = "
 pub type Cat {
     Cat(name: String, age: Int)

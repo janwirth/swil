@@ -8,6 +8,7 @@ import generator/sql_types
 
 pub fn generate(ctx: SchemaContext) -> String {
   let layer = ctx.layer
+  let schema_mod = ctx.schema_module
   let t = ctx.type_name
   let v = ctx.variant_name
   let fl = ctx.filterable_name
@@ -30,9 +31,14 @@ pub fn generate(ctx: SchemaContext) -> String {
   <> "import "
   <> layer
   <> "/resource.{type "
-  <> t
-  <> ", type "
   <> upsert
+  <> ", "
+  <> ctx.for_upsert_variant_name
+  <> "}\n"
+  <> "import "
+  <> schema_mod
+  <> ".{type "
+  <> t
   <> ", "
   <> v
   <> "}\n"
@@ -159,14 +165,14 @@ fn filterable_record(ctx: SchemaContext) -> String {
     })
     |> string.concat
   "  "
-    <> fl
-    <> "(\n"
-    <> field_lines
-    <> "    id: NumRefOrValue,\n"
-    <> "    created_at: NumRefOrValue,\n"
-    <> "    updated_at: NumRefOrValue,\n"
-    <> "    deleted_at: NumRefOrValue,\n"
-    <> "  )\n"
+  <> fl
+  <> "(\n"
+  <> field_lines
+  <> "    id: NumRefOrValue,\n"
+  <> "    created_at: NumRefOrValue,\n"
+  <> "    updated_at: NumRefOrValue,\n"
+  <> "    deleted_at: NumRefOrValue,\n"
+  <> "  )\n"
 }
 
 fn numeric_schema_fields(ctx: SchemaContext) -> List(#(String, glance.Type)) {
@@ -194,13 +200,17 @@ fn num_field_enum(ctx: SchemaContext) -> String {
 
 fn string_field_enum(ctx: SchemaContext) -> String {
   let fields = string_schema_fields(ctx)
-  list.map(fields, fn(pair) { "  " <> pascal_case_field_label(pair.0) <> "String\n" })
+  list.map(fields, fn(pair) {
+    "  " <> pascal_case_field_label(pair.0) <> "String\n"
+  })
   |> string.concat
 }
 
 fn full_field_enum(ctx: SchemaContext) -> String {
   let schema_lines =
-    list.map(ctx.fields, fn(pair) { "  " <> pascal_case_field_label(pair.0) <> "Field\n" })
+    list.map(ctx.fields, fn(pair) {
+      "  " <> pascal_case_field_label(pair.0) <> "Field\n"
+    })
     |> string.concat
   schema_lines
   <> "  IdField\n"
@@ -214,7 +224,9 @@ fn row_decoder_body(ctx: SchemaContext) -> String {
     list.map(ctx.fields, fn(pair) {
       let #(label, typ) = pair
       let dec = sql_types.decode_expression(typ)
-      "  use " <> label <> " <- decode.field("
+      "  use "
+      <> label
+      <> " <- decode.field("
       <> int_to_string(4 + field_index(ctx.fields, label))
       <> ", "
       <> dec

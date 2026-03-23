@@ -3,26 +3,14 @@ import gleam/option.{type Option, None, Some}
 import sqlight
 
 import dog_db/structure.{
-  type DogField,
-  type FilterableDog,
-  type NumRefOrValue,
-  type StringRefOrValue,
-  AgeInt,
-  CreatedAtInt,
-  DeletedAtInt,
-  FilterableDog,
-  IdInt,
-  IsNeuteredInt,
-  NameString,
-  NumRef,
-  NumValue,
-  StringRef,
-  StringValue,
-  UpdatedAtInt,
+  type DogField, type FilterableDog, type NumRefOrValue, type StringRefOrValue,
+  AgeInt, CreatedAtInt, DeletedAtInt, FilterableDog, IdInt, IsNeuteredInt,
+  NameString, NumRef, NumValue, StringRef, StringValue, UpdatedAtInt,
 }
 import help/filter
 
-pub type Filter = fn(FilterableDog) -> filter.BoolExpr(NumRefOrValue, StringRefOrValue)
+pub type Filter =
+  fn(FilterableDog) -> filter.BoolExpr(NumRefOrValue, StringRefOrValue)
 
 pub fn filter_arg(
   nullable_filter: Option(Filter),

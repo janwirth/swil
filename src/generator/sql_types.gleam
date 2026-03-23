@@ -5,9 +5,9 @@ import gleam/string
 import gleamgen/render as gleamgen_render
 import gleamgen/types as gleamgen_types
 
-pub fn to_generated_type(type_: glance.Type) -> gleamgen_types.GeneratedType(
-  gleamgen_types.Unchecked,
-) {
+pub fn to_generated_type(
+  type_: glance.Type,
+) -> gleamgen_types.GeneratedType(gleamgen_types.Unchecked) {
   case type_ {
     glance.NamedType(_, "String", None, []) ->
       gleamgen_types.string |> gleamgen_types.to_unchecked
@@ -20,9 +20,17 @@ pub fn to_generated_type(type_: glance.Type) -> gleamgen_types.GeneratedType(
     glance.NamedType(_, "Nil", None, []) ->
       gleamgen_types.nil |> gleamgen_types.to_unchecked
     glance.NamedType(_, name, module, params) ->
-      gleamgen_types.custom_type(module, name, list.map(params, to_generated_type))
+      gleamgen_types.custom_type(
+        module,
+        name,
+        list.map(params, to_generated_type),
+      )
     glance.TupleType(_, elements) ->
-      gleamgen_types.custom_type(None, "Tuple", list.map(elements, to_generated_type))
+      gleamgen_types.custom_type(
+        None,
+        "Tuple",
+        list.map(elements, to_generated_type),
+      )
     glance.FunctionType(_, _, _) -> gleamgen_types.unchecked()
     glance.VariableType(_, name) -> gleamgen_types.unchecked_ident(name)
     glance.HoleType(_, _) -> gleamgen_types.unchecked()
@@ -68,8 +76,7 @@ pub fn sql_type(type_: glance.Type) -> String {
 pub fn filter_is_string_column(type_: glance.Type) -> Bool {
   case rendered_type(type_) {
     "String" -> True
-    rendered ->
-      string.starts_with(rendered, "Option(String)")
+    rendered -> string.starts_with(rendered, "Option(String)")
   }
 }
 

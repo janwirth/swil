@@ -18,7 +18,15 @@ pub fn update_one(
     with: [
       sqlight.nullable(sqlight.text, dog.name),
       sqlight.nullable(sqlight.int, dog.age),
-      sqlight.nullable(sqlight.int, map(dog.is_neutered, fn(b) { case b { True -> 1 False -> 0 } })),
+      sqlight.nullable(
+        sqlight.int,
+        map(dog.is_neutered, fn(b) {
+          case b {
+            True -> 1
+            False -> 0
+          }
+        }),
+      ),
       sqlight.int(1),
       sqlight.int(id),
     ],

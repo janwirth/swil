@@ -3,25 +3,14 @@ import gleam/option.{type Option, None, Some}
 import sqlight
 
 import cat_db/structure.{
-  type CatField,
-  type FilterableCat,
-  type NumRefOrValue,
-  type StringRefOrValue,
-  AgeInt,
-  CreatedAtInt,
-  DeletedAtInt,
-  FilterableCat,
-  IdInt,
-  NameString,
-  NumRef,
-  NumValue,
-  StringRef,
-  StringValue,
-  UpdatedAtInt,
+  type CatField, type FilterableCat, type NumRefOrValue, type StringRefOrValue,
+  AgeInt, CreatedAtInt, DeletedAtInt, FilterableCat, IdInt, NameString, NumRef,
+  NumValue, StringRef, StringValue, UpdatedAtInt,
 }
 import help/filter
 
-pub type Filter = fn(FilterableCat) -> filter.BoolExpr(NumRefOrValue, StringRefOrValue)
+pub type Filter =
+  fn(FilterableCat) -> filter.BoolExpr(NumRefOrValue, StringRefOrValue)
 
 pub fn filter_arg(
   nullable_filter: Option(Filter),

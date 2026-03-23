@@ -8,6 +8,8 @@ import gleam/string
 pub type SchemaContext {
   SchemaContext(
     layer: String,
+    /// Gleam module that defines the schema type (e.g. `cat_schema` for `src/cat_schema.gleam`).
+    schema_module: String,
     table: String,
     type_name: String,
     variant_name: String,
@@ -26,6 +28,18 @@ pub type SchemaContext {
   )
 }
 
+/// `src/cat_schema.gleam` → `cat_schema`; `src/foo/bar.gleam` → `foo/bar`.
+pub fn schema_module_from_src_path(path: String) -> String {
+  let rel = case string.split(path, "src/") {
+    [_, rest] -> rest
+    _ -> path
+  }
+  case string.split(rel, ".gleam") {
+    [base, ..] -> base
+    _ -> rel
+  }
+}
+
 pub type MigrationContext {
   MigrationContext(
     table: String,
@@ -35,8 +49,11 @@ pub type MigrationContext {
 }
 
 pub fn migration_context(module_source: String) -> Result(MigrationContext, Nil) {
-  use parsed <- result.try(result.replace_error(glance.module(module_source), Nil))
-  case parse_with_parsed(module_source, parsed) {
+  use parsed <- result.try(result.replace_error(
+    glance.module(module_source),
+    Nil,
+  ))
+  case parse_with_parsed(module_source, parsed, "") {
     Ok(ctx) ->
       Ok(MigrationContext(
         table: ctx.table,
@@ -47,18 +64,22 @@ pub fn migration_context(module_source: String) -> Result(MigrationContext, Nil)
   }
 }
 
-fn migration_context_minimal(parsed: glance.Module) -> Result(MigrationContext, Nil) {
+fn migration_context_minimal(
+  parsed: glance.Module,
+) -> Result(MigrationContext, Nil) {
   case parsed.custom_types {
     [glance.Definition(_, ct), ..] ->
       case ct.variants {
         [glance.Variant(_, vfields, _), ..] -> {
           let fields = extract_variant_fields(vfields, 1, [])
           let table = decapitalize(ct.name) <> "s"
-          Ok(MigrationContext(
-            table: table,
-            columns: list.reverse(fields),
-            identity_labels: [],
-          ))
+          Ok(
+            MigrationContext(
+              table: table,
+              columns: list.reverse(fields),
+              identity_labels: [],
+            ),
+          )
         }
         [] -> Error(Nil)
       }
@@ -66,19 +87,26 @@ fn migration_context_minimal(parsed: glance.Module) -> Result(MigrationContext, 
   }
 }
 
-pub fn parse(module_source: String) -> Result(SchemaContext, Nil) {
-  use parsed <- result.try(result.replace_error(glance.module(module_source), Nil))
-  parse_with_parsed(module_source, parsed)
+pub fn parse(
+  module_source: String,
+  schema_module: String,
+) -> Result(SchemaContext, Nil) {
+  use parsed <- result.try(result.replace_error(
+    glance.module(module_source),
+    Nil,
+  ))
+  parse_with_parsed(module_source, parsed, schema_module)
 }
 
 fn parse_with_parsed(
   module_source: String,
   parsed: glance.Module,
+  schema_module: String,
 ) -> Result(SchemaContext, Nil) {
   use layer <- result.try(extract_layer_module(module_source))
-  use #(type_name, variant_name, fields) <- result.try(
-    extract_schema_type(parsed.custom_types),
-  )
+  use #(type_name, variant_name, fields) <- result.try(extract_schema_type(
+    parsed.custom_types,
+  ))
   let table = resolve_table_alias(parsed.imports, layer, type_name)
   let identity_labels = extract_identity_labels(parsed.functions)
   use _ <- result.try(case identity_labels {
@@ -100,6 +128,7 @@ fn parse_with_parsed(
     <> string.concat(list.map(identity_labels, pascal_case_field_label))
   Ok(SchemaContext(
     layer: layer,
+    schema_module: schema_module,
     table: table,
     type_name: type_name,
     variant_name: variant_name,
@@ -220,8 +249,10 @@ fn extract_variant_fields(
     [field, ..rest] -> {
       let pair = case field {
         glance.LabelledVariantField(item, label) -> #(label, item)
-        glance.UnlabelledVariantField(item) ->
-          #("field_" <> int.to_string(index), item)
+        glance.UnlabelledVariantField(item) -> #(
+          "field_" <> int.to_string(index),
+          item,
+        )
       }
       extract_variant_fields(rest, index + 1, [pair, ..acc])
     }

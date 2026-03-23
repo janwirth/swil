@@ -10,24 +10,32 @@ import cat_db/resource
 import cat_db/structure
 import cat_schema.{type Cat, Cat}
 
+pub type CatForUpsert =
+  resource.CatForUpsert
 
-pub type CatForUpsert = resource.CatForUpsert
+pub type CatRow =
+  structure.CatRow
 
-pub type CatRow = structure.CatRow
+pub type CatsDb =
+  structure.CatsDb
 
-pub type CatsDb = structure.CatsDb
+pub type FilterableCat =
+  structure.FilterableCat
 
-pub type FilterableCat = structure.FilterableCat
+pub type StringRefOrValue =
+  structure.StringRefOrValue
 
-pub type StringRefOrValue = structure.StringRefOrValue
+pub type NumRefOrValue =
+  structure.NumRefOrValue
 
-pub type NumRefOrValue = structure.NumRefOrValue
+pub type NumCatField =
+  structure.NumCatField
 
-pub type NumCatField = structure.NumCatField
+pub type StringCatField =
+  structure.StringCatField
 
-pub type StringCatField = structure.StringCatField
-
-pub type CatField = structure.CatField
+pub type CatField =
+  structure.CatField
 
 pub fn cat(name: Option(String), age: Option(Int)) -> Cat {
   Cat(name:, age:)
@@ -41,6 +49,8 @@ pub fn cats(conn: sqlight.Connection) -> CatsDb {
   crud.cats(conn)
 }
 
-pub fn migrate_idempotent(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
+pub fn migrate_idempotent(
+  conn: sqlight.Connection,
+) -> Result(Nil, sqlight.Error) {
   migrate.migrate_idempotent(conn)
 }

@@ -34,12 +34,12 @@ fn run_generate(module_name: String) -> Result(String, String) {
     |> result.map_error(simplifile.describe_error),
   )
   use ctx <- result.try(
-    schema_context.parse(src)
+    schema_context.parse(src, module_name)
     |> result.replace_error(
       "Could not parse schema module. Check SQLITE_LAYER_GENERATION → <layer>/..., first custom type + variant, identities/0 returning identity.Identity / Identity2 / Identity3 calls with field references, and optional import <layer>/entry as <name> for the table accessor (defaults to <type>s).",
     ),
   )
-  let gen = generate_full(src)
+  let gen = generate_full(src, module_name)
   let root = "src/" <> ctx.layer
   use Nil <- result.try(
     simplifile.create_directory_all(root <> "/crud")

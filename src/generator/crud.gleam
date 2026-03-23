@@ -2,6 +2,7 @@ import generator/schema_context.{type SchemaContext}
 
 pub fn generate(ctx: SchemaContext) -> String {
   let layer = ctx.layer
+  let schema_mod = ctx.schema_module
   let t = ctx.type_name
   let upsert = ctx.for_upsert_type_name
   let fe = ctx.field_enum_name
@@ -33,8 +34,6 @@ pub fn generate(ctx: SchemaContext) -> String {
   <> "import "
   <> layer
   <> "/resource.{type "
-  <> t
-  <> ", type "
   <> upsert
   <> "}\n"
   <> "import "
@@ -56,6 +55,11 @@ pub fn generate(ctx: SchemaContext) -> String {
   <> ",\n"
   <> "}\n"
   <> "import help/filter\n"
+  <> "import "
+  <> schema_mod
+  <> ".{type "
+  <> t
+  <> "}\n"
   <> "\n"
   <> "pub type Filter = crud_filter.Filter\n"
   <> "\n"

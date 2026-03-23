@@ -175,9 +175,10 @@ fn upsert_with_values(ctx: SchemaContext) -> String {
 
 fn upsert_select_with_bindings(ctx: SchemaContext) -> String {
   list.map(ctx.identity_labels, fn(label) {
-    let assert Ok(#(_, typ)) =
-      list.find(ctx.fields, fn(p) { p.0 == label })
-    "          " <> sqlight_param.from_identity_lookup_param(label, typ) <> ",\n"
+    let assert Ok(#(_, typ)) = list.find(ctx.fields, fn(p) { p.0 == label })
+    "          "
+    <> sqlight_param.from_identity_lookup_param(label, typ)
+    <> ",\n"
   })
   |> string.concat
 }

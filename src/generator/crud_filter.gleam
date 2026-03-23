@@ -130,10 +130,7 @@ fn sorted_value_constructor_imports(ctx: SchemaContext) -> String {
       pascal_case_field_label(pair.0) <> "Int"
     })
   let system_nums =
-    list.map(
-      ["CreatedAt", "DeletedAt", "Id", "UpdatedAt"],
-      fn(s) { s <> "Int" },
-    )
+    list.map(["CreatedAt", "DeletedAt", "Id", "UpdatedAt"], fn(s) { s <> "Int" })
   let schema_strs =
     list.map(string_fields(ctx), fn(pair) {
       pascal_case_field_label(pair.0) <> "String"
@@ -161,8 +158,7 @@ fn filterable_refs_body(ctx: SchemaContext) -> String {
     list.map(ctx.fields, fn(pair) {
       let #(label, typ) = pair
       let rhs = case sql_types.filter_is_string_column(typ) {
-        True ->
-          "StringRef(" <> pascal_case_field_label(label) <> "String)"
+        True -> "StringRef(" <> pascal_case_field_label(label) <> "String)"
         False -> "NumRef(" <> pascal_case_field_label(label) <> "Int)"
       }
       "    " <> label <> ": " <> rhs <> ",\n"
@@ -203,6 +199,5 @@ fn string_operand_cases(ctx: SchemaContext) -> String {
       <> "\", [])\n"
     })
     |> string.concat
-  schema
-  <> "    StringValue(value: s) -> #(\"?\", [sqlight.text(s)])\n"
+  schema <> "    StringValue(value: s) -> #(\"?\", [sqlight.text(s)])\n"
 }

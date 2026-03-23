@@ -6,6 +6,7 @@ import generator/sql_types
 
 pub fn generate(ctx: SchemaContext) -> String {
   let layer = ctx.layer
+  let schema_mod = ctx.schema_module
   let t = ctx.type_name
   let singular = ctx.singular
   let table_fn = ctx.table
@@ -23,130 +24,131 @@ pub fn generate(ctx: SchemaContext) -> String {
     })
     |> string.join(", ")
   "// Main entry for the "
-    <> table_fn
-    <> " schema: import this module for `"
-    <> t
-    <> "`, row/db types,\n"
-    <> "// `"
-    <> table_fn
-    <> "` / `migrate_idempotent`, and `"
-    <> singular
-    <> "` (constructor helper).\n"
-    <> "\n"
-    <> "import gleam/option.{type Option}\n"
-    <> "import sqlight\n"
-    <> "\n"
-    <> "import "
-    <> layer
-    <> "/crud\n"
-    <> "import "
-    <> layer
-    <> "/migrate\n"
-    <> "import "
-    <> layer
-    <> "/resource\n"
-    <> "import "
-    <> layer
-    <> "/structure\n"
-    <> "\n"
-    <> "pub type "
-    <> t
-    <> " = resource."
-    <> t
-    <> "\n"
-    <> "\n"
-    <> "pub type "
-    <> upsert
-    <> " = resource."
-    <> upsert
-    <> "\n"
-    <> "\n"
-    <> "pub type "
-    <> row
-    <> " = structure."
-    <> row
-    <> "\n"
-    <> "\n"
-    <> "pub type "
-    <> db
-    <> " = structure."
-    <> db
-    <> "\n"
-    <> "\n"
-    <> "pub type "
-    <> filterable
-    <> " = structure."
-    <> filterable
-    <> "\n"
-    <> "\n"
-    <> "pub type StringRefOrValue = structure.StringRefOrValue\n"
-    <> "\n"
-    <> "pub type NumRefOrValue = structure.NumRefOrValue\n"
-    <> "\n"
-    <> "pub type "
-    <> num_ref
-    <> " = structure."
-    <> num_ref
-    <> "\n"
-    <> "\n"
-    <> "pub type "
-    <> str_ref
-    <> " = structure."
-    <> str_ref
-    <> "\n"
-    <> "\n"
-    <> "pub type "
-    <> field_enum
-    <> " = structure."
-    <> field_enum
-    <> "\n"
-    <> "\n"
-    <> "pub fn "
-    <> singular
-    <> "("
-    <> resource_fields
-    <> ") -> "
-    <> t
-    <> " {\n"
-    <> "  resource."
-    <> ctx.variant_name
-    <> "("
-    <> join_label_shorthands(ctx.fields)
-    <> ")\n"
-    <> "}\n"
-    <> "\n"
-    <> "pub fn "
-    <> singular
-    <> "_with_"
-    <> identity_suffix(ctx)
-    <> "("
-    <> upsert_identity_params_signature(ctx)
-    <> upsert_rest_params_suffix(ctx)
-    <> ") -> "
-    <> upsert
-    <> " {\n"
-    <> "  resource."
-    <> singular
-    <> "_with_"
-    <> identity_suffix(ctx)
-    <> "("
-    <> resource_with_helper_args(ctx)
-    <> ")\n"
-    <> "}\n"
-    <> "\n"
-    <> "pub fn "
-    <> table_fn
-    <> "(conn: sqlight.Connection) -> "
-    <> db
-    <> " {\n"
-    <> "  crud."
-    <> table_fn
-    <> "(conn)\n"
-    <> "}\n"
-    <> "\n"
-    <> "pub fn migrate_idempotent(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {\n"
-    <> "  migrate.migrate_idempotent(conn)\n"
-    <> "}\n"
+  <> table_fn
+  <> " schema: import this module for `"
+  <> t
+  <> "`, row/db types,\n"
+  <> "// `"
+  <> table_fn
+  <> "` / `migrate_idempotent`, and `"
+  <> singular
+  <> "` (constructor helper).\n"
+  <> "\n"
+  <> "import gleam/option.{type Option}\n"
+  <> "import sqlight\n"
+  <> "\n"
+  <> "import "
+  <> layer
+  <> "/crud\n"
+  <> "import "
+  <> layer
+  <> "/migrate\n"
+  <> "import "
+  <> layer
+  <> "/resource\n"
+  <> "import "
+  <> layer
+  <> "/structure\n"
+  <> "import "
+  <> schema_mod
+  <> ".{type "
+  <> t
+  <> ", "
+  <> ctx.variant_name
+  <> "}\n"
+  <> "\n"
+  <> "pub type "
+  <> upsert
+  <> " = resource."
+  <> upsert
+  <> "\n"
+  <> "\n"
+  <> "pub type "
+  <> row
+  <> " = structure."
+  <> row
+  <> "\n"
+  <> "\n"
+  <> "pub type "
+  <> db
+  <> " = structure."
+  <> db
+  <> "\n"
+  <> "\n"
+  <> "pub type "
+  <> filterable
+  <> " = structure."
+  <> filterable
+  <> "\n"
+  <> "\n"
+  <> "pub type StringRefOrValue = structure.StringRefOrValue\n"
+  <> "\n"
+  <> "pub type NumRefOrValue = structure.NumRefOrValue\n"
+  <> "\n"
+  <> "pub type "
+  <> num_ref
+  <> " = structure."
+  <> num_ref
+  <> "\n"
+  <> "\n"
+  <> "pub type "
+  <> str_ref
+  <> " = structure."
+  <> str_ref
+  <> "\n"
+  <> "\n"
+  <> "pub type "
+  <> field_enum
+  <> " = structure."
+  <> field_enum
+  <> "\n"
+  <> "\n"
+  <> "pub fn "
+  <> singular
+  <> "("
+  <> resource_fields
+  <> ") -> "
+  <> t
+  <> " {\n"
+  <> "  "
+  <> ctx.variant_name
+  <> "("
+  <> join_label_shorthands(ctx.fields)
+  <> ")\n"
+  <> "}\n"
+  <> "\n"
+  <> "pub fn "
+  <> singular
+  <> "_with_"
+  <> identity_suffix(ctx)
+  <> "("
+  <> upsert_identity_params_signature(ctx)
+  <> upsert_rest_params_suffix(ctx)
+  <> ") -> "
+  <> upsert
+  <> " {\n"
+  <> "  resource."
+  <> singular
+  <> "_with_"
+  <> identity_suffix(ctx)
+  <> "("
+  <> resource_with_helper_args(ctx)
+  <> ")\n"
+  <> "}\n"
+  <> "\n"
+  <> "pub fn "
+  <> table_fn
+  <> "(conn: sqlight.Connection) -> "
+  <> db
+  <> " {\n"
+  <> "  crud."
+  <> table_fn
+  <> "(conn)\n"
+  <> "}\n"
+  <> "\n"
+  <> "pub fn migrate_idempotent(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {\n"
+  <> "  migrate.migrate_idempotent(conn)\n"
+  <> "}\n"
 }
 
 fn join_label_shorthands(fields: List(#(String, a))) -> String {

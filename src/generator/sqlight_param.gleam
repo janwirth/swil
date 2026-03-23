@@ -2,7 +2,11 @@ import glance
 
 import generator/sql_types
 
-pub fn from_record_field(prefix: String, label: String, typ: glance.Type) -> String {
+pub fn from_record_field(
+  prefix: String,
+  label: String,
+  typ: glance.Type,
+) -> String {
   let r = sql_types.rendered_type(typ)
   case r {
     "Int" -> "sqlight.int(" <> prefix <> "." <> label <> ")"
@@ -21,8 +25,7 @@ pub fn from_record_field(prefix: String, label: String, typ: glance.Type) -> Str
       <> ", fn(b) { case b { True -> 1 False -> 0 } }))"
     "Option(String)" ->
       "sqlight.nullable(sqlight.text, " <> prefix <> "." <> label <> ")"
-    _ ->
-      "sqlight.nullable(sqlight.text, " <> prefix <> "." <> label <> ")"
+    _ -> "sqlight.nullable(sqlight.text, " <> prefix <> "." <> label <> ")"
   }
 }
 
