@@ -1,3 +1,4 @@
+// ORM integration tests: use `bun run test` so `dog_db` is regenerated before `gleam test` compiles.
 import dog_db/crud as dogs_crud
 import dog_db/entry as dogs
 import dog_db/structure.{DogRow, NumValue}

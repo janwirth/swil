@@ -1,6 +1,8 @@
 name = "squeal"
 version = "0.0.1"
 
+# For cat/dog ORM tests, prefer `bun run test` (regenerates `cat_db` / `dog_db` then runs `gleam test`).
+
 # Fill out these fields if you intend to generate HTML documentation or publish
 # your project to the Hex package manager.
 #

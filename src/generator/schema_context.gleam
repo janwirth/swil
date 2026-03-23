@@ -99,14 +99,14 @@ pub fn parse(
 }
 
 fn parse_with_parsed(
-  module_source: String,
+  _module_source: String,
   parsed: glance.Module,
   schema_module: String,
 ) -> Result(SchemaContext, Nil) {
-  use layer <- result.try(extract_layer_module(module_source))
   use #(type_name, variant_name, fields) <- result.try(extract_schema_type(
     parsed.custom_types,
   ))
+  let layer = default_layer_module(type_name)
   let table = resolve_table_alias(parsed.imports, layer, type_name)
   let identity_labels = extract_identity_labels(parsed.functions)
   use _ <- result.try(case identity_labels {
@@ -147,42 +147,8 @@ fn parse_with_parsed(
   ))
 }
 
-fn extract_layer_module(source: String) -> Result(String, Nil) {
-  case find_layer_line(string.split(source, "\n")) {
-    Ok(line) -> parse_layer_from_line(line)
-    Error(Nil) -> Error(Nil)
-  }
-}
-
-fn find_layer_line(lines: List(String)) -> Result(String, Nil) {
-  case lines {
-    [] -> Error(Nil)
-    [line, ..rest] ->
-      case string.contains(line, "SQLITE_LAYER_GENERATION") {
-        True -> Ok(line)
-        False -> find_layer_line(rest)
-      }
-  }
-}
-
-fn parse_layer_from_line(line: String) -> Result(String, Nil) {
-  let after_arrow = case string.split(line, "→") {
-    [_, right] -> Ok(string.trim(right))
-    _ ->
-      case string.split(line, "->") {
-        [_, right] -> Ok(string.trim(right))
-        _ -> Error(Nil)
-      }
-  }
-  use trimmed <- result.try(after_arrow)
-  case string.split(trimmed, "/") {
-    [layer, ..] ->
-      case string.trim(layer) {
-        "" -> Error(Nil)
-        l -> Ok(l)
-      }
-    [] -> Error(Nil)
-  }
+fn default_layer_module(type_name: String) -> String {
+  decapitalize(type_name) <> "_db"
 }
 
 fn find_entry_alias(

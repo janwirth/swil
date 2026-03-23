@@ -1,4 +1,4 @@
-// Tests that make sure the ORM is working as expected - atm the orm is hand-coded
+// ORM integration tests: use `bun run test` so `cat_db` is regenerated before `gleam test` compiles.
 import cat_db/entry as cats
 import cat_db/structure.{AgeField, CatRow, IdField}
 import cat_example.{

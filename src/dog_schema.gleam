@@ -19,8 +19,6 @@ import gleam/option.{type Option}
 
 import help/identity
 
-// SQLITE_LAYER_GENERATION → dog_db/{resource,structure,crud,migrate,entry}.gleam
-
 // inspired by ash
 // RESOURCE
 
