@@ -5,7 +5,7 @@ import gleam/string
 import gleamgen/render as gleamgen_render
 import gleamgen/types as gleamgen_types
 
-pub fn to_generated_type(
+fn to_generated_type(
   type_: glance.Type,
 ) -> gleamgen_types.GeneratedType(gleamgen_types.Dynamic) {
   case type_ {
