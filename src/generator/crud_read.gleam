@@ -12,6 +12,8 @@ import gleamgen/expression as gex
 import gleamgen/import_ as gim
 import gleamgen/render as grender
 
+import help/cake_sql_exec
+
 pub fn generate(ctx: SchemaContext) -> String {
   let layer = ctx.layer
   let fl = ctx.filterable_name
@@ -206,16 +208,14 @@ fn w_is_null() {
   gim.function1(where_mod(), where.is_null)
 }
 
-fn cake_sql_run_read() {
-  gex.raw("cake_sql_exec.run_read_query")
-}
-
-pub fn render_read_one_try_body(
+pub fn read_one_try_body_expression(
   table: String,
   cols: List(String),
   decoder_fn: String,
-) -> String {
+) {
   let sm = select_mod()
+  let exec_mod = gim.new(["help", "cake_sql_exec"])
+  let run_read = gim.function3(exec_mod, cake_sql_exec.run_read_query)
   let s_new = gim.function0(sm, select.new)
   let s_from = gim.function2(sm, select.from_table)
   let s_cols = gim.function2(sm, select.select_cols)
@@ -240,13 +240,15 @@ pub fn render_read_one_try_body(
   let sel_w = gex.call2(s_where, sel, wh)
   let q = gex.call1(s_to_q, sel_w)
   let decoder_call = gex.call0(gex.raw(decoder_fn))
-  let full =
-    gex.call_dynamic(cake_sql_run_read(), [
-      q |> gex.to_dynamic,
-      decoder_call |> gex.to_dynamic,
-      gex.raw("conn") |> gex.to_dynamic,
-    ])
-  rex(full)
+  gex.call3(run_read, q, decoder_call, gex.raw("conn"))
+}
+
+pub fn render_read_one_try_body(
+  table: String,
+  cols: List(String),
+  decoder_fn: String,
+) -> String {
+  rex(read_one_try_body_expression(table, cols, decoder_fn))
 }
 
 pub fn render_read_many_base_select_where(
