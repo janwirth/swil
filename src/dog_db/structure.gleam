@@ -1,7 +1,7 @@
 import gleam/dynamic/decode
 import gleam/option.{type Option}
 
-import dog_db/resource.{type DogForUpsert, DogWithNameIsNeutered}
+import dog_db/resource.{type DogForUpsert}
 import dog_schema.{type Dog, Dog}
 import help/filter
 import sqlight

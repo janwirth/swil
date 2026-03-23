@@ -28,60 +28,39 @@ import gleam/time/timestamp
 import help/cake_sql_exec
 
 pub fn generate(ctx: SchemaContext) -> String {
-  let header = upsert_import_header(ctx)
-  let body_mod = upsert_functions_module(ctx)
-  header <> "\n" <> gleamgen_emit.render_module(body_mod)
+  gleamgen_emit.render_module(upsert_module(ctx))
 }
 
-fn upsert_import_header(ctx: SchemaContext) -> String {
-  let layer = ctx.layer
-  let upsert = ctx.for_upsert_type_name
-  let uv = ctx.for_upsert_variant_name
-  let row = ctx.row_name
-  let decoder = ctx.singular <> "_row_decoder"
-  "import cake/insert as cake_insert\n"
-  <> "import cake/select\n"
-  <> "import cake/update as cake_update\n"
-  <> "import cake/where\n"
-  <> "import gleam/dynamic/decode\n"
-  <> "import gleam/list\n"
-  <> "import gleam/option.{None, Some}\n"
-  <> "import gleam/result\n"
-  <> "import gleam/time/timestamp\n"
-  <> "import sqlight\n"
-  <> "\n"
-  <> "import "
-  <> layer
-  <> "/resource.{type "
-  <> upsert
-  <> ", "
-  <> uv
-  <> "}\n"
-  <> "import "
-  <> layer
-  <> "/structure.{type "
-  <> row
-  <> ", "
-  <> decoder
-  <> "}\n"
-  <> "import help/cake_sql_exec\n"
-}
-
-fn upsert_functions_module(ctx: SchemaContext) -> gmod.Module {
+fn upsert_module(ctx: SchemaContext) -> gmod.Module {
   let table = ctx.table
   let singular = ctx.singular
   let variant_name = ctx.for_upsert_variant_name
   let row_name = ctx.row_name
   let decoder_fn = ctx.singular <> "_row_decoder"
 
+  let resource_mod =
+    gim.new_with_exposing(
+      [ctx.layer, "resource"],
+      "type "
+        <> ctx.for_upsert_type_name
+        <> ", "
+        <> ctx.for_upsert_variant_name,
+    )
+  let structure_mod =
+    gim.new_with_exposing(
+      [ctx.layer, "structure"],
+      "type " <> ctx.row_name <> ", " <> decoder_fn,
+    )
   let ci_mod = gim.new_with_alias(["cake", "insert"], "cake_insert")
   let cu_mod = gim.new_with_alias(["cake", "update"], "cake_update")
   let sel_mod = gim.new(["cake", "select"])
   let where_mod = gim.new(["cake", "where"])
   let decode_mod = gim.new(["gleam", "dynamic", "decode"])
   let list_mod = gim.new(["gleam", "list"])
+  let option_mod = gim.new_with_exposing(["gleam", "option"], "None, Some")
   let result_mod = gim.new(["gleam", "result"])
   let ts_mod = gim.new(["gleam", "time", "timestamp"])
+  let sqlight_mod = gim.new(["sqlight"])
   let exec_mod = gim.new(["help", "cake_sql_exec"])
 
   let ci_new = gim.function0(ci_mod, cake_insert.new)
@@ -482,7 +461,23 @@ fn upsert_functions_module(ctx: SchemaContext) -> gmod.Module {
       },
     )
 
-  gmod.with_function(gleamgen_emit.pub_def("upsert_one"), upsert_one_fn, fn(_) {
+  gmod.with_import(ci_mod, fn(_) {
+    use _ <- gmod.with_import(cu_mod)
+    use _ <- gmod.with_import(sel_mod)
+    use _ <- gmod.with_import(where_mod)
+    use _ <- gmod.with_import(decode_mod)
+    use _ <- gmod.with_import(list_mod)
+    use _ <- gmod.with_import(option_mod)
+    use _ <- gmod.with_import(result_mod)
+    use _ <- gmod.with_import(ts_mod)
+    use _ <- gmod.with_import(sqlight_mod)
+    use _ <- gmod.with_import(resource_mod)
+    use _ <- gmod.with_import(structure_mod)
+    use _ <- gmod.with_import(exec_mod)
+    use _ <- gmod.with_function(
+      gleamgen_emit.pub_def("upsert_one"),
+      upsert_one_fn,
+    )
     gmod.with_function(
       gleamgen_emit.pub_def("upsert_many"),
       upsert_many_fn,

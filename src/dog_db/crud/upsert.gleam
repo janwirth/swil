@@ -2,16 +2,15 @@ import cake/insert as cake_insert
 import cake/select
 import cake/update as cake_update
 import cake/where
+import dog_db/resource.{type DogForUpsert, DogWithNameIsNeutered}
+import dog_db/structure.{type DogRow, dog_row_decoder}
 import gleam/dynamic/decode
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/result
 import gleam/time/timestamp
-import sqlight
-
-import dog_db/resource.{type DogForUpsert, DogWithNameIsNeutered}
-import dog_db/structure.{type DogRow, dog_row_decoder}
 import help/cake_sql_exec
+import sqlight
 
 pub fn upsert_one(conn: sqlight.Connection, dog: DogForUpsert) -> Result(
   DogRow,

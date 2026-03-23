@@ -32,8 +32,6 @@ pub fn generate(ctx: SchemaContext) -> String {
   <> layer
   <> "/resource.{type "
   <> upsert
-  <> ", "
-  <> ctx.for_upsert_variant_name
   <> "}\n"
   <> "import "
   <> schema_mod

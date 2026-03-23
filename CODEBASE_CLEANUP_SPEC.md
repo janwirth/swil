@@ -111,7 +111,7 @@ Mark each item when the module has been reviewed for all required style rules an
 **Status (as of current audit):**
 - ✓ `crud_delete.gleam` - Reference style, fully compliant
 - ✓ `crud_sort.gleam` - Fully compliant (uses gmod + gleamgen_emit)
-- ⚠ `crud_upsert.gleam` - Partially compliant (uses gmod for body but `<>` for header)
+- ✓ `crud_upsert.gleam` - Fully compliant (single `gleamgen_emit.render_module` + `gmod.with_import`; requires gleamgen `import_.new_with_exposing` and render rule for `exposing` imports)
 - ✗ `crud_filter.gleam` - Uses `<>` for main body
 - ✗ `crud_read.gleam` - Uses `<>` for main body
 - ✗ `crud_update.gleam` - Uses `<>` for entire module
@@ -129,7 +129,7 @@ Mark each item when the module has been reviewed for all required style rules an
 - `sql_types.gleam` - Helper module, OK
 
 **Priority order (CRUD generators first as per spec):**
-1. [ ] `crud_upsert.gleam` - Remove `<>` for header, use gmod for imports
+1. [x] `crud_upsert.gleam` - Remove `<>` for header, use gmod for imports
 2. [ ] `crud_update.gleam` - Convert to full gleamgen style
 3. [ ] `crud_filter.gleam` - Convert to full gleamgen style
 4. [ ] `crud_read.gleam` - Convert to full gleamgen style

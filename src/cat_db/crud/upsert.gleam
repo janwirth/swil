@@ -2,16 +2,15 @@ import cake/insert as cake_insert
 import cake/select
 import cake/update as cake_update
 import cake/where
+import cat_db/resource.{type CatForUpsert, CatWithName}
+import cat_db/structure.{type CatRow, cat_row_decoder}
 import gleam/dynamic/decode
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/result
 import gleam/time/timestamp
-import sqlight
-
-import cat_db/resource.{type CatForUpsert, CatWithName}
-import cat_db/structure.{type CatRow, cat_row_decoder}
 import help/cake_sql_exec
+import sqlight
 
 pub fn upsert_one(conn: sqlight.Connection, cat: CatForUpsert) -> Result(
   CatRow,
