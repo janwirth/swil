@@ -167,3 +167,7 @@ Mark each item when the module has been reviewed for all required style rules an
 ## Reference
 
 - `src/generator/crud_delete.gleam` is the baseline style reference.
+
+## Instructions
+
+Do not query the codebase excessively. All you need to know is in @src/generator. Don't think to much.
