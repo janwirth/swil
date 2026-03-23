@@ -2,6 +2,8 @@ import simplifile
 
 import gen/migration_generator
 
+// Fixture shape produced by the SQLite access-layer generator.
+// Assumption: every generated module is emitted as source text (String).
 pub type GeneratedStructure {
     GeneratedStructure(
         migrate: String,
@@ -32,6 +34,8 @@ pub fn generate_structure_from_path(path: String) -> GeneratedStructure {
 }
 
 pub fn generate_structure(module: String) -> GeneratedStructure {
+    // Build generated output from a schema module.
+    // TODO placeholders stay until the remaining generators are wired in.
     GeneratedStructure(
         migrate: migration_generator.generate(module, "idemptotent"),
 
@@ -51,10 +55,9 @@ pub fn generate_structure(module: String) -> GeneratedStructure {
     )
 }
 
-// test
-
 pub fn generate_structure_test() {
     let assert reference_structure = get_references()
+    // Golden test: generated output should match checked-in cat_db fixtures.
     assert reference_structure == GeneratedStructure(
         migrate: migration_generator.generate("src/cat_schema.gleam", "idemptotent"),
         entry: todo,
@@ -67,7 +70,7 @@ pub fn generate_structure_test() {
 }
 
 pub fn get_references() -> GeneratedStructure {
-    // read all files from cat_db and build generatedStructure from it
+    // Read all fixture files from cat_db and assemble a comparable structure.
     let assert Ok(migration_generator) = simplifile.read("src/cat_db/migrate.gleam")
     let assert Ok(entry) = simplifile.read("src/cat_db/entry.gleam")
     let assert Ok(resource) = simplifile.read("src/cat_db/resource.gleam")
