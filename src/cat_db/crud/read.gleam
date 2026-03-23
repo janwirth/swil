@@ -1,6 +1,5 @@
 import cake/select
 import cake/where
-import gleam/dynamic/decode
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import sqlight
@@ -19,22 +18,24 @@ pub fn read_one(
   id: Int,
 ) -> Result(Option(CatRow), sqlight.Error) {
   use rows <- result.try({
-    select.new()
-    |> select.from_table("cats")
-    |> select.select_col("id")
-    |> select.select_col("created_at")
-    |> select.select_col("updated_at")
-    |> select.select_col("deleted_at")
-    |> select.select_col("name")
-    |> select.select_col("age")
-    |> select.where(
-      where.and([
-        where.eq(where.col("id"), where.int(id)),
-        where.is_null(where.col("deleted_at")),
-      ]),
-    )
-    |> select.to_query
-    |> cake_sql_exec.run_read_query(cat_row_decoder(), conn)
+    cake_sql_exec.run_read_query(
+  select.to_query(
+    select.where(
+      select.select_cols(
+        select.from_table(select.new(), "cats"),
+        ["id", "created_at", "updated_at", "deleted_at", "name", "age"],
+      ),
+      where.and(
+        [
+          where.eq(where.col("id"), where.int(id)),
+          where.is_null(where.col("deleted_at")),
+        ],
+      ),
+    ),
+  ),
+  cat_row_decoder(),
+  conn,
+)
   })
   case rows {
     [row, ..] -> Ok(Some(row))
@@ -42,26 +43,49 @@ pub fn read_one(
   }
 }
 
-fn read_many_sql(
+fn read_many_filter_where(
   arg: filter.FilterArg(
     FilterableCat,
     NumRefOrValue,
     StringRefOrValue,
     CatField,
   ),
-) -> #(String, List(sqlight.Value)) {
-  let base =
-    "select id, created_at, updated_at, deleted_at, name, age from cats where deleted_at is null and "
+) -> where.Where {
   case arg {
-    filter.NoFilter(sort: s) -> #(
-      base <> "1 = 1" <> crud_sort.sort_clause(s),
-      [],
-    )
-    filter.FilterArg(filter: f, sort: s) -> {
-      let #(cond, params) =
-        crud_filter.bool_expr_sql(f(crud_filter.filterable_refs()))
-      #(base <> "(" <> cond <> ")" <> crud_sort.sort_clause(s), params)
-    }
+    filter.NoFilter(..) -> where.eq(where.int(1), where.int(1))
+    filter.FilterArg(filter: f, ..) ->
+      crud_filter.bool_expr_where(f(crud_filter.filterable_refs()))
+  }
+}
+
+fn read_many_ordered(
+  arg: filter.FilterArg(
+    FilterableCat,
+    NumRefOrValue,
+    StringRefOrValue,
+    CatField,
+  ),
+) {
+  let order = case arg {
+    filter.NoFilter(sort: s) -> s
+    filter.FilterArg(sort: s, ..) -> s
+  }
+  let base =
+    select.where(
+  select.select_cols(
+    select.from_table(select.new(), "cats"),
+    ["id", "created_at", "updated_at", "deleted_at", "name", "age"],
+  ),
+  where.and(
+    [where.is_null(where.col("deleted_at")), read_many_filter_where(arg)],
+  ),
+)
+  case order {
+    None -> base
+    Some(filter.Asc(f)) ->
+      select.order_by_asc(base, crud_sort.cat_field_sql(f))
+    Some(filter.Desc(f)) ->
+      select.order_by_desc(base, crud_sort.cat_field_sql(f))
   }
 }
 
@@ -74,6 +98,7 @@ pub fn read_many(
     CatField,
   ),
 ) -> Result(List(CatRow), sqlight.Error) {
-  let #(sql, params) = read_many_sql(arg)
-  sqlight.query(sql, on: conn, with: params, expecting: cat_row_decoder())
+  read_many_ordered(arg)
+  |> select.to_query
+  |> cake_sql_exec.run_read_query(cat_row_decoder(), conn)
 }

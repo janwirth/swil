@@ -1,7 +1,8 @@
 import gleam/dynamic/decode
 import gleam/option.{type Option}
 
-import dog_db/resource.{type Dog, type DogForUpsert, Dog}
+import dog_db/resource.{type DogForUpsert, DogWithNameIsNeutered}
+import dog_schema.{type Dog, Dog}
 import help/filter
 import sqlight
 
@@ -85,10 +86,7 @@ pub fn dog_row_decoder() -> decode.Decoder(DogRow) {
   use deleted_at <- decode.field(3, decode.optional(decode.int))
   use name <- decode.field(4, decode.optional(decode.string))
   use age <- decode.field(5, decode.optional(decode.int))
-  use is_neutered <- decode.field(
-    6,
-    decode.optional(decode.map(decode.int, fn(i) { i != 0 })),
-  )
+  use is_neutered <- decode.field(6, decode.optional(decode.map(decode.int, fn(i) { i != 0 })))
   decode.success(DogRow(
     value: Dog(name: name, age: age, is_neutered: is_neutered),
     id:,

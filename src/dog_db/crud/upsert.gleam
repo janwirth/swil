@@ -22,13 +22,7 @@ pub fn upsert_one(
         with: [
           sqlight.nullable(sqlight.text, option.Some(name)),
           sqlight.nullable(sqlight.int, age),
-          sqlight.nullable(
-            sqlight.int,
-            option.Some(case is_neutered {
-              True -> 1
-              False -> 0
-            }),
-          ),
+          sqlight.nullable(sqlight.int, option.Some(case is_neutered { True -> 1 False -> 0 })),
           sqlight.int(stamp),
           sqlight.int(stamp),
         ],
@@ -39,10 +33,7 @@ pub fn upsert_one(
         on: conn,
         with: [
           sqlight.text(name),
-          sqlight.int(case is_neutered {
-            True -> 1
-            False -> 0
-          }),
+          sqlight.int(case is_neutered { True -> 1 False -> 0 }),
         ],
         expecting: dog_row_decoder(),
       )

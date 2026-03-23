@@ -8,9 +8,7 @@ import dog_db/crud
 import dog_db/migrate
 import dog_db/resource
 import dog_db/structure
-
-pub type Dog =
-  resource.Dog
+import dog_schema.{type Dog, Dog}
 
 pub type DogForUpsert =
   resource.DogForUpsert
@@ -39,19 +37,11 @@ pub type StringDogField =
 pub type DogField =
   structure.DogField
 
-pub fn dog(
-  name: Option(String),
-  age: Option(Int),
-  is_neutered: Option(Bool),
-) -> Dog {
-  resource.Dog(name:, age:, is_neutered:)
+pub fn dog(name: Option(String), age: Option(Int), is_neutered: Option(Bool)) -> Dog {
+  Dog(name:, age:, is_neutered:)
 }
 
-pub fn dog_with_name_is_neutered(
-  name: String,
-  is_neutered: Bool,
-  age: Option(Int),
-) -> DogForUpsert {
+pub fn dog_with_name_is_neutered(name: String, is_neutered: Bool, age: Option(Int)) -> DogForUpsert {
   resource.dog_with_name_is_neutered(name, age, is_neutered)
 }
 

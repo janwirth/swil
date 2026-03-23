@@ -6,7 +6,9 @@ import simplifile
 
 pub fn generate_full_test() {
   let reference_structure = get_references()
-  // Golden test: generated output should match checked-in cat_db fixtures.
+  // Golden test: fixtures must match `gleam run -m squeal -- cat_schema` output
+  // byte-for-byte; run `gleam format src/cat_db` only after re-running squeal, or
+  // the gleam formatter and gleamgen layouts diverge and this assert fails.
   assert reference_structure == generate_full_from_path("src/cat_schema.gleam")
 }
 

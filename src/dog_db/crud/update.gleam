@@ -4,13 +4,13 @@ import gleam/option.{type Option, None, Some, map}
 import gleam/result
 import sqlight
 
-import dog_db/resource.{type Dog}
 import dog_db/structure.{type DogRow, dog_row_decoder}
+import dog_schema.{type Dog}
 
 pub fn update_one(
   conn: sqlight.Connection,
   id: Int,
-  dog: Dog,
+  dog: dog_schema.Dog,
 ) -> Result(Option(DogRow), sqlight.Error) {
   use _ <- result.try(sqlight.query(
     "update dogs set name = ?, age = ?, is_neutered = ?, updated_at = ? where id = ? and deleted_at is null",
@@ -18,15 +18,7 @@ pub fn update_one(
     with: [
       sqlight.nullable(sqlight.text, dog.name),
       sqlight.nullable(sqlight.int, dog.age),
-      sqlight.nullable(
-        sqlight.int,
-        map(dog.is_neutered, fn(b) {
-          case b {
-            True -> 1
-            False -> 0
-          }
-        }),
-      ),
+      sqlight.nullable(sqlight.int, map(dog.is_neutered, fn(b) { case b { True -> 1 False -> 0 } })),
       sqlight.int(1),
       sqlight.int(id),
     ],

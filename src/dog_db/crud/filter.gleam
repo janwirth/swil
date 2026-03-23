@@ -1,6 +1,9 @@
-import gleam/list
+import cake/fragment.{
+  literal as frag_literal, placeholder as frag_ph, prepared as frag_prepared,
+  string as frag_string,
+}
+import cake/where
 import gleam/option.{type Option, None, Some}
-import sqlight
 
 import dog_db/structure.{
   type DogField, type FilterableDog, type NumRefOrValue, type StringRefOrValue,
@@ -34,64 +37,95 @@ pub fn filterable_refs() -> FilterableDog {
   )
 }
 
-fn num_operand_sql(op: NumRefOrValue) -> #(String, List(sqlight.Value)) {
+fn num_operand_where_value(op: NumRefOrValue) -> where.WhereValue {
   case op {
-    NumRef(AgeInt) -> #("age", [])
-    NumRef(IsNeuteredInt) -> #("is_neutered", [])
-    NumRef(IdInt) -> #("id", [])
-    NumRef(CreatedAtInt) -> #("created_at", [])
-    NumRef(UpdatedAtInt) -> #("updated_at", [])
-    NumRef(DeletedAtInt) -> #("deleted_at", [])
-    NumValue(value: v) -> #("?", [sqlight.int(v)])
+    NumRef(AgeInt) -> where.col("age")
+    NumRef(IsNeuteredInt) -> where.col("is_neutered")
+    NumRef(IdInt) -> where.col("id")
+    NumRef(CreatedAtInt) -> where.col("created_at")
+    NumRef(UpdatedAtInt) -> where.col("updated_at")
+    NumRef(DeletedAtInt) -> where.col("deleted_at")
+    NumValue(value: v) -> where.int(v)
   }
 }
 
-fn string_operand_sql(op: StringRefOrValue) -> #(String, List(sqlight.Value)) {
+fn string_operand_part(op: StringRefOrValue) -> #(Bool, String) {
   case op {
-    StringRef(NameString) -> #("name", [])
-    StringValue(value: s) -> #("?", [sqlight.text(s)])
+    StringRef(NameString) -> #(True, "name")
+    StringValue(value: s) -> #(False, s)
   }
 }
 
-pub fn bool_expr_sql(
+fn instr_where(left: #(Bool, String), right: #(Bool, String)) -> where.Where {
+  case left, right {
+  #(True, lc), #(True, rc) -> where.fragment(
+    frag_literal("instr(" <> lc <> ", " <> rc <> ") = 0"),
+  )
+  #(True, lc), #(False, rv) -> where.fragment(
+    frag_prepared(
+      "instr("
+      <>
+      lc
+      <>
+      ", "
+      <>
+      frag_ph
+      <>
+      ") = 0",
+      [frag_string(rv)],
+    ),
+  )
+  #(False, lv), #(True, rc) -> where.fragment(
+    frag_prepared(
+      "instr("
+      <>
+      frag_ph
+      <>
+      ", "
+      <>
+      rc
+      <>
+      ") = 0",
+      [frag_string(lv)],
+    ),
+  )
+  #(False, lv), #(False, rv) -> where.fragment(
+    frag_prepared(
+      "instr("
+      <>
+      frag_ph
+      <>
+      ", "
+      <>
+      frag_ph
+      <>
+      ") = 0",
+      [frag_string(lv), frag_string(rv)],
+    ),
+  )
+}
+}
+
+pub fn bool_expr_where(
   expr: filter.BoolExpr(NumRefOrValue, StringRefOrValue),
-) -> #(String, List(sqlight.Value)) {
+) -> where.Where {
   case expr {
-    filter.LiteralTrue -> #("1 = 1", [])
-    filter.LiteralFalse -> #("1 = 0", [])
-    filter.Not(inner) -> {
-      let #(s, p) = bool_expr_sql(inner)
-      #("not (" <> s <> ")", p)
-    }
-    filter.And(left, right) -> {
-      let #(ls, lp) = bool_expr_sql(left)
-      let #(rs, rp) = bool_expr_sql(right)
-      #("(" <> ls <> ") and (" <> rs <> ")", list.append(lp, rp))
-    }
-    filter.Or(left, right) -> {
-      let #(ls, lp) = bool_expr_sql(left)
-      let #(rs, rp) = bool_expr_sql(right)
-      #("(" <> ls <> ") or (" <> rs <> ")", list.append(lp, rp))
-    }
-    filter.Gt(left, right) -> {
-      let #(ls, lp) = num_operand_sql(left)
-      let #(rs, rp) = num_operand_sql(right)
-      #(ls <> " > " <> rs, list.append(lp, rp))
-    }
-    filter.Eq(left, right) -> {
-      let #(ls, lp) = num_operand_sql(left)
-      let #(rs, rp) = num_operand_sql(right)
-      #(ls <> " = " <> rs, list.append(lp, rp))
-    }
-    filter.Ne(left, right) -> {
-      let #(ls, lp) = num_operand_sql(left)
-      let #(rs, rp) = num_operand_sql(right)
-      #(ls <> " <> " <> rs, list.append(lp, rp))
-    }
-    filter.NotContains(left, right) -> {
-      let #(ls, lp) = string_operand_sql(left)
-      let #(rs, rp) = string_operand_sql(right)
-      #("instr(" <> ls <> ", " <> rs <> ") = 0", list.append(lp, rp))
-    }
+    filter.LiteralTrue -> where.eq(where.int(1), where.int(1))
+    filter.LiteralFalse -> where.eq(where.int(1), where.int(0))
+    filter.Not(inner) -> where.not(bool_expr_where(inner))
+    filter.And(left, right) ->
+      where.and([bool_expr_where(left), bool_expr_where(right)])
+    filter.Or(left, right) ->
+      where.or([bool_expr_where(left), bool_expr_where(right)])
+    filter.Gt(left, right) ->
+      where.gt(num_operand_where_value(left), num_operand_where_value(right))
+    filter.Eq(left, right) ->
+      where.eq(num_operand_where_value(left), num_operand_where_value(right))
+    filter.Ne(left, right) ->
+      where.not(
+  where.eq(num_operand_where_value(left), num_operand_where_value(right)),
+)
+    filter.NotContains(left, right) ->
+      instr_where(string_operand_part(left), string_operand_part(right))
   }
 }
