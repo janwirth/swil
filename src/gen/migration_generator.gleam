@@ -21,28 +21,16 @@ pub fn generate(module: String, version: String) -> String {
       <> "  )\n"
     False -> "\n"
   }
-  let migrate_v2 = case version == "idemptotent" {
-    True ->
-      "\n"
-      <> "pub fn migrate_v2(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {\n"
-      <> "  migrate_idemptotent(conn)\n"
-      <> "}\n"
-    False -> ""
-  }
-
   "import gleam/result\n"
   <> "\n"
-  <> "import gen/migration_help as shared\n"
+  <> "import gen/migration_help\n"
   <> "import sqlight\n"
   <> "\n"
-  <> "pub fn migrate_"
-  <> version
-  <> "(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {\n"
-  <> "  use _ <- result.try(shared.ensure_base_table(conn))\n"
+  <> "pub fn migrate_idemptotent(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {\n"
+  <> "  use _ <- result.try(migration_help.ensure_base_table(conn))\n"
   <> column_lines
   <> identity_lines
   <> "}\n"
-  <> migrate_v2
 }
 
 fn extract_columns(variants: List(glance.Variant)) -> List(#(String, glance.Type)) {
@@ -90,7 +78,7 @@ fn build_column_lines(
   case columns {
     [#(name, type_), ..rest] -> {
       let sql = "alter table cats add column " <> name <> " " <> sql_type(type_) <> ";"
-      let call = "shared.ensure_column(conn, \"" <> name <> "\", \"" <> sql <> "\")"
+      let call = "migration_help.ensure_column(conn, \"" <> name <> "\", \"" <> sql <> "\")"
       let is_last = index == field_count - 1
       let line = case is_last && !has_tail_expression {
         True -> "  " <> call
