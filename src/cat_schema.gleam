@@ -19,9 +19,9 @@
 import gleam/option.{type Option}
 
 import gen/identity
-import cats_schema_generated/entry as cats
+import cat_db/entry as cats
 
-// SQLITE_LAYER_GENERATION → cats_schema_generated/{resource,structure,crud,migrate,entry}.gleam
+// SQLITE_LAYER_GENERATION → cat_db/{resource,structure,crud,migrate,entry}.gleam
 
 // inspired by ash
 // RESOURCE

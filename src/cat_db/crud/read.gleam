@@ -2,9 +2,9 @@ import gleam/option.{type Option, None, Some}
 import gleam/result
 import sqlight
 
-import cats_schema_generated/crud/filter as crud_filter
-import cats_schema_generated/crud/sort as crud_sort
-import cats_schema_generated/structure.{
+import cat_db/crud/filter as crud_filter
+import cat_db/crud/sort as crud_sort
+import cat_db/structure.{
   type CatField,
   type CatRow,
   type FilterableCat,

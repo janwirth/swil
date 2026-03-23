@@ -2,7 +2,7 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import sqlight
 
-import cats_schema_generated/structure.{
+import cat_db/structure.{
   type CatField,
   type FilterableCat,
   type NumRefOrValue,

@@ -13,9 +13,6 @@ import operations/v2 as operations_v2
 import operations/v3 as operations_v3
 import sqlight
 
-pub fn main() -> Nil {
-  gleeunit.main()
-}
 
 // gleeunit test functions end in `_test`
 pub fn hello_world_test() {

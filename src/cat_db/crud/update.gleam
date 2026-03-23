@@ -4,8 +4,8 @@ import gleam/option.{type Option, None, Some}
 import gleam/result
 import sqlight
 
-import cats_schema_generated/resource.{type Cat}
-import cats_schema_generated/structure.{type CatRow, cat_row_decoder}
+import cat_db/resource.{type Cat}
+import cat_db/structure.{type CatRow, cat_row_decoder}
 
 pub fn update_one(
   conn: sqlight.Connection,

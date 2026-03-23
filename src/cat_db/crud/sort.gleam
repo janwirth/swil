@@ -1,6 +1,6 @@
 import gleam/option.{type Option, None, Some}
 
-import cats_schema_generated/structure.{
+import cat_db/structure.{
   type CatField,
   AgeField,
   CreatedAtField,

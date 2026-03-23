@@ -3,8 +3,8 @@ import gleam/list
 import gleam/result
 import sqlight
 
-import cats_schema_generated/resource.{type CatForUpsert, CatWithName}
-import cats_schema_generated/structure.{type CatRow, cat_row_decoder}
+import cat_db/resource.{type CatForUpsert, CatWithName}
+import cat_db/structure.{type CatRow, cat_row_decoder}
 
 pub fn upsert_one(
   conn: sqlight.Connection,

@@ -81,9 +81,9 @@ pub fn generate_migration_fixtures_test() {
   assert_fixtures(module_paths())
 }
 
-pub fn generate_matches_cats_schema_generated_migrate_test() {
-  let assert Ok(module) = simplifile.read("src/cats_db_schema.gleam")
+pub fn generate_matches_cat_db_migrate_test() {
+  let assert Ok(module) = simplifile.read("src/cat_schema.gleam")
   let actual = migration_generator.generate(module, "idemptotent")
-  let assert Ok(expected) = simplifile.read("src/cats_schema_generated/migrate.gleam")
+  let assert Ok(expected) = simplifile.read("src/cat_db/migrate.gleam")
   assert actual == expected
 }

@@ -1,14 +1,14 @@
 import gleam/option.{type Option}
 import sqlight
 
-import cats_schema_generated/crud/delete as crud_delete
-import cats_schema_generated/crud/filter as crud_filter
-import cats_schema_generated/crud/read as crud_read
-import cats_schema_generated/crud/upsert as crud_upsert
-import cats_schema_generated/crud/update as crud_update
-import cats_schema_generated/migrate
-import cats_schema_generated/resource.{type Cat, type CatForUpsert}
-import cats_schema_generated/structure.{
+import cat_db/crud/delete as crud_delete
+import cat_db/crud/filter as crud_filter
+import cat_db/crud/read as crud_read
+import cat_db/crud/upsert as crud_upsert
+import cat_db/crud/update as crud_update
+import cat_db/migrate
+import cat_db/resource.{type Cat, type CatForUpsert}
+import cat_db/structure.{
   type CatField,
   type CatsDb,
   type FilterableCat,

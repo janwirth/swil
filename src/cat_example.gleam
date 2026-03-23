@@ -1,9 +1,9 @@
-import cats_schema_generated/crud as cats_crud
-import cats_schema_generated/entry as cats
+import cat_db/crud as cats_crud
+import cat_db/entry as cats
 import gen/filter
 import sqlight
 import gleam/option.{Some, None}
-import cats_schema_generated/structure
+import cat_db/structure
 
 
 
@@ -14,20 +14,20 @@ import cats_schema_generated/structure
 // hand-written queries with generated query builder
 pub fn cat_older_than(age: Int) -> cats_crud.Filter {
     fn (cat: cats.FilterableCat) {
-        filter.Gt(left: cat.age, right: gen.NumValue(value: age))
+        filter.Gt(left: cat.age, right: structure.NumValue(value: age))
     }
 }
 
 pub fn cat_age_eq(age: Int) -> cats_crud.Filter {
     fn(cat: cats.FilterableCat) {
-        filter.Eq(left: cat.age, right: gen.NumValue(value: age))
+        filter.Eq(left: cat.age, right: structure.NumValue(value: age))
     }
 }
 
 
 pub fn cat_name_excludes(substr: String) -> cats_crud.Filter {
     fn(cat: cats.FilterableCat) {
-        filter.NotContains(left: cat.name, right: gen.StringValue(value: substr))
+        filter.NotContains(left: cat.name, right: structure.StringValue(value: substr))
     }
 }
 // make this type genriic and more comfortable to type

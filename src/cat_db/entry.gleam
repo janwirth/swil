@@ -4,10 +4,10 @@
 import gleam/option.{type Option}
 import sqlight
 
-import cats_schema_generated/crud
-import cats_schema_generated/migrate
-import cats_schema_generated/resource
-import cats_schema_generated/structure
+import cat_db/crud
+import cat_db/migrate
+import cat_db/resource
+import cat_db/structure
 
 pub type Cat = resource.Cat
 
