@@ -160,65 +160,29 @@ pub fn cats(conn: sqlight.Connection) -> CatsDb {
       let stamp = 1
       case cat.name {
         Some(name_str) -> {
-          let find_sql =
-            "select id, created_at, updated_at, deleted_at, name, age from cats where name = ? and deleted_at is null limit 1"
-          use existing <- result.try(sqlight.query(
-            find_sql,
+          let upsert =
+            "insert into cats (name, age, created_at, updated_at, deleted_at) values (?, ?, ?, ?, null) on conflict(name) do update set age = excluded.age, updated_at = excluded.updated_at, deleted_at = null"
+          use _ <- result.try(sqlight.query(
+            upsert,
+            on: conn,
+            with: [
+              sqlight.text(name_str),
+              sqlight.nullable(sqlight.int, cat.age),
+              sqlight.int(stamp),
+              sqlight.int(stamp),
+            ],
+            expecting: decode.success(Nil),
+          ))
+          sqlight.query(
+            "select id, created_at, updated_at, deleted_at, name, age from cats where name = ? and deleted_at is null limit 1",
             on: conn,
             with: [sqlight.text(name_str)],
             expecting: cat_row_decoder(),
-          ))
-          case existing {
-            [row] -> {
-              let upd =
-                "update cats set age = ?, updated_at = ? where id = ?"
-              use _ <- result.try(sqlight.query(
-                upd,
-                on: conn,
-                with: [
-                  sqlight.nullable(sqlight.int, cat.age),
-                  sqlight.int(stamp),
-                  sqlight.int(row.id),
-                ],
-                expecting: decode.success(Nil),
-              ))
-              sqlight.query(
-                find_sql,
-                on: conn,
-                with: [sqlight.text(name_str)],
-                expecting: cat_row_decoder(),
-              )
-              |> result.map(fn(rows) {
-                let assert [r] = rows
-                r
-              })
-            }
-            _ -> {
-              let ins =
-                "insert into cats (name, age, created_at, updated_at, deleted_at) values (?, ?, ?, ?, null)"
-              use _ <- result.try(sqlight.query(
-                ins,
-                on: conn,
-                with: [
-                  sqlight.text(name_str),
-                  sqlight.nullable(sqlight.int, cat.age),
-                  sqlight.int(stamp),
-                  sqlight.int(stamp),
-                ],
-                expecting: decode.success(Nil),
-              ))
-              sqlight.query(
-                "select id, created_at, updated_at, deleted_at, name, age from cats where id = last_insert_rowid()",
-                on: conn,
-                with: [],
-                expecting: cat_row_decoder(),
-              )
-              |> result.map(fn(rows) {
-                let assert [r] = rows
-                r
-              })
-            }
-          }
+          )
+          |> result.map(fn(rows) {
+            let assert [r] = rows
+            r
+          })
         }
         None -> {
           let ins =
