@@ -1,0 +1,42 @@
+import generator/schema_context.{type SchemaContext}
+
+pub fn generate(ctx: SchemaContext) -> String {
+  let table = ctx.table
+  "import gleam/dynamic/decode\n"
+  <> "import gleam/list\n"
+  <> "import gleam/result\n"
+  <> "import gleam/string\n"
+  <> "import sqlight\n"
+  <> "\n"
+  <> "pub fn delete_one(conn: sqlight.Connection, id: Int) -> Result(Nil, sqlight.Error) {\n"
+  <> "  use _ <- result.try(sqlight.query(\n"
+  <> "    \"delete from "
+  <> table
+  <> " where id = ?\",\n"
+  <> "    on: conn,\n"
+  <> "    with: [sqlight.int(id)],\n"
+  <> "    expecting: decode.success(Nil),\n"
+  <> "  ))\n"
+  <> "  Ok(Nil)\n"
+  <> "}\n"
+  <> "\n"
+  <> "pub fn delete_many(conn: sqlight.Connection, ids: List(Int)) -> Result(Nil, sqlight.Error) {\n"
+  <> "  case ids {\n"
+  <> "    [] -> Ok(Nil)\n"
+  <> "    _ -> {\n"
+  <> "      let placeholders = list.map(ids, fn(_) { \"?\" }) |> string.join(\", \")\n"
+  <> "      let sql = \"delete from "
+  <> table
+  <> " where id in (\" <> placeholders <> \")\"\n"
+  <> "      let args = list.map(ids, sqlight.int)\n"
+  <> "      use _ <- result.try(sqlight.query(\n"
+  <> "        sql,\n"
+  <> "        on: conn,\n"
+  <> "        with: args,\n"
+  <> "        expecting: decode.success(Nil),\n"
+  <> "      ))\n"
+  <> "      Ok(Nil)\n"
+  <> "    }\n"
+  <> "  }\n"
+  <> "}\n"
+}

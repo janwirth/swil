@@ -13,6 +13,10 @@ pub fn generate(module: String, version: String) -> String {
   generate_migration(ctx, version, ctx.table)
 }
 
+fn flatten_rendered_type(s: String) -> String {
+  string.replace(s, "\n", "")
+}
+
 fn generate_migration(
   ctx: schema_context.MigrationContext,
   version: String,
@@ -32,12 +36,12 @@ fn generate_migration(
         gleamgen_types.custom_type(Some("sqlight"), "Error", []),
       ),
     )
-  let return_type = gleamgen_render.to_string(return_rendered)
+  let return_type = flatten_rendered_type(gleamgen_render.to_string(return_rendered))
   let assert Ok(conn_rendered) =
     gleamgen_types.render_type(
       gleamgen_types.custom_type(Some("sqlight"), "Connection", []),
     )
-  let conn_type = gleamgen_render.to_string(conn_rendered)
+  let conn_type = flatten_rendered_type(gleamgen_render.to_string(conn_rendered))
   "import gleam/result\n"
   <> "\n"
   <> "import help/migrate as migration_help\n"

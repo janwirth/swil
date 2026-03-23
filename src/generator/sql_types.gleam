@@ -63,3 +63,26 @@ pub fn filter_is_string_column(type_: glance.Type) -> Bool {
       string.starts_with(rendered, "Option(String)")
   }
 }
+
+/// Gleam expression for a `gleam/dynamic/decode` decoder matching this field type.
+pub fn decode_expression(type_: glance.Type) -> String {
+  case rendered_type(type_) {
+    "Int" -> "decode.int"
+    "Float" -> "decode.float"
+    "Bool" -> "decode.int"
+    "String" -> "decode.string"
+    "Nil" -> "decode.int"
+    rendered ->
+      case string.starts_with(rendered, "Option(") {
+        False -> "decode.string"
+        True ->
+          case rendered {
+            "Option(Int)" -> "decode.optional(decode.int)"
+            "Option(Float)" -> "decode.optional(decode.float)"
+            "Option(Bool)" -> "decode.optional(decode.int)"
+            "Option(String)" -> "decode.optional(decode.string)"
+            _ -> "decode.optional(decode.string)"
+          }
+      }
+  }
+}

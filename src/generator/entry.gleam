@@ -111,7 +111,7 @@ pub fn generate(ctx: SchemaContext) -> String {
     <> "  resource."
     <> ctx.variant_name
     <> "("
-    <> join_labels(ctx.fields)
+    <> join_label_shorthands(ctx.fields)
     <> ")\n"
     <> "}\n"
     <> "\n"
@@ -150,14 +150,15 @@ pub fn generate(ctx: SchemaContext) -> String {
     <> "}\n"
 }
 
-fn join_labels(fields: List(#(String, a))) -> String {
+fn join_label_shorthands(fields: List(#(String, a))) -> String {
   case fields {
     [] -> ""
     [#(l, _), ..rest] ->
       l
+      <> ":"
       <> case rest {
         [] -> ""
-        _ -> ", " <> join_labels(rest)
+        _ -> ", " <> join_label_shorthands(rest)
       }
   }
 }
@@ -188,7 +189,10 @@ fn upsert_rest_params_suffix(ctx: SchemaContext) -> String {
 
 fn upsert_rest_args(ctx: SchemaContext) -> String {
   case ctx.identity_labels {
-    [] -> join_labels(ctx.fields)
+    [] ->
+      ctx.fields
+      |> list.map(fn(pair) { pair.0 })
+      |> string.join(", ")
     [primary, ..] -> {
       let rest =
         ctx.fields
