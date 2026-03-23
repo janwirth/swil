@@ -10,19 +10,39 @@ pub fn generate(module: String, version: String) -> String {
   let assert Ok(parsed) = glance.module(module)
   let assert [glance.Definition(_, custom_type), ..] = parsed.custom_types
   let columns = extract_columns(custom_type.variants)
-  let column_lines = render_column_lines(columns)
+  let has_tail_expression = version == "idemptotent"
+  let column_lines = render_column_lines(columns, has_tail_expression)
+  let identity_lines = case version == "idemptotent" {
+    True ->
+      "\n"
+      <> "  sqlight.exec(\n"
+      <> "    \"create unique index if not exists cats_identity_name_idx on cats (name);\",\n"
+      <> "    conn,\n"
+      <> "  )\n"
+    False -> "\n"
+  }
+  let migrate_v2 = case version == "idemptotent" {
+    True ->
+      "\n"
+      <> "pub fn migrate_v2(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {\n"
+      <> "  migrate_idemptotent(conn)\n"
+      <> "}\n"
+    False -> ""
+  }
 
-  "import gen/migration_help as shared\n"
+  "import gleam/result\n"
+  <> "\n"
+  <> "import gen/migration_help as shared\n"
   <> "import sqlight\n"
-  <> "import gleam/result\n"
   <> "\n"
   <> "pub fn migrate_"
   <> version
   <> "(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {\n"
   <> "  use _ <- result.try(shared.ensure_base_table(conn))\n"
   <> column_lines
-  <> "\n"
+  <> identity_lines
   <> "}\n"
+  <> migrate_v2
 }
 
 fn extract_columns(variants: List(glance.Variant)) -> List(#(String, glance.Type)) {
@@ -50,9 +70,12 @@ fn extract_fields(
   }
 }
 
-fn render_column_lines(columns: List(#(String, glance.Type))) -> String {
+fn render_column_lines(
+  columns: List(#(String, glance.Type)),
+  has_tail_expression: Bool,
+) -> String {
   let field_count = list.length(columns)
-  build_column_lines(columns, 0, field_count, [])
+  build_column_lines(columns, 0, field_count, has_tail_expression, [])
   |> list.reverse
   |> string.join("\n")
 }
@@ -61,17 +84,19 @@ fn build_column_lines(
   columns: List(#(String, glance.Type)),
   index: Int,
   field_count: Int,
+  has_tail_expression: Bool,
   acc: List(String),
 ) -> List(String) {
   case columns {
     [#(name, type_), ..rest] -> {
       let sql = "alter table cats add column " <> name <> " " <> sql_type(type_) <> ";"
       let call = "shared.ensure_column(conn, \"" <> name <> "\", \"" <> sql <> "\")"
-      let line = case index == field_count - 1 {
+      let is_last = index == field_count - 1
+      let line = case is_last && !has_tail_expression {
         True -> "  " <> call
         False -> "  use _ <- result.try(" <> call <> ")"
       }
-      build_column_lines(rest, index + 1, field_count, [line, ..acc])
+      build_column_lines(rest, index + 1, field_count, has_tail_expression, [line, ..acc])
     }
     [] -> acc
   }

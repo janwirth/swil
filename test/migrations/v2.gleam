@@ -1,6 +1,7 @@
+import gleam/result
+
 import gen/migration_help as shared
 import sqlight
-import gleam/result
 
 pub fn migrate_v2(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   use _ <- result.try(shared.ensure_base_table(conn))
