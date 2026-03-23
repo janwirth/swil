@@ -5,7 +5,7 @@ import cat_example.{
 import cat_db/entry as cats
 import cat_db/resource.{Cat}
 import cat_db/structure.{AgeField, CatRow, IdField}
-import gen/filter
+import help/filter
 import gleam/int
 import gleam/list
 import sqlight

@@ -1,6 +1,6 @@
 import gleam/result
 
-import gen/migration_help
+import help/migrate as migration_help
 import sqlight
 
 pub fn migrate_idemptotent(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {

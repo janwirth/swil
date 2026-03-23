@@ -3,14 +3,13 @@
 // all squeal generated migrations should behave like this
 // the generated ones for now are not tested across version fuzzing, just idempotency
 // that means, v1,v3,v2 etc. all should ensure their respective version queries are possible after migration is run, regardless of order and frequency of migration runs
-import gleeunit
 import gleam/option.{Some}
-import migrations/v1 as migrations_v1
-import migrations/v2 as migrations_v2
-import migrations/v3 as migrations_v3
-import operations/v1 as operations_v1
-import operations/v2 as operations_v2
-import operations/v3 as operations_v3
+import experiments/migrations/v1 as migrations_v1
+import experiments/migrations/v2 as migrations_v2
+import experiments/migrations/v3 as migrations_v3
+import experiments/migrations/operations/v1 as operations_v1
+import experiments/migrations/operations/v2 as operations_v2
+import experiments/migrations/operations/v3 as operations_v3
 import sqlight
 
 

@@ -50,7 +50,7 @@ pub fn main() -> Nil {
   use conn <- sqlight.with_connection(":memory:")
   let arg = cats_crud.filter_arg(Some(cat_older_than(6)), None)
   let _ = cats.cats(conn).migrate()
-  let cats = cats.cats(conn).read_many(arg)
+  let _cats = cats.cats(conn).read_many(arg)
 
   Nil
 }

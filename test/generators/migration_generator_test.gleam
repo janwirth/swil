@@ -31,9 +31,9 @@ pub fn main() -> Nil {
 
 fn module_paths() -> List(#(String, String)) {
   [
-    #(cat_v1, "test/migrations/v1.gleam"),
-    #(cat_v2, "test/migrations/v2.gleam"),
-    #(cat_v3, "test/migrations/v3.gleam"),
+    #(cat_v1, "test/experiments/migrations/v1.gleam"),
+    #(cat_v2, "test/experiments/migrations/v2.gleam"),
+    #(cat_v3, "test/experiments/migrations/v3.gleam"),
   ]
 }
 
