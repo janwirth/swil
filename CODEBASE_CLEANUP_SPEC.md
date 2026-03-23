@@ -108,22 +108,36 @@ Not accepted:
 
 Mark each item when the module has been reviewed for all required style rules and refactored where needed.
 
-- [ ] `src/generator/crud.gleam`
-- [ ] `src/generator/crud_delete.gleam`
-- [ ] `src/generator/crud_filter.gleam`
-- [ ] `src/generator/crud_read.gleam`
-- [ ] `src/generator/crud_sort.gleam`
-- [ ] `src/generator/crud_update.gleam`
-- [ ] `src/generator/crud_upsert.gleam`
-- [ ] `src/generator/entry.gleam`
-- [ ] `src/generator/full.gleam`
-- [ ] `src/generator/gleam_format_helpers.gleam`
-- [ ] `src/generator/gleamgen_emit.gleam`
-- [ ] `src/generator/migration.gleam`
-- [ ] `src/generator/resource.gleam`
-- [ ] `src/generator/schema_context.gleam`
-- [ ] `src/generator/sql_types.gleam`
-- [ ] `src/generator/structure.gleam`
+**Status (as of current audit):**
+- ✓ `crud_delete.gleam` - Reference style, fully compliant
+- ✓ `crud_sort.gleam` - Fully compliant (uses gmod + gleamgen_emit)
+- ⚠ `crud_upsert.gleam` - Partially compliant (uses gmod for body but `<>` for header)
+- ✗ `crud_filter.gleam` - Uses `<>` for main body
+- ✗ `crud_read.gleam` - Uses `<>` for main body
+- ✗ `crud_update.gleam` - Uses `<>` for entire module
+- ✗ `crud.gleam` - Uses `<>` for entire module
+- ✗ `entry.gleam` - Uses `<>` for entire module
+- ✗ `migration.gleam` - Uses `<>` for entire module
+- ✗ `resource.gleam` - Uses `<>` for entire module
+- ✗ `structure.gleam` - Uses `<>` for entire module
+
+**Helper modules (no cleanup needed - they are utilities, not generators):**
+- `full.gleam` - Orchestrator module, OK
+- `gleam_format_helpers.gleam` - Helper module, OK
+- `gleamgen_emit.gleam` - Helper module, OK
+- `schema_context.gleam` - Helper module, OK
+- `sql_types.gleam` - Helper module, OK
+
+**Priority order (CRUD generators first as per spec):**
+1. [ ] `crud_upsert.gleam` - Remove `<>` for header, use gmod for imports
+2. [ ] `crud_update.gleam` - Convert to full gleamgen style
+3. [ ] `crud_filter.gleam` - Convert to full gleamgen style
+4. [ ] `crud_read.gleam` - Convert to full gleamgen style
+5. [ ] `crud.gleam` - Convert to full gleamgen style
+6. [ ] `entry.gleam` - Convert to full gleamgen style
+7. [ ] `migration.gleam` - Convert to full gleamgen style
+8. [ ] `resource.gleam` - Convert to full gleamgen style
+9. [ ] `structure.gleam` - Convert to full gleamgen style
 
 ## Structural Cleanup TODOs
 

@@ -3,12 +3,17 @@ import gleam/list
 import gleam/result
 import sqlight
 
-pub fn ensure_base_table(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
-  use names <- result.try(pragma_table_info_names(conn))
+pub fn ensure_base_table(
+  conn: sqlight.Connection,
+  table: String,
+) -> Result(Nil, sqlight.Error) {
+  use names <- result.try(pragma_table_info_names(conn, table))
   case names {
     [] ->
       sqlight.exec(
-        "create table if not exists cats (id integer primary key, created_at int, updated_at int, deleted_at int);",
+        "create table if not exists "
+          <> table
+          <> " (id integer primary key, created_at int, updated_at int, deleted_at int);",
         conn,
       )
     _ -> Ok(Nil)
@@ -17,10 +22,11 @@ pub fn ensure_base_table(conn: sqlight.Connection) -> Result(Nil, sqlight.Error)
 
 pub fn ensure_column(
   conn: sqlight.Connection,
+  table: String,
   column_name: String,
   alter_sql: String,
 ) -> Result(Nil, sqlight.Error) {
-  use names <- result.try(pragma_table_info_names(conn))
+  use names <- result.try(pragma_table_info_names(conn, table))
   case list.contains(names, column_name) {
     True -> Ok(Nil)
     False -> sqlight.exec(alter_sql, conn)
@@ -29,9 +35,10 @@ pub fn ensure_column(
 
 pub fn pragma_table_info_names(
   conn: sqlight.Connection,
+  table: String,
 ) -> Result(List(String), sqlight.Error) {
   sqlight.query(
-    "pragma table_info(cats)",
+    "pragma table_info(" <> table <> ")",
     conn,
     with: [],
     expecting: pragma_column_name_decoder(),

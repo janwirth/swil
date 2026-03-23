@@ -6,19 +6,22 @@ import sqlight
 pub fn migrate_idempotent(
   conn: sqlight.Connection,
 ) -> Result(Nil, sqlight.Error) {
-  use _ <- result.try(migration_help.ensure_base_table(conn))
+  use _ <- result.try(migration_help.ensure_base_table(conn, "dogs"))
   use _ <- result.try(migration_help.ensure_column(
     conn,
+    "dogs",
     "name",
     "alter table dogs add column name text;",
   ))
   use _ <- result.try(migration_help.ensure_column(
     conn,
+    "dogs",
     "age",
     "alter table dogs add column age int;",
   ))
   use _ <- result.try(migration_help.ensure_column(
     conn,
+    "dogs",
     "is_neutered",
     "alter table dogs add column is_neutered int;",
   ))

@@ -53,7 +53,9 @@ fn generate_migration(
   <> ") -> "
   <> return_type
   <> " {\n"
-  <> "  use _ <- result.try(migration_help.ensure_base_table(conn))\n"
+  <> "  use _ <- result.try(migration_help.ensure_base_table(conn, \""
+  <> module_name
+  <> "\"))\n"
   <> column_lines
   <> identity_lines
   <> "}\n"
@@ -133,6 +135,9 @@ fn build_column_lines(
       let call =
         "migration_help.ensure_column(\n"
         <> "    conn,\n"
+        <> "    \""
+        <> module_name
+        <> "\",\n"
         <> "    \""
         <> name
         <> "\",\n"
