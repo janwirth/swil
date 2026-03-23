@@ -2,7 +2,7 @@ import gleam/dynamic/decode
 import gleam/option.{type Option}
 
 import cat_db/resource.{type Cat, type CatForUpsert, Cat}
-import gen/filter
+import help/filter
 import sqlight
 
 pub type FilterableCat {

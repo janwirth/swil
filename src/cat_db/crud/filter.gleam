@@ -19,7 +19,7 @@ import cat_db/structure.{
   StringValue,
   UpdatedAtInt,
 }
-import gen/filter
+import help/filter
 
 pub type Filter = fn(FilterableCat) -> filter.BoolExpr(NumRefOrValue, StringRefOrValue)
 

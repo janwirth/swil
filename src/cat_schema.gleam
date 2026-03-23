@@ -18,7 +18,7 @@
 // ```
 import gleam/option.{type Option}
 
-import gen/identity
+import help/identity
 import cat_db/entry as cats
 
 // SQLITE_LAYER_GENERATION → cat_db/{resource,structure,crud,migrate,entry}.gleam

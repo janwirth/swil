@@ -12,7 +12,7 @@ import cat_db/structure.{
   type StringRefOrValue,
   cat_row_decoder,
 }
-import gen/filter
+import help/filter
 
 pub fn read_one(conn: sqlight.Connection, id: Int) -> Result(Option(CatRow), sqlight.Error) {
   use rows <- result.try(sqlight.query(

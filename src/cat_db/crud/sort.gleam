@@ -9,7 +9,7 @@ import cat_db/structure.{
   NameField,
   UpdatedAtField,
 }
-import gen/filter
+import help/filter
 
 pub fn cat_field_sql(field: CatField) -> String {
   case field {

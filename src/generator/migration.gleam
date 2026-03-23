@@ -23,7 +23,7 @@ pub fn generate(module: String, version: String) -> String {
   }
   "import gleam/result\n"
   <> "\n"
-  <> "import gen/migration_help\n"
+  <> "import help/migrate as migration_help\n"
   <> "import sqlight\n"
   <> "\n"
   <> "pub fn migrate_idemptotent(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {\n"

@@ -16,7 +16,7 @@ import cat_db/structure.{
   type StringRefOrValue,
   CatsDb,
 }
-import gen/filter
+import help/filter
 
 pub type Filter = crud_filter.Filter
 

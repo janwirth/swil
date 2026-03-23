@@ -4,7 +4,7 @@
 import gleeunit
 import gleam/list
 import gleam/string
-import gen/migration_generator
+import generator/migration as migration_generator
 import simplifile
 
 pub const cat_v1 = "
@@ -44,7 +44,7 @@ fn resolve_path(module: String, entries: List(#(String, String))) -> String {
         True -> path
         False -> resolve_path(module, rest)
       }
-    [] -> "src/gen/migration_help.gleam"
+    [] -> "src/help/migrate.gleam"
   }
 }
 
@@ -77,7 +77,7 @@ fn assert_fixtures(fixtures: List(#(String, String))) {
 }
 
 pub fn generate_migration_fixtures_test() {
-  // Intentionally excludes src/gen/migration_help.gleam from fixture assertions.
+  // Intentionally excludes src/help/migrate.gleam from fixture assertions.
   assert_fixtures(module_paths())
 }
 

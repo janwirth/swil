@@ -1,6 +1,6 @@
 import simplifile
 
-import gen/migration_generator
+import generator/migration as migration_generator
 
 // Fixture shape produced by the SQLite access-layer generator.
 // Assumption: every generated module is emitted as source text (String).

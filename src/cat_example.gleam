@@ -1,6 +1,6 @@
 import cat_db/crud as cats_crud
 import cat_db/entry as cats
-import gen/filter
+import help/filter
 import sqlight
 import gleam/option.{Some, None}
 import cat_db/structure
