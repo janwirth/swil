@@ -1,0 +1,11 @@
+---
+description: Enforce gleamgen and cake for generator code
+globs: src/generator/**/*.gleam
+alwaysApply: false
+---
+
+# Code Generation Tools
+
+When generating code, use `gleamgen`.
+
+When using generation templates and pipeline composition, use `cake`.

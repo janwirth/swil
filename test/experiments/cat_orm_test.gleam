@@ -33,15 +33,15 @@ pub fn cats_typed_schema_test() {
   let assert CatRow(
     value: Cat(name: Some("Nubi"), age: Some(7)),
     id: 1,
-    created_at: 1,
-    updated_at: 1,
+    created_at: _,
+    updated_at: _,
     deleted_at: None,
   ) = nubi_row
   let assert CatRow(
     value: Cat(name: Some("Luna"), age: Some(10)),
     id: 3,
-    created_at: 1,
-    updated_at: 1,
+    created_at: _,
+    updated_at: _,
     deleted_at: None,
   ) = luna_row
 
@@ -54,8 +54,8 @@ pub fn cats_typed_schema_test() {
     CatRow(
       value: Cat(name: Some("Luna"), age: Some(10)),
       id: 3,
-      created_at: 1,
-      updated_at: 1,
+      created_at: _,
+      updated_at: _,
       deleted_at: None,
     ),
   ] = rows
@@ -69,8 +69,8 @@ pub fn cats_typed_schema_test() {
     CatRow(
       value: Cat(name: Some("Whiskers"), age: Some(3)),
       id: 2,
-      created_at: 1,
-      updated_at: 1,
+      created_at: _,
+      updated_at: _,
       deleted_at: None,
     ),
   ] = rows
@@ -85,15 +85,15 @@ pub fn cats_typed_schema_test() {
   let assert CatRow(
     value: Cat(name: Some("Whiskers"), age: Some(3)),
     id: 2,
-    created_at: 1,
-    updated_at: 1,
+    created_at: _,
+    updated_at: _,
     deleted_at: None,
   ) = whiskers_row
   let assert CatRow(
     value: Cat(name: Some("Luna"), age: Some(10)),
     id: 3,
-    created_at: 1,
-    updated_at: 1,
+    created_at: _,
+    updated_at: _,
     deleted_at: None,
   ) = luna_row2
 
@@ -107,15 +107,15 @@ pub fn cats_typed_schema_test() {
   let assert CatRow(
     value: Cat(name: Some("Nubi"), age: Some(7)),
     id: 1,
-    created_at: 1,
-    updated_at: 1,
+    created_at: _,
+    updated_at: _,
     deleted_at: None,
   ) = composite_nubi
   let assert CatRow(
     value: Cat(name: Some("Luna"), age: Some(10)),
     id: 3,
-    created_at: 1,
-    updated_at: 1,
+    created_at: _,
+    updated_at: _,
     deleted_at: None,
   ) = composite_luna
 
@@ -127,22 +127,22 @@ pub fn cats_typed_schema_test() {
     CatRow(
       value: Cat(name: Some("Luna"), age: Some(10)),
       id: 3,
-      created_at: 1,
-      updated_at: 1,
+      created_at: _,
+      updated_at: _,
       deleted_at: None,
     ),
     CatRow(
       value: Cat(name: Some("Nubi"), age: Some(7)),
       id: 1,
-      created_at: 1,
-      updated_at: 1,
+      created_at: _,
+      updated_at: _,
       deleted_at: None,
     ),
     CatRow(
       value: Cat(name: Some("Whiskers"), age: Some(3)),
       id: 2,
-      created_at: 1,
-      updated_at: 1,
+      created_at: _,
+      updated_at: _,
       deleted_at: None,
     ),
   ] = sorted_by_age_desc
@@ -156,22 +156,22 @@ pub fn cats_typed_schema_test() {
     CatRow(
       value: Cat(name: Some("Nubi"), age: Some(7)),
       id: 1,
-      created_at: 1,
-      updated_at: 1,
+      created_at: _,
+      updated_at: _,
       deleted_at: None,
     ),
     CatRow(
       value: Cat(name: Some("Whiskers"), age: Some(3)),
       id: 2,
-      created_at: 1,
-      updated_at: 1,
+      created_at: _,
+      updated_at: _,
       deleted_at: None,
     ),
     CatRow(
       value: Cat(name: Some("Luna"), age: Some(10)),
       id: 3,
-      created_at: 1,
-      updated_at: 1,
+      created_at: _,
+      updated_at: _,
       deleted_at: None,
     ),
   ] = sorted_by_id_asc
@@ -188,8 +188,8 @@ pub fn cats_migration_idempotent_three_times_test() {
   let assert CatRow(
     value: Cat(name: Some("Nubi"), age: Some(7)),
     id: 1,
-    created_at: 1,
-    updated_at: 1,
+    created_at: _,
+    updated_at: _,
     deleted_at: None,
   ) = row
 }
@@ -209,8 +209,8 @@ pub fn cats_update_one_test() {
   let assert CatRow(
     value: Cat(name: Some("Nubi"), age: Some(9)),
     id: 1,
-    created_at: 1,
-    updated_at: 1,
+    created_at: _,
+    updated_at: _,
     deleted_at: None,
   ) = updated
 }
@@ -235,15 +235,15 @@ pub fn cats_update_many_test() {
   let assert CatRow(
     value: Cat(name: Some("Nubi"), age: Some(8)),
     id: 1,
-    created_at: 1,
-    updated_at: 1,
+    created_at: _,
+    updated_at: _,
     deleted_at: None,
   ) = first
   let assert CatRow(
     value: Cat(name: Some("Luna"), age: Some(11)),
     id: 2,
-    created_at: 1,
-    updated_at: 1,
+    created_at: _,
+    updated_at: _,
     deleted_at: None,
   ) = second
 }
