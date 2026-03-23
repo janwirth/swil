@@ -14,23 +14,23 @@ import cats_schema_generated/structure.{
   type FilterableCat,
   type NumRefOrValue,
   type StringRefOrValue,
-  Age,
+  AgeInt,
   AgeField,
   CatsDb,
-  CreatedAt,
+  CreatedAtInt,
   CreatedAtField,
-  DeletedAt,
+  DeletedAtInt,
   DeletedAtField,
   FilterableCat,
-  Id,
+  IdInt,
   IdField,
-  Name,
+  NameString,
   NameField,
   NumRef,
   NumValue,
   StringRef,
   StringValue,
-  UpdatedAt,
+  UpdatedAtInt,
   UpdatedAtField,
   cat_row_decoder,
 }
@@ -50,29 +50,29 @@ pub fn filter_arg(
 
 fn filterable_refs() -> FilterableCat {
   FilterableCat(
-    name: StringRef(Name),
-    age: NumRef(Age),
-    id: NumRef(Id),
-    created_at: NumRef(CreatedAt),
-    updated_at: NumRef(UpdatedAt),
-    deleted_at: NumRef(DeletedAt),
+    name: StringRef(NameString),
+    age: NumRef(AgeInt),
+    id: NumRef(IdInt),
+    created_at: NumRef(CreatedAtInt),
+    updated_at: NumRef(UpdatedAtInt),
+    deleted_at: NumRef(DeletedAtInt),
   )
 }
 
 fn num_operand_sql(op: NumRefOrValue) -> #(String, List(sqlight.Value)) {
   case op {
-    NumRef(Age) -> #("age", [])
-    NumRef(Id) -> #("id", [])
-    NumRef(CreatedAt) -> #("created_at", [])
-    NumRef(UpdatedAt) -> #("updated_at", [])
-    NumRef(DeletedAt) -> #("deleted_at", [])
+    NumRef(AgeInt) -> #("age", [])
+    NumRef(IdInt) -> #("id", [])
+    NumRef(CreatedAtInt) -> #("created_at", [])
+    NumRef(UpdatedAtInt) -> #("updated_at", [])
+    NumRef(DeletedAtInt) -> #("deleted_at", [])
     NumValue(value: v) -> #("?", [sqlight.int(v)])
   }
 }
 
 fn string_operand_sql(op: StringRefOrValue) -> #(String, List(sqlight.Value)) {
   case op {
-    StringRef(Name) -> #("name", [])
+    StringRef(NameString) -> #("name", [])
     StringValue(value: s) -> #("?", [sqlight.text(s)])
   }
 }
