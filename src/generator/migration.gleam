@@ -46,8 +46,10 @@ fn generate_migration(
   <> "import help/migrate as migration_help\n"
   <> "import sqlight\n"
   <> "\n"
-  <> "pub fn migrate_idempotent(conn: "
+  <> "pub fn migrate_idempotent(\n"
+  <> "  conn: "
   <> conn_type
+  <> ",\n"
   <> ") -> "
   <> return_type
   <> " {\n"
@@ -129,11 +131,15 @@ fn build_column_lines(
         <> sql_types.sql_type(type_)
         <> ";"
       let call =
-        "migration_help.ensure_column(conn, \""
+        "migration_help.ensure_column(\n"
+        <> "    conn,\n"
+        <> "    \""
         <> name
-        <> "\", \""
+        <> "\",\n"
+        <> "    \""
         <> sql
-        <> "\")"
+        <> "\",\n"
+        <> "  )"
       let is_last = index == field_count - 1
       let line = case is_last && !has_tail_expression {
         True -> "  " <> call

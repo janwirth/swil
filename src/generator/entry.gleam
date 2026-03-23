@@ -57,51 +57,23 @@ pub fn generate(ctx: SchemaContext) -> String {
   <> ctx.variant_name
   <> "}\n"
   <> "\n"
-  <> "pub type "
-  <> upsert
-  <> " = resource."
-  <> upsert
+  <> type_alias_equals(upsert, "resource." <> upsert)
   <> "\n"
+  <> type_alias_equals(row, "structure." <> row)
   <> "\n"
-  <> "pub type "
-  <> row
-  <> " = structure."
-  <> row
+  <> type_alias_equals(db, "structure." <> db)
   <> "\n"
+  <> type_alias_equals(filterable, "structure." <> filterable)
   <> "\n"
-  <> "pub type "
-  <> db
-  <> " = structure."
-  <> db
+  <> type_alias_equals("StringRefOrValue", "structure.StringRefOrValue")
   <> "\n"
+  <> type_alias_equals("NumRefOrValue", "structure.NumRefOrValue")
   <> "\n"
-  <> "pub type "
-  <> filterable
-  <> " = structure."
-  <> filterable
+  <> type_alias_equals(num_ref, "structure." <> num_ref)
   <> "\n"
+  <> type_alias_equals(str_ref, "structure." <> str_ref)
   <> "\n"
-  <> "pub type StringRefOrValue = structure.StringRefOrValue\n"
-  <> "\n"
-  <> "pub type NumRefOrValue = structure.NumRefOrValue\n"
-  <> "\n"
-  <> "pub type "
-  <> num_ref
-  <> " = structure."
-  <> num_ref
-  <> "\n"
-  <> "\n"
-  <> "pub type "
-  <> str_ref
-  <> " = structure."
-  <> str_ref
-  <> "\n"
-  <> "\n"
-  <> "pub type "
-  <> field_enum
-  <> " = structure."
-  <> field_enum
-  <> "\n"
+  <> type_alias_equals(field_enum, "structure." <> field_enum)
   <> "\n"
   <> "pub fn "
   <> singular
@@ -146,9 +118,15 @@ pub fn generate(ctx: SchemaContext) -> String {
   <> "(conn)\n"
   <> "}\n"
   <> "\n"
-  <> "pub fn migrate_idempotent(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {\n"
+  <> "pub fn migrate_idempotent(\n"
+  <> "  conn: sqlight.Connection,\n"
+  <> ") -> Result(Nil, sqlight.Error) {\n"
   <> "  migrate.migrate_idempotent(conn)\n"
   <> "}\n"
+}
+
+fn type_alias_equals(name: String, rhs: String) -> String {
+  "pub type " <> name <> " =\n  " <> rhs <> "\n"
 }
 
 fn join_label_shorthands(fields: List(#(String, a))) -> String {

@@ -123,7 +123,8 @@ pub fn generate(ctx: SchemaContext) -> String {
   <> "), sqlight.Error),\n"
   <> "    update_many: fn(List(#(Int, "
   <> t
-  <> "))) -> Result(List(Option("
+  <> "))) ->\n"
+  <> "      Result(List(Option("
   <> row
   <> ")), sqlight.Error),\n"
   <> "    read_one: fn(Int) -> Result(Option("
@@ -135,7 +136,8 @@ pub fn generate(ctx: SchemaContext) -> String {
   <> ", NumRefOrValue, StringRefOrValue, "
   <> fe
   <> "),\n"
-  <> "    ) -> Result(List("
+  <> "    ) ->\n"
+  <> "      Result(List("
   <> row
   <> "), sqlight.Error),\n"
   <> "    delete_one: fn(Int) -> Result(Nil, sqlight.Error),\n"

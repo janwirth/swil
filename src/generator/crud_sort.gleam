@@ -1,23 +1,21 @@
 import gleam/list
 import gleam/string
 
+import generator/gleam_format_helpers
 import generator/schema_context.{type SchemaContext, pascal_case_field_label}
 
 pub fn generate(ctx: SchemaContext) -> String {
   let layer = ctx.layer
   let fe = ctx.field_enum_name
-  let imports = sorted_imports(ctx)
+  let import_body = sort_structure_import_block(fe, all_field_variant_names(ctx))
   let cases = field_sql_cases(ctx)
   "import gleam/option.{type Option, None, Some}\n"
   <> "\n"
   <> "import "
   <> layer
   <> "/structure.{\n"
-  <> "  type "
-  <> fe
-  <> ",\n"
-  <> imports
-  <> "}\n"
+  <> import_body
+  <> "\n}\n"
   <> "import help/filter\n"
   <> "\n"
   <> "pub fn "
@@ -49,9 +47,15 @@ fn singular_field_fn(ctx: SchemaContext) -> String {
   ctx.singular <> "_field_sql"
 }
 
-fn sorted_imports(ctx: SchemaContext) -> String {
-  let names = all_field_variant_names(ctx)
-  list.map(names, fn(n) { "  " <> n <> ",\n" }) |> string.concat
+fn sort_structure_import_block(
+  field_enum: String,
+  variant_names: List(String),
+) -> String {
+  gleam_format_helpers.comma_wrap_lines(
+    "  ",
+    ["type " <> field_enum, ..variant_names],
+    gleam_format_helpers.import_list_max_col,
+  )
 }
 
 fn all_field_variant_names(ctx: SchemaContext) -> List(String) {

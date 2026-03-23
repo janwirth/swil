@@ -24,10 +24,10 @@ pub fn generate(ctx: SchemaContext) -> String {
   <> "/crud/read as crud_read\n"
   <> "import "
   <> layer
-  <> "/crud/upsert as crud_upsert\n"
+  <> "/crud/update as crud_update\n"
   <> "import "
   <> layer
-  <> "/crud/update as crud_update\n"
+  <> "/crud/upsert as crud_upsert\n"
   <> "import "
   <> layer
   <> "/migrate\n"
@@ -41,27 +41,24 @@ pub fn generate(ctx: SchemaContext) -> String {
   <> "/structure.{\n"
   <> "  type "
   <> fe
-  <> ",\n"
-  <> "  type "
+  <> ", type "
   <> db
-  <> ",\n"
-  <> "  type "
+  <> ", type "
   <> fl
-  <> ",\n"
-  <> "  type NumRefOrValue,\n"
-  <> "  type StringRefOrValue,\n"
-  <> "  "
+  <> ", type NumRefOrValue,\n"
+  <> "  type StringRefOrValue, "
   <> db
   <> ",\n"
   <> "}\n"
-  <> "import help/filter\n"
   <> "import "
   <> schema_mod
   <> ".{type "
   <> t
   <> "}\n"
+  <> "import help/filter\n"
   <> "\n"
-  <> "pub type Filter = crud_filter.Filter\n"
+  <> "pub type Filter =\n"
+  <> "  crud_filter.Filter\n"
   <> "\n"
   <> "pub fn filter_arg(\n"
   <> "  nullable_filter: Option(Filter),\n"
@@ -94,7 +91,9 @@ pub fn generate(ctx: SchemaContext) -> String {
   <> ") },\n"
   <> "    upsert_many: fn(rows: List("
   <> upsert
-  <> ")) { crud_upsert.upsert_many(conn, rows) },\n"
+  <> ")) {\n"
+  <> "      crud_upsert.upsert_many(conn, rows)\n"
+  <> "    },\n"
   <> "    update_one: fn(id: Int, "
   <> singular
   <> ": "
@@ -104,18 +103,24 @@ pub fn generate(ctx: SchemaContext) -> String {
   <> ") },\n"
   <> "    update_many: fn(rows: List(#(Int, "
   <> t
-  <> "))) { crud_update.update_many(conn, rows) },\n"
+  <> "))) {\n"
+  <> "      crud_update.update_many(conn, rows)\n"
+  <> "    },\n"
   <> "    read_one: fn(id: Int) { crud_read.read_one(conn, id) },\n"
-  <> "    read_many: fn(arg: filter.FilterArg(\n"
-  <> "      "
+  <> "    read_many: fn(\n"
+  <> "      arg: filter.FilterArg(\n"
+  <> "        "
   <> fl
   <> ",\n"
-  <> "      NumRefOrValue,\n"
-  <> "      StringRefOrValue,\n"
-  <> "      "
+  <> "        NumRefOrValue,\n"
+  <> "        StringRefOrValue,\n"
+  <> "        "
   <> fe
   <> ",\n"
-  <> "    )) { crud_read.read_many(conn, arg) },\n"
+  <> "      ),\n"
+  <> "    ) {\n"
+  <> "      crud_read.read_many(conn, arg)\n"
+  <> "    },\n"
   <> "    delete_one: fn(id: Int) { crud_delete.delete_one(conn, id) },\n"
   <> "    delete_many: fn(ids: List(Int)) { crud_delete.delete_many(conn, ids) },\n"
   <> "  )\n"

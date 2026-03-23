@@ -21,7 +21,6 @@ pub fn generate(ctx: SchemaContext) -> String {
     |> string.join(", ")
   "import gleam/option.{type Option}\n"
   <> "\n"
-  <> "\n"
   <> "pub type "
   <> upsert
   <> " {\n"

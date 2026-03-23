@@ -2,6 +2,7 @@ import glance
 import gleam/list
 import gleam/string
 
+import generator/gleam_format_helpers
 import generator/schema_context.{type SchemaContext, pascal_case_field_label}
 import generator/sql_types
 
@@ -21,10 +22,11 @@ pub fn generate(ctx: SchemaContext) -> String {
   <> layer
   <> "/structure.{\n"
   <> imp
-  <> "}\n"
+  <> "\n}\n"
   <> "import help/filter\n"
   <> "\n"
-  <> "pub type Filter = fn("
+  <> "pub type Filter =\n"
+  <> "  fn("
   <> fl
   <> ") -> filter.BoolExpr(NumRefOrValue, StringRefOrValue)\n"
   <> "\n"
@@ -111,20 +113,23 @@ pub fn generate(ctx: SchemaContext) -> String {
 }
 
 fn filter_import_block(ctx: SchemaContext) -> String {
-  let types =
+  let type_line =
     "  type "
     <> ctx.field_enum_name
-    <> ",\n"
-    <> "  type "
+    <> ", type "
     <> ctx.filterable_name
-    <> ",\n"
-    <> "  type NumRefOrValue,\n"
-    <> "  type StringRefOrValue,\n"
-  let values = sorted_value_constructor_imports(ctx)
-  types <> values
+    <> ", type NumRefOrValue, type StringRefOrValue,"
+  let value_items = sorted_value_constructor_names(ctx)
+  let value_lines =
+    gleam_format_helpers.comma_wrap_lines(
+      "  ",
+      value_items,
+      gleam_format_helpers.import_list_max_col,
+    )
+  type_line <> "\n" <> value_lines
 }
 
-fn sorted_value_constructor_imports(ctx: SchemaContext) -> String {
+fn sorted_value_constructor_names(ctx: SchemaContext) -> List(String) {
   let schema_nums =
     list.map(numeric_fields(ctx), fn(pair) {
       pascal_case_field_label(pair.0) <> "Int"
@@ -136,13 +141,11 @@ fn sorted_value_constructor_imports(ctx: SchemaContext) -> String {
       pascal_case_field_label(pair.0) <> "String"
     })
   let refs = ["NumRef", "NumValue", "StringRef", "StringValue"]
-  let all =
-    list.append(schema_nums, system_nums)
-    |> list.append(schema_strs)
-    |> list.append([ctx.filterable_name])
-    |> list.append(refs)
-    |> list.sort(by: string.compare)
-  list.map(all, fn(n) { "  " <> n <> ",\n" }) |> string.concat
+  list.append(schema_nums, system_nums)
+  |> list.append(schema_strs)
+  |> list.append([ctx.filterable_name])
+  |> list.append(refs)
+  |> list.sort(by: string.compare)
 }
 
 fn numeric_fields(ctx: SchemaContext) -> List(#(String, glance.Type)) {

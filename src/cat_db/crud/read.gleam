@@ -1,3 +1,6 @@
+import cake/select
+import cake/where
+import gleam/dynamic/decode
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import sqlight
@@ -8,18 +11,31 @@ import cat_db/structure.{
   type CatField, type CatRow, type FilterableCat, type NumRefOrValue,
   type StringRefOrValue, cat_row_decoder,
 }
+import help/cake_sql_exec
 import help/filter
 
 pub fn read_one(
   conn: sqlight.Connection,
   id: Int,
 ) -> Result(Option(CatRow), sqlight.Error) {
-  use rows <- result.try(sqlight.query(
-    "select id, created_at, updated_at, deleted_at, name, age from cats where id = ? and deleted_at is null",
-    on: conn,
-    with: [sqlight.int(id)],
-    expecting: cat_row_decoder(),
-  ))
+  use rows <- result.try({
+    select.new()
+    |> select.from_table("cats")
+    |> select.select_col("id")
+    |> select.select_col("created_at")
+    |> select.select_col("updated_at")
+    |> select.select_col("deleted_at")
+    |> select.select_col("name")
+    |> select.select_col("age")
+    |> select.where(
+      where.and([
+        where.eq(where.col("id"), where.int(id)),
+        where.is_null(where.col("deleted_at")),
+      ]),
+    )
+    |> select.to_query
+    |> cake_sql_exec.run_read_query(cat_row_decoder(), conn)
+  })
   case rows {
     [row, ..] -> Ok(Some(row))
     [] -> Ok(None)
