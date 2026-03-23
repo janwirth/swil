@@ -80,3 +80,10 @@ pub fn generate_migration_fixtures_test() {
   // Intentionally excludes src/gen/migration_help.gleam from fixture assertions.
   assert_fixtures(module_paths())
 }
+
+pub fn generate_matches_cats_schema_generated_migrate_test() {
+  let assert Ok(module) = simplifile.read("src/cats_db_schema.gleam")
+  let actual = migration_generator.generate(module, "idemptotent")
+  let assert Ok(expected) = simplifile.read("src/cats_schema_generated/migrate.gleam")
+  assert actual == expected
+}
