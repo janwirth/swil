@@ -11,6 +11,8 @@ import cats_schema_generated/structure
 
 pub type Cat = resource.Cat
 
+pub type CatForUpsert = resource.CatForUpsert
+
 pub type CatRow = structure.CatRow
 
 pub type CatsDb = structure.CatsDb
@@ -29,6 +31,10 @@ pub type CatField = structure.CatField
 
 pub fn cat(name: Option(String), age: Option(Int)) -> Cat {
   resource.Cat(name:, age:)
+}
+
+pub fn cat_with_name(name: String, age: Option(Int)) -> CatForUpsert {
+  resource.cat_with_name(name, age)
 }
 
 pub fn cats(conn: sqlight.Connection) -> CatsDb {

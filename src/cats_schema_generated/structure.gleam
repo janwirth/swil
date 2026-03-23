@@ -1,7 +1,7 @@
 import gleam/dynamic/decode
 import gleam/option.{type Option}
 
-import cats_schema_generated/resource.{type Cat, Cat}
+import cats_schema_generated/resource.{type Cat, type CatForUpsert, Cat}
 import gen/filter
 import sqlight
 
@@ -60,8 +60,8 @@ pub type CatRow {
 pub type CatsDb {
   CatsDb(
     migrate: fn() -> Result(Nil, sqlight.Error),
-    upsert_one: fn(Cat) -> Result(CatRow, sqlight.Error),
-    upsert_many: fn(List(Cat)) -> Result(List(CatRow), sqlight.Error),
+    upsert_one: fn(CatForUpsert) -> Result(CatRow, sqlight.Error),
+    upsert_many: fn(List(CatForUpsert)) -> Result(List(CatRow), sqlight.Error),
     update_one: fn(Int, Cat) -> Result(Option(CatRow), sqlight.Error),
     update_many: fn(List(#(Int, Cat))) -> Result(List(Option(CatRow)), sqlight.Error),
     read_one: fn(Int) -> Result(Option(CatRow), sqlight.Error),

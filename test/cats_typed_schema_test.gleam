@@ -15,11 +15,11 @@ pub fn cats_typed_schema_test() {
   use conn <- sqlight.with_connection(":memory:")
   let assert Ok(Nil) = cats.cats(conn).migrate()
   let nubi =
-    Cat(name: Some("Nubi"), age: Some(7))
+    cats.cat_with_name("Nubi", Some(7))
   let whiskers =
-    Cat(name: Some("Whiskers"), age: Some(3))
+    cats.cat_with_name("Whiskers", Some(3))
   let luna =
-    Cat(name: Some("Luna"), age: Some(10))
+    cats.cat_with_name("Luna", Some(10))
   let assert Ok(_row) = cats.cats(conn).upsert_one(nubi)
   let assert Ok(_row) = cats.cats(conn).upsert_one(nubi)
   let assert Ok(_row) = cats.cats(conn).upsert_one(whiskers)
@@ -192,21 +192,13 @@ pub fn cats_typed_schema_test() {
   ] = sorted_by_id_asc
 }
 
-pub fn cats_upsert_requires_identity_test() {
-  use conn <- sqlight.with_connection(":memory:")
-  let assert Ok(Nil) = cats.cats(conn).migrate()
-
-  let anonymous = Cat(name: None, age: Some(4))
-  let assert Error(_) = cats.cats(conn).upsert_one(anonymous)
-}
-
 pub fn cats_migration_idempotent_three_times_test() {
   use conn <- sqlight.with_connection(":memory:")
   let assert Ok(Nil) = cats.cats(conn).migrate()
   let assert Ok(Nil) = cats.cats(conn).migrate()
   let assert Ok(Nil) = cats.cats(conn).migrate()
 
-  let nubi = Cat(name: Some("Nubi"), age: Some(7))
+  let nubi = cats.cat_with_name("Nubi", Some(7))
   let assert Ok(row) = cats.cats(conn).upsert_one(nubi)
   let assert CatRow(
     value: Cat(name: Some("Nubi"), age: Some(7)),
@@ -222,7 +214,7 @@ pub fn cats_update_one_test() {
   let assert Ok(Nil) = cats.cats(conn).migrate()
 
   let assert Ok(inserted) =
-    cats.cats(conn).upsert_one(Cat(name: Some("Nubi"), age: Some(7)))
+    cats.cats(conn).upsert_one(cats.cat_with_name("Nubi", Some(7)))
   let assert Ok(Some(updated)) =
     cats.cats(conn).update_one(inserted.id, Cat(name: Some("Nubi"), age: Some(9)))
 
@@ -239,8 +231,8 @@ pub fn cats_update_many_test() {
   use conn <- sqlight.with_connection(":memory:")
   let assert Ok(Nil) = cats.cats(conn).migrate()
 
-  let assert Ok(r1) = cats.cats(conn).upsert_one(Cat(name: Some("Nubi"), age: Some(7)))
-  let assert Ok(r2) = cats.cats(conn).upsert_one(Cat(name: Some("Luna"), age: Some(10)))
+  let assert Ok(r1) = cats.cats(conn).upsert_one(cats.cat_with_name("Nubi", Some(7)))
+  let assert Ok(r2) = cats.cats(conn).upsert_one(cats.cat_with_name("Luna", Some(10)))
 
   let updates = [
     #(r1.id, Cat(name: Some("Nubi"), age: Some(8))),
