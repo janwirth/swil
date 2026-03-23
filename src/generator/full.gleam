@@ -47,7 +47,7 @@ pub fn generate_full_from_path(path: String) -> GeneratedStructure {
 pub fn generate_full(module: String) -> GeneratedStructure {
     let assert Ok(ctx) = schema_context.parse(module)
     GeneratedStructure(
-        migrate: migration_generator.generate(module, "idempotent"),
+        migrate: migration_generator.generate(module),
 
         entry: entry_generator.generate(ctx),
         resource: resource_generator.generate(ctx),

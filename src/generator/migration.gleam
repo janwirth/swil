@@ -8,9 +8,9 @@ import generator/sql_types
 import gleamgen/render as gleamgen_render
 import gleamgen/types as gleamgen_types
 
-pub fn generate(module: String, version: String) -> String {
+pub fn generate(module: String) -> String {
   let assert Ok(ctx) = schema_context.migration_context(module)
-  generate_migration(ctx, version, ctx.table)
+  generate_migration(ctx, ctx.table)
 }
 
 fn flatten_rendered_type(s: String) -> String {
@@ -19,16 +19,15 @@ fn flatten_rendered_type(s: String) -> String {
 
 fn generate_migration(
   ctx: schema_context.MigrationContext,
-  version: String,
   module_name: String,
 ) -> String {
-  let has_tail_expression = version == "idempotent"
-  let column_lines =
-    render_column_lines(ctx.columns, module_name, has_tail_expression)
-  let identity_lines = case version == "idempotent" {
-    True -> render_identity_indexes(module_name, ctx.identity_labels)
-    False -> "\n"
+  let has_tail_after_columns = case ctx.identity_labels {
+    [] -> False
+    _ -> True
   }
+  let column_lines =
+    render_column_lines(ctx.columns, module_name, has_tail_after_columns)
+  let identity_lines = render_identity_indexes(module_name, ctx.identity_labels)
   let assert Ok(return_rendered) =
     gleamgen_types.render_type(
       gleamgen_types.result(

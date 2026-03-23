@@ -2,8 +2,6 @@
 // it reads a full gleam module based on type 
 
 import gleeunit
-import gleam/list
-import gleam/string
 import generator/migration as migration_generator
 import simplifile
 
@@ -37,39 +35,11 @@ fn module_paths() -> List(#(String, String)) {
   ]
 }
 
-fn resolve_path(module: String, entries: List(#(String, String))) -> String {
-  case entries {
-    [#(known_module, path), ..rest] ->
-      case module == known_module {
-        True -> path
-        False -> resolve_path(module, rest)
-      }
-    [] -> "src/help/migrate.gleam"
-  }
-}
-
-fn generate(module: String) -> String {
-  let version = infer_version(module)
-  migration_generator.generate(module, version)
-}
-
-fn infer_version(module: String) -> String {
-  let path = resolve_path(module, module_paths())
-  case string.split(path, "/") |> list.reverse() {
-    [filename, ..] ->
-      case string.split(filename, ".gleam") {
-        [version, ..] -> version
-        _ -> "shared"
-      }
-    _ -> "shared"
-  }
-}
-
 fn assert_fixtures(fixtures: List(#(String, String))) {
   case fixtures {
     [#(module, path), ..rest] -> {
       let assert Ok(expected) = simplifile.read(path)
-      assert generate(module) == expected
+      assert migration_generator.generate(module) == expected
       assert_fixtures(rest)
     }
     [] -> Nil
@@ -83,7 +53,7 @@ pub fn generate_migration_fixtures_test() {
 
 pub fn generate_matches_cat_db_migrate_test() {
   let assert Ok(module) = simplifile.read("src/cat_schema.gleam")
-  let actual = migration_generator.generate(module, "idempotent")
+  let actual = migration_generator.generate(module)
   let assert Ok(expected) = simplifile.read("src/cat_db/migrate.gleam")
   assert actual == expected
 }
