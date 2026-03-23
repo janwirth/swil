@@ -1,3 +1,4 @@
+// Tests that make sure the ORM is working as expected - atm the orm is hand-coded
 import cat_example.{
     cat_age_eq, cat_name_excludes, cat_older_than, cat_older_than_and_name_excludes,
 }
