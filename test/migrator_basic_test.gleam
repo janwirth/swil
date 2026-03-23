@@ -1,3 +1,8 @@
+// This module ensures that idempotent migrations are in deed possible
+// and provides some example
+// all squeal generated migrations should behave like this
+// the generated ones for now are not tested across version fuzzing, just idempotency
+// that means, v1,v3,v2 etc. all should ensure their respective version queries are possible after migration is run, regardless of order and frequency of migration runs
 import gleeunit
 import gleam/option.{Some}
 import migrations/v1 as migrations_v1

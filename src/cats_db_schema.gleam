@@ -31,11 +31,11 @@ import gen/identity
 // RESOURCE
 
 // never directly interact with schema
-pub type Cat {
+type Cat {
   Cat(name: Option(String), age: Option(Int))
 }
 
-pub fn identities(cat: Cat) {
+fn identities(cat: Cat) {
   [
     identity.Identity(gen.NameField)
   ]
@@ -87,7 +87,7 @@ pub fn main() -> Nil {
   use conn <- sqlight.with_connection(":memory:")
   let arg = cats_crud.filter_arg(Some(cat_older_than(6)), None)
   let _ = cats.cats(conn).migrate()
-  let _ = cats.cats(conn).read_many(arg)
+  let cats = cats.cats(conn).read_many(arg)
 
   Nil
 }
