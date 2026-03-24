@@ -1,10 +1,20 @@
 import glance
-import gleam/int
 import gleam/list
+import gleam/option
 import gleam/string
 
+import generator/gleamgen_emit
 import generator/schema_context.{type SchemaContext, pascal_case_field_label}
 import generator/sql_types
+
+import gleamgen/expression as gex
+import gleamgen/expression/block as gblock
+import gleamgen/function as gfun
+import gleamgen/import_ as gim
+import gleamgen/module as gmod
+import gleamgen/types as gtypes
+import gleamgen/types/custom as gcustom
+import gleamgen/types/variant as gvariant
 
 pub fn generate(ctx: SchemaContext) -> String {
   let layer = ctx.layer
@@ -19,160 +29,426 @@ pub fn generate(ctx: SchemaContext) -> String {
   let se = ctx.string_field_enum_name
   let upsert = ctx.for_upsert_type_name
   let singular = ctx.singular
-  let filterable_body = filterable_record(ctx)
-  let num_enum = num_field_enum(ctx)
-  let str_enum = string_field_enum(ctx)
-  let field_enum = full_field_enum(ctx)
-  let decoder_lines = row_decoder_body(ctx)
+
+  let decode_mod = gim.new(["gleam", "dynamic", "decode"])
+  let option_mod =
+    gim.new_with_exposing(["gleam", "option"], "type Option")
+  let resource_mod =
+    gim.new_with_exposing([layer, "resource"], "type " <> upsert)
+  let schema_import =
+    gim.new_with_exposing([schema_mod], "type " <> t <> ", " <> v)
+  let filter_mod = gim.new_predefined(["help", "filter"])
+  let sqlight_mod = gim.new_predefined(["sqlight"])
+
+  let filterable_builder = filterable_custom(ctx, fl)
+  let string_ref_builder = string_ref_or_value_custom(se)
+  let num_ref_builder = num_ref_or_value_custom(ne)
+  let num_enum_builder = num_field_enum_custom(ctx, ne)
+  let string_enum_builder = string_field_enum_custom(ctx, se)
+  let field_enum_builder = full_field_enum_custom(ctx, fe)
+  let row_builder = row_custom(ctx, row, t)
+  let db_builder = db_custom(ctx, db, upsert, t, row, fl, fe)
+
   let decoder_fn = singular <> "_row_decoder"
-  "import gleam/dynamic/decode\n"
-  <> "import gleam/option.{type Option}\n"
-  <> "\n"
-  <> "import "
-  <> layer
-  <> "/resource.{type "
-  <> upsert
-  <> "}\n"
-  <> "import "
-  <> schema_mod
-  <> ".{type "
-  <> t
-  <> ", "
-  <> v
-  <> "}\n"
-  <> "import help/filter\n"
-  <> "import sqlight\n"
-  <> "\n"
-  <> "pub type "
-  <> fl
-  <> " {\n"
-  <> filterable_body
-  <> "}\n"
-  <> "\n"
-  <> "pub type StringRefOrValue {\n"
-  <> "  StringRef(ref: "
-  <> se
-  <> ")\n"
-  <> "  StringValue(value: String)\n"
-  <> "}\n"
-  <> "\n"
-  <> "pub type NumRefOrValue {\n"
-  <> "  NumRef(ref: "
-  <> ne
-  <> ")\n"
-  <> "  NumValue(value: Int)\n"
-  <> "}\n"
-  <> "\n"
-  <> "pub type "
-  <> ne
-  <> " {\n"
-  <> num_enum
-  <> "}\n"
-  <> "\n"
-  <> "pub type "
-  <> se
-  <> " {\n"
-  <> str_enum
-  <> "}\n"
-  <> "\n"
-  <> "pub type "
-  <> fe
-  <> " {\n"
-  <> field_enum
-  <> "}\n"
-  <> "\n"
-  <> "pub type "
-  <> row
-  <> " {\n"
-  <> "  "
-  <> row
-  <> "(\n"
-  <> "    value: "
-  <> t
-  <> ",\n"
-  <> "    id: Int,\n"
-  <> "    created_at: Int,\n"
-  <> "    updated_at: Int,\n"
-  <> "    deleted_at: Option(Int),\n"
-  <> "  )\n"
-  <> "}\n"
-  <> "\n"
-  <> "pub type "
-  <> db
-  <> " {\n"
-  <> "  "
-  <> db
-  <> "(\n"
-  <> "    migrate: fn() -> Result(Nil, sqlight.Error),\n"
-  <> "    upsert_one: fn("
-  <> upsert
-  <> ") -> Result("
-  <> row
-  <> ", sqlight.Error),\n"
-  <> "    upsert_many: fn(List("
-  <> upsert
-  <> ")) -> Result(List("
-  <> row
-  <> "), sqlight.Error),\n"
-  <> "    update_one: fn(Int, "
-  <> t
-  <> ") -> Result(Option("
-  <> row
-  <> "), sqlight.Error),\n"
-  <> "    update_many: fn(List(#(Int, "
-  <> t
-  <> "))) ->\n"
-  <> "      Result(List(Option("
-  <> row
-  <> ")), sqlight.Error),\n"
-  <> "    read_one: fn(Int) -> Result(Option("
-  <> row
-  <> "), sqlight.Error),\n"
-  <> "    read_many: fn(\n"
-  <> "      filter.FilterArg("
-  <> fl
-  <> ", NumRefOrValue, StringRefOrValue, "
-  <> fe
-  <> "),\n"
-  <> "    ) ->\n"
-  <> "      Result(List("
-  <> row
-  <> "), sqlight.Error),\n"
-  <> "    delete_one: fn(Int) -> Result(Nil, sqlight.Error),\n"
-  <> "    delete_many: fn(List(Int)) -> Result(Nil, sqlight.Error),\n"
-  <> "  )\n"
-  <> "}\n"
-  <> "\n"
-  <> "pub fn "
-  <> decoder_fn
-  <> "() -> decode.Decoder("
-  <> row
-  <> ") {\n"
-  <> decoder_lines
-  <> "}\n"
+  let decoder_body = row_decoder_expression(ctx, row, v)
+  let decoder_ret = gtypes.raw("decode.Decoder(" <> row <> ")")
+  let decoder =
+    gfun.new0(returns: decoder_ret, handler: fn() { decoder_body })
+
+  gleamgen_emit.render_module(
+    gmod.with_import(decode_mod, fn(_) {
+      gmod.with_import(option_mod, fn(_) {
+        gmod.with_import(resource_mod, fn(_) {
+          gmod.with_import(schema_import, fn(_) {
+            gmod.with_import(filter_mod, fn(_) {
+              gmod.with_import(sqlight_mod, fn(_) {
+                gmod.with_custom_type_dynamic(
+                  gleamgen_emit.pub_def(fl),
+                  filterable_builder,
+                  fn(_, _) {
+                    gmod.with_custom_type_dynamic(
+                      gleamgen_emit.pub_def("StringRefOrValue"),
+                      string_ref_builder,
+                      fn(_, _) {
+                        gmod.with_custom_type_dynamic(
+                          gleamgen_emit.pub_def("NumRefOrValue"),
+                          num_ref_builder,
+                          fn(_, _) {
+                            gmod.with_custom_type_dynamic(
+                              gleamgen_emit.pub_def(ne),
+                              num_enum_builder,
+                              fn(_, _) {
+                                gmod.with_custom_type_dynamic(
+                                  gleamgen_emit.pub_def(se),
+                                  string_enum_builder,
+                                  fn(_, _) {
+                                    gmod.with_custom_type_dynamic(
+                                      gleamgen_emit.pub_def(fe),
+                                      field_enum_builder,
+                                      fn(_, _) {
+                                        gmod.with_custom_type_dynamic(
+                                          gleamgen_emit.pub_def(row),
+                                          row_builder,
+                                          fn(_, _) {
+                                            gmod.with_custom_type_dynamic(
+                                              gleamgen_emit.pub_def(db),
+                                              db_builder,
+                                              fn(_, _) {
+                                                gmod.with_function(
+                                                  gleamgen_emit.pub_def(
+                                                    decoder_fn,
+                                                  ),
+                                                  decoder,
+                                                  fn(_) { gmod.eof() },
+                                                )
+                                              },
+                                            )
+                                          },
+                                        )
+                                      },
+                                    )
+                                  },
+                                )
+                              },
+                            )
+                          },
+                        )
+                      },
+                    )
+                  },
+                )
+              })
+            })
+          })
+        })
+      })
+    }),
+  )
+  |> format_structure_module
 }
 
-fn filterable_record(ctx: SchemaContext) -> String {
-  let fl = ctx.filterable_name
-  let field_lines =
+fn format_structure_module(src: String) -> String {
+  let src = reorder_structure_import_block(src)
+  src
+  |> string.replace(
+    each: "    update_many:\n    fn(",
+    with: "    update_many: fn(",
+  )
+  |> string.replace(
+    each: "    read_many:\n    fn(",
+    with: "    read_many: fn(",
+  )
+}
+
+fn reorder_structure_import_block(src: String) -> String {
+  case string.split_once(src, "\n\npub ") {
+    Error(_) -> src
+    Ok(#(before, after)) -> {
+      let lines =
+        string.split(before, "\n")
+        |> list.filter(fn(line) {
+          let t = string.trim(line)
+          t != "" && string.starts_with(t, "import ")
+        })
+      let gleam =
+        list.filter(lines, fn(line) {
+          string.starts_with(string.trim(line), "import gleam")
+        })
+      let other =
+        list.filter(lines, fn(line) {
+          !string.starts_with(string.trim(line), "import gleam")
+        })
+      let gleam_sorted = list.sort(gleam, string.compare)
+      let other_sorted = list.sort(other, string.compare)
+      let import_block = case gleam_sorted, other_sorted {
+        [], _ -> string.join(other_sorted, "\n")
+        _, [] -> string.join(gleam_sorted, "\n")
+        _, _ ->
+          string.join(gleam_sorted, "\n") <> "\n\n" <> string.join(other_sorted, "\n")
+      }
+      import_block <> "\n\npub " <> after
+    }
+  }
+}
+
+fn filterable_custom(ctx: SchemaContext, fl: String) {
+  let schema_args =
     list.map(ctx.fields, fn(pair) {
       let #(label, typ) = pair
       let ref = case sql_types.filter_is_string_column(typ) {
         True -> "StringRefOrValue"
         False -> "NumRefOrValue"
       }
-      "    " <> label <> ": " <> ref <> ",\n"
+      #(option.Some(label), gtypes.raw(ref) |> gtypes.to_dynamic)
     })
-    |> string.concat
-  "  "
-  <> fl
-  <> "(\n"
-  <> field_lines
-  <> "    id: NumRefOrValue,\n"
-  <> "    created_at: NumRefOrValue,\n"
-  <> "    updated_at: NumRefOrValue,\n"
-  <> "    deleted_at: NumRefOrValue,\n"
-  <> "  )\n"
+  let tail = [
+    #(option.Some("id"), gtypes.raw("NumRefOrValue") |> gtypes.to_dynamic),
+    #(
+      option.Some("created_at"),
+      gtypes.raw("NumRefOrValue") |> gtypes.to_dynamic,
+    ),
+    #(
+      option.Some("updated_at"),
+      gtypes.raw("NumRefOrValue") |> gtypes.to_dynamic,
+    ),
+    #(
+      option.Some("deleted_at"),
+      gtypes.raw("NumRefOrValue") |> gtypes.to_dynamic,
+    ),
+  ]
+  let args = list.append(schema_args, tail)
+  gcustom.new(Nil)
+  |> gcustom.with_dynamic_variants(fn(_) {
+    [
+      gvariant.with_arguments_dynamic(gvariant.new(fl), args)
+        |> gvariant.to_dynamic,
+    ]
+  })
+}
+
+fn string_ref_or_value_custom(se: String) {
+  gcustom.new(Nil)
+  |> gcustom.with_dynamic_variants(fn(_) {
+    [
+      gvariant.with_arguments_dynamic(gvariant.new("StringRef"), [
+        #(option.Some("ref"), gtypes.raw(se) |> gtypes.to_dynamic),
+      ])
+        |> gvariant.to_dynamic,
+      gvariant.with_arguments_dynamic(gvariant.new("StringValue"), [
+        #(option.Some("value"), gtypes.string |> gtypes.to_dynamic),
+      ])
+        |> gvariant.to_dynamic,
+    ]
+  })
+}
+
+fn num_ref_or_value_custom(ne: String) {
+  gcustom.new(Nil)
+  |> gcustom.with_dynamic_variants(fn(_) {
+    [
+      gvariant.with_arguments_dynamic(gvariant.new("NumRef"), [
+        #(option.Some("ref"), gtypes.raw(ne) |> gtypes.to_dynamic),
+      ])
+        |> gvariant.to_dynamic,
+      gvariant.with_arguments_dynamic(gvariant.new("NumValue"), [
+        #(option.Some("value"), gtypes.int |> gtypes.to_dynamic),
+      ])
+        |> gvariant.to_dynamic,
+    ]
+  })
+}
+
+fn num_field_enum_custom(ctx: SchemaContext, _ne: String) {
+  let schema_variants =
+    list.map(numeric_schema_fields(ctx), fn(pair) {
+      gvariant.new(pascal_case_field_label(pair.0) <> "Int")
+      |> gvariant.to_dynamic
+    })
+  let system = [
+    gvariant.new("IdInt") |> gvariant.to_dynamic,
+    gvariant.new("CreatedAtInt") |> gvariant.to_dynamic,
+    gvariant.new("UpdatedAtInt") |> gvariant.to_dynamic,
+    gvariant.new("DeletedAtInt") |> gvariant.to_dynamic,
+  ]
+  gcustom.new(Nil)
+  |> gcustom.with_dynamic_variants(fn(_) {
+    list.append(schema_variants, system)
+  })
+}
+
+fn string_field_enum_custom(ctx: SchemaContext, _se: String) {
+  let variants =
+    list.map(string_schema_fields(ctx), fn(pair) {
+      gvariant.new(pascal_case_field_label(pair.0) <> "String")
+      |> gvariant.to_dynamic
+    })
+  gcustom.new(Nil)
+  |> gcustom.with_dynamic_variants(fn(_) { variants })
+}
+
+fn full_field_enum_custom(ctx: SchemaContext, _fe: String) {
+  let schema_variants =
+    list.map(ctx.fields, fn(pair) {
+      gvariant.new(pascal_case_field_label(pair.0) <> "Field")
+      |> gvariant.to_dynamic
+    })
+  let system = [
+    gvariant.new("IdField") |> gvariant.to_dynamic,
+    gvariant.new("CreatedAtField") |> gvariant.to_dynamic,
+    gvariant.new("UpdatedAtField") |> gvariant.to_dynamic,
+    gvariant.new("DeletedAtField") |> gvariant.to_dynamic,
+  ]
+  gcustom.new(Nil)
+  |> gcustom.with_dynamic_variants(fn(_) {
+    list.append(schema_variants, system)
+  })
+}
+
+fn row_custom(_ctx: SchemaContext, row: String, t: String) {
+  let deleted =
+    gtypes.custom_type(option.None, "Option", [gtypes.int |> gtypes.to_dynamic])
+  let args = [
+    #(option.Some("value"), gtypes.raw(t) |> gtypes.to_dynamic),
+    #(option.Some("id"), gtypes.int |> gtypes.to_dynamic),
+    #(option.Some("created_at"), gtypes.int |> gtypes.to_dynamic),
+    #(option.Some("updated_at"), gtypes.int |> gtypes.to_dynamic),
+    #(option.Some("deleted_at"), deleted |> gtypes.to_dynamic),
+  ]
+  gcustom.new(Nil)
+  |> gcustom.with_dynamic_variants(fn(_) {
+    [
+      gvariant.with_arguments_dynamic(gvariant.new(row), args)
+        |> gvariant.to_dynamic,
+    ]
+  })
+}
+
+fn db_custom(
+  _ctx: SchemaContext,
+  db: String,
+  upsert: String,
+  t: String,
+  row: String,
+  fl: String,
+  fe: String,
+) {
+  let args = [
+    #(
+      option.Some("migrate"),
+      gtypes.raw("fn() -> Result(Nil, sqlight.Error)") |> gtypes.to_dynamic,
+    ),
+    #(
+      option.Some("upsert_one"),
+      gtypes.raw(
+        "fn(" <> upsert <> ") -> Result(" <> row <> ", sqlight.Error)",
+      )
+        |> gtypes.to_dynamic,
+    ),
+    #(
+      option.Some("upsert_many"),
+      gtypes.raw(
+        "fn(List("
+        <> upsert
+        <> ")) -> Result(List("
+        <> row
+        <> "), sqlight.Error)",
+      )
+        |> gtypes.to_dynamic,
+    ),
+    #(
+      option.Some("update_one"),
+      gtypes.raw(
+        "fn(Int, "
+        <> t
+        <> ") -> Result(Option("
+        <> row
+        <> "), sqlight.Error)",
+      )
+        |> gtypes.to_dynamic,
+    ),
+    #(
+      option.Some("update_many"),
+      gtypes.raw(
+        "fn(List(#(Int, "
+        <> t
+        <> "))) ->\n      Result(List(Option("
+        <> row
+        <> ")), sqlight.Error)",
+      )
+        |> gtypes.to_dynamic,
+    ),
+    #(
+      option.Some("read_one"),
+      gtypes.raw("fn(Int) -> Result(Option(" <> row <> "), sqlight.Error)")
+        |> gtypes.to_dynamic,
+    ),
+    #(
+      option.Some("read_many"),
+      gtypes.raw(
+        "fn(\n      filter.FilterArg("
+        <> fl
+        <> ", NumRefOrValue, StringRefOrValue, "
+        <> fe
+        <> "),\n    ) ->\n      Result(List("
+        <> row
+        <> "), sqlight.Error)",
+      )
+        |> gtypes.to_dynamic,
+    ),
+    #(
+      option.Some("delete_one"),
+      gtypes.raw("fn(Int) -> Result(Nil, sqlight.Error)") |> gtypes.to_dynamic,
+    ),
+    #(
+      option.Some("delete_many"),
+      gtypes.raw("fn(List(Int)) -> Result(Nil, sqlight.Error)")
+        |> gtypes.to_dynamic,
+    ),
+  ]
+  gcustom.new(Nil)
+  |> gcustom.with_dynamic_variants(fn(_) {
+    [
+      gvariant.with_arguments_dynamic(gvariant.new(db), args)
+        |> gvariant.to_dynamic,
+    ]
+  })
+}
+
+fn row_decoder_expression(
+  ctx: SchemaContext,
+  row: String,
+  v: String,
+) -> gex.Expression(a) {
+  let system = [
+    #("id", 0, "decode.int"),
+    #("created_at", 1, "decode.int"),
+    #("updated_at", 2, "decode.int"),
+    #("deleted_at", 3, "decode.optional(decode.int)"),
+  ]
+  let schema_steps =
+    list.map(ctx.fields, fn(pair) {
+      let #(label, typ) = pair
+      #(
+        label,
+        4 + field_index(ctx.fields, label),
+        sql_types.decode_expression(typ),
+      )
+    })
+  let steps = list.append(system, schema_steps)
+  let success =
+    gex.raw(
+      "decode.success("
+      <> row
+      <> "(\n    value: "
+      <> v
+      <> "("
+      <> join_label_value_pairs(ctx.fields)
+      <> "),\n    id:,\n    created_at:,\n    updated_at:,\n    deleted_at:,\n  ))",
+    )
+  list.fold(list.reverse(steps), success, fn(inner, step) {
+    let #(name, idx, dec_src) = step
+    let uf =
+      gblock.use_function2(
+        gex.raw("decode.field"),
+        gex.int(idx),
+        gex.raw(dec_src),
+      )
+    gblock.with_use1(uf, name, fn(_) { inner })
+  })
+}
+
+fn join_label_value_pairs(fields: List(#(String, a))) -> String {
+  case fields {
+    [] -> ""
+    [#(l, _), ..rest] ->
+      l
+      <> ": "
+      <> l
+      <> case rest {
+        [] -> ""
+        _ -> ", " <> join_label_value_pairs(rest)
+      }
+  }
 }
 
 fn numeric_schema_fields(ctx: SchemaContext) -> List(#(String, glance.Type)) {
@@ -183,76 +459,6 @@ fn numeric_schema_fields(ctx: SchemaContext) -> List(#(String, glance.Type)) {
 
 fn string_schema_fields(ctx: SchemaContext) -> List(#(String, glance.Type)) {
   list.filter(ctx.fields, fn(pair) { sql_types.filter_is_string_column(pair.1) })
-}
-
-fn num_field_enum(ctx: SchemaContext) -> String {
-  let schema_lines =
-    list.map(numeric_schema_fields(ctx), fn(pair) {
-      "  " <> pascal_case_field_label(pair.0) <> "Int\n"
-    })
-    |> string.concat
-  schema_lines
-  <> "  IdInt\n"
-  <> "  CreatedAtInt\n"
-  <> "  UpdatedAtInt\n"
-  <> "  DeletedAtInt\n"
-}
-
-fn string_field_enum(ctx: SchemaContext) -> String {
-  let fields = string_schema_fields(ctx)
-  list.map(fields, fn(pair) {
-    "  " <> pascal_case_field_label(pair.0) <> "String\n"
-  })
-  |> string.concat
-}
-
-fn full_field_enum(ctx: SchemaContext) -> String {
-  let schema_lines =
-    list.map(ctx.fields, fn(pair) {
-      "  " <> pascal_case_field_label(pair.0) <> "Field\n"
-    })
-    |> string.concat
-  schema_lines
-  <> "  IdField\n"
-  <> "  CreatedAtField\n"
-  <> "  UpdatedAtField\n"
-  <> "  DeletedAtField\n"
-}
-
-fn row_decoder_body(ctx: SchemaContext) -> String {
-  let value_fields =
-    list.map(ctx.fields, fn(pair) {
-      let #(label, typ) = pair
-      let dec = sql_types.decode_expression(typ)
-      "  use "
-      <> label
-      <> " <- decode.field("
-      <> int_to_string(4 + field_index(ctx.fields, label))
-      <> ", "
-      <> dec
-      <> ")\n"
-    })
-    |> string.concat
-  let value_ctor =
-    "  decode.success("
-    <> ctx.row_name
-    <> "(\n"
-    <> "    value: "
-    <> ctx.variant_name
-    <> "("
-    <> join_label_value_pairs(ctx.fields)
-    <> "),\n"
-    <> "    id:,\n"
-    <> "    created_at:,\n"
-    <> "    updated_at:,\n"
-    <> "    deleted_at:,\n"
-    <> "  ))\n"
-  "  use id <- decode.field(0, decode.int)\n"
-  <> "  use created_at <- decode.field(1, decode.int)\n"
-  <> "  use updated_at <- decode.field(2, decode.int)\n"
-  <> "  use deleted_at <- decode.field(3, decode.optional(decode.int))\n"
-  <> value_fields
-  <> value_ctor
 }
 
 fn field_index(fields: List(#(String, a)), label: String) -> Int {
@@ -270,20 +476,3 @@ fn field_index_loop(fields: List(#(String, a)), label: String, i: Int) -> Int {
   }
 }
 
-fn join_label_value_pairs(fields: List(#(String, a))) -> String {
-  case fields {
-    [] -> ""
-    [#(l, _), ..rest] ->
-      l
-      <> ": "
-      <> l
-      <> case rest {
-        [] -> ""
-        _ -> ", " <> join_label_value_pairs(rest)
-      }
-  }
-}
-
-fn int_to_string(i: Int) -> String {
-  int.to_string(i)
-}
