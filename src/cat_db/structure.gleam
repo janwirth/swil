@@ -64,13 +64,15 @@ pub type CatsDb {
     upsert_one: fn(CatForUpsert) -> Result(CatRow, sqlight.Error),
     upsert_many: fn(List(CatForUpsert)) -> Result(List(CatRow), sqlight.Error),
     update_one: fn(Int, Cat) -> Result(Option(CatRow), sqlight.Error),
-    update_many: fn(List(#(Int, Cat))) ->
-      Result(List(Option(CatRow)), sqlight.Error),
+    update_many: fn(List(#(Int, Cat)))
+    ->
+    Result(List(Option(CatRow)), sqlight.Error),
     read_one: fn(Int) -> Result(Option(CatRow), sqlight.Error),
     read_many: fn(
       filter.FilterArg(FilterableCat, NumRefOrValue, StringRefOrValue, CatField),
-    ) ->
-      Result(List(CatRow), sqlight.Error),
+    )
+    ->
+    Result(List(CatRow), sqlight.Error),
     delete_one: fn(Int) -> Result(Nil, sqlight.Error),
     delete_many: fn(List(Int)) -> Result(Nil, sqlight.Error),
   )

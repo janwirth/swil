@@ -312,76 +312,69 @@ fn db_custom(
   fl: String,
   fe: String,
 ) {
+  let sqlight_error =
+    gtypes.custom_type(option.Some("sqlight"), "Error", [])
+  let row_t = gtypes.raw(row)
+  let schema_t = gtypes.raw(t)
+  let upsert_t = gtypes.raw(upsert)
+  let opt_row =
+    gtypes.custom_type(option.None, "Option", [row_t |> gtypes.to_dynamic])
+  let filter_arg =
+    gtypes.custom_type(option.Some("filter"), "FilterArg", [
+      gtypes.raw(fl) |> gtypes.to_dynamic,
+      gtypes.raw("NumRefOrValue") |> gtypes.to_dynamic,
+      gtypes.raw("StringRefOrValue") |> gtypes.to_dynamic,
+      gtypes.raw(fe) |> gtypes.to_dynamic,
+    ])
+  let result_nil = gtypes.result(gtypes.nil, sqlight_error)
+  let result_row = gtypes.result(row_t, sqlight_error)
+  let result_list_row = gtypes.result(gtypes.list(row_t), sqlight_error)
+  let result_opt_row = gtypes.result(opt_row, sqlight_error)
+  let result_list_opt_row =
+    gtypes.result(gtypes.list(opt_row), sqlight_error)
+
   let args = [
     #(
       option.Some("migrate"),
-      gtypes.raw("fn() -> Result(Nil, sqlight.Error)") |> gtypes.to_dynamic,
+      gtypes.function0(result_nil) |> gtypes.to_dynamic,
     ),
     #(
       option.Some("upsert_one"),
-      gtypes.raw(
-        "fn(" <> upsert <> ") -> Result(" <> row <> ", sqlight.Error)",
-      )
-        |> gtypes.to_dynamic,
+      gtypes.function1(upsert_t, result_row) |> gtypes.to_dynamic,
     ),
     #(
       option.Some("upsert_many"),
-      gtypes.raw(
-        "fn(List("
-        <> upsert
-        <> ")) -> Result(List("
-        <> row
-        <> "), sqlight.Error)",
-      )
+      gtypes.function1(gtypes.list(upsert_t), result_list_row)
         |> gtypes.to_dynamic,
     ),
     #(
       option.Some("update_one"),
-      gtypes.raw(
-        "fn(Int, "
-        <> t
-        <> ") -> Result(Option("
-        <> row
-        <> "), sqlight.Error)",
-      )
+      gtypes.function2(gtypes.int, schema_t, result_opt_row)
         |> gtypes.to_dynamic,
     ),
     #(
       option.Some("update_many"),
-      gtypes.raw(
-        "fn(List(#(Int, "
-        <> t
-        <> "))) ->\n      Result(List(Option("
-        <> row
-        <> ")), sqlight.Error)",
+      gtypes.function1(
+        gtypes.list(gtypes.tuple2(gtypes.int, schema_t)),
+        result_list_opt_row,
       )
         |> gtypes.to_dynamic,
     ),
     #(
       option.Some("read_one"),
-      gtypes.raw("fn(Int) -> Result(Option(" <> row <> "), sqlight.Error)")
-        |> gtypes.to_dynamic,
+      gtypes.function1(gtypes.int, result_opt_row) |> gtypes.to_dynamic,
     ),
     #(
       option.Some("read_many"),
-      gtypes.raw(
-        "fn(\n      filter.FilterArg("
-        <> fl
-        <> ", NumRefOrValue, StringRefOrValue, "
-        <> fe
-        <> "),\n    ) ->\n      Result(List("
-        <> row
-        <> "), sqlight.Error)",
-      )
-        |> gtypes.to_dynamic,
+      gtypes.function1(filter_arg, result_list_row) |> gtypes.to_dynamic,
     ),
     #(
       option.Some("delete_one"),
-      gtypes.raw("fn(Int) -> Result(Nil, sqlight.Error)") |> gtypes.to_dynamic,
+      gtypes.function1(gtypes.int, result_nil) |> gtypes.to_dynamic,
     ),
     #(
       option.Some("delete_many"),
-      gtypes.raw("fn(List(Int)) -> Result(Nil, sqlight.Error)")
+      gtypes.function1(gtypes.list(gtypes.int), result_nil)
         |> gtypes.to_dynamic,
     ),
   ]

@@ -67,13 +67,15 @@ pub type DogsDb {
     upsert_one: fn(DogForUpsert) -> Result(DogRow, sqlight.Error),
     upsert_many: fn(List(DogForUpsert)) -> Result(List(DogRow), sqlight.Error),
     update_one: fn(Int, Dog) -> Result(Option(DogRow), sqlight.Error),
-    update_many: fn(List(#(Int, Dog))) ->
-      Result(List(Option(DogRow)), sqlight.Error),
+    update_many: fn(List(#(Int, Dog)))
+    ->
+    Result(List(Option(DogRow)), sqlight.Error),
     read_one: fn(Int) -> Result(Option(DogRow), sqlight.Error),
     read_many: fn(
       filter.FilterArg(FilterableDog, NumRefOrValue, StringRefOrValue, DogField),
-    ) ->
-      Result(List(DogRow), sqlight.Error),
+    )
+    ->
+    Result(List(DogRow), sqlight.Error),
     delete_one: fn(Int) -> Result(Nil, sqlight.Error),
     delete_many: fn(List(Int)) -> Result(Nil, sqlight.Error),
   )
@@ -86,7 +88,10 @@ pub fn dog_row_decoder() -> decode.Decoder(DogRow) {
   use deleted_at <- decode.field(3, decode.optional(decode.int))
   use name <- decode.field(4, decode.optional(decode.string))
   use age <- decode.field(5, decode.optional(decode.int))
-  use is_neutered <- decode.field(6, decode.optional(decode.map(decode.int, fn(i) { i != 0 })))
+  use is_neutered <- decode.field(
+    6,
+    decode.optional(decode.map(decode.int, fn(i) { i != 0 })),
+  )
   decode.success(DogRow(
     value: Dog(name: name, age: age, is_neutered: is_neutered),
     id:,
