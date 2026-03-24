@@ -13,6 +13,14 @@ pub type Student {
     // this is a link without attributes
     //! squeal outline outlink: Student -> Class without attributes
     classes: List(Class),
+    
+    //! squeal outlink
+    best_friend: Option(Student),
+
+    //! squeal backlink .best_friend
+    best_fiend_of: List(Student),
+
+    friends_book: Scalar(FriendBook)
   )
 }
 
@@ -24,9 +32,22 @@ pub type Class {
   Class(
     title: Option(String),
     subject_code: Option(String),
+    // any multi ref should prompt the user
     //! squeal backlink: Student -> Class
     students: List(Student),
+
   )
+}
+
+
+pub type FriendBook {
+  FriendBook(
+    friends: List(Student),
+  )
+}
+
+pub type Scalar(t) {
+  Scalar(kind: t)
 }
 
 pub type Multi(t) {

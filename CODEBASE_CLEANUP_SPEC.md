@@ -123,22 +123,23 @@ Mark each item when the module has been reviewed for all required style rules an
 **Status (as of current audit):**
 
 - ✓ `crud_delete.gleam` - Reference style, fully compliant
-- ✓ `crud_sort.gleam` - Fully compliant (uses gmod + gleamgen_emit)
+- ✓ `crud_sort.gleam` - Uses gmod + gleamgen_emit; prepends one `import …/structure` line manually and omits `with_import` for that path so the import block is not duplicated when case arms and parameters both record `structure` in `used_imports`
 - ✓ `crud_upsert.gleam` - Fully compliant (single `gleamgen_emit.render_module` + `gmod.with_import`; requires gleamgen `import_.new_with_exposing` and render rule for `exposing` imports)
-- ✗ `crud_filter.gleam` - Uses `<>` for main body
-- ⚠ `crud_read.gleam` - Read path uses gleamgen + `cake_sql_exec.run_read_query`; module shell/imports still string-built
+- ✓ `crud_filter.gleam` - Full `gleamgen_emit.render_module` + `gmod` (imports, type alias, functions); cake via `gim` + `gex`
+- ✓ `crud_read.gleam` - Full `gleamgen_emit.render_module` + `gmod` (imports, functions); `render_read_many_base_select_where` still renders one expression via `gex.render`
 - ✓ `crud_update.gleam` - Full `gleamgen_emit.render_module` + `gmod.with_import` (folded field updates; `cake/select` via `import_.new_predefined`)
-- ✗ `crud.gleam` - Uses `<>` for entire module
-- ✗ `entry.gleam` - Uses `<>` for entire module
+- ⚠ `crud.gleam` - Still uses `<>` for entire module (`gleamgen` drops `sqlight` when types are only in raw/custom fragments; anonymous `CatsDb` fields need label-preserving codegen)
+- ✓ `entry.gleam` - Full `gleamgen_emit.render_module` + `gmod` (fixed upstream: `gleamgen` parameter render now merges `used_imports` from parameter types so `sqlight` is kept)
 - ✗ `migration.gleam` - Uses `<>` for entire module
-- ✗ `resource.gleam` - Uses `<>` for entire module
-- ✗ `structure.gleam` - Uses `<>` for entire module
+- ✓ `resource.gleam` - Full `gleamgen_emit.render_module` + `gmod` + `gcustom.with_dynamic_variants` + `gfun.new_raw`
+- ✗ `structure.gleam` - Uses `<>` for entire module (largest remaining surface)
 
 **Helper modules (no cleanup needed - they are utilities, not generators):**
 
 - `full.gleam` - Orchestrator module, OK
 - `gleam_format_helpers.gleam` - Helper module, OK
-- `gleamgen_emit.gleam` - Helper module, OK
+- `gleamgen_emit.gleam` - Helper module; `render_module` appends a trailing newline when the renderer omits one (keeps golden / POSIX text files stable)
+- `gleamgen` (path dependency) - `parameter` render merges type `used_imports`; `module.render` dedupes import paths after `merge_imports` (see `crud_sort` note below)
 - `schema_context.gleam` - Helper module, OK
 - `sql_types.gleam` - Helper module, OK
 
@@ -146,13 +147,13 @@ Mark each item when the module has been reviewed for all required style rules an
 
 1. [x] `crud_upsert.gleam` - Remove `<>` for header, use gmod for imports
 2. [x] `crud_update.gleam` - Convert to full gleamgen style
-3. [ ] `crud_filter.gleam` - Convert to full gleamgen style
-4. [ ] `crud_read.gleam` - Convert module shell/imports to gleamgen (read query body already gleamgen)
-5. [ ] `crud.gleam` - Convert to full gleamgen style
-6. [ ] `entry.gleam` - Convert to full gleamgen style
-7. [ ] `migration.gleam` - Convert to full gleamgen style
-8. [ ] `resource.gleam` - Convert to full gleamgen style
-9. [ ] `structure.gleam` - Convert to full gleamgen style
+3. [x] `crud_filter.gleam` - Convert to full gleamgen style
+4. [x] `crud_read.gleam` - Convert module shell/imports to gleamgen (read query body already gleamgen)
+5. [ ] `crud.gleam` - Still string-built (gleamgen prototype hit import-merge limits for `structure` + row type)
+6. [x] `entry.gleam` - Migrated to `gleamgen_emit.render_module` (depends on gleamgen parameter `used_imports` fix)
+7. [ ] `migration.gleam` - Still string-built (pending)
+8. [x] `resource.gleam` - Migrated to `gleamgen_emit.render_module`
+9. [ ] `structure.gleam` - Still string-built (pending; largest surface — custom types + decoder)
 
 ## Acceptance Criteria
 

@@ -33,13 +33,13 @@ pub fn generate(ctx: SchemaContext) -> String {
     )
   let body =
     gleamgen_emit.render_module(
-      gmod.with_import(structure_mod, fn(_) {
-        gmod.with_function(gleamgen_emit.pub_def(fn_name), func, fn(_) {
-          gmod.eof()
-        })
+      gmod.with_function(gleamgen_emit.pub_def(fn_name), func, fn(_) {
+        gmod.eof()
       }),
     )
-  string.concat(["import ", ctx.layer, "/structure\n", body])
+  // One explicit import line: module render can emit the same path again when
+  // parameter types and case patterns both record `structure` in `used_imports`.
+  "import " <> ctx.layer <> "/structure\n" <> body
 }
 
 fn build_field_sql_case(

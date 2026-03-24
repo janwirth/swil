@@ -1,6 +1,4 @@
 import dog_db/structure
-
-
 pub fn dog_field_sql(field: structure.DogField) -> String {
   case field {
     structure.NameField -> "name"

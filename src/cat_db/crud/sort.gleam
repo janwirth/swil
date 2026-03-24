@@ -1,6 +1,4 @@
 import cat_db/structure
-
-
 pub fn cat_field_sql(field: structure.CatField) -> String {
   case field {
     structure.NameField -> "name"
