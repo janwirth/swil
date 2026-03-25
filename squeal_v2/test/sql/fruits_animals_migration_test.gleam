@@ -3,7 +3,7 @@
 import assert_diff.{assert_diff}
 import case_studies/fruit_db/migration as example_migration_fruit
 import example_migration_animal
-import generators/migration/migration as migration
+import generators/migration/migration
 import schema_definition
 import simplifile
 import sqlight

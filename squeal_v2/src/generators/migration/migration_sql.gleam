@@ -92,7 +92,12 @@ fn entity_ddl(schema: SchemaDefinition, entity: EntityDefinition) -> String {
     |> string.join("_")
   let index_name = table <> "_by_" <> index_suffix
   let create_index =
-    build_create_unique_index_sql(table:, index_name:, index_columns_csv: cols, if_not_exists: True)
+    build_create_unique_index_sql(
+      table:,
+      index_name:,
+      index_columns_csv: cols,
+      if_not_exists: True,
+    )
   create_table <> "\n" <> create_index
 }
 
@@ -133,7 +138,9 @@ pub fn build_create_table_sql(
 }
 
 /// Expected `PRAGMA table_info` TSV body (header + rows) for pragma-based migration tests.
-pub fn build_expected_table_info(rows: List(#(String, String, Int, Int))) -> String {
+pub fn build_expected_table_info(
+  rows: List(#(String, String, Int, Int)),
+) -> String {
   let body =
     rows
     |> list.index_map(fn(row, cid) {

@@ -1,11 +1,14 @@
+import gleam/io
 import generators/migration/migration_sql
 import generators/migration/pragma_migration_data
 import generators/migration/pragma_migration_emit
 import glance
+import glam/doc
 import gleam/list
 import gleam/string
 import gleamgen/expression as gexpr
 import gleamgen/expression/statement as gstmt
+import gleamgen/internal/render as grender_internal
 import gleamgen/render as grender
 import schema_definition.{type FieldDefinition, type SchemaDefinition}
 
@@ -72,9 +75,9 @@ fn pragma_gleam_quote(s: String) -> String {
 }
 
 /// Renders the `use rows <- result.try(sqlite_pragma_assert.table_info_rows(...))` statement
-/// via gleamgen; `pragma_migration_emit` splits on newlines and each line is indented for the loop body.
-fn reconcile_table_info_rows_stmt_source(table: String) -> String {
-  let stmt =
+/// via gleamgen; nests the pretty-print document to match the `False -> { ... }` body indent.
+/// `pragma_migration_emit` then splits on newlines for `reconcile_*_columns_loop`.
+fn reconcile_table_info_rows_stmt_source(table: String) -> gstmt.Statement {
     gstmt.dynamic_use(
       gexpr.raw("result.try"),
       [
@@ -87,15 +90,9 @@ fn reconcile_table_info_rows_stmt_source(table: String) -> String {
       ],
       ["rows"],
     )
-  let body =
-    gexpr.render_statement(stmt, grender.default_context())
-    |> grender.to_string()
-    |> string.trim_end
-  body
-  |> string.split("\n")
-  |> list.map(fn(line) { "      " <> line })
-  |> string.join("\n")
+
 }
+
 
 /// Fills `PragmaMigrationData` for a single-entity schema: SQL/TSV fixtures, panic snippets,
 /// and the pre-rendered reconcile `use` statement.
@@ -141,7 +138,8 @@ fn build_pragma_migration_data(
         #("deleted_at", "INTEGER", 0, 0),
       ],
     ])
-  let create_table_sql = migration_sql.build_create_table_sql(table, data_fields)
+  let create_table_sql =
+    migration_sql.build_create_table_sql(table, data_fields)
   let create_index_sql =
     migration_sql.build_create_unique_index_sql(
       table:,
@@ -167,7 +165,8 @@ fn build_pragma_migration_data(
       )
     False -> none_panic_line
   }
-  let reconcile_table_info_rows_stmt = reconcile_table_info_rows_stmt_source(table)
+  let reconcile_table_info_rows_stmt =
+    reconcile_table_info_rows_stmt_source(table)
   let panic_no_conv =
     pragma_gleam_quote(module_tag <> ": column reconcile did not converge")
 
