@@ -1,11 +1,8 @@
-import gleam/option.{type Option, Some}
+import gleam/option.{type Option, Some, None}
 import sqlight
 
 import gleam/time/timestamp.{type Timestamp}
-import v2/dsl.{
-  type Backlink, type BelongsTo, type CalendarDate, type Mutual, Desc, age,
-  exclude_if_missing, filter, nullable, query, select, sort,
-}
+import v2/dsl.{type Backlink, type BelongsTo, type CalendarDate, type Mutual, Desc, age, exclude_if_missing, nullable, Query}
 
 // ACTUAL SCHEMA
 // Identies = By...
@@ -75,16 +72,8 @@ pub type HumanIdentities {
 // I want to figure out backlinks too
 // attach metadata but still access the data
 
-pub type Query(type_, shape, order, select) {
-  Query(
-    shape: Option(shape),
-    filter: Option(Bool),
-    order: Option(#(dsl.Direction, order)),
-    select: Option(select),
-  )
-}
 
-pub fn old_hippo_owner_emails(hippo: Hippo, min_age: Int) {
+pub fn old_hippos_owner_emails(hippo: Hippo, min_age: Int) {
   // departure from edgedb - nullable only automatic if it's a leaf - if it's a node we must be explicit
   // hippo or None would fetch all fields from hippo
   // #(hippo, hippo.owner) would fetch all fields from hippo and owner
@@ -102,7 +91,6 @@ pub fn old_hippo_owner_emails(hippo: Hippo, min_age: Int) {
     shape: Some(shape),
     filter: Some(filter),
     order: Some(order),
-    select: Some(select),
   )
   // can I isolate selects? this is overkill
   // is this enough to spec everything
@@ -113,7 +101,7 @@ pub type QueryOldFriendsResult {
   QueryOldFriends(age: Int, owner: option.Option(Human))
 }
 
-pub fn old_hippos_owners_emails(conn: sqlight.Connection, age: Int) {
+pub fn query_old_hippos_owner_emails(conn: sqlight.Connection, age: Int) {
   let sql = todo("Generate SQL from query spec")
   let parameters = todo("Generate parameters from query spec")
   let decoder = todo("Generate decoder from query spec")
@@ -123,9 +111,9 @@ pub fn old_hippos_owners_emails(conn: sqlight.Connection, age: Int) {
 
 // another example
 pub fn hippos_by_gender(hippo: Hippo, gender_to_match: Bool) {
-  query(hippo)
-  |> filter(fn(hippo) { exclude_if_missing(hippo.gender) == gender_to_match })
-  |> select(fn(hippo) { hippo })
+  let filter = exclude_if_missing(hippo.gender) == gender_to_match
+  Query(shape: None, filter: Some(filter), order: None)
+
 }
 
 // DERIVED

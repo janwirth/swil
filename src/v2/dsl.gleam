@@ -1,4 +1,4 @@
-import gleam/option
+import gleam/option.{type Option}
 
 pub type CalendarDate {
   CalendarDate(year: Int, month: Int, day: Int)
@@ -7,21 +7,6 @@ pub type CalendarDate {
 // these functions implementations are expanded into individual queries when done
 // idempotent migrations _may_ work
 
-pub fn select(t: Query(t), cb: fn(t) -> selection) -> Query(t) {
-  todo("This is just metaprogramming, don't execute")
-}
-
-pub fn query(t: t) -> Query(t) {
-  todo("This is just metaprogramming, don't execute")
-}
-
-pub fn filter(t: Query(t), cb: fn(t) -> Bool) -> Query(t) {
-  todo("This is just metaprogramming, don't execute")
-}
-
-pub fn sort(t: Query(t), cb: fn(t) -> #(a, Direction)) -> Query(t) {
-  todo("This is just metaprogramming, don't execute")
-}
 
 pub fn age(t: CalendarDate) -> Int {
   todo("Implement on SQL level")
@@ -46,7 +31,6 @@ pub type Direction {
   Desc
 }
 
-pub type Query(t)
 
 pub type Identity(a, b, c) {
   Identity(a)
@@ -72,3 +56,12 @@ pub type Date
 
 // use proper migrations?
 // o
+
+// composing queries
+pub type Query(type_, shape, order) {
+      Query(
+    shape: Option(shape),
+    filter: Option(Bool),
+    order: Option(#(Direction, order)),
+  )
+}
