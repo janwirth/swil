@@ -32,7 +32,7 @@ pub type Tag {
 }
 
 pub type TagIdentities {
-  ByLabel(label: String)
+  ByTagLabel(label: String)
 }
 
 
@@ -57,7 +57,7 @@ pub type TrackBucket {
 }
 
 pub type TrackBucketIdentities {
-  ByTitleAndArtist(title: String, artist: String)
+  BucketByTitleAndArtist(title: String, artist: String)
 }
 
 
@@ -76,7 +76,7 @@ pub type Tab {
 // later: trees
 
 pub type TabIdentities {
-  ByLabel(label: String)
+  ByTabLabel(label: String)
 }
 
 // scalar is a single value, like a string, a number, a boolean, etc, not another object type in the db
