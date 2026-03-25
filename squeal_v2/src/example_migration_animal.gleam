@@ -190,10 +190,7 @@ fn reconcile_animal_columns_loop(
     True ->
       panic as "example_migration_animal: column reconcile did not converge"
     False -> {
-      use rows <- result.try(sqlite_pragma_assert.table_info_rows(
-        conn,
-        "animal",
-      ))
+      use rows <- result.try(sqlite_pragma_assert.table_info_rows(conn, "animal"))
       case
         list.length(rows) == list.length(animal_columns_wanted)
         && list.all(animal_columns_wanted, fn(w) {

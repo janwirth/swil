@@ -1,14 +1,12 @@
-import gleam/io
 import generators/migration/migration_sql
 import generators/migration/pragma_migration_data
 import generators/migration/pragma_migration_emit
+import generators/migration/pragma_migration_panic
 import glance
-import glam/doc
 import gleam/list
 import gleam/string
 import gleamgen/expression as gexpr
 import gleamgen/expression/statement as gstmt
-import gleamgen/internal/render as grender_internal
 import gleamgen/render as grender
 import schema_definition.{type FieldDefinition, type SchemaDefinition}
 
@@ -67,17 +65,11 @@ pub fn build_expected_index_info(
   migration_sql.build_expected_index_info(id_fields, full_col_names)
 }
 
-// --- Pragma migration module generation (Gleam source, not raw SQL). ---
+// --- Pragma migration module generation ---
 
-/// Double-quoted string literal for embedding in generated Gleam (panics, table names in code).
-fn pragma_gleam_quote(s: String) -> String {
-  "\"" <> s <> "\""
-}
-
-/// Renders the `use rows <- result.try(sqlite_pragma_assert.table_info_rows(...))` statement
-/// via gleamgen; nests the pretty-print document to match the `False -> { ... }` body indent.
-/// `pragma_migration_emit` then splits on newlines for `reconcile_*_columns_loop`.
-fn reconcile_table_info_rows_stmt_source(table: String) -> gstmt.Statement {
+/// Gleam `use rows <- result.try(table_info_rows(...))` as a statement AST; rendered by gleamgen.
+fn render_reconcile_table_info_rows_use(table: String) -> String {
+  let stmt =
     gstmt.dynamic_use(
       gexpr.raw("result.try"),
       [
@@ -90,12 +82,21 @@ fn reconcile_table_info_rows_stmt_source(table: String) -> gstmt.Statement {
       ],
       ["rows"],
     )
-
+  let rendered =
+    gexpr.render_statement(stmt, grender.default_context())
+    |> grender.to_string()
+    |> string.trim_end
+  rendered
+  |> string.split("\n")
+  |> list.map(fn(line) { string.append("      ", line) })
+  |> string.join("\n")
 }
 
+fn panic_as_literal(message: String) -> String {
+  string.concat(["\"", message, "\""])
+}
 
-/// Fills `PragmaMigrationData` for a single-entity schema: SQL/TSV fixtures, panic snippets,
-/// and the pre-rendered reconcile `use` statement.
+/// Fills `PragmaMigrationData` for a single-entity schema: SQL/TSV fixtures and panic snippets.
 fn build_pragma_migration_data(
   schema: SchemaDefinition,
   module_tag: String,
@@ -117,7 +118,7 @@ fn build_pragma_migration_data(
   let index_suffix =
     list.map(variant.fields, fn(f) { f.label })
     |> string.join("_")
-  let index_name = table <> "_by_" <> index_suffix
+  let index_name = string.append(string.append(table, "_by_"), index_suffix)
   let index_cols =
     list.map(variant.fields, fn(f) { f.label }) |> string.join(", ")
   let full_col_names =
@@ -148,27 +149,30 @@ fn build_pragma_migration_data(
       if_not_exists: False,
     )
   let expected_table_info = migration_sql.build_expected_table_info(wanted_rows)
-  let expected_index_list =
-    "seq\tname\tunique\torigin\tpartial\n0\t" <> index_name <> "\t1\tc\t0"
+  let expected_index_list = migration_sql.build_expected_index_list_row(index_name)
   let expected_index_info =
     migration_sql.build_expected_index_info(variant.fields, full_col_names)
-  let panic_lit = pragma_gleam_quote(module_tag <> ": no column fix applies")
-  let none_panic_line = "            None -> panic as " <> panic_lit
+  let panic_no_conv =
+    panic_as_literal(
+      pragma_migration_panic.column_reconcile_no_convergence_message(module_tag),
+    )
+  let none_panic_inner =
+    panic_as_literal(pragma_migration_panic.no_column_fix_message(module_tag))
+  let none_panic_line =
+    string.concat(["            None -> panic as ", none_panic_inner])
   let apply_one_none_panic = case string.length(none_panic_line) > 79 {
     True ->
       string.join(
         [
           "            None ->",
-          "              panic as " <> panic_lit,
+          string.concat(["              panic as ", none_panic_inner]),
         ],
         "\n",
       )
     False -> none_panic_line
   }
   let reconcile_table_info_rows_stmt =
-    reconcile_table_info_rows_stmt_source(table)
-  let panic_no_conv =
-    pragma_gleam_quote(module_tag <> ": column reconcile did not converge")
+    render_reconcile_table_info_rows_use(table)
 
   pragma_migration_data.PragmaMigrationData(
     table:,

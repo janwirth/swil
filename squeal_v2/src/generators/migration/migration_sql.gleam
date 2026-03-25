@@ -168,6 +168,15 @@ pub fn label_to_cid(full: List(String), label: String) -> Int {
   i
 }
 
+/// Expected `pragma index_list` TSV snippet for the identity index row (fixture constant).
+pub fn build_expected_index_list_row(index_name: String) -> String {
+  string.concat([
+    "seq\tname\tunique\torigin\tpartial\n0\t",
+    index_name,
+    "\t1\tc\t0",
+  ])
+}
+
 /// Expected `PRAGMA index_info` TSV for the identity index column mapping.
 pub fn build_expected_index_info(
   id_fields: List(FieldDefinition),
