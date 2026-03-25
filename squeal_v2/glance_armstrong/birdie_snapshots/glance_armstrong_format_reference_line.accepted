@@ -1,0 +1,8 @@
+---
+version: 1.5.4
+title: glance_armstrong format reference line
+file: ./test/glance_armstrong_test.gleam
+test_name: format_reference_line_test
+---
+   1 | pub type Foo {}
+       ^^^^^^^^^^^^^^^ Here is some extra test on this
