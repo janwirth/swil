@@ -78,9 +78,6 @@ pub fn entity_without_relationships_parses_test() {
   assert e.identity_type_name == "XIdentities"
 }
 
-/// `library_manager_schema.gleam.gleam` is intentionally not a hippo-style schema.
-/// `parse_module` stops at the first violation; this test prints that finding, then
-/// additional locations in **source order** as one continuous sequence.
 pub fn library_manager_schema_test() {
   let path = "src/case_studies/library_manager_schema.gleam.gleam"
   let assert Ok(src) = simplifile.read(path)

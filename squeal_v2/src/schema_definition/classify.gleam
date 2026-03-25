@@ -13,7 +13,9 @@ pub type Classified {
   ScalarBucket(scalar.ScalarTypeDefinition)
   IdentitiesBucket(identity.IdentityTypeDefinition)
   EntityBucket(entity.EntityDefinition)
-  RelationshipContainerBucket(relationship_container.RelationshipContainerDefinition)
+  RelationshipContainerBucket(
+    relationship_container.RelationshipContainerDefinition,
+  )
   EdgeAttributesBucket(edge_attributes.RelationshipEdgeAttributesDefinition)
 }
 
@@ -48,7 +50,9 @@ fn require_no_type_parameters(ct: glance.CustomType) -> Result(Nil, ParseError) 
   }
 }
 
-fn require_at_least_one_variant(ct: glance.CustomType) -> Result(Nil, ParseError) {
+fn require_at_least_one_variant(
+  ct: glance.CustomType,
+) -> Result(Nil, ParseError) {
   case ct.variants {
     [] ->
       Error(UnsupportedSchema(

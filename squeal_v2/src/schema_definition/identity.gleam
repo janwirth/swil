@@ -20,7 +20,9 @@ pub type IdentityVariantDefinition {
   IdentityVariantDefinition(variant_name: String, fields: List(FieldDefinition))
 }
 
-pub fn parse(ct: glance.CustomType) -> Result(IdentityTypeDefinition, ParseError) {
+pub fn parse(
+  ct: glance.CustomType,
+) -> Result(IdentityTypeDefinition, ParseError) {
   case ct.variants {
     [] ->
       Error(UnsupportedSchema(

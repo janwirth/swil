@@ -10,7 +10,9 @@ pub type SchemaDefinition {
   SchemaDefinition(
     entities: List(entity.EntityDefinition),
     identities: List(identity.IdentityTypeDefinition),
-    relationship_containers: List(relationship_container.RelationshipContainerDefinition),
+    relationship_containers: List(
+      relationship_container.RelationshipContainerDefinition,
+    ),
     relationship_edge_attributes: List(
       edge_attributes.RelationshipEdgeAttributesDefinition,
     ),

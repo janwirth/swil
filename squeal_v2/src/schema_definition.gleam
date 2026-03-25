@@ -8,23 +8,29 @@ import schema_definition/module_builder
 import schema_definition/parse_error as parse_error_mod
 import schema_definition/query as query_mod
 import schema_definition/relationship_container as relationship_container_mod
-import schema_definition/schema_aggregate as schema_aggregate_mod
 import schema_definition/scalar as scalar_mod
+import schema_definition/schema_aggregate as schema_aggregate_mod
 
 /// Parsed view of a squeal schema module in the **hippo shape** only (see parser rules).
-pub type SchemaDefinition = schema_aggregate_mod.SchemaDefinition
+pub type SchemaDefinition =
+  schema_aggregate_mod.SchemaDefinition
 
 /// Aggregate root: single record variant named like the type, with required `identities` and optional `relationships`.
-pub type EntityDefinition = entity_mod.EntityDefinition
+pub type EntityDefinition =
+  entity_mod.EntityDefinition
 
-pub type FieldDefinition = fields_mod.FieldDefinition
+pub type FieldDefinition =
+  fields_mod.FieldDefinition
 
 /// `*Identities` type: each variant is `By…` with labelled fields only.
-pub type IdentityTypeDefinition = identity_mod.IdentityTypeDefinition
+pub type IdentityTypeDefinition =
+  identity_mod.IdentityTypeDefinition
 
-pub type IdentityVariantDefinition = identity_mod.IdentityVariantDefinition
+pub type IdentityVariantDefinition =
+  identity_mod.IdentityVariantDefinition
 
-pub type VariantWithFields = fields_mod.VariantWithFields
+pub type VariantWithFields =
+  fields_mod.VariantWithFields
 
 /// `*Relationships` type: single variant, same name as the type, labelled fields only.
 pub type RelationshipContainerDefinition =
@@ -35,15 +41,19 @@ pub type RelationshipEdgeAttributesDefinition =
   edge_attributes_mod.RelationshipEdgeAttributesDefinition
 
 /// Enum-like: every variant has no payloads; at least one variant.
-pub type ScalarTypeDefinition = scalar_mod.ScalarTypeDefinition
+pub type ScalarTypeDefinition =
+  scalar_mod.ScalarTypeDefinition
 
 /// Public function that returns `Query` (annotation or trailing `Query(...)`); parameters must be typed.
-pub type QuerySpecDefinition = query_mod.QuerySpecDefinition
+pub type QuerySpecDefinition =
+  query_mod.QuerySpecDefinition
 
-pub type QueryParameter = query_mod.QueryParameter
+pub type QueryParameter =
+  query_mod.QueryParameter
 
 /// Render with [`format_parse_error`](#format_parse_error) / [`schema_diagnostics`](schema_diagnostics.html).
-pub type ParseError = parse_error_mod.ParseError
+pub type ParseError =
+  parse_error_mod.ParseError
 
 /// Turn a [`ParseError`](#ParseError) into text using [`schema_diagnostics`](schema_diagnostics.html) (line + caret layout).
 pub fn format_parse_error(source: String, error: ParseError) -> String {

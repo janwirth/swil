@@ -8,7 +8,9 @@ import schema_definition/entity
 import schema_definition/identity
 import schema_definition/parse_error.{type ParseError, UnsupportedSchema}
 import schema_definition/query
-import schema_definition/schema_aggregate.{type SchemaDefinition, SchemaDefinition}
+import schema_definition/schema_aggregate.{
+  type SchemaDefinition, SchemaDefinition,
+}
 
 pub fn build_schema_strict(
   parsed: glance.Module,
