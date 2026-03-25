@@ -13,7 +13,7 @@ import gleam/time/calendar.{type Date}
 pub type Hippo {
   Hippo(
     name: option.Option(String),
-    gender: option.Option(Bool),
+    gender: option.Option(GenderScalar),
     date_of_birth: option.Option(Date),
     identities: HippoIdentities,
     relationships: HippoRelationships,
@@ -48,6 +48,12 @@ pub type Human {
   )
 }
 
+// scalar types... how do we infer? no properties?
+pub type GenderScalar {
+  Male
+  Female
+}
+
 pub type HumanRelationships {
   HumanRelationships(hippos: BacklinkWith(List(Hippo), FriendshipAttributes))
 }
@@ -73,7 +79,7 @@ pub fn old_hippos_owner_emails(hippo: Hippo, min_age: Int) {
 }
 
 /// Query input spec for "hippos by gender".
-pub fn hippos_by_gender(hippo: Hippo, gender_to_match: Bool) {
+pub fn hippos_by_gender(hippo: Hippo, gender_to_match: GenderScalar) {
   let filter = exclude_if_missing(hippo.gender) == gender_to_match
   Query(shape: option.None, filter: option.Some(filter), order: option.None)
 }

@@ -78,7 +78,7 @@ pub type HipposByGenderResult {
 /// Execute generated query for the "hippos by gender" spec.
 pub fn query_hippos_by_gender(
   conn: sqlight.Connection,
-  gender_to_match: Bool,
+  gender_to_match: hippo_schema.GenderScalar,
 ) -> Result(List(HipposByGenderResult), sqlight.Error) {
   let _ = conn
   let _ = gender_to_match
@@ -90,7 +90,7 @@ pub fn upsert_hippo_by_name_and_date_of_birth(
   conn: sqlight.Connection,
   name: String,
   date_of_birth: Date,
-  gender: option.Option(Bool),
+  gender: option.Option(hippo_schema.GenderScalar),
 ) -> Result(Hippo, sqlight.Error) {
   todo as "TODO: generated upsert SQL and decoding"
 }

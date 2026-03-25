@@ -28,9 +28,10 @@ pub fn hippo_skeleton_api_consumer_completeness_test() {
   // multiple migrations should be idempotent
   let assert Ok(_) = hippo_db.migrate(conn)
 
-  let assert Ok(human) = hippo_db.upsert_hippo_by_name_and_date_of_birth(conn, "Test Hippo", calendar.Date(year: 2020, month: calendar.February, day: 1), option.Some(True))
+  let assert Ok(hippo) = hippo_db.upsert_hippo_by_name_and_date_of_birth(conn, "Test Hippo", calendar.Date(year: 2020, month: calendar.February, day: 1), option.Some(True))
 
   let assert Ok(human) = hippo_db.upsert_human_by_email(conn, "test@example.com", option.Some("Test User"))
+  let assert Ok(_) = hippo_db.query_hippos_by_gender(conn, hippo_schema.Gender.Male)
   let assert Ok(_) = hippo_db.delete_human_by_email(conn, "test@example.com")
 
 
