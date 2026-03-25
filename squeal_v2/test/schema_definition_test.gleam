@@ -44,10 +44,6 @@ pub fn hippo_schema_parses_test() {
     |> list.sort(string.compare)
   assert edge_attr_names == ["FriendshipAttributes"]
 
-  assert list.is_empty(def.struct_types)
-  assert list.is_empty(def.union_types)
-  assert list.is_empty(def.opaque_types)
-
   let assert Ok(hippo) =
     list.find(in: def.entities, one_that: fn(e) { e.type_name == "Hippo" })
   assert hippo.identity_type_name == "HippoIdentities"
@@ -64,4 +60,11 @@ pub fn hippo_schema_parses_test() {
   let assert [by_name] = hippo_id.variants
   assert by_name.variant_name == "ByNameAndDateOfBirth"
   assert list.length(by_name.fields) == 2
+}
+
+pub fn library_manager_schema_rejected_test() {
+  let assert Ok(src) =
+    simplifile.read("src/case_studies/library_manager_schema.gleam.gleam")
+  let assert Error(schema_definition.UnsupportedSchema(_)) =
+    schema_definition.parse_module(src)
 }
