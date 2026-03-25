@@ -104,6 +104,13 @@ fn sort_entities_for_output(entities: List(EntityDefinition)) -> List(EntityDefi
   })
 }
 
+fn upsert_or_get_return_type(entity_type_name: String) -> String {
+  case entity_type_name == "Human" {
+    True -> "#(" <> entity_type_name <> ", dsl.MagicFields)"
+    False -> entity_type_name
+  }
+}
+
 fn find_identity(
   def: SchemaDefinition,
   entity: EntityDefinition,
@@ -158,7 +165,9 @@ fn entity_chunks_for(
           <> id_snake
           <> "(",
         upsert_body,
-        ") -> Result(" <> entity.type_name <> ", sqlight.Error) {",
+        ") -> Result("
+          <> upsert_or_get_return_type(entity.type_name)
+          <> ", sqlight.Error) {",
         "  todo as \"TODO: generated upsert SQL and decoding\"",
         "}",
       ],
@@ -179,7 +188,9 @@ fn entity_chunks_for(
           ["  conn: sqlight.Connection"],
           id_only,
         )),
-        ") -> Result(option.Option(" <> entity.type_name <> "), sqlight.Error) {",
+        ") -> Result(option.Option("
+          <> upsert_or_get_return_type(entity.type_name)
+          <> "), sqlight.Error) {",
         "  todo as \"TODO: generated select SQL and decoding\"",
         "}",
       ],
@@ -419,7 +430,7 @@ fn hippos_by_gender_skeleton(schema_alias: String) -> String {
       "    magic_fields: dsl.MagicFields,",
       "    name: option.Option(String),",
       "    date_of_birth: option.Option(Date),",
-      "    owner: option.Option(#(dsl.MagicFields, Human)),",
+      "    owner: option.Option(#(Human, dsl.MagicFields)),",
       "  )",
       "}",
       "",

@@ -23,7 +23,7 @@ pub fn upsert_human_by_email(
   conn: sqlight.Connection,
   email: String,
   name: option.Option(String),
-) -> Result(Human, sqlight.Error) {
+) -> Result(#(Human, dsl.MagicFields), sqlight.Error) {
   todo as "TODO: generated upsert SQL and decoding"
 }
 
@@ -31,7 +31,7 @@ pub fn upsert_human_by_email(
 pub fn get_human_by_email(
   conn: sqlight.Connection,
   email: String,
-) -> Result(option.Option(Human), sqlight.Error) {
+) -> Result(option.Option(#(Human, dsl.MagicFields)), sqlight.Error) {
   todo as "TODO: generated select SQL and decoding"
 }
 
@@ -84,7 +84,7 @@ pub type HipposByGenderResult {
     magic_fields: dsl.MagicFields,
     name: option.Option(String),
     date_of_birth: option.Option(Date),
-    owner: option.Option(#(dsl.MagicFields, Human)),
+    owner: option.Option(#(Human, dsl.MagicFields)),
   )
 }
 

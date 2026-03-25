@@ -1,10 +1,10 @@
 import case_studies/hippo_db_skeleton as hippo_db
 import case_studies/hippo_schema
+import dsl
 import gleam/option
 import gleam/time/calendar.{type Date}
 import schema_definition
 import skeleton_generator
-import gleeunit
 import simplifile
 import sqlight
 
@@ -26,7 +26,7 @@ pub fn hippo_skeleton_api_consumer_completeness_test() {
   // remain `todo` in the golden skeleton).
   let _: fn(sqlight.Connection) -> Result(Nil, sqlight.Error) = hippo_db.migrate
   let _: fn(sqlight.Connection, String, option.Option(String)) -> Result(
-    hippo_schema.Human,
+    #(hippo_schema.Human, dsl.MagicFields),
     sqlight.Error,
   ) = hippo_db.upsert_human_by_email
   let _: fn(
