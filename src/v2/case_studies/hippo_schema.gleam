@@ -68,6 +68,7 @@ pub type HumanIdentities {
 }
 // can we build an admin UI - that's the ultimate test.
 // db(conn).human.delete.by_id
+// OUTPUT
 pub fn upsert_human_by_email(conn: sqlight.Connection, email: String, name: option.Option(String)) -> Human{
     todo ("sql etc here")
 }
@@ -83,7 +84,7 @@ pub fn delete_human_by_id(conn: sqlight.Connection, identity) -> Result(Nil, sql
 // I want to figure out backlinks too
 // attach metadata but still access the data
 
-
+// INPUT
 pub fn old_hippos_owner_emails(hippo: Hippo, min_age: Int) {
   // departure from edgedb - nullable only automatic if it's a leaf - if it's a node we must be explicit
   // hippo or None would fetch all fields from hippo
@@ -109,7 +110,7 @@ pub fn old_hippos_owner_emails(hippo: Hippo, min_age: Int) {
   // is this enough to spec everything
 }
 
-// generates
+// OUTPUT
 pub type QueryOldHipposOwnerEmailsResult {
   QueryOldHipposOwnerEmailsResult(age: Int, owner: option.Option(Human))
 }
@@ -117,6 +118,7 @@ pub type QueryOldHipposOwnerEmailsResultOwner {
   QueryOldHipposOwnerEmailsResultOwner(email: option.Option(String))
 }
 
+// INPUT
 pub fn query_old_hippos_owner_emails(conn: sqlight.Connection, age: Int) {
   let sql = todo("Generate SQL from query spec")
   // includes: SELECT
@@ -136,6 +138,7 @@ pub fn hippos_by_gender(hippo: Hippo, gender_to_match: Bool) {
   Query(shape: None, filter: Some(filter), order: None)
 }
 
+// OUTPUT
 pub type HipposByGenderResult {
   HipposByGenderResult(magic_fields: dsl.MagicFields, name: option.Option(String), date_of_birth: option.Option(CalendarDate), owner: option.Option(#(dsl.MagicFields, Human)))
 }
