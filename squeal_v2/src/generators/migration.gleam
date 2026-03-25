@@ -4,10 +4,26 @@ import gleam/list
 import gleam/string
 import schema_definition.{type EntityDefinition, type SchemaDefinition}
 
-pub fn generate_migration(schema: SchemaDefinition) -> String {
-  schema.entities
-  |> list.map(fn(entity) { entity_ddl(schema, entity) })
-  |> string.join("\n")
+/// Applies [schema] to the database: drops tables from **other** versions first
+/// (`drop_tables_not_in_schema` — e.g. `["animal"]` when migrating to fruit-only),
+/// then creates each entity table and its identity indexes. Idempotent when re-run.
+pub fn generate_migration(
+  schema: SchemaDefinition,
+  drop_tables_not_in_schema: List(String),
+) -> String {
+  let drops =
+    list.map(drop_tables_not_in_schema, fn(t) {
+      "drop table if exists " <> t <> ";"
+    })
+    |> string.join("\n")
+  let creates =
+    schema.entities
+    |> list.map(fn(entity) { entity_ddl(schema, entity) })
+    |> string.join("\n")
+  case drops == "" {
+    True -> creates
+    False -> drops <> "\n" <> creates
+  }
 }
 
 fn entity_table_name(entity_type: String) -> String {
