@@ -2,29 +2,22 @@ import glance
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/result
 import gleam/string
 
-/// Parsed view of a schema Gleam module (types + public query helpers) for codegen.
+/// Parsed view of a squeal schema module in the **hippo shape** only (see parser rules).
 pub type SchemaDefinition {
   SchemaDefinition(
     entities: List(EntityDefinition),
     identities: List(IdentityTypeDefinition),
-    /// Types named `*Relationships` holding `BelongsTo` / `Mutual` / `BacklinkWith` edges.
     relationship_containers: List(RelationshipContainerDefinition),
-    /// Types named `*Attributes` (edge payloads), e.g. fields on a `Mutual(.., Attr)`.
     relationship_edge_attributes: List(RelationshipEdgeAttributesDefinition),
     scalars: List(ScalarTypeDefinition),
-    /// Single-variant records that are not entities (no `identities` field), e.g. nested rows.
-    struct_types: List(StructTypeDefinition),
-    /// Custom types with two or more variants (sum types outside identities/scalars).
-    union_types: List(UnionTypeDefinition),
-    /// Custom types with no variants (`pub type T` opaque-style in the AST).
-    opaque_types: List(OpaqueTypeDefinition),
     queries: List(QuerySpecDefinition),
   )
 }
 
-/// Aggregate root: single record variant and an `identities: …Identities` field.
+/// Aggregate root: single record variant named like the type, with `identities` and `relationships`.
 pub type EntityDefinition {
   EntityDefinition(
     type_name: String,
@@ -38,7 +31,7 @@ pub type FieldDefinition {
   FieldDefinition(label: String, type_: glance.Type)
 }
 
-/// Custom type whose name ends with `Identities` (convention).
+/// `*Identities` type: each variant is `By…` with labelled fields only.
 pub type IdentityTypeDefinition {
   IdentityTypeDefinition(
     type_name: String,
@@ -57,53 +50,28 @@ pub type VariantWithFields {
   VariantWithFields(variant_name: String, fields: List(FieldDefinition))
 }
 
-/// Container for outgoing edges on an entity (`HippoRelationships`, …).
+/// `*Relationships` type: single variant, same name as the type, labelled fields only.
 pub type RelationshipContainerDefinition {
   RelationshipContainerDefinition(
     type_name: String,
-    type_parameters: List(String),
     variants: List(VariantWithFields),
   )
 }
 
-/// Payload type carried on a relationship edge (`FriendshipAttributes`, …).
+/// `*Attributes` edge payload: single variant, same name as the type, labelled fields only.
 pub type RelationshipEdgeAttributesDefinition {
   RelationshipEdgeAttributesDefinition(
     type_name: String,
-    type_parameters: List(String),
     variants: List(VariantWithFields),
   )
 }
 
-/// Enum-like type: every variant has no payloads.
+/// Enum-like: every variant has no payloads; at least one variant.
 pub type ScalarTypeDefinition {
   ScalarTypeDefinition(type_name: String, variant_names: List(String))
 }
 
-/// Single-variant product type (not classified as entity or edge bundle).
-pub type StructTypeDefinition {
-  StructTypeDefinition(
-    type_name: String,
-    type_parameters: List(String),
-    variant_name: String,
-    fields: List(FieldDefinition),
-  )
-}
-
-/// Multi-variant custom type that is not an identity bundle or scalar enum.
-pub type UnionTypeDefinition {
-  UnionTypeDefinition(
-    type_name: String,
-    type_parameters: List(String),
-    variants: List(VariantWithFields),
-  )
-}
-
-pub type OpaqueTypeDefinition {
-  OpaqueTypeDefinition(type_name: String, type_parameters: List(String))
-}
-
-/// Public function that returns a `Query` (annotation or trailing `Query(...)`).
+/// Public function that returns `Query` (annotation or trailing `Query(...)`); parameters must be typed.
 pub type QuerySpecDefinition {
   QuerySpecDefinition(name: String, parameters: List(QueryParameter))
 }
@@ -114,37 +82,40 @@ pub type QueryParameter {
 
 pub type ParseError {
   GlanceError(glance.Error)
+  UnsupportedSchema(String)
 }
 
-/// Parse a Gleam module source into a [`SchemaDefinition`](#SchemaDefinition).
+/// Parse a module **only** if every public custom type and public function fits the hippo-style rules.
 pub fn parse_module(source: String) -> Result(SchemaDefinition, ParseError) {
   case glance.module(source) {
-    Ok(parsed) -> Ok(build_schema(parsed))
+    Ok(parsed) -> build_schema_strict(parsed)
     Error(e) -> Error(GlanceError(e))
   }
 }
 
-fn build_schema(parsed: glance.Module) -> SchemaDefinition {
-  let classified =
-    list.fold(parsed.custom_types, initial_buckets(), fn(acc, def) {
+fn build_schema_strict(
+  parsed: glance.Module,
+) -> Result(SchemaDefinition, ParseError) {
+  use buckets <- result.try(list.try_fold(
+    parsed.custom_types,
+    initial_buckets(),
+    fn(acc, def) {
       case def {
-        glance.Definition(_, ct) -> insert_custom_type(acc, ct)
+        glance.Definition(_, ct) -> insert_custom_type_strict(acc, ct)
       }
-    })
-  let queries = extract_query_specs(parsed.functions)
-  SchemaDefinition(
-    entities: list.reverse(classified.entities),
-    identities: list.reverse(classified.identities),
-    relationship_containers: list.reverse(classified.relationship_containers),
+    },
+  ))
+  use queries <- result.try(extract_query_specs_strict(parsed.functions))
+  Ok(SchemaDefinition(
+    entities: list.reverse(buckets.entities),
+    identities: list.reverse(buckets.identities),
+    relationship_containers: list.reverse(buckets.relationship_containers),
     relationship_edge_attributes: list.reverse(
-      classified.relationship_edge_attributes,
+      buckets.relationship_edge_attributes,
     ),
-    scalars: list.reverse(classified.scalars),
-    struct_types: list.reverse(classified.struct_types),
-    union_types: list.reverse(classified.union_types),
-    opaque_types: list.reverse(classified.opaque_types),
+    scalars: list.reverse(buckets.scalars),
     queries: queries,
-  )
+  ))
 }
 
 type Buckets {
@@ -154,40 +125,39 @@ type Buckets {
     relationship_containers: List(RelationshipContainerDefinition),
     relationship_edge_attributes: List(RelationshipEdgeAttributesDefinition),
     scalars: List(ScalarTypeDefinition),
-    struct_types: List(StructTypeDefinition),
-    union_types: List(UnionTypeDefinition),
-    opaque_types: List(OpaqueTypeDefinition),
   )
 }
 
 fn initial_buckets() -> Buckets {
-  Buckets([], [], [], [], [], [], [], [])
+  Buckets([], [], [], [], [])
 }
 
-fn insert_custom_type(acc: Buckets, ct: glance.CustomType) -> Buckets {
-  case classify_custom_type(ct) {
-    ScalarBucket(s) ->
-      Buckets(..acc, scalars: [s, ..acc.scalars])
-    IdentitiesBucket(i) ->
-      Buckets(..acc, identities: [i, ..acc.identities])
-    EntityBucket(e) ->
-      Buckets(..acc, entities: [e, ..acc.entities])
-    RelationshipContainerBucket(r) ->
-      Buckets(..acc, relationship_containers: [
-        r,
-        ..acc.relationship_containers
-      ])
-    EdgeAttributesBucket(a) ->
-      Buckets(..acc, relationship_edge_attributes: [
-        a,
-        ..acc.relationship_edge_attributes
-      ])
-    StructBucket(st) ->
-      Buckets(..acc, struct_types: [st, ..acc.struct_types])
-    UnionBucket(u) ->
-      Buckets(..acc, union_types: [u, ..acc.union_types])
-    OpaqueBucket(o) ->
-      Buckets(..acc, opaque_types: [o, ..acc.opaque_types])
+fn insert_custom_type_strict(
+  acc: Buckets,
+  ct: glance.CustomType,
+) -> Result(Buckets, ParseError) {
+  case ct.publicity {
+    glance.Private -> Ok(acc)
+    glance.Public ->
+      case classify_strict(ct) {
+        Ok(ScalarBucket(s)) ->
+          Ok(Buckets(..acc, scalars: [s, ..acc.scalars]))
+        Ok(IdentitiesBucket(i)) ->
+          Ok(Buckets(..acc, identities: [i, ..acc.identities]))
+        Ok(EntityBucket(e)) ->
+          Ok(Buckets(..acc, entities: [e, ..acc.entities]))
+        Ok(RelationshipContainerBucket(r)) ->
+          Ok(Buckets(..acc, relationship_containers: [
+            r,
+            ..acc.relationship_containers,
+          ]))
+        Ok(EdgeAttributesBucket(a)) ->
+          Ok(Buckets(..acc, relationship_edge_attributes: [
+            a,
+            ..acc.relationship_edge_attributes,
+          ]))
+        Error(e) -> Error(e)
+      }
   }
 }
 
@@ -197,129 +167,246 @@ type Classified {
   EntityBucket(EntityDefinition)
   RelationshipContainerBucket(RelationshipContainerDefinition)
   EdgeAttributesBucket(RelationshipEdgeAttributesDefinition)
-  StructBucket(StructTypeDefinition)
-  UnionBucket(UnionTypeDefinition)
-  OpaqueBucket(OpaqueTypeDefinition)
 }
 
-fn classify_custom_type(ct: glance.CustomType) -> Classified {
-  case try_scalar(ct) {
-    Some(s) -> ScalarBucket(s)
+fn classify_strict(ct: glance.CustomType) -> Result(Classified, ParseError) {
+  use _ <- result.try(require_no_type_parameters(ct))
+  case try_scalar_strict(ct) {
+    Some(s) -> Ok(ScalarBucket(s))
     None ->
       case string.ends_with(ct.name, "Identities") {
-        True -> IdentitiesBucket(identity_type_from(ct))
+        True -> identities_strict(ct)
         False ->
-          case try_entity(ct) {
-            Some(e) -> EntityBucket(e)
-            None ->
+          case try_entity_strict(ct) {
+            Ok(Some(e)) -> Ok(EntityBucket(e))
+            Ok(None) ->
               case string.ends_with(ct.name, "Relationships") {
-                True ->
-                  RelationshipContainerBucket(relationship_container_from(ct))
+                True -> relationship_container_strict(ct)
                 False ->
                   case string.ends_with(ct.name, "Attributes") {
-                    True ->
-                      EdgeAttributesBucket(edge_attributes_from(ct))
-                    False -> classify_remaining_shape(ct)
+                    True -> edge_attributes_strict(ct)
+                    False ->
+                      Error(UnsupportedSchema(
+                        "public type "
+                        <> ct.name
+                        <> " is not a supported squeal shape (expected entity, *Identities, *Relationships, *Attributes, or scalar enum)",
+                      ))
                   }
+              }
+            Error(e) -> Error(e)
+          }
+      }
+  }
+}
+
+fn require_no_type_parameters(ct: glance.CustomType) -> Result(Nil, ParseError) {
+  case ct.parameters {
+    [] -> Ok(Nil)
+    _ ->
+      Error(UnsupportedSchema(
+        "type "
+        <> ct.name
+        <> " must not have generic parameters in a squeal schema module",
+      ))
+  }
+}
+
+fn try_scalar_strict(ct: glance.CustomType) -> Option(ScalarTypeDefinition) {
+  case ct.variants {
+    [] -> None
+    variants ->
+      case
+        list.all(variants, fn(v) {
+          case v.fields {
+            [] -> True
+            _ -> False
+          }
+        })
+      {
+        True ->
+          Some(ScalarTypeDefinition(
+            ct.name,
+            list.map(variants, fn(v) { v.name }),
+          ))
+        False -> None
+      }
+  }
+}
+
+fn identities_strict(ct: glance.CustomType) -> Result(Classified, ParseError) {
+  case ct.variants {
+    [] ->
+      Error(UnsupportedSchema(
+        "identities type " <> ct.name <> " must declare at least one variant",
+      ))
+    variants -> {
+      use _ <- result.try(list.try_fold(variants, Nil, fn(_, v) {
+        case string.starts_with(v.name, "By") {
+          False ->
+            Error(UnsupportedSchema(
+              "identity variant "
+              <> v.name
+              <> " in "
+              <> ct.name
+              <> " must start with `By`",
+            ))
+          True ->
+            case variant_fields_all_labelled(v.fields) {
+              False ->
+                Error(UnsupportedSchema(
+                  "identity variant "
+                  <> v.name
+                  <> " must use only labelled fields",
+                ))
+              True -> Ok(Nil)
+            }
+        }
+      }))
+      let defs =
+        list.map(variants, fn(v) {
+          IdentityVariantDefinition(v.name, variant_fields_to_defs(v.fields))
+        })
+      Ok(IdentitiesBucket(IdentityTypeDefinition(ct.name, defs)))
+    }
+  }
+}
+
+fn try_entity_strict(
+  ct: glance.CustomType,
+) -> Result(Option(EntityDefinition), ParseError) {
+  case ct.variants {
+    [glance.Variant(vname, vfields, _)] -> {
+      case vname == ct.name {
+        False -> Ok(None)
+        True ->
+          case variant_fields_all_labelled(vfields) {
+            False ->
+              Error(UnsupportedSchema(
+                "entity "
+                <> ct.name
+                <> " must use only labelled fields on its record variant",
+              ))
+            True ->
+              case
+                find_labelled_field(vfields, "identities"),
+                find_labelled_field(vfields, "relationships")
+              {
+                Some(#(_, id_type)), Some(#(_, rel_type)) ->
+                  case type_named_type_name(id_type), type_named_type_name(rel_type) {
+                    Some(id_name), Some(rel_name) -> {
+                      let id_ok = string.ends_with(id_name, "Identities")
+                      let rel_ok = string.ends_with(rel_name, "Relationships")
+                      case id_ok && rel_ok {
+                        False ->
+                          Error(UnsupportedSchema(
+                            "entity "
+                            <> ct.name
+                            <> " identities field must reference *Identities and relationships *Relationships",
+                          ))
+                        True -> {
+                          let fields = variant_fields_to_defs(vfields)
+                          Ok(Some(EntityDefinition(
+                            ct.name,
+                            vname,
+                            fields,
+                            id_name,
+                          )))
+                        }
+                      }
+                    }
+                    _, _ ->
+                      Error(UnsupportedSchema(
+                        "entity "
+                        <> ct.name
+                        <> " identities and relationships must be simple type names",
+                      ))
+                  }
+                _, _ -> Ok(None)
               }
           }
       }
+    }
+    _ -> Ok(None)
   }
 }
 
-fn classify_remaining_shape(ct: glance.CustomType) -> Classified {
-  case ct.variants {
-    [] -> OpaqueBucket(OpaqueTypeDefinition(ct.name, ct.parameters))
-    [v] ->
-      StructBucket(StructTypeDefinition(
-        ct.name,
-        ct.parameters,
-        v.name,
-        variant_fields_to_defs(v.fields),
-      ))
-    vs -> UnionBucket(union_from_variants(ct, vs))
-  }
-}
-
-fn union_from_variants(
+fn relationship_container_strict(
   ct: glance.CustomType,
-  variants: List(glance.Variant),
-) -> UnionTypeDefinition {
-  let mapped =
-    list.map(variants, fn(v) {
-      VariantWithFields(v.name, variant_fields_to_defs(v.fields))
-    })
-  UnionTypeDefinition(ct.name, ct.parameters, mapped)
-}
-
-fn relationship_container_from(
-  ct: glance.CustomType,
-) -> RelationshipContainerDefinition {
-  RelationshipContainerDefinition(
-    ct.name,
-    ct.parameters,
-    variants_with_fields(ct),
-  )
-}
-
-fn edge_attributes_from(
-  ct: glance.CustomType,
-) -> RelationshipEdgeAttributesDefinition {
-  RelationshipEdgeAttributesDefinition(
-    ct.name,
-    ct.parameters,
-    variants_with_fields(ct),
-  )
-}
-
-fn variants_with_fields(ct: glance.CustomType) -> List(VariantWithFields) {
-  list.map(ct.variants, fn(v) {
-    VariantWithFields(v.name, variant_fields_to_defs(v.fields))
-  })
-}
-
-fn try_scalar(ct: glance.CustomType) -> Option(ScalarTypeDefinition) {
-  case
-    list.all(ct.variants, fn(v) {
-      case v.fields {
-        [] -> True
-        _ -> False
-      }
-    })
-  {
-    True ->
-      Some(ScalarTypeDefinition(
-        ct.name,
-        list.map(ct.variants, fn(v) { v.name }),
-      ))
-    False -> None
-  }
-}
-
-fn identity_type_from(ct: glance.CustomType) -> IdentityTypeDefinition {
-  let variants =
-    list.map(ct.variants, fn(v) {
-      IdentityVariantDefinition(v.name, variant_fields_to_defs(v.fields))
-    })
-  IdentityTypeDefinition(ct.name, variants)
-}
-
-fn try_entity(ct: glance.CustomType) -> Option(EntityDefinition) {
+) -> Result(Classified, ParseError) {
   case ct.variants {
     [glance.Variant(vname, vfields, _)] ->
-      case find_labelled_field(vfields, "identities") {
-        Some(#(_, id_type)) ->
-          case type_named_type_name(id_type) {
-            Some(id_name) -> {
-              let fields = variant_fields_to_defs(vfields)
-              Some(EntityDefinition(ct.name, vname, fields, id_name))
+      case vname == ct.name {
+        False ->
+          Error(UnsupportedSchema(
+            "*Relationships type "
+            <> ct.name
+            <> " must use a single variant of the same name",
+          ))
+        True ->
+          case variant_fields_all_labelled(vfields) {
+            False ->
+              Error(UnsupportedSchema(
+                "*Relationships "
+                <> ct.name
+                <> " must use only labelled fields",
+              ))
+            True -> {
+              let v =
+                VariantWithFields(vname, variant_fields_to_defs(vfields))
+              Ok(RelationshipContainerBucket(RelationshipContainerDefinition(
+                ct.name,
+                [v],
+              )))
             }
-            None -> None
           }
-        None -> None
       }
-    _ -> None
+    _ ->
+      Error(UnsupportedSchema(
+        "*Relationships type " <> ct.name <> " must have exactly one variant",
+      ))
   }
+}
+
+fn edge_attributes_strict(ct: glance.CustomType) -> Result(Classified, ParseError) {
+  case ct.variants {
+    [glance.Variant(vname, vfields, _)] ->
+      case vname == ct.name {
+        False ->
+          Error(UnsupportedSchema(
+            "*Attributes type "
+            <> ct.name
+            <> " must use a single variant of the same name",
+          ))
+        True ->
+          case variant_fields_all_labelled(vfields) {
+            False ->
+              Error(UnsupportedSchema(
+                "*Attributes " <> ct.name <> " must use only labelled fields",
+              ))
+            True -> {
+              let v =
+                VariantWithFields(vname, variant_fields_to_defs(vfields))
+              Ok(EdgeAttributesBucket(RelationshipEdgeAttributesDefinition(
+                ct.name,
+                [v],
+              )))
+            }
+          }
+      }
+    _ ->
+      Error(UnsupportedSchema(
+        "*Attributes type " <> ct.name <> " must have exactly one variant",
+      ))
+  }
+}
+
+fn variant_fields_all_labelled(fields: List(glance.VariantField)) -> Bool {
+  list.all(fields, fn(f) {
+    case f {
+      glance.LabelledVariantField(_, _) -> True
+      glance.UnlabelledVariantField(_) -> False
+    }
+  })
 }
 
 fn find_labelled_field(
@@ -368,22 +455,54 @@ fn fields_to_defs_loop(
   }
 }
 
-fn extract_query_specs(
+fn extract_query_specs_strict(
   functions: List(glance.Definition(glance.Function)),
-) -> List(QuerySpecDefinition) {
-  list.filter_map(functions, fn(def) {
+) -> Result(List(QuerySpecDefinition), ParseError) {
+  list.try_fold(functions, [], fn(acc, def) {
     case def {
-      glance.Definition(_, f) -> {
+      glance.Definition(_, f) ->
         case f.publicity {
+          glance.Private -> Ok(acc)
           glance.Public ->
             case function_is_query_spec(f) {
-              True -> Ok(query_spec_from_function(f))
-              False -> Error(Nil)
+              False ->
+                Error(UnsupportedSchema(
+                  "public function "
+                  <> f.name
+                  <> " must return a Query (annotation or trailing Query(...))",
+                ))
+              True ->
+                case query_spec_from_function_strict(f) {
+                  Ok(spec) -> Ok([spec, ..acc])
+                  Error(e) -> Error(e)
+                }
             }
-          glance.Private -> Error(Nil)
         }
-      }
     }
+  })
+  |> result.map(list.reverse)
+}
+
+fn query_spec_from_function_strict(
+  f: glance.Function,
+) -> Result(QuerySpecDefinition, ParseError) {
+  list.try_fold(f.parameters, [], fn(acc, p) {
+    case p.type_ {
+      None ->
+        Error(UnsupportedSchema(
+          "public query "
+          <> f.name
+          <> " parameters must have type annotations",
+        ))
+      Some(t) ->
+        Ok([
+          QueryParameter(p.label, assignment_name_string(p.name), t),
+          ..acc
+        ])
+    }
+  })
+  |> result.map(fn(params) {
+    QuerySpecDefinition(f.name, list.reverse(params))
   })
 }
 
@@ -433,18 +552,6 @@ fn expression_callee_name(expr: glance.Expression) -> Result(String, Nil) {
     glance.FieldAccess(_, _inner, label) -> Ok(label)
     _ -> Error(Nil)
   }
-}
-
-fn query_spec_from_function(f: glance.Function) -> QuerySpecDefinition {
-  let params =
-    list.filter_map(f.parameters, fn(p) {
-      case p.type_ {
-        Some(t) ->
-          Ok(QueryParameter(p.label, assignment_name_string(p.name), t))
-        None -> Error(Nil)
-      }
-    })
-  QuerySpecDefinition(f.name, params)
 }
 
 fn assignment_name_string(name: glance.AssignmentName) -> String {
