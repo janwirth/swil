@@ -24,29 +24,29 @@ pub type AnimalIdentities {
 }
 "
 
-pub fn pragma_migration_codegen_matches_example_blueprints_test() {
-  let assert Ok(fruit_expected) =
-    simplifile.read("src/case_studies/fruit_db/migration.gleam")
-  let assert Ok(animal_expected) =
-    simplifile.read("src/example_migration_animal.gleam")
+pub fn fruit_pragma_test() {
   let assert Ok(schema1) =
     simplifile.read("src/case_studies/fruit_schema.gleam")
-
+  let assert Ok(fruit_expected) =
+    simplifile.read("src/case_studies/fruit_db/migration.gleam")
   let assert Ok(fruit_def) = schema_definition.parse_module(schema1)
-  let assert Ok(animal_def) = schema_definition.parse_module(schema2)
-
   let fruit_gleam =
     migration.generate_pragma_migration_module(
       fruit_def,
       "case_studies/fruit_db/migration",
     )
+  assert_diff(fruit_expected, fruit_gleam)  
+}
+
+pub fn animal_pragma_test() {
+  let assert Ok(animal_expected) =
+    simplifile.read("src/example_migration_animal.gleam")
+  let assert Ok(animal_def) = schema_definition.parse_module(schema2)
   let animal_gleam =
     migration.generate_pragma_migration_module(
       animal_def,
       "example_migration_animal",
     )
-
-  assert_diff(fruit_expected, fruit_gleam)
   assert_diff(animal_expected, animal_gleam)
 }
 
