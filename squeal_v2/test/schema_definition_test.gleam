@@ -3,10 +3,28 @@ import gleam/list
 import gleam/string
 import gleeunit
 import schema_definition
+import schema_diagnostics
 import simplifile
 
 pub fn main() -> Nil {
   gleeunit.main()
+}
+
+fn nth_line(source: String, line_no: Int) -> String {
+  let lines = string.split(source, "\n")
+  case list.drop(from: lines, up_to: line_no - 1) {
+    [row, ..] -> row
+    [] -> ""
+  }
+}
+
+fn println_reference_line(src: String, line_no: Int, message: String) -> Nil {
+  io.println(schema_diagnostics.format_reference_line(
+    line_no,
+    nth_line(src, line_no),
+    message,
+  ))
+  io.println("")
 }
 
 pub fn hippo_schema_parses_test() {
@@ -63,6 +81,20 @@ pub fn hippo_schema_parses_test() {
   assert list.length(by_name.fields) == 2
 }
 
+/// Entity with only `identities` (no `relationships`) is accepted.
+pub fn entity_without_relationships_parses_test() {
+  let src =
+    "import gleam/option\n\npub type X {\n"
+    <> "  X(name: option.Option(String), identities: XIdentities)\n"
+    <> "}\n\npub type XIdentities {\n"
+    <> "  ByName(name: String)\n"
+    <> "}\n"
+  let assert Ok(def) = schema_definition.parse_module(src)
+  let assert [e] = def.entities
+  assert e.type_name == "X"
+  assert e.identity_type_name == "XIdentities"
+}
+
 /// `library_manager_schema.gleam.gleam` is intentionally not a hippo-style schema.
 /// `schema_definition.parse_module` stops at the first violation (order of `custom_types` from Glance).
 /// This test prints that error, then a checklist of other problems in the file.
@@ -72,43 +104,45 @@ pub fn library_manager_schema_rejected_test() {
 
   case schema_definition.parse_module(src) {
     Ok(_) -> panic as "expected library_manager schema to be rejected by strict parser"
-    Error(schema_definition.GlanceError(_)) ->
-      panic as "unexpected Glance parse failure (file should lex/parse)"
-    Error(schema_definition.UnsupportedSchema(message)) -> {
+    Error(parse_err) -> {
       io.println("\n========== library_manager schema rejection ==========")
       io.println("file: " <> path)
-      io.println("\n--- first error from schema_definition.parse_module ---")
-      io.println(message)
+      io.println("")
+      io.println(schema_definition.format_parse_error(src, parse_err))
+      io.println("")
       io.println(
-        "\n--- other violations in this file (would also fail once earlier issues are fixed) ---",
+        "--- other violations (same line | ^ style; parser stops at first error) ---",
       )
-      io.println(
-        "  • OrderBy(field) (≈line 136): generic type parameters are rejected for schema modules\n"
-        <> "    (often the first error Glance reports among public types).",
+      io.println("")
+      println_reference_line(
+        src,
+        8,
+        "entity with required identities only is valid here; relationships are optional",
       )
-      io.println(
-        "  • ImportedTrack (≈line 8): squeal entity record must include both\n"
-        <> "    labelled fields `identities: *Identities` and `relationships: *Relationships`.\n"
-        <> "    This type only has `identities`.",
+      println_reference_line(
+        src,
+        23,
+        "not a supported shape (not scalar, *Identities, *Relationships, *Attributes, or entity with identities)",
       )
-      io.println(
-        "  • Tag (≈line 23): not a scalar enum, not *Identities / *Relationships / *Attributes,\n"
-        <> "    and not an entity (no identities+relationships). Unsupported shape.",
+      println_reference_line(
+        src,
+        37,
+        "plain struct: not a supported squeal schema type",
       )
-      io.println(
-        "  • ResolvedIdentity (≈line 37): same as Tag — plain struct, not in the allowed set.",
+      println_reference_line(
+        src,
+        54,
+        "multi-variant type: only scalar enums or *Identities may have multiple variants here",
       )
-      io.println(
-        "  • Tab (≈line 54): multi-variant sum type; only scalar enums (all empty variants)\n"
-        <> "    or identity bundles (*Identities with `By…` variants) may have multiple variants.",
+      println_reference_line(
+        src,
+        69,
+        "zero-variant public type is not a supported squeal shape",
       )
-      io.println(
-        "  • FilterConfig (≈line 69): no variants in the AST → not allowed (no opaque bucket).",
-      )
-      io.println(
-        "  • Public functions e.g. `all_tabs` (≈line 95): every public fn must be a Query spec\n"
-        <> "    (return type or trailing `Query(...)`) with fully typed parameters.\n"
-        <> "    Parser may fail earlier on types before it reaches functions.",
+      println_reference_line(
+        src,
+        95,
+        "public function must be a Query spec with typed parameters (if types are reached)",
       )
       io.println("========================================================\n")
       Nil

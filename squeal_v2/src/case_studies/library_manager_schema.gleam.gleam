@@ -34,8 +34,8 @@ pub type Tag {
 // without path nor XYZ is invalid?
 // let's stay with this and validate later?
 
-pub type ResolvedIdentity {
-  ResolvedIdentity(
+pub type TrackBucket {
+  TrackBucket(
     id: Int,
     created_at: timestamp.Timestamp,
     updated_at: timestamp.Timestamp,
@@ -132,15 +132,6 @@ pub fn select(a, b) -> b {
 //    JustOneMore(JustOneMore(JustOneMore(...))) // doesn't compile
 // }
 
-
-pub type OrderBy(field) {
-  OrderBy(field: field, direction: Direction)
-  NoOrderBy
-}
-
-pub fn order_by(field, direction) -> OrderBy(field) {
-  todo
-}
 
 pub fn select_tabs_for_header(tab: Tab) -> OrderBy(c) {
   order_by(tab.order, Asc)

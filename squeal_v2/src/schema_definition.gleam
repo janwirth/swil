@@ -4,6 +4,7 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
+import schema_diagnostics
 
 /// Parsed view of a squeal schema module in the **hippo shape** only (see parser rules).
 pub type SchemaDefinition {
@@ -17,7 +18,7 @@ pub type SchemaDefinition {
   )
 }
 
-/// Aggregate root: single record variant named like the type, with `identities` and `relationships`.
+/// Aggregate root: single record variant named like the type, with required `identities` and optional `relationships`.
 pub type EntityDefinition {
   EntityDefinition(
     type_name: String,
@@ -82,7 +83,19 @@ pub type QueryParameter {
 
 pub type ParseError {
   GlanceError(glance.Error)
-  UnsupportedSchema(String)
+  /// Render with [`format_parse_error`](#format_parse_error) / [`schema_diagnostics`](schema_diagnostics.html).
+  UnsupportedSchema(span: Option(glance.Span), message: String)
+}
+
+/// Turn a [`ParseError`](#ParseError) into text using [`schema_diagnostics`](schema_diagnostics.html) (line + caret layout).
+pub fn format_parse_error(source: String, error: ParseError) -> String {
+  case error {
+    GlanceError(e) -> schema_diagnostics.format_glance_parse_error(source, e)
+    UnsupportedSchema(None, message) ->
+      schema_diagnostics.format_diagnostic_without_span(message)
+    UnsupportedSchema(Some(span), message) ->
+      schema_diagnostics.format_source_diagnostic(source, span, message)
+  }
 }
 
 /// Parse a module **only** if every public custom type and public function fits the hippo-style rules.
@@ -187,9 +200,10 @@ fn classify_strict(ct: glance.CustomType) -> Result(Classified, ParseError) {
                     True -> edge_attributes_strict(ct)
                     False ->
                       Error(UnsupportedSchema(
+                        Some(ct.location),
                         "public type "
                         <> ct.name
-                        <> " is not a supported squeal shape (expected entity, *Identities, *Relationships, *Attributes, or scalar enum)",
+                        <> " is not a supported squeal shape (expected entity with required identities, optional relationships, *Identities, *Relationships, *Attributes, or scalar enum)",
                       ))
                   }
               }
@@ -204,6 +218,7 @@ fn require_no_type_parameters(ct: glance.CustomType) -> Result(Nil, ParseError) 
     [] -> Ok(Nil)
     _ ->
       Error(UnsupportedSchema(
+        Some(ct.location),
         "type "
         <> ct.name
         <> " must not have generic parameters in a squeal schema module",
@@ -237,6 +252,7 @@ fn identities_strict(ct: glance.CustomType) -> Result(Classified, ParseError) {
   case ct.variants {
     [] ->
       Error(UnsupportedSchema(
+        Some(ct.location),
         "identities type " <> ct.name <> " must declare at least one variant",
       ))
     variants -> {
@@ -244,6 +260,7 @@ fn identities_strict(ct: glance.CustomType) -> Result(Classified, ParseError) {
         case string.starts_with(v.name, "By") {
           False ->
             Error(UnsupportedSchema(
+              Some(ct.location),
               "identity variant "
               <> v.name
               <> " in "
@@ -254,6 +271,7 @@ fn identities_strict(ct: glance.CustomType) -> Result(Classified, ParseError) {
             case variant_fields_all_labelled(v.fields) {
               False ->
                 Error(UnsupportedSchema(
+                  Some(ct.location),
                   "identity variant "
                   <> v.name
                   <> " must use only labelled fields",
@@ -282,46 +300,75 @@ fn try_entity_strict(
           case variant_fields_all_labelled(vfields) {
             False ->
               Error(UnsupportedSchema(
+                Some(ct.location),
                 "entity "
                 <> ct.name
                 <> " must use only labelled fields on its record variant",
               ))
             True ->
-              case
-                find_labelled_field(vfields, "identities"),
-                find_labelled_field(vfields, "relationships")
-              {
-                Some(#(_, id_type)), Some(#(_, rel_type)) ->
-                  case type_named_type_name(id_type), type_named_type_name(rel_type) {
-                    Some(id_name), Some(rel_name) -> {
-                      let id_ok = string.ends_with(id_name, "Identities")
-                      let rel_ok = string.ends_with(rel_name, "Relationships")
-                      case id_ok && rel_ok {
-                        False ->
-                          Error(UnsupportedSchema(
-                            "entity "
-                            <> ct.name
-                            <> " identities field must reference *Identities and relationships *Relationships",
-                          ))
-                        True -> {
-                          let fields = variant_fields_to_defs(vfields)
-                          Ok(Some(EntityDefinition(
-                            ct.name,
-                            vname,
-                            fields,
-                            id_name,
-                          )))
-                        }
-                      }
-                    }
-                    _, _ ->
+              case find_labelled_field(vfields, "identities") {
+                None -> Ok(None)
+                Some(#(_, id_type)) ->
+                  case type_named_type_name(id_type) {
+                    None ->
                       Error(UnsupportedSchema(
+                        Some(ct.location),
                         "entity "
                         <> ct.name
-                        <> " identities and relationships must be simple type names",
+                        <> " identities field must be a simple type name",
                       ))
+                    Some(id_name) ->
+                      case string.ends_with(id_name, "Identities") {
+                        False ->
+                          Error(UnsupportedSchema(
+                            Some(ct.location),
+                            "entity "
+                            <> ct.name
+                            <> " identities field must reference a *Identities type",
+                          ))
+                        True ->
+                          case find_labelled_field(vfields, "relationships") {
+                            None -> {
+                              let fields = variant_fields_to_defs(vfields)
+                              Ok(Some(EntityDefinition(
+                                ct.name,
+                                vname,
+                                fields,
+                                id_name,
+                              )))
+                            }
+                            Some(#(_, rel_type)) ->
+                              case type_named_type_name(rel_type) {
+                                None ->
+                                  Error(UnsupportedSchema(
+                                    Some(ct.location),
+                                    "entity "
+                                    <> ct.name
+                                    <> " relationships field must be a simple type name",
+                                  ))
+                                Some(rel_name) ->
+                                  case string.ends_with(rel_name, "Relationships") {
+                                    False ->
+                                      Error(UnsupportedSchema(
+                                        Some(ct.location),
+                                        "entity "
+                                        <> ct.name
+                                        <> " relationships field must reference a *Relationships type",
+                                      ))
+                                    True -> {
+                                      let fields = variant_fields_to_defs(vfields)
+                                      Ok(Some(EntityDefinition(
+                                        ct.name,
+                                        vname,
+                                        fields,
+                                        id_name,
+                                      )))
+                                    }
+                                  }
+                              }
+                          }
+                      }
                   }
-                _, _ -> Ok(None)
               }
           }
       }
@@ -338,6 +385,7 @@ fn relationship_container_strict(
       case vname == ct.name {
         False ->
           Error(UnsupportedSchema(
+            Some(ct.location),
             "*Relationships type "
             <> ct.name
             <> " must use a single variant of the same name",
@@ -346,6 +394,7 @@ fn relationship_container_strict(
           case variant_fields_all_labelled(vfields) {
             False ->
               Error(UnsupportedSchema(
+                Some(ct.location),
                 "*Relationships "
                 <> ct.name
                 <> " must use only labelled fields",
@@ -362,6 +411,7 @@ fn relationship_container_strict(
       }
     _ ->
       Error(UnsupportedSchema(
+        Some(ct.location),
         "*Relationships type " <> ct.name <> " must have exactly one variant",
       ))
   }
@@ -373,6 +423,7 @@ fn edge_attributes_strict(ct: glance.CustomType) -> Result(Classified, ParseErro
       case vname == ct.name {
         False ->
           Error(UnsupportedSchema(
+            Some(ct.location),
             "*Attributes type "
             <> ct.name
             <> " must use a single variant of the same name",
@@ -381,6 +432,7 @@ fn edge_attributes_strict(ct: glance.CustomType) -> Result(Classified, ParseErro
           case variant_fields_all_labelled(vfields) {
             False ->
               Error(UnsupportedSchema(
+                Some(ct.location),
                 "*Attributes " <> ct.name <> " must use only labelled fields",
               ))
             True -> {
@@ -395,6 +447,7 @@ fn edge_attributes_strict(ct: glance.CustomType) -> Result(Classified, ParseErro
       }
     _ ->
       Error(UnsupportedSchema(
+        Some(ct.location),
         "*Attributes type " <> ct.name <> " must have exactly one variant",
       ))
   }
@@ -467,6 +520,7 @@ fn extract_query_specs_strict(
             case function_is_query_spec(f) {
               False ->
                 Error(UnsupportedSchema(
+                  Some(f.location),
                   "public function "
                   <> f.name
                   <> " must return a Query (annotation or trailing Query(...))",
@@ -490,6 +544,7 @@ fn query_spec_from_function_strict(
     case p.type_ {
       None ->
         Error(UnsupportedSchema(
+          Some(f.location),
           "public query "
           <> f.name
           <> " parameters must have type annotations",
