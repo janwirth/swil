@@ -35,7 +35,7 @@ pub fn fruit_pragma_test() {
       fruit_def,
       "case_studies/fruit_db/migration",
     )
-  assert_diff(fruit_expected, fruit_gleam)  
+  assert_diff(fruit_expected, fruit_gleam)
 }
 
 pub fn animal_pragma_test() {
