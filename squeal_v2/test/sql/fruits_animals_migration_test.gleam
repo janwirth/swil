@@ -35,6 +35,7 @@ pub fn fruit_pragma_test() {
       fruit_def,
       "case_studies/fruit_db/migration",
     )
+  // let written_output = simplifile.write("src/case_studies/fruit_db/migration_generated.gleam", fruit_gleam)
   assert_diff(fruit_expected, fruit_gleam)
 }
 
@@ -47,6 +48,7 @@ pub fn animal_pragma_test() {
       animal_def,
       "example_migration_animal",
     )
+  let written_output = simplifile.write("src/example_migration_animal_generated.gleam", animal_gleam)
   assert_diff(animal_expected, animal_gleam)
 }
 

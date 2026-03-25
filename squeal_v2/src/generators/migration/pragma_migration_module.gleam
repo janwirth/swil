@@ -97,15 +97,16 @@ fn build(data: PragmaMigrationData) -> gmod.Module {
 }
 
 fn with_all_imports(inner: fn() -> gmod.Module) -> gmod.Module {
-  gmod.with_import(gimport.new(["gleam", "dynamic", "decode"]), fn(_d) {
-    gmod.with_import(gimport.new(["gleam", "list"]), fn(_l) {
+  // Only referenced from `gexpr.raw` strings; gleamgen skips normal imports otherwise.
+  gmod.with_import(gimport.new_predefined(["gleam", "dynamic", "decode"]), fn(_d) {
+    gmod.with_import(gimport.new_predefined(["gleam", "list"]), fn(_l) {
       gmod.with_import(
         gimport.new_with_exposing(
           ["gleam", "option"],
           "type Option, None, Some",
         ),
         fn(_o) {
-          gmod.with_import(gimport.new(["gleam", "result"]), fn(_r) {
+          gmod.with_import(gimport.new_predefined(["gleam", "result"]), fn(_r) {
             gmod.with_import(gimport.new(["gleam", "string"]), fn(_s) {
               gmod.with_import(gimport.new(["sqlight"]), fn(_sql) {
                 gmod.with_import(
