@@ -1,6 +1,6 @@
-import generators/migration_sql
-import generators/pragma_migration_data
-import generators/pragma_migration_emit
+import generators/migration/migration_sql
+import generators/migration/pragma_migration_data
+import generators/migration/pragma_migration_emit
 import glance
 import gleam/list
 import gleam/string

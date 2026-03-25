@@ -1,4 +1,4 @@
-import generators/pragma_migration_data.{
+import generators/migration/pragma_migration_data.{
   type PragmaMigrationData, columns_wanted_block,
 }
 import gleam/list
