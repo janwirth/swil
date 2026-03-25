@@ -178,7 +178,7 @@ fn apply_one_fruit_column_fix(
         None ->
           case first_missing_column(rows, fruit_columns_wanted) {
             Some(w) -> sqlight.exec(alter_add_fruit_column_sql(w), conn)
-            None -> panic as "example_migration_fruit: no column fix applies"
+            None -> panic as "case_studies/fruit_db/migration: no column fix applies"
           }
       }
   }
@@ -190,7 +190,7 @@ fn reconcile_fruit_columns_loop(
 ) -> Result(Nil, sqlight.Error) {
   case iter > 64 {
     True ->
-      panic as "example_migration_fruit: column reconcile did not converge"
+      panic as "case_studies/fruit_db/migration: column reconcile did not converge"
     False -> {
       use rows <- result.try(sqlite_pragma_assert.table_info_rows(conn, "fruit"))
       case

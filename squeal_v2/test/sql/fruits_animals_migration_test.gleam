@@ -1,5 +1,6 @@
 // Drives the hand-written example migration modules (blueprints for codegen): exclusive
 // fruit vs animal versions, idempotent replays, and switching back and forth.
+import assert_diff.{assert_diff}
 import example_migration_animal
 import case_studies/fruit_db/migration as example_migration_fruit
 import generators/migration
@@ -45,8 +46,8 @@ pub fn pragma_migration_codegen_matches_example_blueprints_test() {
       "example_migration_animal",
     )
 
-  assert fruit_gleam == fruit_expected
-  assert animal_gleam == animal_expected
+  assert_diff(fruit_expected, fruit_gleam)
+  assert_diff(animal_expected, animal_gleam)
 }
 
 pub fn idempotent_migration_test() {

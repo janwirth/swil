@@ -1,3 +1,4 @@
+import assert_diff.{assert_diff}
 import gleeunit
 import schema_definition
 import simplifile
@@ -16,7 +17,7 @@ pub fn hippo_db_skeleton_exact_match_test() {
 
   let generated = skeleton_generator.generate("case_studies/hippo_schema", def)
 
-  assert generated == expected
+  assert_diff(expected, generated)
 }
 
 pub fn fruit_db_skeleton_exact_match_test() {
@@ -27,7 +28,7 @@ pub fn fruit_db_skeleton_exact_match_test() {
   let assert Ok(def) = schema_definition.parse_module(schema_src)
 
   let generated = skeleton_generator.generate("case_studies/fruit_schema", def)
-  assert generated == expected
+  assert_diff(expected, generated)
 }
 
 pub fn library_manager_db_skeleton_exact_match_test() {
@@ -39,5 +40,5 @@ pub fn library_manager_db_skeleton_exact_match_test() {
 
   let generated =
     skeleton_generator.generate("case_studies/library_manager_schema", def)
-  assert generated == expected
+  assert_diff(expected, generated)
 }
