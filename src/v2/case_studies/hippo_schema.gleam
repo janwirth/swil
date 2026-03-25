@@ -97,13 +97,21 @@ pub fn old_hippos_owner_emails(hippo: Hippo, min_age: Int) {
 }
 
 // generates
-pub type QueryOldFriendsResult {
-  QueryOldFriends(age: Int, owner: option.Option(Human))
+pub type QueryOldHipposOwnerEmailsResult {
+  QueryOldHipposOwnerEmailsResult(age: Int, owner: option.Option(Human))
+}
+pub type QueryOldHipposOwnerEmailsResultOwner {
+  QueryOldHipposOwnerEmailsResultOwner(email: option.Option(String))
 }
 
 pub fn query_old_hippos_owner_emails(conn: sqlight.Connection, age: Int) {
   let sql = todo("Generate SQL from query spec")
-  let parameters = todo("Generate parameters from query spec")
+  // includes: SELECT
+    //   (strftime('%Y','now') - strftime('%Y',dob))
+    //   - (strftime('%m-%d','now') < strftime('%m-%d',dob)) AS age
+    // FROM hippo;
+  let parameters = todo("Generate parameters from query spec - bind here the current date also?")
+  // example
   let decoder = todo("Generate decoder from query spec")
   let assert Ok(result) = sqlight.query(sql, on: conn, with: parameters, expecting: decoder)
   result
@@ -113,21 +121,8 @@ pub fn query_old_hippos_owner_emails(conn: sqlight.Connection, age: Int) {
 pub fn hippos_by_gender(hippo: Hippo, gender_to_match: Bool) {
   let filter = exclude_if_missing(hippo.gender) == gender_to_match
   Query(shape: None, filter: Some(filter), order: None)
-
 }
 
-// DERIVED
-pub type Output {
-  MyQueryResult(
-    age: option.Option(Int),
-    // we get this because there are no
-    owner: OutputOwner,
-  )
-}
-
-pub type OutputOwner {
-  OutputOwner(name: option.Option(String), email: option.Option(String))
-}
 // then it generates a query that just writes sql amd has a decoder for the right fields
 
 // pub fn exclude_if_missing(some_val: option.Option(some_type)) -> some_type {
