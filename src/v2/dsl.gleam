@@ -8,7 +8,6 @@ pub type CalendarDate {
 // these functions implementations are expanded into individual queries when done
 // idempotent migrations _may_ work
 
-
 pub fn age(t: CalendarDate) -> Int {
   todo("Implement on SQL level")
 }
@@ -32,7 +31,6 @@ pub type Direction {
   Desc
 }
 
-
 pub type Identity(a, b, c) {
   Identity(a)
   Identity2(a, b)
@@ -48,6 +46,7 @@ pub fn nullable(some_val: option.Option(some_type)) -> some_type {
 }
 
 pub type Date
+
 // then it generates a query that just writes sql amd has a decoder for the right fields
 
 // pub fn exclude_if_missing(some_val: option.Option(some_type)) -> some_type {
@@ -60,7 +59,7 @@ pub type Date
 
 // composing queries
 pub type Query(type_, shape, order) {
-      Query(
+  Query(
     shape: Option(shape),
     filter: Option(Bool),
     order: Option(#(Direction, order)),
@@ -68,5 +67,10 @@ pub type Query(type_, shape, order) {
 }
 
 pub type MagicFields {
-  MagicFields(id: Int, created_at: Timestamp, updated_at: Timestamp, deleted_at: Option(Timestamp))
+  MagicFields(
+    id: Int,
+    created_at: Timestamp,
+    updated_at: Timestamp,
+    deleted_at: Option(Timestamp),
+  )
 }
