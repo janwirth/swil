@@ -53,8 +53,16 @@ pub fn identity_upsert_param_type(type_: glance.Type) -> String {
   }
 }
 
+fn normalized_rendered(type_: glance.Type) -> String {
+  let r = rendered_type(type_)
+  case string.starts_with(r, "option.") {
+    True -> string.drop_start(r, 7)
+    False -> r
+  }
+}
+
 pub fn sql_type(type_: glance.Type) -> String {
-  case rendered_type(type_) {
+  case normalized_rendered(type_) {
     "Int" -> "int"
     "Float" -> "real"
     "Bool" -> "int"
