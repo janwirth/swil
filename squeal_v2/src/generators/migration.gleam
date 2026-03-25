@@ -1,13 +1,15 @@
+import generators/migration_sql
 import generators/pragma_migration_data
 import generators/pragma_migration_emit
-import generators/sql_types
 import glance
-import gleam/int
 import gleam/list
 import gleam/string
-import schema_definition.{
-  type EntityDefinition, type FieldDefinition, type SchemaDefinition,
-}
+import gleamgen/expression as gexpr
+import gleamgen/expression/statement as gstmt
+import gleamgen/render as grender
+import schema_definition.{type FieldDefinition, type SchemaDefinition}
+
+// --- Re-exports: SQL helpers live in `migration_sql` for a smaller API surface here. ---
 
 /// Applies [schema] to the database: drops tables from **other** versions first
 /// (`drop_tables_not_in_schema` — e.g. `["animal"]` when migrating to fruit-only),
@@ -16,178 +18,93 @@ pub fn generate_migration(
   schema: SchemaDefinition,
   drop_tables_not_in_schema: List(String),
 ) -> String {
-  let drops =
-    list.map(drop_tables_not_in_schema, fn(t) {
-      "drop table if exists " <> t <> ";"
-    })
-    |> string.join("\n")
-  let creates =
-    schema.entities
-    |> list.map(fn(entity) { entity_ddl(schema, entity) })
-    |> string.join("\n")
-  case drops == "" {
-    True -> creates
-    False -> drops <> "\n" <> creates
-  }
+  migration_sql.generate_migration(schema, drop_tables_not_in_schema)
 }
 
+/// SQLite table name for an entity: lowercased Gleam type name (e.g. `Fruit` → `fruit`).
 pub fn entity_table_name(entity_type: String) -> String {
-  string.lowercase(entity_type)
+  migration_sql.entity_table_name(entity_type)
 }
 
+/// True when a field’s Gleam type is `List(_)`, so it is stored outside the main row / DDL.
 pub fn type_is_list(t: glance.Type) -> Bool {
-  case t {
-    glance.NamedType(_, "List", _, _) -> True
-    _ -> False
-  }
+  migration_sql.type_is_list(t)
 }
 
-/// Affinity spelling so `pragma table_info` matches INTEGER (not INT).
-fn ddl_sql_type(type_: glance.Type) -> String {
-  case sql_types.sql_type(type_) {
-    "int" -> "integer"
-    other -> other
-  }
+/// Uppercase SQLite affinity labels used in expected `PRAGMA table_info` TSV fixtures.
+pub fn pragma_affinity_upper(t: glance.Type) -> String {
+  migration_sql.pragma_affinity_upper(t)
 }
 
-fn entity_ddl(schema: SchemaDefinition, entity: EntityDefinition) -> String {
-  let assert Ok(identity_type) =
-    list.find(schema.identities, fn(i) {
-      i.type_name == entity.identity_type_name
-    })
-  let assert [variant, ..] = identity_type.variants
-  let table = entity_table_name(entity.type_name)
-  let data_fields =
-    list.filter(entity.fields, fn(f) {
-      f.label != "identities"
-      && f.label != "relationships"
-      && !type_is_list(f.type_)
-    })
-  let column_lines =
-    list.map(data_fields, fn(f) {
-      f.label <> " " <> ddl_sql_type(f.type_) <> " not null"
-    })
-  let all_columns =
-    list.flatten([
-      ["id integer primary key autoincrement not null"],
-      column_lines,
-      [
-        "created_at integer not null",
-        "updated_at integer not null",
-        "deleted_at integer",
-      ],
-    ])
-  let create_table =
-    "create table if not exists "
-    <> table
-    <> " (\n  "
-    <> string.join(all_columns, ",\n  ")
-    <> "\n);"
-  let cols =
-    list.map(variant.fields, fn(f) { f.label })
-    |> string.join(", ")
-  let index_suffix =
-    list.map(variant.fields, fn(f) { f.label })
-    |> string.join("_")
-  let index_name = table <> "_by_" <> index_suffix
-  let create_index =
-    "create unique index if not exists "
-    <> index_name
-    <> " on "
-    <> table
-    <> "("
-    <> cols
-    <> ");"
-  create_table <> "\n" <> create_index
-}
-
-pub fn pragma_affinity_upper(type_: glance.Type) -> String {
-  case ddl_sql_type(type_) {
-    "integer" -> "INTEGER"
-    "text" -> "TEXT"
-    "real" -> "REAL"
-    _ -> "TEXT"
-  }
-}
-
+/// `CREATE TABLE name (...)` for shape-reconcile blueprints (no `IF NOT EXISTS`).
 pub fn build_create_table_sql(
   table: String,
   data_fields: List(FieldDefinition),
 ) -> String {
-  let col_lines =
-    list.map(data_fields, fn(f) {
-      f.label <> " " <> ddl_sql_type(f.type_) <> " not null"
-    })
-  let all_lines =
-    list.flatten([
-      ["id integer primary key autoincrement not null"],
-      col_lines,
-      [
-        "created_at integer not null",
-        "updated_at integer not null",
-        "deleted_at integer",
-      ],
-    ])
-  "create table "
-  <> table
-  <> " (\n  "
-  <> string.join(all_lines, ",\n  ")
-  <> "\n);"
+  migration_sql.build_create_table_sql(table, data_fields)
 }
 
+/// Expected `PRAGMA table_info` TSV (header + rows) for pragma-based migration tests.
 pub fn build_expected_table_info(
   rows: List(#(String, String, Int, Int)),
 ) -> String {
-  let body =
-    rows
-    |> list.index_map(fn(row, cid) {
-      let #(name, typ, notnull, pk) = row
-      int.to_string(cid)
-      <> "\t"
-      <> name
-      <> "\t"
-      <> typ
-      <> "\t"
-      <> int.to_string(notnull)
-      <> "\tNULL\t"
-      <> int.to_string(pk)
-    })
-    |> string.join("\n")
-  "cid\tname\ttype\tnotnull\tdflt_value\tpk\n" <> body
+  migration_sql.build_expected_table_info(rows)
 }
 
+/// Maps a column label to its `cid` index in the full table column order.
 pub fn label_to_cid(full: List(String), label: String) -> Int {
-  let assert Ok(#(i, _)) =
-    full
-    |> list.index_map(fn(name, idx) { #(idx, name) })
-    |> list.find(fn(p) { p.1 == label })
-  i
+  migration_sql.label_to_cid(full, label)
 }
 
+/// Expected `PRAGMA index_info` TSV for the identity index column mapping.
 pub fn build_expected_index_info(
   id_fields: List(FieldDefinition),
   full_col_names: List(String),
 ) -> String {
-  let body =
-    id_fields
-    |> list.index_map(fn(f, seq) {
-      let cid = label_to_cid(full_col_names, f.label)
-      int.to_string(seq) <> "\t" <> int.to_string(cid) <> "\t" <> f.label
-    })
-    |> string.join("\n")
-  "seqno\tcid\tname\n" <> body
+  migration_sql.build_expected_index_info(id_fields, full_col_names)
 }
 
+// --- Pragma migration module generation (Gleam source, not raw SQL). ---
+
+/// Double-quoted string literal for embedding in generated Gleam (panics, table names in code).
 fn pragma_gleam_quote(s: String) -> String {
   "\"" <> s <> "\""
 }
 
+/// Renders the `use rows <- result.try(sqlite_pragma_assert.table_info_rows(...))` statement
+/// via gleamgen; `pragma_migration_emit` splits on newlines and each line is indented for the loop body.
+fn reconcile_table_info_rows_stmt_source(table: String) -> String {
+  let stmt =
+    gstmt.dynamic_use(
+      gexpr.raw("result.try"),
+      [
+        gexpr.call2(
+          gexpr.raw("sqlite_pragma_assert.table_info_rows"),
+          gexpr.raw("conn"),
+          gexpr.string(table),
+        )
+        |> gexpr.to_dynamic,
+      ],
+      ["rows"],
+    )
+  let body =
+    gexpr.render_statement(stmt, grender.default_context())
+    |> grender.to_string()
+    |> string.trim_end
+  body
+  |> string.split("\n")
+  |> list.map(fn(line) { "      " <> line })
+  |> string.join("\n")
+}
+
+/// Fills `PragmaMigrationData` for a single-entity schema: SQL/TSV fixtures, panic snippets,
+/// and the pre-rendered reconcile `use` statement.
 fn build_pragma_migration_data(
   schema: SchemaDefinition,
   module_tag: String,
 ) -> pragma_migration_data.PragmaMigrationData {
   let assert [entity] = schema.entities
-  let table = entity_table_name(entity.type_name)
+  let table = migration_sql.entity_table_name(entity.type_name)
   let col_type = string.append(entity.type_name, "Col")
   let assert Ok(identity_type) =
     list.find(schema.identities, fn(i) {
@@ -198,7 +115,7 @@ fn build_pragma_migration_data(
     list.filter(entity.fields, fn(f) {
       f.label != "identities"
       && f.label != "relationships"
-      && !type_is_list(f.type_)
+      && !migration_sql.type_is_list(f.type_)
     })
   let index_suffix =
     list.map(variant.fields, fn(f) { f.label })
@@ -216,7 +133,7 @@ fn build_pragma_migration_data(
     list.flatten([
       [#("id", "INTEGER", 1, 1)],
       list.map(data_fields, fn(f) {
-        #(f.label, pragma_affinity_upper(f.type_), 1, 0)
+        #(f.label, migration_sql.pragma_affinity_upper(f.type_), 1, 0)
       }),
       [
         #("created_at", "INTEGER", 1, 0),
@@ -224,20 +141,19 @@ fn build_pragma_migration_data(
         #("deleted_at", "INTEGER", 0, 0),
       ],
     ])
-  let create_table_sql = build_create_table_sql(table, data_fields)
+  let create_table_sql = migration_sql.build_create_table_sql(table, data_fields)
   let create_index_sql =
-    "create unique index "
-    <> index_name
-    <> " on "
-    <> table
-    <> "("
-    <> index_cols
-    <> ");"
-  let expected_table_info = build_expected_table_info(wanted_rows)
+    migration_sql.build_create_unique_index_sql(
+      table:,
+      index_name:,
+      index_columns_csv: index_cols,
+      if_not_exists: False,
+    )
+  let expected_table_info = migration_sql.build_expected_table_info(wanted_rows)
   let expected_index_list =
     "seq\tname\tunique\torigin\tpartial\n0\t" <> index_name <> "\t1\tc\t0"
   let expected_index_info =
-    build_expected_index_info(variant.fields, full_col_names)
+    migration_sql.build_expected_index_info(variant.fields, full_col_names)
   let panic_lit = pragma_gleam_quote(module_tag <> ": no column fix applies")
   let none_panic_line = "            None -> panic as " <> panic_lit
   let apply_one_none_panic = case string.length(none_panic_line) > 79 {
@@ -251,26 +167,7 @@ fn build_pragma_migration_data(
       )
     False -> none_panic_line
   }
-  let conn_t = "(conn, " <> pragma_gleam_quote(table) <> ")"
-  let table_info_try =
-    "      use rows <- result.try(sqlite_pragma_assert.table_info_rows\n"
-    <> "        " <> conn_t
-    <> "\n))"
-  let reconcile_table_info_rows_stmt = case string.length(table_info_try) > 81 {
-    True ->
-      string.join(
-        [
-          "      use rows <- result.try(sqlite_pragma_assert.table_info_rows\n"
-          <> "        (",
-          "        conn,",
-          "        " <> pragma_gleam_quote(table) <> "\n"
-          <> "        ))",
-          "      ))",
-        ],
-        "\n",
-      )
-    False -> table_info_try
-  }
+  let reconcile_table_info_rows_stmt = reconcile_table_info_rows_stmt_source(table)
   let panic_no_conv =
     pragma_gleam_quote(module_tag <> ": column reconcile did not converge")
 
@@ -291,9 +188,8 @@ fn build_pragma_migration_data(
   )
 }
 
-/// Gleam source for a single-entity pragma reconcile blueprint like
-/// `example_migration_fruit` / `example_migration_animal`. [module_tag] appears in
-/// panic strings (e.g. `example_migration_fruit`).
+/// Full Gleam module text for a single-entity pragma reconcile blueprint (e.g. fruit/animal examples).
+/// [module_tag] is baked into panic messages so failures name the generating module.
 pub fn generate_pragma_migration_module(
   schema: SchemaDefinition,
   module_tag: String,
