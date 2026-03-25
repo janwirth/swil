@@ -1,4 +1,3 @@
-import gleam/string
 import gleam/io
 import birdie
 import glance

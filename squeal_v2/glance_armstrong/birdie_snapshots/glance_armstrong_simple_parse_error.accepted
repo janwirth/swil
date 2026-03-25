@@ -5,4 +5,4 @@ file: ./test/glance_armstrong_test.gleam
 test_name: simple_parse_error_test
 ---
    1 | fn foo(x: Int) -> Int {
-                             ^ unexpected end of input when parsing Gleam
+                              ^ unexpected end of input when parsing Gleam

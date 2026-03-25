@@ -1,6 +1,0 @@
----
-version: 1.5.4
-title: glance_armstrong simple warning diagnostic
----
-   1 | fn foo(x: Int) -> Int {
-       ^ warning
