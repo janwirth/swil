@@ -1,8 +1,8 @@
 // Drives the hand-written example migration modules (blueprints for codegen): exclusive
 // fruit vs animal versions, idempotent replays, and switching back and forth.
 import assert_diff.{assert_diff}
-import example_migration_animal
 import case_studies/fruit_db/migration as example_migration_fruit
+import example_migration_animal
 import generators/migration
 import schema_definition
 import simplifile

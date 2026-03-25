@@ -8,7 +8,7 @@ import sqlight
 /// Table of contents:
 /// - `migrate/1`
 /// - Entity ops: Fruit
-/// - Query specs: none
+/// - Query specs: `query_cheap_fruit`
 pub fn migrate(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   todo as "TODO: generated migration SQL"
 }
@@ -56,4 +56,16 @@ pub fn last_100_edited_fruit(
   conn: sqlight.Connection,
 ) -> Result(List(#(Fruit, dsl.MagicFields)), sqlight.Error) {
   todo as "TODO: generated select SQL and decoding"
+}
+
+pub type QueryCheapFruitRow {
+  QueryCheapFruitRow
+}
+
+/// Execute generated query for the `query_cheap_fruit` spec.
+pub fn query_cheap_fruit(
+  conn: sqlight.Connection,
+  max_price: Float,
+) -> Result(List(QueryCheapFruitRow), sqlight.Error) {
+  todo as "TODO: generated select SQL, parameters, and decoder"
 }

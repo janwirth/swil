@@ -95,7 +95,7 @@ fn generated_module_doc(
   }
   let query_summary =
     def.queries
-    |> list.map(fn(q) { "`query_" <> q.name <> "`" })
+    |> list.map(fn(q) { "`" <> query_public_fn_name(q.name) <> "`" })
     |> string.join(", ")
   let query_part = case query_summary == "" {
     True -> "none"
@@ -430,6 +430,22 @@ fn ascii_lower_codepoint(cp) {
   }
 }
 
+/// Public API name: `query_foo` whether the schema function is `foo` or `query_foo`.
+fn query_public_fn_name(schema_fn: String) -> String {
+  case string.starts_with(schema_fn, "query_") {
+    True -> schema_fn
+    False -> "query_" <> schema_fn
+  }
+}
+
+/// Base name for generated row type (drops a leading `query_` from the schema fn name).
+fn query_row_base_name(schema_fn: String) -> String {
+  case string.starts_with(schema_fn, "query_") {
+    True -> string.drop_start(schema_fn, 6)
+    False -> schema_fn
+  }
+}
+
 fn query_section(spec: QuerySpecDefinition, ctx: TypeCtx) -> String {
   case spec.name {
     "hippos_by_gender" -> hippos_by_gender_skeleton(ctx.schema_alias)
@@ -464,7 +480,9 @@ fn hippos_by_gender_skeleton(schema_alias: String) -> String {
 }
 
 fn generic_query_section(spec: QuerySpecDefinition, ctx: TypeCtx) -> String {
-  let row_name = "Query" <> snake_to_pascal(spec.name) <> "Row"
+  let row_base = query_row_base_name(spec.name)
+  let row_name = "Query" <> snake_to_pascal(row_base) <> "Row"
+  let pub_name = query_public_fn_name(spec.name)
   let params =
     list.filter(spec.parameters, fn(p) { !is_entity_param(p.type_, ctx) })
   let param_lines =
@@ -483,7 +501,7 @@ fn generic_query_section(spec: QuerySpecDefinition, ctx: TypeCtx) -> String {
       "}",
       "",
       "/// Execute generated query for the `" <> spec.name <> "` spec.",
-      "pub fn query_" <> spec.name <> "(",
+      "pub fn " <> pub_name <> "(",
       body,
       ") -> Result(List(" <> row_name <> "), sqlight.Error) {",
       "  todo as \"TODO: generated select SQL, parameters, and decoder\"",

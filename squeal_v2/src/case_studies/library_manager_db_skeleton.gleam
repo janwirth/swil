@@ -1,4 +1,6 @@
-import case_studies/library_manager_schema.{type ImportedTrack, type Tab, type Tag, type TrackBucket}
+import case_studies/library_manager_schema.{
+  type ImportedTrack, type Tab, type Tag, type TrackBucket,
+}
 import dsl
 import gleam/option
 import sqlight
@@ -8,7 +10,7 @@ import sqlight
 /// Table of contents:
 /// - `migrate/1`
 /// - Entity ops: ImportedTrack, Tab, Tag, TrackBucket
-/// - Query specs: `query_query_tabs_for_tab_bar`
+/// - Query specs: `query_tabs_for_tab_bar`
 pub fn migrate(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   todo as "TODO: generated migration SQL"
 }
@@ -185,14 +187,14 @@ pub fn last_100_edited_trackbucket(
   todo as "TODO: generated select SQL and decoding"
 }
 
-pub type QueryQueryTabsForTabBarRow {
-  QueryQueryTabsForTabBarRow
+pub type QueryTabsForTabBarRow {
+  QueryTabsForTabBarRow
 }
 
 /// Execute generated query for the `query_tabs_for_tab_bar` spec.
-pub fn query_query_tabs_for_tab_bar(
+pub fn query_tabs_for_tab_bar(
   conn: sqlight.Connection,
   tab_meta: dsl.MagicFields,
-) -> Result(List(QueryQueryTabsForTabBarRow), sqlight.Error) {
+) -> Result(List(QueryTabsForTabBarRow), sqlight.Error) {
   todo as "TODO: generated select SQL, parameters, and decoder"
 }

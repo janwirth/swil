@@ -1,11 +1,11 @@
-import case_studies/fruit_schema.{type Fruit, Fruit, ByName}
+import case_studies/fruit_db/migration
+import case_studies/fruit_schema.{type Fruit, ByName, Fruit}
 import dsl
 import gleam/dynamic/decode
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/time/timestamp
 import sqlight
-import case_studies/fruit_db/migration
 
 // --- SQL (fruit table shape matches `example_migration_fruit` / pragma migrations) ---
 //
@@ -51,6 +51,8 @@ const update_by_name_sql = "update fruit set color = ?, price = ?, quantity = ?,
 const soft_delete_by_name_sql = "update fruit set deleted_at = ?, updated_at = ? where name = ? and deleted_at is null returning name;"
 
 const last_100_sql = "select name, color, price, quantity, id, created_at, updated_at, deleted_at from fruit where deleted_at is null order by updated_at desc limit 100;"
+
+const cheap_fruit_sql = "select name, color, price, quantity, id, created_at, updated_at, deleted_at from fruit where deleted_at is null and price < ? order by price asc;"
 
 fn unix_seconds_now() -> Int {
   let #(s, _) =
@@ -121,12 +123,10 @@ fn fruit_with_magic_row_decoder() -> decode.Decoder(#(Fruit, dsl.MagicFields)) {
       quantity: Some(quantity),
       identities: ByName(name:),
     )
-  decode.success(#(fruit, magic_from_db_row(
-    id,
-    created_at,
-    updated_at,
-    deleted_at_raw,
-  )))
+  decode.success(#(
+    fruit,
+    magic_from_db_row(id, created_at, updated_at, deleted_at_raw),
+  ))
 }
 
 fn not_found_error(op: String) -> sqlight.Error {
@@ -226,15 +226,17 @@ pub fn delete_fruit_by_name(
   name: String,
 ) -> Result(Nil, sqlight.Error) {
   let now = unix_seconds_now()
-  use rows <- result.try(sqlight.query(
-    soft_delete_by_name_sql,
-    on: conn,
-    with: [sqlight.int(now), sqlight.int(now), sqlight.text(name)],
-    expecting: {
-      use _n <- decode.field(0, decode.string)
-      decode.success(Nil)
-    },
-  ))
+  use rows <- result.try(
+    sqlight.query(
+      soft_delete_by_name_sql,
+      on: conn,
+      with: [sqlight.int(now), sqlight.int(now), sqlight.text(name)],
+      expecting: {
+        use _n <- decode.field(0, decode.string)
+        decode.success(Nil)
+      },
+    ),
+  )
   case rows {
     [Nil, ..] -> Ok(Nil)
     [] -> Error(not_found_error("delete_fruit_by_name"))
@@ -249,6 +251,19 @@ pub fn last_100_edited_fruit(
     last_100_sql,
     on: conn,
     with: [],
+    expecting: fruit_with_magic_row_decoder(),
+  )
+}
+
+/// Fruits with `price < max_price`, ordered by ascending price (see `query_cheap_fruit` spec).
+pub fn query_cheap_fruit(
+  conn: sqlight.Connection,
+  max_price: Float,
+) -> Result(List(#(Fruit, dsl.MagicFields)), sqlight.Error) {
+  sqlight.query(
+    cheap_fruit_sql,
+    on: conn,
+    with: [sqlight.float(max_price)],
     expecting: fruit_with_magic_row_decoder(),
   )
 }

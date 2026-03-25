@@ -10,9 +10,9 @@ pub fn assert_diff(expected: String, actual: String) -> Nil {
       let lines = diff.histogram(expected, actual)
       let report = format_diff_report(lines)
       panic as string.concat([
-        "\nassert_diff: expected and actual differ\n\n",
-        report,
-      ])
+          "\nassert_diff: expected and actual differ\n\n",
+          report,
+        ])
     }
   }
 }

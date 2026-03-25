@@ -1,13 +1,14 @@
 //// Blueprint for a generated `migrate`: introspect user tables and `fruit` columns /
 //// indexes, then move to the desired state using `ALTER TABLE` only (add / drop column),
 //// never `DROP TABLE` / `CREATE TABLE` for shape fixes once `fruit` exists.
+
 import gleam/dynamic/decode
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
-import sqlite_pragma_assert.{type TableInfoRow}
 import sqlight
+import sqlite_pragma_assert.{type TableInfoRow}
 
 const create_fruit_table_sql = "create table fruit (
   id integer primary key autoincrement not null,
@@ -20,8 +21,7 @@ const create_fruit_table_sql = "create table fruit (
   deleted_at integer
 );"
 
-const create_fruit_by_name_index_sql =
-  "create unique index fruit_by_name on fruit(name);"
+const create_fruit_by_name_index_sql = "create unique index fruit_by_name on fruit(name);"
 
 const expected_table_info = "cid	name	type	notnull	dflt_value	pk
 0	id	INTEGER	1	NULL	1
@@ -70,7 +70,9 @@ fn pragma_index_name_origin_rows(
   )
 }
 
-fn drop_surplus_user_indexes_on_fruit(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
+fn drop_surplus_user_indexes_on_fruit(
+  conn: sqlight.Connection,
+) -> Result(Nil, sqlight.Error) {
   use rows <- result.try(pragma_index_name_origin_rows(conn, "fruit"))
   list.try_each(rows, fn(pair) {
     let #(name, origin) = pair
@@ -101,9 +103,7 @@ fn first_surplus_column(
   wanted: List(FruitCol),
 ) -> Option(String) {
   case
-    list.find(rows, fn(r) {
-      !list.any(wanted, fn(w) { w.name == r.name })
-    })
+    list.find(rows, fn(r) { !list.any(wanted, fn(w) { w.name == r.name }) })
   {
     Ok(r) -> Some(r.name)
     Error(Nil) -> None
@@ -136,9 +136,7 @@ fn first_missing_column(
   wanted: List(FruitCol),
 ) -> Option(FruitCol) {
   case
-    list.find(wanted, fn(w) {
-      !list.any(rows, fn(r) { r.name == w.name })
-    })
+    list.find(wanted, fn(w) { !list.any(rows, fn(r) { r.name == w.name }) })
   {
     Ok(w) -> Some(w)
     Error(Nil) -> None
@@ -178,7 +176,8 @@ fn apply_one_fruit_column_fix(
         None ->
           case first_missing_column(rows, fruit_columns_wanted) {
             Some(w) -> sqlight.exec(alter_add_fruit_column_sql(w), conn)
-            None -> panic as "case_studies/fruit_db/migration: no column fix applies"
+            None ->
+              panic as "case_studies/fruit_db/migration: no column fix applies"
           }
       }
   }
@@ -250,7 +249,10 @@ fn ensure_fruit_indexes(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) 
 /// Applies this version: remove non-fruit user tables, align `fruit` columns and
 /// identity indexes to the expected shape, then verify with pragmas.
 pub fn migration(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
-  use _ <- result.try(sqlite_pragma_assert.drop_user_tables_except(conn, "fruit"))
+  use _ <- result.try(sqlite_pragma_assert.drop_user_tables_except(
+    conn,
+    "fruit",
+  ))
   use _ <- result.try(ensure_fruit_table(conn))
   use _ <- result.try(ensure_fruit_indexes(conn))
   sqlite_pragma_assert.assert_pragma_snapshot(

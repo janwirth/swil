@@ -1,13 +1,14 @@
 //// Blueprint for a generated `migrate`: introspect user tables and `animal` columns /
 //// indexes, then move to the desired state using `ALTER TABLE` only (add / drop column),
 //// never `DROP TABLE` / `CREATE TABLE` for shape fixes once `animal` exists.
+
 import gleam/dynamic/decode
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
-import sqlite_pragma_assert.{type TableInfoRow}
 import sqlight
+import sqlite_pragma_assert.{type TableInfoRow}
 
 const create_animal_table_sql = "create table animal (
   id integer primary key autoincrement not null,
@@ -20,8 +21,7 @@ const create_animal_table_sql = "create table animal (
   deleted_at integer
 );"
 
-const create_animal_by_name_index_sql =
-  "create unique index animal_by_name on animal(name);"
+const create_animal_by_name_index_sql = "create unique index animal_by_name on animal(name);"
 
 const expected_table_info = "cid	name	type	notnull	dflt_value	pk
 0	id	INTEGER	1	NULL	1
@@ -70,7 +70,9 @@ fn pragma_index_name_origin_rows(
   )
 }
 
-fn drop_surplus_user_indexes_on_animal(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
+fn drop_surplus_user_indexes_on_animal(
+  conn: sqlight.Connection,
+) -> Result(Nil, sqlight.Error) {
   use rows <- result.try(pragma_index_name_origin_rows(conn, "animal"))
   list.try_each(rows, fn(pair) {
     let #(name, origin) = pair
@@ -101,9 +103,7 @@ fn first_surplus_column(
   wanted: List(AnimalCol),
 ) -> Option(String) {
   case
-    list.find(rows, fn(r) {
-      !list.any(wanted, fn(w) { w.name == r.name })
-    })
+    list.find(rows, fn(r) { !list.any(wanted, fn(w) { w.name == r.name }) })
   {
     Ok(r) -> Some(r.name)
     Error(Nil) -> None
@@ -136,9 +136,7 @@ fn first_missing_column(
   wanted: List(AnimalCol),
 ) -> Option(AnimalCol) {
   case
-    list.find(wanted, fn(w) {
-      !list.any(rows, fn(r) { r.name == w.name })
-    })
+    list.find(wanted, fn(w) { !list.any(rows, fn(r) { r.name == w.name }) })
   {
     Ok(w) -> Some(w)
     Error(Nil) -> None
@@ -192,7 +190,10 @@ fn reconcile_animal_columns_loop(
     True ->
       panic as "example_migration_animal: column reconcile did not converge"
     False -> {
-      use rows <- result.try(sqlite_pragma_assert.table_info_rows(conn, "animal"))
+      use rows <- result.try(sqlite_pragma_assert.table_info_rows(
+        conn,
+        "animal",
+      ))
       case
         list.length(rows) == list.length(animal_columns_wanted)
         && list.all(animal_columns_wanted, fn(w) {
@@ -250,7 +251,10 @@ fn ensure_animal_indexes(conn: sqlight.Connection) -> Result(Nil, sqlight.Error)
 /// Applies this version: remove non-animal user tables, align `animal` columns and
 /// identity indexes to the expected shape, then verify with pragmas.
 pub fn migration(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
-  use _ <- result.try(sqlite_pragma_assert.drop_user_tables_except(conn, "animal"))
+  use _ <- result.try(sqlite_pragma_assert.drop_user_tables_except(
+    conn,
+    "animal",
+  ))
   use _ <- result.try(ensure_animal_table(conn))
   use _ <- result.try(ensure_animal_indexes(conn))
   sqlite_pragma_assert.assert_pragma_snapshot(
