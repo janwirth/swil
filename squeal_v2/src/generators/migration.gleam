@@ -135,7 +135,9 @@ pub fn build_create_table_sql(
   <> "\n);"
 }
 
-pub fn build_expected_table_info(rows: List(#(String, String, Int, Int))) -> String {
+pub fn build_expected_table_info(
+  rows: List(#(String, String, Int, Int)),
+) -> String {
   let body =
     rows
     |> list.index_map(fn(row, cid) {
@@ -236,10 +238,8 @@ fn build_pragma_migration_data(
     "seq\tname\tunique\torigin\tpartial\n0\t" <> index_name <> "\t1\tc\t0"
   let expected_index_info =
     build_expected_index_info(variant.fields, full_col_names)
-  let panic_lit =
-    pragma_gleam_quote(module_tag <> ": no column fix applies")
-  let none_panic_line =
-    "            None -> panic as " <> panic_lit
+  let panic_lit = pragma_gleam_quote(module_tag <> ": no column fix applies")
+  let none_panic_line = "            None -> panic as " <> panic_lit
   let apply_one_none_panic = case string.length(none_panic_line) > 79 {
     True ->
       string.join(
@@ -251,19 +251,20 @@ fn build_pragma_migration_data(
       )
     False -> none_panic_line
   }
-  let conn_t =
-    "(conn, " <> pragma_gleam_quote(table) <> ")"
+  let conn_t = "(conn, " <> pragma_gleam_quote(table) <> ")"
   let table_info_try =
-    "      use rows <- result.try(sqlite_pragma_assert.table_info_rows"
-    <> conn_t
-    <> "))"
+    "      use rows <- result.try(sqlite_pragma_assert.table_info_rows\n"
+    <> "        " <> conn_t
+    <> "\n))"
   let reconcile_table_info_rows_stmt = case string.length(table_info_try) > 81 {
     True ->
       string.join(
         [
-          "      use rows <- result.try(sqlite_pragma_assert.table_info_rows(",
+          "      use rows <- result.try(sqlite_pragma_assert.table_info_rows\n"
+          <> "        (",
           "        conn,",
-          "        " <> pragma_gleam_quote(table) <> ",",
+          "        " <> pragma_gleam_quote(table) <> "\n"
+          <> "        ))",
           "      ))",
         ],
         "\n",

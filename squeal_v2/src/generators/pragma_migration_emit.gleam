@@ -1,4 +1,6 @@
-import generators/pragma_migration_data.{type PragmaMigrationData, columns_wanted_block}
+import generators/pragma_migration_data.{
+  type PragmaMigrationData, columns_wanted_block,
+}
 import gleam/list
 import gleam/string
 
@@ -73,7 +75,11 @@ fn module_lines(data: PragmaMigrationData) -> List(String) {
         "\"",
       ]),
       "",
-      string.concat(["const expected_table_info = \"", data.expected_table_info, "\""]),
+      string.concat([
+        "const expected_table_info = \"",
+        data.expected_table_info,
+        "\"",
+      ]),
       "",
       string.concat([
         "const expected_index_list = \"",
@@ -331,7 +337,11 @@ fn apply_one_lines(data: PragmaMigrationData) -> List(String) {
         " drop column \" <> name <> \";\", conn)",
       ]),
       "    None ->",
-      string.concat(["      case first_mismatched_column_name(rows, ", wl, ") {"]),
+      string.concat([
+        "      case first_mismatched_column_name(rows, ",
+        wl,
+        ") {",
+      ]),
       "        Some(name) ->",
       string.concat([
         "          sqlight.exec(\"alter table ",
@@ -416,7 +426,11 @@ fn ensure_table_lines(data: PragmaMigrationData) -> List(String) {
   let loop_fn = string.concat(["reconcile_", data.table, "_columns_loop"])
   let ensure_fn = string.concat(["ensure_", data.table, "_table"])
   [
-    string.concat(["fn ", ensure_fn, "(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {"]),
+    string.concat([
+      "fn ",
+      ensure_fn,
+      "(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {",
+    ]),
     "  use tables <- result.try(sqlite_pragma_assert.user_table_names(conn))",
     string.concat(["  case list.contains(tables, ", q(data.table), ") {"]),
     string.concat([
@@ -436,10 +450,22 @@ fn ensure_indexes_lines(
   conn_index: String,
 ) -> List(String) {
   let ensure_fn = string.concat(["ensure_", data.table, "_indexes"])
-  let drop_surplus_fn = string.concat(["drop_surplus_user_indexes_on_", data.table])
-  let create_idx = string.concat(["create_", data.table, "_by_", data.index_suffix, "_index_sql"])
+  let drop_surplus_fn =
+    string.concat(["drop_surplus_user_indexes_on_", data.table])
+  let create_idx =
+    string.concat([
+      "create_",
+      data.table,
+      "_by_",
+      data.index_suffix,
+      "_index_sql",
+    ])
   [
-    string.concat(["fn ", ensure_fn, "(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {"]),
+    string.concat([
+      "fn ",
+      ensure_fn,
+      "(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {",
+    ]),
     string.concat([
       "  use _ <- result.try(",
       drop_surplus_fn,
