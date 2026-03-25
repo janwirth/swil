@@ -1,7 +1,7 @@
+import glance
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
-import glance
 import schema_definition.{
   type EntityDefinition, type IdentityTypeDefinition,
   type IdentityVariantDefinition, type QueryParameter, type QuerySpecDefinition,
@@ -34,10 +34,7 @@ pub fn generate(import_path: String, def: SchemaDefinition) -> String {
     |> string.join("\n\n")
 
   let query_blob =
-    string.join(
-      list.map(def.queries, fn(q) { query_section(q, ctx) }),
-      "\n\n",
-    )
+    string.join(list.map(def.queries, fn(q) { query_section(q, ctx) }), "\n\n")
 
   let needs_date = schema_uses_named_type(def, "Date")
   let needs_timestamp = schema_uses_named_type(def, "Timestamp")
@@ -47,11 +44,7 @@ pub fn generate(import_path: String, def: SchemaDefinition) -> String {
   let prefix =
     list.flatten([
       [
-        "import "
-          <> import_path
-          <> ".{type "
-          <> import_types
-          <> "}",
+        "import " <> import_path <> ".{type " <> import_types <> "}",
         "import dsl",
         "import gleam/option",
       ],
@@ -59,7 +52,6 @@ pub fn generate(import_path: String, def: SchemaDefinition) -> String {
       ["import sqlight", ""],
       generated_module_doc(import_path, def),
       [
-        "",
         "pub fn migrate(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {",
         "  todo as \"TODO: generated migration SQL\"",
         "}",
@@ -88,7 +80,10 @@ fn dynamic_import_lines(needs_date: Bool, needs_timestamp: Bool) -> List(String)
   ])
 }
 
-fn generated_module_doc(import_path: String, def: SchemaDefinition) -> List(String) {
+fn generated_module_doc(
+  import_path: String,
+  def: SchemaDefinition,
+) -> List(String) {
   let entity_summary =
     def.entities
     |> list.map(fn(e) { e.type_name })
@@ -222,11 +217,7 @@ fn entity_chunks_for(
     string.join(
       [
         upsert_doc,
-        "pub fn upsert_"
-          <> entity_snake
-          <> "_by_"
-          <> id_snake
-          <> "(",
+        "pub fn upsert_" <> entity_snake <> "_by_" <> id_snake <> "(",
         upsert_body,
         ") -> Result("
           <> entity_upsert_get_return_type(entity.type_name)
@@ -242,11 +233,7 @@ fn entity_chunks_for(
       [
         "",
         by_identity_doc("Get"),
-        "pub fn get_"
-          <> entity_snake
-          <> "_by_"
-          <> id_snake
-          <> "(",
+        "pub fn get_" <> entity_snake <> "_by_" <> id_snake <> "(",
         comma_terminated_param_block(list.append(
           ["  conn: sqlight.Connection"],
           id_only,
@@ -265,11 +252,7 @@ fn entity_chunks_for(
       [
         "",
         by_identity_doc("Update"),
-        "pub fn update_"
-          <> entity_snake
-          <> "_by_"
-          <> id_snake
-          <> "(",
+        "pub fn update_" <> entity_snake <> "_by_" <> id_snake <> "(",
         upsert_body,
         ") -> Result(" <> entity.type_name <> ", sqlight.Error) {",
         "  todo as \"TODO: generated update SQL and decoding\"",
@@ -283,11 +266,7 @@ fn entity_chunks_for(
       [
         "",
         by_identity_doc("Delete"),
-        "pub fn delete_"
-          <> entity_snake
-          <> "_by_"
-          <> id_snake
-          <> "(",
+        "pub fn delete_" <> entity_snake <> "_by_" <> id_snake <> "(",
         comma_terminated_param_block(list.append(
           ["  conn: sqlight.Connection"],
           id_only,
@@ -299,7 +278,23 @@ fn entity_chunks_for(
       "\n",
     )
 
-  [upsert_blk, get_blk, update_blk, delete_blk]
+  let list_recent_blk =
+    string.join(
+      [
+        "",
+        "/// List up to 100 recently edited " <> entity_snake <> " rows.",
+        "pub fn last_100_edited_" <> entity_snake <> "(",
+        comma_terminated_param_block(["  conn: sqlight.Connection"]),
+        ") -> Result(List("
+          <> entity_upsert_get_return_type(entity.type_name)
+          <> "), sqlight.Error) {",
+        "  todo as \"TODO: generated select SQL and decoding\"",
+        "}",
+      ],
+      "\n",
+    )
+
+  [upsert_blk, get_blk, update_blk, delete_blk, list_recent_blk]
 }
 
 fn comma_terminated_param_block(lines: List(String)) -> String {
@@ -342,9 +337,7 @@ fn upsert_or_update_param_lines(
       && !list.contains(id_labels, f.label)
       && !type_is_list(f.type_)
     })
-    |> list.map(fn(f) {
-      "  " <> f.label <> ": " <> render_type(f.type_, ctx)
-    })
+    |> list.map(fn(f) { "  " <> f.label <> ": " <> render_type(f.type_, ctx) })
   list.append(id_lines, extras)
 }
 
@@ -357,6 +350,7 @@ fn type_is_list(t: glance.Type) -> Bool {
 
 fn render_type(t: glance.Type, ctx: TypeCtx) -> String {
   case t {
+    glance.NamedType(_, "MagicFields", _, []) -> "dsl.MagicFields"
     glance.NamedType(_, "String", None, []) -> "String"
     glance.NamedType(_, "Int", None, []) -> "Int"
     glance.NamedType(_, "Float", None, []) -> "Float"
@@ -383,7 +377,9 @@ fn render_type(t: glance.Type, ctx: TypeCtx) -> String {
       <> string.join(list.map(params, fn(p) { render_type(p, ctx) }), ", ")
       <> ")"
     glance.TupleType(_, els) ->
-      "#(" <> string.join(list.map(els, fn(e) { render_type(e, ctx) }), ", ") <> ")"
+      "#("
+      <> string.join(list.map(els, fn(e) { render_type(e, ctx) }), ", ")
+      <> ")"
     glance.FunctionType(_, _, _) -> "_"
     glance.VariableType(_, name) -> name
     glance.HoleType(_, _) -> "_"
@@ -474,7 +470,10 @@ fn generic_query_section(spec: QuerySpecDefinition, ctx: TypeCtx) -> String {
       "  " <> query_param_label(p) <> ": " <> render_type(p.type_, ctx)
     })
   let body =
-    comma_terminated_param_block(list.append(["  conn: sqlight.Connection"], param_lines))
+    comma_terminated_param_block(list.append(
+      ["  conn: sqlight.Connection"],
+      param_lines,
+    ))
   string.join(
     [
       "pub type " <> row_name <> " {",
@@ -501,8 +500,7 @@ fn query_param_label(p: QueryParameter) -> String {
 
 fn is_entity_param(t: glance.Type, ctx: TypeCtx) -> Bool {
   case t {
-    glance.NamedType(_, name, None, []) ->
-      list.contains(ctx.entity_names, name)
+    glance.NamedType(_, name, None, []) -> list.contains(ctx.entity_names, name)
     glance.NamedType(_, name, Some(_), []) ->
       list.contains(ctx.entity_names, name)
     _ -> False

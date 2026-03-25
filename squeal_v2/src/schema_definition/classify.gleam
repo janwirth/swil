@@ -53,8 +53,7 @@ pub fn classify_strict(ct: glance.CustomType) -> Result(Classified, ParseError) 
   use _ <- result.try(require_no_type_parameters(ct))
   use _ <- result.try(require_at_least_one_variant(ct))
   case name_suffix(ct.name) {
-    SuffixIdentities ->
-      identity.parse(ct) |> result.map(IdentitiesBucket)
+    SuffixIdentities -> identity.parse(ct) |> result.map(IdentitiesBucket)
     SuffixRelationships ->
       relationship_container.parse(ct)
       |> result.map(RelationshipContainerBucket)
@@ -65,7 +64,9 @@ pub fn classify_strict(ct: glance.CustomType) -> Result(Classified, ParseError) 
   }
 }
 
-fn classify_entity_default(ct: glance.CustomType) -> Result(Classified, ParseError) {
+fn classify_entity_default(
+  ct: glance.CustomType,
+) -> Result(Classified, ParseError) {
   case entity.try_parse(ct) {
     Ok(Some(e)) -> Ok(EntityBucket(e))
     Error(e) -> Error(e)

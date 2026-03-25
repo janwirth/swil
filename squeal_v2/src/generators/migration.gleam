@@ -108,7 +108,10 @@ fn pragma_affinity_upper(type_: glance.Type) -> String {
   }
 }
 
-fn build_create_table_sql(table: String, data_fields: List(FieldDefinition)) -> String {
+fn build_create_table_sql(
+  table: String,
+  data_fields: List(FieldDefinition),
+) -> String {
   let col_lines =
     list.map(data_fields, fn(f) {
       f.label <> " " <> ddl_sql_type(f.type_) <> " not null"
@@ -124,10 +127,10 @@ fn build_create_table_sql(table: String, data_fields: List(FieldDefinition)) -> 
       ],
     ])
   "create table "
-    <> table
-    <> " (\n  "
-    <> string.join(all_lines, ",\n  ")
-    <> "\n);"
+  <> table
+  <> " (\n  "
+  <> string.join(all_lines, ",\n  ")
+  <> "\n);"
 }
 
 fn build_expected_table_info(rows: List(#(String, String, Int, Int))) -> String {
@@ -200,7 +203,8 @@ pub fn generate_pragma_migration_module(
     list.map(variant.fields, fn(f) { f.label })
     |> string.join("_")
   let index_name = table <> "_by_" <> index_suffix
-  let index_cols = list.map(variant.fields, fn(f) { f.label }) |> string.join(", ")
+  let index_cols =
+    list.map(variant.fields, fn(f) { f.label }) |> string.join(", ")
   let full_col_names =
     list.flatten([
       ["id"],
@@ -230,9 +234,7 @@ pub fn generate_pragma_migration_module(
     <> ");"
   let expected_table_info = build_expected_table_info(wanted_rows)
   let expected_index_list =
-    "seq\tname\tunique\torigin\tpartial\n0\t"
-    <> index_name
-    <> "\t1\tc\t0"
+    "seq\tname\tunique\torigin\tpartial\n0\t" <> index_name <> "\t1\tc\t0"
   let expected_index_info =
     build_expected_index_info(variant.fields, full_col_names)
   let columns_wanted_lines =
@@ -255,7 +257,8 @@ pub fn generate_pragma_migration_module(
   let conn_t = "(conn, " <> gleam_quote(table) <> ")"
   let conn_index = "(conn, " <> gleam_quote(index_name) <> ")"
   let panic_no_fix = gleam_quote(module_tag <> ": no column fix applies")
-  let panic_no_conv = gleam_quote(module_tag <> ": column reconcile did not converge")
+  let panic_no_conv =
+    gleam_quote(module_tag <> ": column reconcile did not converge")
 
   string.join(
     [
@@ -274,17 +277,9 @@ pub fn generate_pragma_migration_module(
       "import sqlite_pragma_assert.{type TableInfoRow}",
       "import sqlight",
       "",
-      "const create_"
-        <> table
-        <> "_table_sql = \""
-        <> create_table_sql
-        <> "\"",
+      "const create_" <> table <> "_table_sql = \"" <> create_table_sql <> "\"",
       "",
-      "const create_"
-        <> table
-        <> "_by_"
-        <> index_suffix
-        <> "_index_sql =",
+      "const create_" <> table <> "_by_" <> index_suffix <> "_index_sql =",
       "  \"" <> create_index_sql <> "\"",
       "",
       "const expected_table_info = \"" <> expected_table_info <> "\"",
@@ -294,14 +289,10 @@ pub fn generate_pragma_migration_module(
       "const expected_index_info = \"" <> expected_index_info <> "\"",
       "",
       "type " <> col_type <> " {",
-      "  "
-        <> col_type
-        <> "(name: String, type_: String, notnull: Int, pk: Int)",
+      "  " <> col_type <> "(name: String, type_: String, notnull: Int, pk: Int)",
       "}",
       "",
-      "const "
-        <> table
-        <> "_columns_wanted = [",
+      "const " <> table <> "_columns_wanted = [",
       columns_wanted_lines,
       "]",
       "",
@@ -324,9 +315,7 @@ pub fn generate_pragma_migration_module(
       "fn drop_surplus_user_indexes_on_"
         <> table
         <> "(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {",
-      "  use rows <- result.try(pragma_index_name_origin_rows"
-        <> conn_t
-        <> ")",
+      "  use rows <- result.try(pragma_index_name_origin_rows" <> conn_t <> ")",
       "  list.try_each(rows, fn(pair) {",
       "    let #(name, origin) = pair",
       "    case origin == "
@@ -382,9 +371,7 @@ pub fn generate_pragma_migration_module(
       "      case list.find(rows, fn(r) { r.name == w.name }) {",
       "        Error(Nil) -> Error(Nil)",
       "        Ok(row) ->",
-      "          case "
-        <> table
-        <> "_row_matches(w, row) {",
+      "          case " <> table <> "_row_matches(w, row) {",
       "            True -> Error(Nil)",
       "            False -> Ok(w.name)",
       "          }",
@@ -435,15 +422,11 @@ pub fn generate_pragma_migration_module(
         <> " add column \" <> w.name <> \" \" <> fragment <> \";\"",
       "}",
       "",
-      "fn apply_one_"
-        <> table
-        <> "_column_fix(",
+      "fn apply_one_" <> table <> "_column_fix(",
       "  conn: sqlight.Connection,",
       "  rows: List(TableInfoRow),",
       ") -> Result(Nil, sqlight.Error) {",
-      "  case first_surplus_column(rows, "
-        <> table
-        <> "_columns_wanted) {",
+      "  case first_surplus_column(rows, " <> table <> "_columns_wanted) {",
       "    Some(name) ->",
       "      sqlight.exec(\"alter table "
         <> table
@@ -469,9 +452,7 @@ pub fn generate_pragma_migration_module(
       "  }",
       "}",
       "",
-      "fn reconcile_"
-        <> table
-        <> "_columns_loop(",
+      "fn reconcile_" <> table <> "_columns_loop(",
       "  conn: sqlight.Connection,",
       "  iter: Int,",
       ") -> Result(Nil, sqlight.Error) {",
@@ -483,16 +464,10 @@ pub fn generate_pragma_migration_module(
         <> conn_t
         <> ")",
       "      case",
-      "        list.length(rows) == list.length("
-        <> table
-        <> "_columns_wanted)",
-      "        && list.all("
-        <> table
-        <> "_columns_wanted, fn(w) {",
+      "        list.length(rows) == list.length(" <> table <> "_columns_wanted)",
+      "        && list.all(" <> table <> "_columns_wanted, fn(w) {",
       "          case list.find(rows, fn(r) { r.name == w.name }) {",
-      "            Ok(row) -> "
-        <> table
-        <> "_row_matches(w, row)",
+      "            Ok(row) -> " <> table <> "_row_matches(w, row)",
       "            Error(Nil) -> False",
       "          }",
       "        })",
@@ -513,9 +488,7 @@ pub fn generate_pragma_migration_module(
         <> table
         <> "_table(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {",
       "  use tables <- result.try(sqlite_pragma_assert.user_table_names(conn))",
-      "  case list.contains(tables, "
-        <> gleam_quote(table)
-        <> ") {",
+      "  case list.contains(tables, " <> gleam_quote(table) <> ") {",
       "    False -> sqlight.exec(create_" <> table <> "_table_sql, conn)",
       "    True -> reconcile_" <> table <> "_columns_loop(conn, 0)",
       "  }",
@@ -524,11 +497,11 @@ pub fn generate_pragma_migration_module(
       "fn ensure_"
         <> table
         <> "_indexes(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {",
-      "  use _ <- result.try(drop_surplus_user_indexes_on_" <> table <> "(conn))",
+      "  use _ <- result.try(drop_surplus_user_indexes_on_"
+        <> table
+        <> "(conn))",
       "  case",
-      "    sqlite_pragma_assert.index_list_tsv"
-        <> conn_t
-        <> ",",
+      "    sqlite_pragma_assert.index_list_tsv" <> conn_t <> ",",
       "    sqlite_pragma_assert.index_info_tsv" <> conn_index,
       "  {",
       "    Ok(list_tsv), Ok(info_tsv) ->",
@@ -536,9 +509,7 @@ pub fn generate_pragma_migration_module(
       "        True -> Ok(Nil)",
       "        False -> {",
       "          use _ <- result.try(sqlight.exec(",
-      "            \"drop index if exists "
-        <> index_name
-        <> ";\",",
+      "            \"drop index if exists " <> index_name <> ";\",",
       "            conn,",
       "          ))",
       "          sqlight.exec(create_"
@@ -550,9 +521,7 @@ pub fn generate_pragma_migration_module(
       "      }",
       "    _, _ -> {",
       "      use _ <- result.try(sqlight.exec(",
-      "        \"drop index if exists "
-        <> index_name
-        <> ";\",",
+      "        \"drop index if exists " <> index_name <> ";\",",
       "        conn,",
       "      ))",
       "      sqlight.exec(create_"

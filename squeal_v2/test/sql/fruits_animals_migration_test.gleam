@@ -1,27 +1,11 @@
 // Drives the hand-written example migration modules (blueprints for codegen): exclusive
 // fruit vs animal versions, idempotent replays, and switching back and forth.
 import example_migration_animal
-import example_migration_fruit
+import case_studies/fruit_db/migration as example_migration_fruit
 import generators/migration
 import schema_definition
 import simplifile
 import sqlight
-const schema1 = "
-import gleam/option
-
-pub type Fruit {
-    Fruit(
-        name: option.Option(String),
-        color: option.Option(String),
-        price: option.Option(Float),
-        quantity: option.Option(Int),
-        identities: FruitIdentities,
-    )
-}
-pub type FruitIdentities {
-    ByName(name: String)
-}
-"
 
 const schema2 = "
 import gleam/option
@@ -41,17 +25,25 @@ pub type AnimalIdentities {
 
 pub fn pragma_migration_codegen_matches_example_blueprints_test() {
   let assert Ok(fruit_expected) =
-    simplifile.read("src/example_migration_fruit.gleam")
+    simplifile.read("src/case_studies/fruit_db/migration.gleam")
   let assert Ok(animal_expected) =
     simplifile.read("src/example_migration_animal.gleam")
+  let assert Ok(schema1) =
+    simplifile.read("src/case_studies/fruit_schema.gleam")
 
   let assert Ok(fruit_def) = schema_definition.parse_module(schema1)
   let assert Ok(animal_def) = schema_definition.parse_module(schema2)
 
   let fruit_gleam =
-    migration.generate_pragma_migration_module(fruit_def, "example_migration_fruit")
+    migration.generate_pragma_migration_module(
+      fruit_def,
+      "case_studies/fruit_db/migration",
+    )
   let animal_gleam =
-    migration.generate_pragma_migration_module(animal_def, "example_migration_animal")
+    migration.generate_pragma_migration_module(
+      animal_def,
+      "example_migration_animal",
+    )
 
   assert fruit_gleam == fruit_expected
   assert animal_gleam == animal_expected

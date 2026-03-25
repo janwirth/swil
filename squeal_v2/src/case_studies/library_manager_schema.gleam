@@ -1,5 +1,5 @@
-import gleam/option
 import dsl
+import gleam/option
 
 // id / created_at / updated_at / deleted_at come from `dsl.MagicFields`, not the schema type.
 pub type ImportedTrack {
@@ -66,6 +66,7 @@ pub type ViewConfigScalar {
     source_selector: option.Option(String),
   )
 }
+
 // I haven't figured out tags yet
 
 pub type TabIdentities {
@@ -79,8 +80,6 @@ pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields) {
     shape: option.None,
   )
 }
-
-
 
 // pub fn query_tracks_by_view_config(track_bucket: TrackBucket, view_config: ViewConfigScalar) {
 //   dsl.Query(

@@ -78,8 +78,7 @@ fn ensure_gleam_extension(path: String) -> String {
 
 fn gleam_import_path(schema_file: String) -> String {
   let without_ext = case string.ends_with(schema_file, ".gleam") {
-    True ->
-      string.drop_end(schema_file, string.length(".gleam"))
+    True -> string.drop_end(schema_file, string.length(".gleam"))
     False -> schema_file
   }
   case string.starts_with(without_ext, "src/") {
@@ -105,8 +104,7 @@ fn output_skeleton_path(schema_file: String) -> String {
     False -> base
   }
   let out_stem = case string.ends_with(stem, "_schema") {
-    True ->
-      string.drop_end(stem, string.length("_schema")) <> "_db_skeleton"
+    True -> string.drop_end(stem, string.length("_schema")) <> "_db_skeleton"
     False -> stem <> "_db_skeleton"
   }
   let dir_len = list.length(parts) - 1

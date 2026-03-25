@@ -1,6 +1,5 @@
-import case_studies/library_manager_schema.{
-  type ImportedTrack, type Tab, type Tag, type TrackBucket,
-}
+import case_studies/library_manager_schema.{type ImportedTrack, type Tab, type Tag, type TrackBucket}
+import dsl
 import gleam/option
 import sqlight
 
@@ -9,7 +8,7 @@ import sqlight
 /// Table of contents:
 /// - `migrate/1`
 /// - Entity ops: ImportedTrack, Tab, Tag, TrackBucket
-/// - Query specs: none
+/// - Query specs: `query_query_tabs_for_tab_bar`
 pub fn migrate(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   todo as "TODO: generated migration SQL"
 }
@@ -52,6 +51,13 @@ pub fn delete_importedtrack_by_title_and_artist(
   todo as "TODO: generated delete SQL"
 }
 
+/// List up to 100 recently edited importedtrack rows.
+pub fn last_100_edited_importedtrack(
+  conn: sqlight.Connection,
+) -> Result(List(ImportedTrack), sqlight.Error) {
+  todo as "TODO: generated select SQL and decoding"
+}
+
 /// Upsert a tab by the `ByTabLabel` identity.
 pub fn upsert_tab_by_tab_label(
   conn: sqlight.Connection,
@@ -88,6 +94,13 @@ pub fn delete_tab_by_tab_label(
   todo as "TODO: generated delete SQL"
 }
 
+/// List up to 100 recently edited tab rows.
+pub fn last_100_edited_tab(
+  conn: sqlight.Connection,
+) -> Result(List(Tab), sqlight.Error) {
+  todo as "TODO: generated select SQL and decoding"
+}
+
 /// Upsert a tag by the `ByTagLabel` identity.
 pub fn upsert_tag_by_tag_label(
   conn: sqlight.Connection,
@@ -120,6 +133,13 @@ pub fn delete_tag_by_tag_label(
   label: String,
 ) -> Result(Nil, sqlight.Error) {
   todo as "TODO: generated delete SQL"
+}
+
+/// List up to 100 recently edited tag rows.
+pub fn last_100_edited_tag(
+  conn: sqlight.Connection,
+) -> Result(List(Tag), sqlight.Error) {
+  todo as "TODO: generated select SQL and decoding"
 }
 
 /// Upsert a trackbucket by the `ByBucketTitleAndArtist` identity.
@@ -156,4 +176,23 @@ pub fn delete_trackbucket_by_bucket_title_and_artist(
   artist: String,
 ) -> Result(Nil, sqlight.Error) {
   todo as "TODO: generated delete SQL"
+}
+
+/// List up to 100 recently edited trackbucket rows.
+pub fn last_100_edited_trackbucket(
+  conn: sqlight.Connection,
+) -> Result(List(TrackBucket), sqlight.Error) {
+  todo as "TODO: generated select SQL and decoding"
+}
+
+pub type QueryQueryTabsForTabBarRow {
+  QueryQueryTabsForTabBarRow
+}
+
+/// Execute generated query for the `query_tabs_for_tab_bar` spec.
+pub fn query_query_tabs_for_tab_bar(
+  conn: sqlight.Connection,
+  tab_meta: dsl.MagicFields,
+) -> Result(List(QueryQueryTabsForTabBarRow), sqlight.Error) {
+  todo as "TODO: generated select SQL, parameters, and decoder"
 }

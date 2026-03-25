@@ -54,11 +54,7 @@ pub fn nullable(some_val: option.Option(some_type)) -> some_type {
 
 // composing queries
 pub type Query(type_, shape, order_field) {
-  Query(
-    shape: shape,
-    filter: Option(Bool),
-    order: #(order_field, Direction),
-  )
+  Query(shape: shape, filter: Option(Bool), order: #(order_field, Direction))
 }
 
 pub type MagicFields {

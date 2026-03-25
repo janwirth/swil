@@ -2,8 +2,9 @@ import glance
 import gleam/option.{Some}
 import gleam/result
 import schema_definition/fields.{
-  type VariantWithFields, VariantWithFields, require_no_unwrapped_primitive_fields,
-  variant_fields_all_labelled, variant_fields_to_defs,
+  type VariantWithFields, VariantWithFields,
+  require_no_unwrapped_primitive_fields, variant_fields_all_labelled,
+  variant_fields_to_defs,
 }
 import schema_definition/parse_error.{type ParseError, UnsupportedSchema}
 

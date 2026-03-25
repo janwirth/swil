@@ -10,7 +10,6 @@ import sqlight
 /// - `migrate/1`
 /// - Entity ops: Hippo, Human
 /// - Query specs: `query_old_hippos_owner_emails`, `query_hippos_by_gender`
-
 pub fn migrate(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   todo as "TODO: generated migration SQL"
 }
@@ -53,6 +52,13 @@ pub fn delete_hippo_by_name_and_date_of_birth(
   todo as "TODO: generated delete SQL"
 }
 
+/// List up to 100 recently edited hippo rows.
+pub fn last_100_edited_hippo(
+  conn: sqlight.Connection,
+) -> Result(List(Hippo), sqlight.Error) {
+  todo as "TODO: generated select SQL and decoding"
+}
+
 /// Upsert a human by the `ByEmail` identity.
 pub fn upsert_human_by_email(
   conn: sqlight.Connection,
@@ -85,6 +91,13 @@ pub fn delete_human_by_email(
   email: String,
 ) -> Result(Nil, sqlight.Error) {
   todo as "TODO: generated delete SQL"
+}
+
+/// List up to 100 recently edited human rows.
+pub fn last_100_edited_human(
+  conn: sqlight.Connection,
+) -> Result(List(#(Human, dsl.MagicFields)), sqlight.Error) {
+  todo as "TODO: generated select SQL and decoding"
 }
 
 pub type QueryOldHipposOwnerEmailsRow {

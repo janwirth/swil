@@ -67,17 +67,17 @@ pub fn old_hippos_owner_emails(hippo: Hippo, min_age: Int) {
     nullable(hippo.relationships.owner).item.email,
   )
   let filter = age(exclude_if_missing(hippo.date_of_birth)) > min_age
-  let order = dsl.order_by(age(exclude_if_missing(hippo.date_of_birth)), dsl.Desc)
+  let order =
+    dsl.order_by(age(exclude_if_missing(hippo.date_of_birth)), dsl.Desc)
 
-  Query(
-    shape: shape,
-    filter: option.Some(filter),
-    order: order,
-  )
+  Query(shape: shape, filter: option.Some(filter), order: order)
 }
 
 /// Query input spec for "hippos by gender".
 pub fn hippos_by_gender(hippo: Hippo, gender_to_match: GenderScalar) {
   let filter = exclude_if_missing(hippo.gender) == gender_to_match
-  dsl.Query(shape: hippo, filter: option.Some(filter), order: #(hippo.name, dsl.Desc))
+  dsl.Query(shape: hippo, filter: option.Some(filter), order: #(
+    hippo.name,
+    dsl.Desc,
+  ))
 }

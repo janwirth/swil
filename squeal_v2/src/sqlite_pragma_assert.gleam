@@ -58,14 +58,12 @@ pub fn table_info_rows(
   conn: sqlight.Connection,
   table: String,
 ) -> Result(List(TableInfoRow), sqlight.Error) {
-  use rows <- result.try(
-    sqlight.query(
-      "pragma table_info(" <> table <> ")",
-      on: conn,
-      with: [],
-      expecting: table_info_row_decoder(),
-    ),
-  )
+  use rows <- result.try(sqlight.query(
+    "pragma table_info(" <> table <> ")",
+    on: conn,
+    with: [],
+    expecting: table_info_row_decoder(),
+  ))
   Ok(list.map(rows, table_info_row_from_tuple))
 }
 
@@ -83,14 +81,12 @@ pub fn index_list_tsv(
   conn: sqlight.Connection,
   table: String,
 ) -> Result(String, sqlight.Error) {
-  use rows <- result.try(
-    sqlight.query(
-      "pragma index_list(" <> table <> ")",
-      on: conn,
-      with: [],
-      expecting: index_list_row_decoder(),
-    ),
-  )
+  use rows <- result.try(sqlight.query(
+    "pragma index_list(" <> table <> ")",
+    on: conn,
+    with: [],
+    expecting: index_list_row_decoder(),
+  ))
   Ok(format_index_list_tsv(rows))
 }
 
@@ -99,14 +95,12 @@ pub fn index_info_tsv(
   conn: sqlight.Connection,
   index_name: String,
 ) -> Result(String, sqlight.Error) {
-  use rows <- result.try(
-    sqlight.query(
-      "pragma index_info(" <> index_name <> ")",
-      on: conn,
-      with: [],
-      expecting: index_info_row_decoder(),
-    ),
-  )
+  use rows <- result.try(sqlight.query(
+    "pragma index_info(" <> index_name <> ")",
+    on: conn,
+    with: [],
+    expecting: index_info_row_decoder(),
+  ))
   Ok(format_index_info_tsv(rows))
 }
 
@@ -210,11 +204,7 @@ fn format_index_info_tsv(rows: List(#(Int, Int, String))) -> String {
   let lines =
     list.map(rows, fn(r) {
       let #(seqno, cid, name) = r
-      int.to_string(seqno)
-      <> "\t"
-      <> int.to_string(cid)
-      <> "\t"
-      <> name
+      int.to_string(seqno) <> "\t" <> int.to_string(cid) <> "\t" <> name
     })
   string.join([header, ..lines], "\n")
 }
