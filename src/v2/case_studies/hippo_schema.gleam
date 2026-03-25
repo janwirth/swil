@@ -64,8 +64,19 @@ pub type HumanRelationships {
 }
 
 pub type HumanIdentities {
-  ByNameAndEmail(name: String, email: String)
   ByEmail(email: String)
+}
+// can we build an admin UI - that's the ultimate test.
+// db(conn).human.delete.by_id
+pub fn upsert_human_by_email(conn: sqlight.Connection, email: String, name: option.Option(String)) -> Human{
+    todo ("sql etc here")
+}
+
+pub fn delete_human_by_email(conn: sqlight.Connection, email: String) -> Result(Nil, sqlight.Error) {
+    todo ("sql etc here")
+}
+// magic field autogenned
+pub fn delete_human_by_id(conn: sqlight.Connection, identity) -> Result(Nil, sqlight.Error) {
 }
 
 // how do I describe links?
@@ -152,3 +163,9 @@ pub type HipposByGenderResult {
 // skeleton - compilable example
 // reference code - what the LLM wrote - unit tested and satisfies functionality
 // generate implementation - replicates reference code
+
+// /hippo_schema.gleam
+// can be generated with just the skeleton - or do we make a simple reset in case compilation fails even before?
+// /hippo_db_skeleton.gleam
+// migrates, upsert, delet, update (auto-genned, by id / identity), queries (based on what user wrote - building blocks for their app)
+// /hippo_db_reference.gleam
