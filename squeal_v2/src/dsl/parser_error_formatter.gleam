@@ -4,6 +4,7 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
 import schema_definition
+import schema_definition/parse_error as schema_parse_err
 
 fn nth_line(source: String, line_no: Int) -> String {
   let lines = string.split(source, "\n")
@@ -42,8 +43,8 @@ pub fn entity_error_suggests_constructor_hint(
   err: schema_definition.ParseError,
 ) -> Bool {
   case err {
-    schema_definition.GlanceError(_) -> False
-    schema_definition.UnsupportedSchema(_, message) ->
+    schema_parse_err.GlanceError(_) -> False
+    schema_parse_err.UnsupportedSchema(_, message) ->
       string.contains(
         does: message,
         contain: "must use a variant constructor named",
@@ -78,15 +79,15 @@ fn print_parse_error_diagnostic(
   err: schema_definition.ParseError,
 ) -> Nil {
   case err {
-    schema_definition.GlanceError(e) ->
+    schema_parse_err.GlanceError(e) ->
       io.println(glance_armstrong.format_glance_parse_error(source, e))
-    schema_definition.UnsupportedSchema(Some(span), message) ->
+    schema_parse_err.UnsupportedSchema(Some(span), message) ->
       io.println(glance_armstrong.format_source_diagnostic(
         source,
         span,
         message,
       ))
-    schema_definition.UnsupportedSchema(None, message) ->
+    schema_parse_err.UnsupportedSchema(None, message) ->
       io.println(glance_armstrong.format_diagnostic_without_span(message))
   }
 }
