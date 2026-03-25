@@ -4,7 +4,9 @@ Write types, get sqlite access
 Opinionated
 Soft deletes
 All fields optional (idemptotent migrations)
-Declarative IDs
+
+Declarative identities
+Unique index / identities can not be dropped
 
 Check out the examples
 
@@ -46,4 +48,3 @@ Equivalent manual flow:
 ```bash
 gleam run -m regenerate_orm_layers && gleam test
 ```
-

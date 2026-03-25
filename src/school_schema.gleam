@@ -66,3 +66,5 @@ pub fn identities_student(student: Student) {
 pub fn identities_class(class: Class) {
   [identity.Identity2(class.title, class.subject_code)]
 }
+
+

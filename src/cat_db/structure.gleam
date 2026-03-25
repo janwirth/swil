@@ -19,12 +19,13 @@ pub type FilterableCat {
 
 pub type StringRefOrValue {
   StringRef(ref: StringCatField)
-  StringValue(value: String)
+  StrVal(value: String)
 }
 
 pub type NumRefOrValue {
   NumRef(ref: NumCatField)
-  NumValue(value: Int)
+  IntVal(value: Int)
+  FloatVal(value: Float)
 }
 
 pub type NumCatField {

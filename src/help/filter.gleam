@@ -14,8 +14,8 @@ pub type FilterArg(t, num_ref, string_ref, sort_field) {
 }
 
 pub type BoolExpr(num_ref, string_ref) {
-  And(left: BoolExpr(num_ref, string_ref), right: BoolExpr(num_ref, string_ref))
-  Or(left: BoolExpr(num_ref, string_ref), right: BoolExpr(num_ref, string_ref))
+  And(wheres: List(BoolExpr(num_ref, string_ref)))
+  Or(wheres: List(BoolExpr(num_ref, string_ref)))
   Not(expr: BoolExpr(num_ref, string_ref))
 
   LiteralTrue
@@ -25,5 +25,5 @@ pub type BoolExpr(num_ref, string_ref) {
   Eq(left: num_ref, right: num_ref)
   Ne(left: num_ref, right: num_ref)
 
-  NotContains(left: string_ref, right: string_ref)
+  NotContains(haystack: string_ref, needle: string_ref)
 }
