@@ -13,7 +13,7 @@ pub type Table {
 pub type Column {
   Column(
     name: String,
-    type: String,
+    type_: String,
   )
 }
 pub type Relation {
