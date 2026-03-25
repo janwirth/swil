@@ -214,7 +214,7 @@ fn string_ref_or_value_custom(se: String) {
         #(option.Some("ref"), gtypes.raw(se) |> gtypes.to_dynamic),
       ])
         |> gvariant.to_dynamic,
-      gvariant.with_arguments_dynamic(gvariant.new("StringValue"), [
+      gvariant.with_arguments_dynamic(gvariant.new("StrVal"), [
         #(option.Some("value"), gtypes.string |> gtypes.to_dynamic),
       ])
         |> gvariant.to_dynamic,
@@ -230,8 +230,12 @@ fn num_ref_or_value_custom(ne: String) {
         #(option.Some("ref"), gtypes.raw(ne) |> gtypes.to_dynamic),
       ])
         |> gvariant.to_dynamic,
-      gvariant.with_arguments_dynamic(gvariant.new("NumValue"), [
+      gvariant.with_arguments_dynamic(gvariant.new("IntVal"), [
         #(option.Some("value"), gtypes.int |> gtypes.to_dynamic),
+      ])
+        |> gvariant.to_dynamic,
+      gvariant.with_arguments_dynamic(gvariant.new("FloatVal"), [
+        #(option.Some("value"), gtypes.float |> gtypes.to_dynamic),
       ])
         |> gvariant.to_dynamic,
     ]

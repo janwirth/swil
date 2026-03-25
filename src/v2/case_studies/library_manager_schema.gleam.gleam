@@ -7,12 +7,6 @@ import gleam/time/timestamp
 // - there atuomatically
 pub type ImportedTrack {
   ImportedTrack(
-    id: Int,
-    // magic fields
-    created_at: timestamp.Timestamp,
-    // magic fields
-    updated_at: timestamp.Timestamp,
-    // magic fields
     title: option.Option(String),
     artist: option.Option(String),
     file_path: option.Option(String),
@@ -48,13 +42,7 @@ pub type ResolvedIdentity {
   )
 }
 
-pub type Exclusive(a) {
-  Exclusive(a)
-}
 
-pub type Scalar(a) {
-  Scalar(a)
-}
 
 // persisted in db
 pub type Tab {

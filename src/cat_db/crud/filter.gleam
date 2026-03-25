@@ -1,8 +1,9 @@
 import cake/fragment.{literal as frag_literal, placeholder as frag_ph, prepared as frag_prepared, string as frag_string}
 import cake/where
 import cat_db/structure.{type CatField, type FilterableCat, type NumRefOrValue, type StringRefOrValue,
-  AgeInt, CreatedAtInt, DeletedAtInt, FilterableCat, IdInt, NameString, NumRef,
-  NumValue, StringRef, StringValue, UpdatedAtInt,}
+  AgeInt, CreatedAtInt, DeletedAtInt, FilterableCat, FloatVal, IdInt, IntVal,
+  NameString, NumRef, StrVal, StringRef, UpdatedAtInt,}
+import gleam/list
 import gleam/option.{type Option, None, Some}
 import help/filter
 
@@ -40,37 +41,40 @@ fn num_operand_where_value(op: NumRefOrValue) -> where.WhereValue {
     NumRef(CreatedAtInt) -> where.col("created_at")
     NumRef(UpdatedAtInt) -> where.col("updated_at")
     NumRef(DeletedAtInt) -> where.col("deleted_at")
-    NumValue(v) -> where.int(v)
+    IntVal(v) -> where.int(v)
+    FloatVal(v) -> where.float(v)
   }
 }
 
 fn string_operand_part(op: StringRefOrValue) -> #(Bool, String) {
   case op {
     StringRef(NameString) -> #(True, "name")
-    StringValue(s) -> #(False, s)
+    StrVal(s) -> #(False, s)
   }
 }
 
-fn instr_where(left: #(Bool, String), right: #(Bool, String)) -> where.Where {
-  case left, right {
-    #(True, lc), #(True, rc) -> where.fragment(
-      frag_literal("instr(" <> lc <> ", " <> rc <> ") = 0"),
+fn instr_where(haystack: #(Bool, String), needle: #(Bool, String)) -> where.Where {
+  case haystack,
+  needle
+  {
+    #(True, hc), #(True, nc) -> where.fragment(
+      frag_literal("instr(" <> hc <> ", " <> nc <> ") = 0"),
     )
-    #(True, lc), #(False, rv) -> where.fragment(
+    #(True, hc), #(False, nv) -> where.fragment(
       frag_prepared(
         "instr("
         <>
-        lc
+        hc
         <>
         ", "
         <>
         frag_ph
         <>
         ") = 0",
-        [frag_string(rv)],
+        [frag_string(nv)],
       ),
     )
-    #(False, lv), #(True, rc) -> where.fragment(
+    #(False, hv), #(True, nc) -> where.fragment(
       frag_prepared(
         "instr("
         <>
@@ -78,13 +82,13 @@ fn instr_where(left: #(Bool, String), right: #(Bool, String)) -> where.Where {
         <>
         ", "
         <>
-        rc
+        nc
         <>
         ") = 0",
-        [frag_string(lv)],
+        [frag_string(hv)],
       ),
     )
-    #(False, lv), #(False, rv) -> where.fragment(
+    #(False, hv), #(False, nv) -> where.fragment(
       frag_prepared(
         "instr("
         <>
@@ -95,7 +99,7 @@ fn instr_where(left: #(Bool, String), right: #(Bool, String)) -> where.Where {
         frag_ph
         <>
         ") = 0",
-        [frag_string(lv), frag_string(rv)],
+        [frag_string(hv), frag_string(nv)],
       ),
     )
   }
@@ -106,13 +110,9 @@ pub fn bool_expr_where(expr: filter.BoolExpr(NumRefOrValue, StringRefOrValue)) -
   {
     filter.LiteralTrue -> where.eq(where.int(1), where.int(1))
     filter.LiteralFalse -> where.eq(where.int(1), where.int(0))
-    filter.Not(inner) -> where.not(bool_expr_where(inner))
-    filter.And(left, right) -> where.and(
-      [bool_expr_where(left), bool_expr_where(right)],
-    )
-    filter.Or(left, right) -> where.or(
-      [bool_expr_where(left), bool_expr_where(right)],
-    )
+    filter.Not(expr) -> where.not(bool_expr_where(expr))
+    filter.And([..wheres]) -> where.and(list.map(wheres, bool_expr_where))
+    filter.Or([..wheres]) -> where.or(list.map(wheres, bool_expr_where))
     filter.Gt(left, right) -> where.gt(
       num_operand_where_value(left),
       num_operand_where_value(right),
@@ -124,9 +124,9 @@ pub fn bool_expr_where(expr: filter.BoolExpr(NumRefOrValue, StringRefOrValue)) -
     filter.Ne(left, right) -> where.not(
       where.eq(num_operand_where_value(left), num_operand_where_value(right)),
     )
-    filter.NotContains(left, right) -> instr_where(
-      string_operand_part(left),
-      string_operand_part(right),
+    filter.NotContains(haystack, needle) -> instr_where(
+      string_operand_part(haystack),
+      string_operand_part(needle),
     )
   }
 }

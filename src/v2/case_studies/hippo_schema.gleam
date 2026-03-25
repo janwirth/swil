@@ -1,7 +1,9 @@
 import gleam/option
+
 import v2/dsl.{query, filter, sort, select, age, exclude_if_missing, nullable, CalendarDate, Desc}
 
 // ACTUAL SCHEMA
+// Identies = By...
 
 pub type Hippo {
     Hippo(name: option.Option(String),
@@ -9,8 +11,18 @@ pub type Hippo {
          date_of_birth: option.Option(dsl.CalendarDate),
          friends: List(Hippo), //! mutual
          best_friend: MutualLink(Hippo), //! mutual
-         owner: option.Option (Human) //! outlink
+         owner: option.Option (Human), //! outlink
+         identities: HippoIdentities
      )
+}
+// identities are required - you need at least one to be able to query
+pub type HippoIdentities {
+    ByNameAndDateOfBirth(name: String, date_of_birth: dsl.CalendarDate)
+    // This will create exclusive index tables
+    ById(id: String)
+    ByCreatedAt(created_at: dsl.Timestamp) // magicFields
+    ByUpdatedAt(updated_at: dsl.Timestamp) // magicFields
+    ByDeletedAt(deleted_at: dsl.Timestamp) // magicFields
 }
 
 pub type Human {
@@ -19,7 +31,13 @@ pub type Human {
             email: option.Option (String),
             hippos: List(Hippo), //! backlink.owner
     )
+    HumanIdentities(
+        ByNameAndEmail(name: String, email: String)
+    )
+}
 
+pub type HumanIdentities {
+    ByEmail(email: String)
 }
 
 pub type FriendshipProperties {
@@ -44,11 +62,6 @@ pub fn old_friends(hippo: Hippo) {
     // is this enough to spec everything
 }
 
-pub type Identities {
-    HippoByName(name: String)
-    HumanByEmail()
-
-}
 // DERIVED
 pub type Output {
     MyQueryResult(

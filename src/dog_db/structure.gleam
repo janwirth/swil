@@ -20,12 +20,13 @@ pub type FilterableDog {
 
 pub type StringRefOrValue {
   StringRef(ref: StringDogField)
-  StringValue(value: String)
+  StrVal(value: String)
 }
 
 pub type NumRefOrValue {
   NumRef(ref: NumDogField)
-  NumValue(value: Int)
+  IntVal(value: Int)
+  FloatVal(value: Float)
 }
 
 pub type NumDogField {
