@@ -2,6 +2,12 @@ import gleam/option
 import sqlight
 import case_studies/hippo_schema.{type Hippo, type Human}
 import dsl
+import gleam/time/calendar.{type Date}
+
+pub fn migrate(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
+  let _ = conn
+  todo as "TODO: generated migration SQL"
+}
 
 /// Generated DB module for the hippo case study.
 ///
@@ -12,7 +18,7 @@ pub fn upsert_human_by_email(
   conn: sqlight.Connection,
   email: String,
   name: option.Option(String),
-) -> Human {
+) -> Result(Human, sqlight.Error) {
   let _ = conn
   let _ = email
   let _ = name
@@ -64,7 +70,7 @@ pub type HipposByGenderResult {
   HipposByGenderResult(
     magic_fields: dsl.MagicFields,
     name: option.Option(String),
-    date_of_birth: option.Option(dsl.CalendarDate),
+    date_of_birth: option.Option(Date),
     owner: option.Option(#(dsl.MagicFields, Human)),
   )
 }
@@ -80,11 +86,11 @@ pub fn query_hippos_by_gender(
 }
 
 /// Upsert a hippo record.
-pub fn upsert_hippo(
+pub fn upsert_hippo_by_name_and_date_of_birth(
   conn: sqlight.Connection,
-  hippo: Hippo,
+  name: String,
+  date_of_birth: Date,
+  gender: option.Option(Bool),
 ) -> Result(Hippo, sqlight.Error) {
-  let _ = conn
-  let _ = hippo
   todo as "TODO: generated upsert SQL and decoding"
 }

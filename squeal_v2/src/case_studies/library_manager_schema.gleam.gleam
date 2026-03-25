@@ -128,18 +128,10 @@ pub fn select(a, b) -> b {
 //     Infer(Never)
 // }
 
-pub type Never {
-  JustOneMore(Never)
-}
-
 // pub fn never_example() -> Never {   
 //    JustOneMore(JustOneMore(JustOneMore(...))) // doesn't compile
 // }
 
-pub type Direction {
-  Asc
-  Desc
-}
 
 pub type OrderBy(field) {
   OrderBy(field: field, direction: Direction)

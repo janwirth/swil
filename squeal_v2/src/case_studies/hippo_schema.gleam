@@ -1,8 +1,10 @@
 import gleam/option
 import dsl.{
-  type Backlink, type BelongsTo, type CalendarDate, type Mutual, Desc, Query,
+  type BacklinkWith, type BelongsTo, type Mutual, Desc, Query,
   age, exclude_if_missing, nullable,
 }
+import gleam/time/calendar.{type Date}
+
 
 /// Example schema module.
 ///
@@ -12,7 +14,7 @@ pub type Hippo {
   Hippo(
     name: option.Option(String),
     gender: option.Option(Bool),
-    date_of_birth: option.Option(CalendarDate),
+    date_of_birth: option.Option(Date),
     identities: HippoIdentities,
     relationships: HippoRelationships,
   )
@@ -20,16 +22,20 @@ pub type Hippo {
 
 pub type HippoRelationships {
   HippoRelationships(
-    friends: option.Option(Mutual(List(Hippo))),
-    best_friend: option.Option(Mutual(Hippo)),
+    friends: option.Option(Mutual(List(Hippo), FriendshipAttributes)),
+    best_friend: option.Option(Mutual(Hippo, FriendshipAttributes)),
     owner: option.Option(BelongsTo(Human)),
+  )
+}
+pub type FriendshipAttributes {
+  FriendshipAttributes(
+    since: Date,
   )
 }
 
 /// Identities define unique upsert/delete keys.
 pub type HippoIdentities {
-  ByNameAndDateOfBirth(name: String, date_of_birth: CalendarDate)
-  ById(id: String)
+  ByNameAndDateOfBirth(name: String, date_of_birth: Date)
 }
 
 pub type Human {
@@ -43,7 +49,7 @@ pub type Human {
 }
 
 pub type HumanRelationships {
-  HumanRelationships(hippos: Backlink(List(Hippo)))
+  HumanRelationships(hippos: BacklinkWith(List(Hippo), FriendshipAttributes))
 }
 
 pub type HumanIdentities {

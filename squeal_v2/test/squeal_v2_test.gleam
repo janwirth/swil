@@ -2,6 +2,9 @@ import gleeunit
 import case_studies/hippo_db_skeleton as hippo_db
 import generator.{generate, parse}
 import simplifile
+import sqlight
+import gleam/option
+import gleam/time/calendar
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -19,16 +22,17 @@ pub fn hippo_skeleton_generation_test() {
 }
 
 pub fn hippo_skeleton_api_consumer_completeness_test() {
+  let assert Ok(conn) = sqlight.open("hippo.db")
   // Compile-time consumer check: public API symbols exist with callable types.
-  let _ = hippo_db.upsert_human_by_email
-  let _ = hippo_db.delete_human_by_email
-  let _ = hippo_db.delete_human_by_id
-  let _ = hippo_db.query_old_hippos_owner_emails
-  let _ = hippo_db.query_hippos_by_gender
-  let _ = hippo_db.upsert_hippo
+  let assert Ok(_) = hippo_db.migrate(conn)
+  // multiple migrations should be idempotent
+  let assert Ok(_) = hippo_db.migrate(conn)
 
-  // Also assert public output constructors are exported for consumers.
-  let _ = hippo_db.QueryOldHipposOwnerEmailsResult
-  let _ = hippo_db.QueryOldHipposOwnerEmailsResultOwner
-  let _ = hippo_db.HipposByGenderResult
+  let assert Ok(human) = hippo_db.upsert_hippo_by_name_and_date_of_birth(conn, "Test Hippo", calendar.Date(year: 2020, month: calendar.February, day: 1), option.Some(True))
+
+  let assert Ok(human) = hippo_db.upsert_human_by_email(conn, "test@example.com", option.Some("Test User"))
+  let assert Ok(_) = hippo_db.delete_human_by_email(conn, "test@example.com")
+
+
+  sqlight.close(conn)
 }
