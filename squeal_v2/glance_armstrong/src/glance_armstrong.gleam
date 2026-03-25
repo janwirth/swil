@@ -25,19 +25,15 @@ pub fn format_source_diagnostic(
       let col_clamped = int.min(col, line_blen)
       let max_w = int.max(1, line_blen - col_clamped)
       let raw_w = end_byte - start_byte
-      let #(caret_col, caret_width) = case generic_param_highlight_bytes(line_text) {
+      let #(caret_col, caret_width) = case
+        generic_param_highlight_bytes(line_text)
+      {
         Some(#(c, w)) ->
           case string.contains(message, "generic parameters") {
             True -> #(c, w)
-            False -> #(
-              col_clamped,
-              int.max(1, int.min(raw_w, max_w)),
-            )
+            False -> #(col_clamped, int.max(1, int.min(raw_w, max_w)))
           }
-        None -> #(
-          col_clamped,
-          int.max(1, int.min(raw_w, max_w)),
-        )
+        None -> #(col_clamped, int.max(1, int.min(raw_w, max_w)))
       }
       render_gutter_block(line_no, line_text, caret_col, caret_width, message)
     }
@@ -49,8 +45,7 @@ pub fn format_diagnostic_without_span(message: String) -> String {
   let gutter = "   — | "
   let code_line = gutter <> "<no source location>"
   let pad = gutter_display_width(gutter)
-  let pointer =
-    string.repeat(" ", times: pad) <> "^ " <> message
+  let pointer = string.repeat(" ", times: pad) <> "^ " <> message
   code_line <> "\n" <> pointer
 }
 
@@ -94,7 +89,13 @@ fn format_unexpected_eof_diagnostic(source: String) -> String {
     Ok(#(line_no, _line_start, line_text)) -> {
       let line_blen = string.byte_size(line_text)
       let caret_col = int.max(0, line_blen - 1)
-      render_gutter_block(line_no, line_text, caret_col, 1, "unexpected end of input when parsing Gleam")
+      render_gutter_block(
+        line_no,
+        line_text,
+        caret_col,
+        1,
+        "unexpected end of input when parsing Gleam",
+      )
     }
   }
 }
@@ -105,8 +106,7 @@ pub fn format_reference_line(
   line_text: String,
   message: String,
 ) -> String {
-  let w =
-    int.min(40, int.max(1, string.byte_size(line_text)))
+  let w = int.min(40, int.max(1, string.byte_size(line_text)))
   render_gutter_block(line_no, line_text, 0, w, message)
 }
 

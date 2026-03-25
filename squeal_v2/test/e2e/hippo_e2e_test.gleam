@@ -50,7 +50,8 @@ pub fn hippo_skeleton_api_consumer_completeness_test() {
       "test@example.com",
       option.Some("Test User"),
     )
-  let assert Ok([one]) = hippo_db.query_hippos_by_gender(conn, hippo_schema.Male)
+  let assert Ok([one]) =
+    hippo_db.query_hippos_by_gender(conn, hippo_schema.Male)
   let assert Ok(_) = hippo_db.delete_human_by_email(conn, "test@example.com")
 
   sqlight.close(conn)

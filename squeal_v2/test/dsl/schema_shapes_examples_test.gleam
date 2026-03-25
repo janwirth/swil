@@ -27,7 +27,8 @@ pub fn main() -> Nil {
 }
 
 pub fn documented_shape_scalar_enum_parses_test() {
-  let input = "pub type StatusScalar {
+  let input =
+    "pub type StatusScalar {
   On
   Off
 }
@@ -42,7 +43,8 @@ pub fn documented_shape_scalar_enum_parses_test() {
 }
 
 pub fn standalone_identities_without_entity_rejected_test() {
-  let input = "pub type RowIdentities {
+  let input =
+    "pub type RowIdentities {
   ByName(name: String)
   ById(id: Int)
 }
@@ -55,7 +57,8 @@ pub fn standalone_identities_without_entity_rejected_test() {
 }
 
 pub fn documented_shape_entity_with_relationships_parses_test() {
-  let input = "import gleam/option
+  let input =
+    "import gleam/option
 
 pub type Row {
   Row(
@@ -82,7 +85,8 @@ pub type RowRelationships {
 }
 
 pub fn documented_shape_relationships_container_only_parses_test() {
-  let input = "import gleam/option
+  let input =
+    "import gleam/option
 
 pub type RowRelationships {
   RowRelationships(peer: option.Option(String))
@@ -96,7 +100,8 @@ pub type RowRelationships {
 }
 
 pub fn documented_shape_edge_attributes_only_parses_test() {
-  let input = "pub type LinkAttributes {
+  let input =
+    "pub type LinkAttributes {
   LinkAttributes(weight: Int)
 }
 "
@@ -107,7 +112,8 @@ pub fn documented_shape_edge_attributes_only_parses_test() {
 }
 
 pub fn documented_shape_private_type_ignored_parses_test() {
-  let input = "type Secret {
+  let input =
+    "type Secret {
   Secret(x: Int)
 }
 
@@ -124,7 +130,8 @@ pub type StatusScalar {
 }
 
 pub fn documented_shape_query_tail_call_parses_test() {
-  let input = "import gleam/option
+  let input =
+    "import gleam/option
 
 pub type Row {
   Row(identities: RowIdentities)
@@ -145,7 +152,8 @@ pub fn by_key(k: Int) {
 }
 
 pub fn documented_shape_query_return_annotation_parses_test() {
-  let input = "import gleam/option
+  let input =
+    "import gleam/option
 
 pub type Row {
   Row(identities: RowIdentities)
@@ -166,7 +174,8 @@ pub fn by_key(k: Int) -> Query {
 }
 
 pub fn generic_custom_type_rejected_test() {
-  let input = "pub type Box(a) {
+  let input =
+    "pub type Box(a) {
   Box(value: Int)
 }
 "

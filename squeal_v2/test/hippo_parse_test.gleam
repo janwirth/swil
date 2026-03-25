@@ -1,9 +1,9 @@
+import dsl/parser_error_formatter
 import gleam/list
-import gleam/string
 import gleam/option.{Some}
+import gleam/string
 import gleeunit
 import schema_definition
-import dsl/parser_error_formatter
 import simplifile
 
 pub fn main() -> Nil {
@@ -85,5 +85,5 @@ pub fn library_manager_schema_test() {
   let path = "src/case_studies/library_manager_schema.gleam.gleam"
   let assert Ok(src) = simplifile.read(path)
 
-  let assert Ok(def) = schema_definition.parse_module(src) 
+  let assert Ok(def) = schema_definition.parse_module(src)
 }

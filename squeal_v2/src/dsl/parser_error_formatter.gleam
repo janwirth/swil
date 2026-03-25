@@ -1,8 +1,8 @@
+import glance_armstrong
 import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
-import glance_armstrong
 import schema_definition
 
 fn nth_line(source: String, line_no: Int) -> String {
@@ -28,7 +28,12 @@ fn print_source_reference_line(
 
 fn print_entity_constructor_hint() -> Nil {
   io.println(
-    "  • The record constructor must reuse the type name (e.g. `pub type Tab { Tab(...) }`).",
+    glance_armstrong.format_diagnostic_without_span_with_tips(
+      "Record variant must be named like the type.",
+      [
+        "Reuse the type name for the constructor (e.g. `pub type Tab { Tab(...) }`).",
+      ],
+    ),
   )
   io.println("")
 }
@@ -39,7 +44,10 @@ pub fn entity_error_suggests_constructor_hint(
   case err {
     schema_definition.GlanceError(_) -> False
     schema_definition.UnsupportedSchema(_, message) ->
-      string.contains(does: message, contain: "must use a variant constructor named")
+      string.contains(
+        does: message,
+        contain: "must use a variant constructor named",
+      )
       || string.contains(
         does: message,
         contain: "must use only labelled fields on its record variant",
@@ -57,9 +65,7 @@ fn print_query_spec_help() -> Nil {
   )
   io.println("  • For example:")
   io.println("")
-  io.println(
-    "    pub fn rows_matching_status(row: Row, want: StatusScalar) {",
-  )
+  io.println("    pub fn rows_matching_status(row: Row, want: StatusScalar) {")
   io.println(
     "      Query(shape: option.None, filter: option.None, order: option.None)",
   )

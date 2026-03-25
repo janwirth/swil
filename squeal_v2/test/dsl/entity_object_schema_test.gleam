@@ -9,7 +9,8 @@ pub fn main() -> Nil {
 }
 
 pub fn entity_object_must_have_identities_field_good_parses_test() {
-  let input = "import gleam/option
+  let input =
+    "import gleam/option
 
 pub type Row {
   Row(name: option.Option(String), identities: RowIdentities)
@@ -27,7 +28,8 @@ pub type RowIdentities {
 }
 
 pub fn entity_object_must_have_identities_field_bad_rejected_test() {
-  let input = "import gleam/option
+  let input =
+    "import gleam/option
 
 pub type Row {
   Row(name: option.Option(String))
@@ -40,20 +42,23 @@ pub type Row {
 }
 
 pub fn entity_object_identities_type_not_defined_rejected_test() {
-  let input = "import gleam/option
+  let input =
+    "import gleam/option
 
 pub type Row {
   Row(name: option.Option(String), identities: RowIdentities)
 }
 "
   case schema_definition.parse_module(input) {
-    Ok(_) -> panic as "expected entity referencing missing RowIdentities type to be rejected"
+    Ok(_) ->
+      panic as "expected entity referencing missing RowIdentities type to be rejected"
     Error(_) -> Nil
   }
 }
 
 pub fn entity_object_identities_type_defined_parses_test() {
-  let input = "import gleam/option
+  let input =
+    "import gleam/option
 
 pub type Row {
   Row(identities: RowIdentities)
@@ -73,7 +78,8 @@ pub type RowIdentities {
 }
 
 pub fn entity_object_identity_variant_must_start_with_by_rejected_test() {
-  let input = "import gleam/option
+  let input =
+    "import gleam/option
 
 pub type Row {
   Row(identities: RowIdentities)
@@ -84,7 +90,8 @@ pub type RowIdentities {
 }
 "
   case schema_definition.parse_module(input) {
-    Ok(_) -> panic as "expected identity variant not starting with By to be rejected"
+    Ok(_) ->
+      panic as "expected identity variant not starting with By to be rejected"
     Error(_) -> Nil
   }
 }
