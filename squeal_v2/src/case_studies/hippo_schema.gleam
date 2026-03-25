@@ -1,5 +1,5 @@
 import gleam/option
-import v2/dsl.{
+import dsl.{
   type Backlink, type BelongsTo, type CalendarDate, type Mutual, Desc, Query,
   age, exclude_if_missing, nullable,
 }

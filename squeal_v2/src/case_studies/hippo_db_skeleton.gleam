@@ -1,7 +1,7 @@
 import gleam/option
 import sqlight
-import v2/case_studies/hippo_schema.{type Hippo, type Human}
-import v2/dsl
+import case_studies/hippo_schema.{type Hippo, type Human}
+import dsl
 
 /// Generated DB module for the hippo case study.
 ///
