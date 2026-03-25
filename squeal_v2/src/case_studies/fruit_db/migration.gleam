@@ -191,7 +191,10 @@ fn reconcile_fruit_columns_loop(
     True ->
       panic as "case_studies/fruit_db/migration: column reconcile did not converge"
     False -> {
-      use rows <- result.try(sqlite_pragma_assert.table_info_rows(conn, "fruit"))
+      use rows <- result.try(sqlite_pragma_assert.table_info_rows(
+        conn,
+        "fruit",
+      ))
       case
         list.length(rows) == list.length(fruit_columns_wanted)
         && list.all(fruit_columns_wanted, fn(w) {
