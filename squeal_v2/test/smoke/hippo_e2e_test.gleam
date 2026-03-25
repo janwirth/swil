@@ -8,10 +8,6 @@ import gleeunit
 import simplifile
 import sqlight
 
-pub fn main() -> Nil {
-  gleeunit.main()
-}
-
 pub fn hippo_skeleton_generation_test() {
   let assert Ok(schema_source) =
     simplifile.read("src/case_studies/hippo_schema.gleam")
