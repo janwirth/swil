@@ -19,7 +19,7 @@ pub fn upsert_importedtrack_by_title_and_artist(
   title: String,
   artist: String,
   file_path: option.Option(String),
-) -> Result(ImportedTrack, sqlight.Error) {
+) -> Result(#(ImportedTrack, dsl.MagicFields), sqlight.Error) {
   todo as "TODO: generated upsert SQL and decoding"
 }
 
@@ -28,7 +28,7 @@ pub fn get_importedtrack_by_title_and_artist(
   conn: sqlight.Connection,
   title: String,
   artist: String,
-) -> Result(option.Option(ImportedTrack), sqlight.Error) {
+) -> Result(option.Option(#(ImportedTrack, dsl.MagicFields)), sqlight.Error) {
   todo as "TODO: generated select SQL and decoding"
 }
 
@@ -38,7 +38,7 @@ pub fn update_importedtrack_by_title_and_artist(
   title: String,
   artist: String,
   file_path: option.Option(String),
-) -> Result(ImportedTrack, sqlight.Error) {
+) -> Result(#(ImportedTrack, dsl.MagicFields), sqlight.Error) {
   todo as "TODO: generated update SQL and decoding"
 }
 
@@ -54,7 +54,7 @@ pub fn delete_importedtrack_by_title_and_artist(
 /// List up to 100 recently edited importedtrack rows.
 pub fn last_100_edited_importedtrack(
   conn: sqlight.Connection,
-) -> Result(List(ImportedTrack), sqlight.Error) {
+) -> Result(List(#(ImportedTrack, dsl.MagicFields)), sqlight.Error) {
   todo as "TODO: generated select SQL and decoding"
 }
 
@@ -64,7 +64,7 @@ pub fn upsert_tab_by_tab_label(
   label: String,
   order: option.Option(Float),
   view_config: option.Option(library_manager_schema.ViewConfigScalar),
-) -> Result(Tab, sqlight.Error) {
+) -> Result(#(Tab, dsl.MagicFields), sqlight.Error) {
   todo as "TODO: generated upsert SQL and decoding"
 }
 
@@ -72,7 +72,7 @@ pub fn upsert_tab_by_tab_label(
 pub fn get_tab_by_tab_label(
   conn: sqlight.Connection,
   label: String,
-) -> Result(option.Option(Tab), sqlight.Error) {
+) -> Result(option.Option(#(Tab, dsl.MagicFields)), sqlight.Error) {
   todo as "TODO: generated select SQL and decoding"
 }
 
@@ -82,7 +82,7 @@ pub fn update_tab_by_tab_label(
   label: String,
   order: option.Option(Float),
   view_config: option.Option(library_manager_schema.ViewConfigScalar),
-) -> Result(Tab, sqlight.Error) {
+) -> Result(#(Tab, dsl.MagicFields), sqlight.Error) {
   todo as "TODO: generated update SQL and decoding"
 }
 
@@ -97,7 +97,7 @@ pub fn delete_tab_by_tab_label(
 /// List up to 100 recently edited tab rows.
 pub fn last_100_edited_tab(
   conn: sqlight.Connection,
-) -> Result(List(Tab), sqlight.Error) {
+) -> Result(List(#(Tab, dsl.MagicFields)), sqlight.Error) {
   todo as "TODO: generated select SQL and decoding"
 }
 
@@ -106,7 +106,7 @@ pub fn upsert_tag_by_tag_label(
   conn: sqlight.Connection,
   label: String,
   emoji: option.Option(String),
-) -> Result(Tag, sqlight.Error) {
+) -> Result(#(Tag, dsl.MagicFields), sqlight.Error) {
   todo as "TODO: generated upsert SQL and decoding"
 }
 
@@ -114,7 +114,7 @@ pub fn upsert_tag_by_tag_label(
 pub fn get_tag_by_tag_label(
   conn: sqlight.Connection,
   label: String,
-) -> Result(option.Option(Tag), sqlight.Error) {
+) -> Result(option.Option(#(Tag, dsl.MagicFields)), sqlight.Error) {
   todo as "TODO: generated select SQL and decoding"
 }
 
@@ -123,7 +123,7 @@ pub fn update_tag_by_tag_label(
   conn: sqlight.Connection,
   label: String,
   emoji: option.Option(String),
-) -> Result(Tag, sqlight.Error) {
+) -> Result(#(Tag, dsl.MagicFields), sqlight.Error) {
   todo as "TODO: generated update SQL and decoding"
 }
 
@@ -138,7 +138,7 @@ pub fn delete_tag_by_tag_label(
 /// List up to 100 recently edited tag rows.
 pub fn last_100_edited_tag(
   conn: sqlight.Connection,
-) -> Result(List(Tag), sqlight.Error) {
+) -> Result(List(#(Tag, dsl.MagicFields)), sqlight.Error) {
   todo as "TODO: generated select SQL and decoding"
 }
 
@@ -147,7 +147,7 @@ pub fn upsert_trackbucket_by_bucket_title_and_artist(
   conn: sqlight.Connection,
   title: String,
   artist: String,
-) -> Result(TrackBucket, sqlight.Error) {
+) -> Result(#(TrackBucket, dsl.MagicFields), sqlight.Error) {
   todo as "TODO: generated upsert SQL and decoding"
 }
 
@@ -156,7 +156,7 @@ pub fn get_trackbucket_by_bucket_title_and_artist(
   conn: sqlight.Connection,
   title: String,
   artist: String,
-) -> Result(option.Option(TrackBucket), sqlight.Error) {
+) -> Result(option.Option(#(TrackBucket, dsl.MagicFields)), sqlight.Error) {
   todo as "TODO: generated select SQL and decoding"
 }
 
@@ -165,7 +165,7 @@ pub fn update_trackbucket_by_bucket_title_and_artist(
   conn: sqlight.Connection,
   title: String,
   artist: String,
-) -> Result(TrackBucket, sqlight.Error) {
+) -> Result(#(TrackBucket, dsl.MagicFields), sqlight.Error) {
   todo as "TODO: generated update SQL and decoding"
 }
 
@@ -181,7 +181,7 @@ pub fn delete_trackbucket_by_bucket_title_and_artist(
 /// List up to 100 recently edited trackbucket rows.
 pub fn last_100_edited_trackbucket(
   conn: sqlight.Connection,
-) -> Result(List(TrackBucket), sqlight.Error) {
+) -> Result(List(#(TrackBucket, dsl.MagicFields)), sqlight.Error) {
   todo as "TODO: generated select SQL and decoding"
 }
 

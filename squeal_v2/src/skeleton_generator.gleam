@@ -174,11 +174,11 @@ fn find_identity(
   id
 }
 
-fn entity_upsert_get_return_type(entity_type_name: String) -> String {
-  case entity_type_name == "Human" {
-    True -> "#(" <> entity_type_name <> ", dsl.MagicFields)"
-    False -> entity_type_name
-  }
+/// SQL row shape for entity CRUD helpers: the schema type paired with
+/// `dsl.MagicFields` (table `id`, `created_at`, `updated_at`, `deleted_at`) so
+/// generated callers decode both in one query.
+fn entity_row_with_magic_return_type(entity_type_name: String) -> String {
+  "#(" <> entity_type_name <> ", dsl.MagicFields)"
 }
 
 fn entity_chunks_for(
@@ -220,7 +220,7 @@ fn entity_chunks_for(
         "pub fn upsert_" <> entity_snake <> "_by_" <> id_snake <> "(",
         upsert_body,
         ") -> Result("
-          <> entity_upsert_get_return_type(entity.type_name)
+          <> entity_row_with_magic_return_type(entity.type_name)
           <> ", sqlight.Error) {",
         "  todo as \"TODO: generated upsert SQL and decoding\"",
         "}",
@@ -239,7 +239,7 @@ fn entity_chunks_for(
           id_only,
         )),
         ") -> Result(option.Option("
-          <> entity_upsert_get_return_type(entity.type_name)
+          <> entity_row_with_magic_return_type(entity.type_name)
           <> "), sqlight.Error) {",
         "  todo as \"TODO: generated select SQL and decoding\"",
         "}",
@@ -254,7 +254,9 @@ fn entity_chunks_for(
         by_identity_doc("Update"),
         "pub fn update_" <> entity_snake <> "_by_" <> id_snake <> "(",
         upsert_body,
-        ") -> Result(" <> entity.type_name <> ", sqlight.Error) {",
+        ") -> Result("
+          <> entity_row_with_magic_return_type(entity.type_name)
+          <> ", sqlight.Error) {",
         "  todo as \"TODO: generated update SQL and decoding\"",
         "}",
       ],
@@ -286,7 +288,7 @@ fn entity_chunks_for(
         "pub fn last_100_edited_" <> entity_snake <> "(",
         comma_terminated_param_block(["  conn: sqlight.Connection"]),
         ") -> Result(List("
-          <> entity_upsert_get_return_type(entity.type_name)
+          <> entity_row_with_magic_return_type(entity.type_name)
           <> "), sqlight.Error) {",
         "  todo as \"TODO: generated select SQL and decoding\"",
         "}",

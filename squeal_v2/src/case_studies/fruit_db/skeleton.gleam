@@ -28,7 +28,7 @@ pub fn upsert_fruit_by_name(
 pub fn get_fruit_by_name(
   conn: sqlight.Connection,
   name: String,
-) -> Result(option.Option(Fruit), sqlight.Error) {
+) -> Result(option.Option(#(Fruit, dsl.MagicFields)), sqlight.Error) {
   todo as "TODO: generated select SQL and decoding"
 }
 
@@ -39,7 +39,7 @@ pub fn update_fruit_by_name(
   color: option.Option(String),
   price: option.Option(Float),
   quantity: option.Option(Int),
-) -> Result(Fruit, sqlight.Error) {
+) -> Result(#(Fruit, dsl.MagicFields), sqlight.Error) {
   todo as "TODO: generated update SQL and decoding"
 }
 
@@ -54,6 +54,6 @@ pub fn delete_fruit_by_name(
 /// List up to 100 recently edited fruit rows.
 pub fn last_100_edited_fruit(
   conn: sqlight.Connection,
-) -> Result(List(Fruit), sqlight.Error) {
+) -> Result(List(#(Fruit, dsl.MagicFields)), sqlight.Error) {
   todo as "TODO: generated select SQL and decoding"
 }

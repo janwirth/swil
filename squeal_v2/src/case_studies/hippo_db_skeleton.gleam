@@ -20,7 +20,7 @@ pub fn upsert_hippo_by_name_and_date_of_birth(
   name: String,
   date_of_birth: Date,
   gender: option.Option(hippo_schema.GenderScalar),
-) -> Result(Hippo, sqlight.Error) {
+) -> Result(#(Hippo, dsl.MagicFields), sqlight.Error) {
   todo as "TODO: generated upsert SQL and decoding"
 }
 
@@ -29,7 +29,7 @@ pub fn get_hippo_by_name_and_date_of_birth(
   conn: sqlight.Connection,
   name: String,
   date_of_birth: Date,
-) -> Result(option.Option(Hippo), sqlight.Error) {
+) -> Result(option.Option(#(Hippo, dsl.MagicFields)), sqlight.Error) {
   todo as "TODO: generated select SQL and decoding"
 }
 
@@ -39,7 +39,7 @@ pub fn update_hippo_by_name_and_date_of_birth(
   name: String,
   date_of_birth: Date,
   gender: option.Option(hippo_schema.GenderScalar),
-) -> Result(Hippo, sqlight.Error) {
+) -> Result(#(Hippo, dsl.MagicFields), sqlight.Error) {
   todo as "TODO: generated update SQL and decoding"
 }
 
@@ -55,7 +55,7 @@ pub fn delete_hippo_by_name_and_date_of_birth(
 /// List up to 100 recently edited hippo rows.
 pub fn last_100_edited_hippo(
   conn: sqlight.Connection,
-) -> Result(List(Hippo), sqlight.Error) {
+) -> Result(List(#(Hippo, dsl.MagicFields)), sqlight.Error) {
   todo as "TODO: generated select SQL and decoding"
 }
 
@@ -81,7 +81,7 @@ pub fn update_human_by_email(
   conn: sqlight.Connection,
   email: String,
   name: option.Option(String),
-) -> Result(Human, sqlight.Error) {
+) -> Result(#(Human, dsl.MagicFields), sqlight.Error) {
   todo as "TODO: generated update SQL and decoding"
 }
 

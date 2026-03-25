@@ -1,4 +1,5 @@
 import case_studies/fruit_schema.{type Fruit, Fruit, ByName}
+import dsl
 import gleam/dynamic/decode
 import gleam/option.{type Option, None, Some}
 import gleam/result
@@ -17,18 +18,18 @@ import case_studies/fruit_db/migration
 //     updated_at = excluded.updated_at,
 //     deleted_at = null;
 //
-// select name, color, price, quantity from fruit
+// select name, color, price, quantity, id, created_at, updated_at, deleted_at from fruit
 //   where name = ? and deleted_at is null;
 //
 // update fruit set color = ?, price = ?, quantity = ?, updated_at = ?
 //   where name = ? and deleted_at is null
-//   returning name, color, price, quantity;
+//   returning name, color, price, quantity, id, created_at, updated_at, deleted_at;
 //
 // update fruit set deleted_at = ?, updated_at = ?
 //   where name = ? and deleted_at is null
 //   returning name;
 //
-// select name, color, price, quantity from fruit
+// select name, color, price, quantity, id, created_at, updated_at, deleted_at from fruit
 //   where deleted_at is null
 //   order by updated_at desc
 //   limit 100;
@@ -41,15 +42,15 @@ on conflict(name) do update set
   quantity = excluded.quantity,
   updated_at = excluded.updated_at,
   deleted_at = null
-returning name, color, price, quantity;"
+returning name, color, price, quantity, id, created_at, updated_at, deleted_at;"
 
-const select_by_name_sql = "select name, color, price, quantity from fruit where name = ? and deleted_at is null;"
+const select_by_name_sql = "select name, color, price, quantity, id, created_at, updated_at, deleted_at from fruit where name = ? and deleted_at is null;"
 
-const update_by_name_sql = "update fruit set color = ?, price = ?, quantity = ?, updated_at = ? where name = ? and deleted_at is null returning name, color, price, quantity;"
+const update_by_name_sql = "update fruit set color = ?, price = ?, quantity = ?, updated_at = ? where name = ? and deleted_at is null returning name, color, price, quantity, id, created_at, updated_at, deleted_at;"
 
 const soft_delete_by_name_sql = "update fruit set deleted_at = ?, updated_at = ? where name = ? and deleted_at is null returning name;"
 
-const last_100_sql = "select name, color, price, quantity from fruit where deleted_at is null order by updated_at desc limit 100;"
+const last_100_sql = "select name, color, price, quantity, id, created_at, updated_at, deleted_at from fruit where deleted_at is null order by updated_at desc limit 100;"
 
 fn unix_seconds_now() -> Int {
   let #(s, _) =
@@ -86,18 +87,46 @@ fn opt_string_from_db(s: String) -> Option(String) {
   }
 }
 
-fn fruit_row_decoder() -> decode.Decoder(Fruit) {
+fn magic_from_db_row(
+  id: Int,
+  created_s: Int,
+  updated_s: Int,
+  deleted_raw: Option(Int),
+) -> dsl.MagicFields {
+  dsl.MagicFields(
+    id:,
+    created_at: timestamp.from_unix_seconds(created_s),
+    updated_at: timestamp.from_unix_seconds(updated_s),
+    deleted_at: case deleted_raw {
+      Some(s) -> Some(timestamp.from_unix_seconds(s))
+      None -> None
+    },
+  )
+}
+
+fn fruit_with_magic_row_decoder() -> decode.Decoder(#(Fruit, dsl.MagicFields)) {
   use name <- decode.field(0, decode.string)
   use color <- decode.field(1, decode.string)
   use price <- decode.field(2, decode.float)
   use quantity <- decode.field(3, decode.int)
-  decode.success(Fruit(
-    name: Some(name),
-    color: opt_string_from_db(color),
-    price: Some(price),
-    quantity: Some(quantity),
-    identities: ByName(name:),
-  ))
+  use id <- decode.field(4, decode.int)
+  use created_at <- decode.field(5, decode.int)
+  use updated_at <- decode.field(6, decode.int)
+  use deleted_at_raw <- decode.field(7, decode.optional(decode.int))
+  let fruit =
+    Fruit(
+      name: Some(name),
+      color: opt_string_from_db(color),
+      price: Some(price),
+      quantity: Some(quantity),
+      identities: ByName(name:),
+    )
+  decode.success(#(fruit, magic_from_db_row(
+    id,
+    created_at,
+    updated_at,
+    deleted_at_raw,
+  )))
 }
 
 fn not_found_error(op: String) -> sqlight.Error {
@@ -115,7 +144,7 @@ pub fn upsert_fruit_by_name(
   color: Option(String),
   price: Option(Float),
   quantity: Option(Int),
-) -> Result(Fruit, sqlight.Error) {
+) -> Result(#(Fruit, dsl.MagicFields), sqlight.Error) {
   let now = unix_seconds_now()
   let c = opt_text_for_db(color)
   let p = opt_float_for_db(price)
@@ -131,10 +160,10 @@ pub fn upsert_fruit_by_name(
       sqlight.int(now),
       sqlight.int(now),
     ],
-    expecting: fruit_row_decoder(),
+    expecting: fruit_with_magic_row_decoder(),
   ))
   case rows {
-    [fruit, ..] -> Ok(fruit)
+    [row, ..] -> Ok(row)
     [] ->
       Error(sqlight.SqlightError(
         sqlight.GenericError,
@@ -148,16 +177,16 @@ pub fn upsert_fruit_by_name(
 pub fn get_fruit_by_name(
   conn: sqlight.Connection,
   name: String,
-) -> Result(Option(Fruit), sqlight.Error) {
+) -> Result(Option(#(Fruit, dsl.MagicFields)), sqlight.Error) {
   use rows <- result.try(sqlight.query(
     select_by_name_sql,
     on: conn,
     with: [sqlight.text(name)],
-    expecting: fruit_row_decoder(),
+    expecting: fruit_with_magic_row_decoder(),
   ))
   case rows {
     [] -> Ok(None)
-    [fruit, ..] -> Ok(Some(fruit))
+    [row, ..] -> Ok(Some(row))
   }
 }
 
@@ -168,7 +197,7 @@ pub fn update_fruit_by_name(
   color: Option(String),
   price: Option(Float),
   quantity: Option(Int),
-) -> Result(Fruit, sqlight.Error) {
+) -> Result(#(Fruit, dsl.MagicFields), sqlight.Error) {
   let now = unix_seconds_now()
   let c = opt_text_for_db(color)
   let p = opt_float_for_db(price)
@@ -183,10 +212,10 @@ pub fn update_fruit_by_name(
       sqlight.int(now),
       sqlight.text(name),
     ],
-    expecting: fruit_row_decoder(),
+    expecting: fruit_with_magic_row_decoder(),
   ))
   case rows {
-    [fruit, ..] -> Ok(fruit)
+    [row, ..] -> Ok(row)
     [] -> Error(not_found_error("update_fruit_by_name"))
   }
 }
@@ -215,11 +244,11 @@ pub fn delete_fruit_by_name(
 /// List up to 100 recently edited fruit rows.
 pub fn last_100_edited_fruit(
   conn: sqlight.Connection,
-) -> Result(List(Fruit), sqlight.Error) {
+) -> Result(List(#(Fruit, dsl.MagicFields)), sqlight.Error) {
   sqlight.query(
     last_100_sql,
     on: conn,
     with: [],
-    expecting: fruit_row_decoder(),
+    expecting: fruit_with_magic_row_decoder(),
   )
 }
