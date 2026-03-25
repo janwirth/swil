@@ -1,3 +1,4 @@
+import gleam/io
 import gleam/list
 import gleam/string
 import gleeunit
@@ -62,9 +63,55 @@ pub fn hippo_schema_parses_test() {
   assert list.length(by_name.fields) == 2
 }
 
+/// `library_manager_schema.gleam.gleam` is intentionally not a hippo-style schema.
+/// `schema_definition.parse_module` stops at the first violation (order of `custom_types` from Glance).
+/// This test prints that error, then a checklist of other problems in the file.
 pub fn library_manager_schema_rejected_test() {
-  let assert Ok(src) =
-    simplifile.read("src/case_studies/library_manager_schema.gleam.gleam")
-  let assert Error(schema_definition.UnsupportedSchema(_)) =
-    schema_definition.parse_module(src)
+  let path = "src/case_studies/library_manager_schema.gleam.gleam"
+  let assert Ok(src) = simplifile.read(path)
+
+  case schema_definition.parse_module(src) {
+    Ok(_) -> panic as "expected library_manager schema to be rejected by strict parser"
+    Error(schema_definition.GlanceError(_)) ->
+      panic as "unexpected Glance parse failure (file should lex/parse)"
+    Error(schema_definition.UnsupportedSchema(message)) -> {
+      io.println("\n========== library_manager schema rejection ==========")
+      io.println("file: " <> path)
+      io.println("\n--- first error from schema_definition.parse_module ---")
+      io.println(message)
+      io.println(
+        "\n--- other violations in this file (would also fail once earlier issues are fixed) ---",
+      )
+      io.println(
+        "  • OrderBy(field) (≈line 136): generic type parameters are rejected for schema modules\n"
+        <> "    (often the first error Glance reports among public types).",
+      )
+      io.println(
+        "  • ImportedTrack (≈line 8): squeal entity record must include both\n"
+        <> "    labelled fields `identities: *Identities` and `relationships: *Relationships`.\n"
+        <> "    This type only has `identities`.",
+      )
+      io.println(
+        "  • Tag (≈line 23): not a scalar enum, not *Identities / *Relationships / *Attributes,\n"
+        <> "    and not an entity (no identities+relationships). Unsupported shape.",
+      )
+      io.println(
+        "  • ResolvedIdentity (≈line 37): same as Tag — plain struct, not in the allowed set.",
+      )
+      io.println(
+        "  • Tab (≈line 54): multi-variant sum type; only scalar enums (all empty variants)\n"
+        <> "    or identity bundles (*Identities with `By…` variants) may have multiple variants.",
+      )
+      io.println(
+        "  • FilterConfig (≈line 69): no variants in the AST → not allowed (no opaque bucket).",
+      )
+      io.println(
+        "  • Public functions e.g. `all_tabs` (≈line 95): every public fn must be a Query spec\n"
+        <> "    (return type or trailing `Query(...)`) with fully typed parameters.\n"
+        <> "    Parser may fail earlier on types before it reaches functions.",
+      )
+      io.println("========================================================\n")
+      Nil
+    }
+  }
 }
