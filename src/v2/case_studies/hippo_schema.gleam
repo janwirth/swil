@@ -88,8 +88,10 @@ pub fn old_hippos_owner_emails(hippo: Hippo, min_age: Int) {
   let order = #(Desc, age(exclude_if_missing(hippo.date_of_birth)))
 
   Query(
+    // defining shape should mostly be optimizing to prevent fetching too much data
     shape: Some(shape),
     filter: Some(filter),
+    // should we make order required?
     order: Some(order),
   )
   // can I isolate selects? this is overkill
@@ -123,6 +125,11 @@ pub fn hippos_by_gender(hippo: Hippo, gender_to_match: Bool) {
   Query(shape: None, filter: Some(filter), order: None)
 }
 
+pub type HipposByGenderResult {
+  HipposByGenderResult(magic_fields: dsl.MagicFields, name: option.Option(String), date_of_birth: option.Option(CalendarDate), owner: option.Option(#(dsl.MagicFields, Human)))
+}
+
+
 // then it generates a query that just writes sql amd has a decoder for the right fields
 
 // pub fn exclude_if_missing(some_val: option.Option(some_type)) -> some_type {
@@ -132,3 +139,16 @@ pub fn hippos_by_gender(hippo: Hippo, gender_to_match: Bool) {
 
 // use proper migrations?
 // o
+
+
+// next steps
+// snapshot testing - input / output
+// just the skeleto for the code generator
+// mode: skeleton vs mode full - 
+// mode: skeleton is for when we update the schema and want compiling code before the LLM writes the reference code
+
+// DSL
+// parser
+// skeleton - compilable example
+// reference code - what the LLM wrote - unit tested and satisfies functionality
+// generate implementation - replicates reference code

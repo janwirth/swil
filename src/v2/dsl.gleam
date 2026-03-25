@@ -1,4 +1,5 @@
 import gleam/option.{type Option}
+import gleam/time/timestamp.{type Timestamp}
 
 pub type CalendarDate {
   CalendarDate(year: Int, month: Int, day: Int)
@@ -64,4 +65,8 @@ pub type Query(type_, shape, order) {
     filter: Option(Bool),
     order: Option(#(Direction, order)),
   )
+}
+
+pub type MagicFields {
+  MagicFields(id: Int, created_at: Timestamp, updated_at: Timestamp, deleted_at: Option(Timestamp))
 }
