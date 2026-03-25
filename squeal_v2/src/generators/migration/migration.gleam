@@ -149,7 +149,8 @@ fn build_pragma_migration_data(
       if_not_exists: False,
     )
   let expected_table_info = migration_sql.build_expected_table_info(wanted_rows)
-  let expected_index_list = migration_sql.build_expected_index_list_row(index_name)
+  let expected_index_list =
+    migration_sql.build_expected_index_list_row(index_name)
   let expected_index_info =
     migration_sql.build_expected_index_info(variant.fields, full_col_names)
   let panic_no_conv =

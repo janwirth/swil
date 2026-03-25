@@ -2,13 +2,15 @@
 //// indexes, then move to the desired state using `ALTER TABLE` only (add / drop column),
 //// never `DROP TABLE` / `CREATE TABLE` for shape fixes once `animal` exists.
 
-import gleam/dynamic/decode
-import gleam/list
 import gleam/option.{type Option, None, Some}
-import gleam/result
 import gleam/string
 import sqlight
 import sqlite_pragma_assert.{type TableInfoRow}
+
+import gleam/result
+import gleam/list
+import gleam/dynamic/decode
+
 
 const create_animal_table_sql = "create table animal (
   id integer primary key autoincrement not null,
@@ -190,7 +192,10 @@ fn reconcile_animal_columns_loop(
     True ->
       panic as "example_migration_animal: column reconcile did not converge"
     False -> {
-      use rows <- result.try(sqlite_pragma_assert.table_info_rows(conn, "animal"))
+      use rows <- result.try(sqlite_pragma_assert.table_info_rows(
+        conn,
+        "animal",
+      ))
       case
         list.length(rows) == list.length(animal_columns_wanted)
         && list.all(animal_columns_wanted, fn(w) {
@@ -245,8 +250,6 @@ fn ensure_animal_indexes(conn: sqlight.Connection) -> Result(Nil, sqlight.Error)
   }
 }
 
-/// Applies this version: remove non-animal user tables, align `animal` columns and
-/// identity indexes to the expected shape, then verify with pragmas.
 pub fn migration(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   use _ <- result.try(sqlite_pragma_assert.drop_user_tables_except(
     conn,

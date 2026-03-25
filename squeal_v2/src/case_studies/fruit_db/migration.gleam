@@ -2,13 +2,13 @@
 //// indexes, then move to the desired state using `ALTER TABLE` only (add / drop column),
 //// never `DROP TABLE` / `CREATE TABLE` for shape fixes once `fruit` exists.
 
-import gleam/dynamic/decode
-import gleam/list
 import gleam/option.{type Option, None, Some}
-import gleam/result
 import gleam/string
 import sqlight
 import sqlite_pragma_assert.{type TableInfoRow}
+import gleam/result
+import gleam/list
+import gleam/dynamic/decode
 
 const create_fruit_table_sql = "create table fruit (
   id integer primary key autoincrement not null,
@@ -246,8 +246,6 @@ fn ensure_fruit_indexes(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) 
   }
 }
 
-/// Applies this version: remove non-fruit user tables, align `fruit` columns and
-/// identity indexes to the expected shape, then verify with pragmas.
 pub fn migration(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   use _ <- result.try(sqlite_pragma_assert.drop_user_tables_except(
     conn,
