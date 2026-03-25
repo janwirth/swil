@@ -1,6 +1,6 @@
 import gleam/option
 
-type CalendarDate {
+pub type CalendarDate {
     CalendarDate(year: Int, month: Int, day: Int)
 }
 

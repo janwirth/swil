@@ -1,13 +1,12 @@
 import gleam/option
-import v2/dsl.{query, filter, sort, select, age, exclude_if_missing, nullable, CalendarDate}
-import gleam/time/timestamp.{type Timestamp}
+import v2/dsl.{query, filter, sort, select, age, exclude_if_missing, nullable, CalendarDate, Desc}
 
 // ACTUAL SCHEMA
 
 pub type Hippo {
     Hippo(name: option.Option(String),
         gender: option.Option(Bool),
-         date_of_birth: option.Option(Timestamp),
+         date_of_birth: option.Option(dsl.CalendarDate),
          friends: List(Hippo), //! mutual
          best_friend: MutualLink(Hippo), //! mutual
          owner: option.Option (Human) //! outlink
@@ -24,7 +23,7 @@ pub type Human {
 }
 
 pub type FriendshipProperties {
-    FriendshipProperties(since: Timestamp)
+    FriendshipProperties(since: dsl.CalendarDate)
 }
 
 
