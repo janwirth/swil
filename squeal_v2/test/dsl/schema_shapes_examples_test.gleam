@@ -1,8 +1,13 @@
 /// Catalogue of **mini Gleam modules** matching the shapes `schema_definition.parse_module` accepts.
 ///
+/// **Suffix routing** (see `classify_strict`): a public type is classified by checking, in order, whether
+/// its name ends with `Identities`, `Relationships`, `Attributes`, or `Scalar`; if none match, it is
+/// parsed as an **entity**.
+///
 /// Spec summary (see `schema_definition` implementation for messages and edge cases):
 ///
-/// 1. **Scalar enum** — every variant is payload-free; at least one variant; type name ends with `Scalar`.
+/// 1. **`*Scalar`** — type name ends with `Scalar`; no `identities`; variants may be payload-free
+///    (enum) or carry fields (record constructor).
 /// 2. **`*Identities`** — type name ends with `Identities`; variants named `By…`; labelled fields only; must be the `identities` field on a public entity in the same module.
 /// 3. **Entity** — one variant; constructor name equals the type name; labelled fields only;
 ///    required `identities: …` with a simple type name ending in `Identities`;
@@ -16,6 +21,9 @@
 /// 8. **No zero-variant public types** (add variants or use `private`).
 /// 9. **Private** `type` definitions are not validated as schema shapes.
 /// 10. **Walk order** is source order (Glance’s definition lists are reversed before folding).
+/// 11. **Nullable primitives** — on entities (except `identities` / `relationships`), `*Relationships`,
+///     and `*Attributes`, fields must not use bare `String` / `Int` / `Float` / `Bool` / `Date`; wrap
+///     with `option.Option(...)`.
 ///
 import gleam/list
 import gleam/string
@@ -40,6 +48,27 @@ pub fn documented_shape_scalar_enum_parses_test() {
   let assert [scalar] = def.scalars
   assert scalar.type_name == "StatusScalar"
   assert list.sort(scalar.variant_names, string.compare) == ["Off", "On"]
+}
+
+pub fn documented_shape_scalar_record_variant_parses_test() {
+  let input =
+    "import gleam/option
+
+pub type ViewConfigScalar {
+  ViewConfigScalar(
+    filter_config: option.Option(String),
+    source_selector: option.Option(String),
+  )
+}
+"
+  let assert Ok(def) = schema_definition.parse_module(input)
+  assert def.entities == []
+  assert def.identities == []
+  assert def.relationship_edge_attributes == []
+  assert list.length(def.scalars) == 1
+  let assert [scalar] = def.scalars
+  assert scalar.type_name == "ViewConfigScalar"
+  assert scalar.variant_names == ["ViewConfigScalar"]
 }
 
 pub fn standalone_identities_without_entity_rejected_test() {
@@ -101,8 +130,10 @@ pub type RowRelationships {
 
 pub fn documented_shape_edge_attributes_only_parses_test() {
   let input =
-    "pub type LinkAttributes {
-  LinkAttributes(weight: Int)
+    "import gleam/option
+
+pub type LinkAttributes {
+  LinkAttributes(weight: option.Option(Int))
 }
 "
   let assert Ok(def) = schema_definition.parse_module(input)
@@ -183,6 +214,63 @@ pub fn generic_custom_type_rejected_test() {
   case output {
     Ok(_) ->
       panic as "expected generic custom type module to be rejected by parse_module"
+    Error(_) -> Nil
+  }
+}
+
+pub fn entity_non_nullable_primitive_field_rejected_test() {
+  let input =
+    "import gleam/option
+
+pub type Row {
+  Row(title: String, identities: RowIdentities)
+}
+
+pub type RowIdentities {
+  ByKey(key: String)
+}
+"
+  case schema_definition.parse_module(input) {
+    Ok(_) ->
+      panic as "expected entity field with bare String to be rejected"
+    Error(_) -> Nil
+  }
+}
+
+pub fn relationship_container_non_nullable_primitive_field_rejected_test() {
+  let input =
+    "import gleam/option
+
+pub type Row {
+  Row(identities: RowIdentities)
+}
+
+pub type RowIdentities {
+  ByKey(key: String)
+}
+
+pub type RowRelationships {
+  RowRelationships(peer: String)
+}
+"
+  case schema_definition.parse_module(input) {
+    Ok(_) ->
+      panic as "expected *Relationships field with bare String to be rejected"
+    Error(_) -> Nil
+  }
+}
+
+pub fn edge_attributes_non_nullable_primitive_field_rejected_test() {
+  let input =
+    "import gleam/option
+
+pub type LinkAttributes {
+  LinkAttributes(weight: Int)
+}
+"
+  case schema_definition.parse_module(input) {
+    Ok(_) ->
+      panic as "expected *Attributes field with bare Int to be rejected"
     Error(_) -> Nil
   }
 }

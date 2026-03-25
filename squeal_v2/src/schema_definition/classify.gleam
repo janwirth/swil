@@ -19,22 +19,64 @@ pub type Classified {
   EdgeAttributesBucket(edge_attributes.RelationshipEdgeAttributesDefinition)
 }
 
-type ClassifyStep {
-  Matched(Classified)
-  Unmatched
+type NameSuffix {
+  SuffixIdentities
+  SuffixRelationships
+  SuffixAttributes
+  SuffixScalar
+  SuffixEntity
 }
 
-/// Disambiguate a single public custom type into one hippo bucket (or error).
+fn name_suffix(name: String) -> NameSuffix {
+  case string.ends_with(name, "Identities") {
+    True -> SuffixIdentities
+    False ->
+      case string.ends_with(name, "Relationships") {
+        True -> SuffixRelationships
+        False ->
+          case string.ends_with(name, "Attributes") {
+            True -> SuffixAttributes
+            False ->
+              case string.ends_with(name, "Scalar") {
+                True -> SuffixScalar
+                False -> SuffixEntity
+              }
+          }
+      }
+  }
+}
+
+/// Classify a public custom type by **name suffix**. `*Identities`, `*Relationships`, `*Attributes`,
+/// and `*Scalar` are handled explicitly; anything else is parsed as an **entity** (aggregate with
+/// `identities`, optional `relationships`).
 pub fn classify_strict(ct: glance.CustomType) -> Result(Classified, ParseError) {
   use _ <- result.try(require_no_type_parameters(ct))
   use _ <- result.try(require_at_least_one_variant(ct))
-  try_scalar(ct)
-  |> result.try(fn(step) {
-    case step {
-      Matched(c) -> Ok(c)
-      Unmatched -> resolve_after_scalar_unmatched(ct)
-    }
-  })
+  case name_suffix(ct.name) {
+    SuffixIdentities ->
+      identity.parse(ct) |> result.map(IdentitiesBucket)
+    SuffixRelationships ->
+      relationship_container.parse(ct)
+      |> result.map(RelationshipContainerBucket)
+    SuffixAttributes ->
+      edge_attributes.parse(ct) |> result.map(EdgeAttributesBucket)
+    SuffixScalar -> Ok(ScalarBucket(scalar.from_custom_type(ct)))
+    SuffixEntity -> classify_entity_default(ct)
+  }
+}
+
+fn classify_entity_default(ct: glance.CustomType) -> Result(Classified, ParseError) {
+  case entity.try_parse(ct) {
+    Ok(Some(e)) -> Ok(EntityBucket(e))
+    Error(e) -> Error(e)
+    Ok(None) ->
+      Error(UnsupportedSchema(
+        Some(ct.location),
+        "public type "
+          <> ct.name
+          <> " is not a squeal entity (expected a single record variant named like the type with a labelled `identities` field); for other shapes name the type with a `Scalar`, `Identities`, `Relationships`, or `Attributes` suffix",
+      ))
+  }
 }
 
 fn require_no_type_parameters(ct: glance.CustomType) -> Result(Nil, ParseError) {
@@ -62,71 +104,5 @@ fn require_at_least_one_variant(
           <> " has no variants; add at least one (for example empty variants for a scalar enum) or make the type `private` until it is defined",
       ))
     _ -> Ok(Nil)
-  }
-}
-
-fn try_scalar(ct: glance.CustomType) -> Result(ClassifyStep, ParseError) {
-  case scalar.try_shape(ct) {
-    None -> Ok(Unmatched)
-    Some(s) ->
-      case string.ends_with(ct.name, "Scalar") {
-        True -> Ok(Matched(ScalarBucket(s)))
-        False ->
-          Error(UnsupportedSchema(
-            Some(ct.location),
-            "public scalar enum "
-              <> ct.name
-              <> " must end with `Scalar` (for example GenderScalar); types without that suffix that carry data on variants belong in a `*Identities` type referenced from an entity",
-          ))
-      }
-  }
-}
-
-fn try_entity(ct: glance.CustomType) -> Result(ClassifyStep, ParseError) {
-  case entity.try_parse(ct) {
-    Ok(Some(e)) -> Ok(Matched(EntityBucket(e)))
-    Ok(None) -> Ok(Unmatched)
-    Error(e) -> Error(e)
-  }
-}
-
-fn resolve_after_scalar_unmatched(
-  ct: glance.CustomType,
-) -> Result(Classified, ParseError) {
-  case string.ends_with(ct.name, "Identities") {
-    True ->
-      identity.parse(ct)
-      |> result.map(fn(i) { IdentitiesBucket(i) })
-    False ->
-      try_entity(ct)
-      |> result.try(fn(step) {
-        case step {
-          Matched(c) -> Ok(c)
-          Unmatched -> resolve_after_entity_unmatched(ct)
-        }
-      })
-  }
-}
-
-fn resolve_after_entity_unmatched(
-  ct: glance.CustomType,
-) -> Result(Classified, ParseError) {
-  case string.ends_with(ct.name, "Relationships") {
-    True ->
-      relationship_container.parse(ct)
-      |> result.map(fn(r) { RelationshipContainerBucket(r) })
-    False ->
-      case string.ends_with(ct.name, "Attributes") {
-        True ->
-          edge_attributes.parse(ct)
-          |> result.map(fn(a) { EdgeAttributesBucket(a) })
-        False ->
-          Error(UnsupportedSchema(
-            Some(ct.location),
-            "public type "
-              <> ct.name
-              <> " is not a supported squeal shape (expected entity with required identities, optional relationships, *Identities, *Relationships, *Attributes, or payload-free enum ending in `Scalar`)",
-          ))
-      }
   }
 }

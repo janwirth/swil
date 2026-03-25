@@ -40,7 +40,7 @@ pub type RelationshipContainerDefinition =
 pub type RelationshipEdgeAttributesDefinition =
   edge_attributes_mod.RelationshipEdgeAttributesDefinition
 
-/// Enum-like: every variant has no payloads; at least one variant.
+/// Name ends with `Scalar`: scalar (enum-like and/or record variant with fields); no `identities`.
 pub type ScalarTypeDefinition =
   scalar_mod.ScalarTypeDefinition
 

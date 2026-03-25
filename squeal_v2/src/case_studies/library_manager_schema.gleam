@@ -22,10 +22,10 @@ pub type ImportedTrackIdentities {
 
 pub type Tag {
   Tag(
-    id: Int,
+    id: option.Option(Int),
     created_at: timestamp.Timestamp,
     updated_at: timestamp.Timestamp,
-    label: String,
+    label: option.Option(String),
     emoji: option.Option(String),
     identities: TagIdentities
   )
@@ -43,7 +43,7 @@ pub type TagIdentities {
 
 pub type TrackBucket {
   TrackBucket(
-    id: Int,
+    id: option.Option(Int),
     created_at: timestamp.Timestamp,
     updated_at: timestamp.Timestamp,
     title: option.Option(String),
@@ -57,23 +57,28 @@ pub type TrackBucket {
 }
 
 pub type TrackBucketIdentities {
-  BucketByTitleAndArtist(title: String, artist: String)
+  ByBucketTitleAndArtist(title: String, artist: String)
 }
 
 
 // persisted in db
 pub type Tab {
   Tab(
-    label: Exclusive(String),
-    order: Float,
-    view_config: ViewConfigScalar,
-    identities: TabIdentities
+    label: option.Option(String),
+    order: option.Option(Float),
+    view_config: option.Option(ViewConfigScalar),
+    identities: TabIdentities,
+    tracks: List(TrackBucket)
   )
-  // SourceTab(label: Exclusive(String), order: Float, source_selector: String)
-  // = flat data
 }
-// later: unions
-// later: trees
+
+pub type ViewConfigScalar {
+  ViewConfigScalar(
+    filter_config: option.Option(String),
+    source_selector: option.Option(String),
+  )
+}
+
 
 pub type TabIdentities {
   ByTabLabel(label: String)

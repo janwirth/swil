@@ -28,7 +28,7 @@ pub type HippoRelationships {
 }
 
 pub type FriendshipAttributes {
-  FriendshipAttributes(since: Date)
+  FriendshipAttributes(since: option.Option(Date))
 }
 
 /// Identities define unique upsert/delete keys.

@@ -1,31 +1,12 @@
 import glance
 import gleam/list
-import gleam/option.{type Option, None, Some}
 
-/// Enum-like: every variant has no payloads; at least one variant.
+/// Type name ends with `Scalar`: no `identities` required. Variants may be payload-free (enum-like)
+/// or carry fields (e.g. a single record variant named like the type).
 pub type ScalarTypeDefinition {
   ScalarTypeDefinition(type_name: String, variant_names: List(String))
 }
 
-/// Shape only: payload-free variants (name / `Scalar` suffix validated in classify pipeline).
-pub fn try_shape(ct: glance.CustomType) -> Option(ScalarTypeDefinition) {
-  case ct.variants {
-    [] -> None
-    variants ->
-      case
-        list.all(variants, fn(v) {
-          case v.fields {
-            [] -> True
-            _ -> False
-          }
-        })
-      {
-        True ->
-          Some(ScalarTypeDefinition(
-            ct.name,
-            list.map(variants, fn(v) { v.name }),
-          ))
-        False -> None
-      }
-  }
+pub fn from_custom_type(ct: glance.CustomType) -> ScalarTypeDefinition {
+  ScalarTypeDefinition(ct.name, list.map(ct.variants, fn(v) { v.name }))
 }
