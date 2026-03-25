@@ -109,8 +109,13 @@ pub fn parse_module(source: String) -> Result(SchemaDefinition, ParseError) {
 fn build_schema_strict(
   parsed: glance.Module,
 ) -> Result(SchemaDefinition, ParseError) {
+  // Glance prepends each definition, so `custom_types` / `functions` are reverse
+  // source order. Walk them reversed so the first error matches top-to-bottom
+  // in the file.
+  let custom_types_ordered = list.reverse(parsed.custom_types)
+  let functions_ordered = list.reverse(parsed.functions)
   use buckets <- result.try(list.try_fold(
-    parsed.custom_types,
+    custom_types_ordered,
     initial_buckets(),
     fn(acc, def) {
       case def {
@@ -118,7 +123,7 @@ fn build_schema_strict(
       }
     },
   ))
-  use queries <- result.try(extract_query_specs_strict(parsed.functions))
+  use queries <- result.try(extract_query_specs_strict(functions_ordered))
   Ok(SchemaDefinition(
     entities: list.reverse(buckets.entities),
     identities: list.reverse(buckets.identities),
@@ -184,6 +189,16 @@ type Classified {
 
 fn classify_strict(ct: glance.CustomType) -> Result(Classified, ParseError) {
   use _ <- result.try(require_no_type_parameters(ct))
+  use _ <- result.try(case ct.variants {
+    [] ->
+      Error(UnsupportedSchema(
+        Some(ct.location),
+        "public type "
+        <> ct.name
+        <> " has no variants; add at least one (for example empty variants for a scalar enum) or make the type `private` until it is defined",
+      ))
+    _ -> Ok(Nil)
+  })
   case try_scalar_strict(ct) {
     Some(s) -> Ok(ScalarBucket(s))
     None ->
@@ -295,7 +310,17 @@ fn try_entity_strict(
   case ct.variants {
     [glance.Variant(vname, vfields, _)] -> {
       case vname == ct.name {
-        False -> Ok(None)
+        False ->
+          Error(UnsupportedSchema(
+            Some(ct.location),
+            "entity "
+            <> ct.name
+            <> " must use a variant constructor named `"
+            <> ct.name
+            <> "` (found `"
+            <> vname
+            <> "`); rename the variant to match the type for a table row",
+          ))
         True ->
           case variant_fields_all_labelled(vfields) {
             False ->
@@ -307,7 +332,19 @@ fn try_entity_strict(
               ))
             True ->
               case find_labelled_field(vfields, "identities") {
-                None -> Ok(None)
+                None ->
+                  case
+                    string.ends_with(ct.name, "Attributes")
+                    || string.ends_with(ct.name, "Relationships")
+                  {
+                    True -> Ok(None)
+                    False ->
+                      Error(UnsupportedSchema(
+                        Some(ct.location),
+                        ct.name
+                        <> " has a record variant named like the type but no `identities` field; add `identities` pointing at a `*Identities` type, or use only empty variants for a scalar enum",
+                      ))
+                  }
                 Some(#(_, id_type)) ->
                   case type_named_type_name(id_type) {
                     None ->

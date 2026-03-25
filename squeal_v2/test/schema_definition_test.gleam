@@ -1,6 +1,7 @@
 import gleam/io
 import gleam/list
 import gleam/string
+import gleam/option.{None, Some}
 import gleeunit
 import schema_definition
 import schema_diagnostics
@@ -24,6 +25,29 @@ fn println_reference_line(src: String, line_no: Int, message: String) -> Nil {
     nth_line(src, line_no),
     message,
   ))
+  io.println("")
+}
+
+fn println_fix_entity_constructor_matches_type() -> Nil {
+  io.println(
+    "  • The record constructor must reuse the type name (e.g. `pub type Tab { Tab(...) }`).",
+  )
+  io.println("")
+}
+
+fn println_valid_query_spec_example() -> Nil {
+  io.println(
+    "  • Public query specs must return `Query(...)` (or use a `-> Query` return annotation) and type every parameter.",
+  )
+  io.println("  • For example:")
+  io.println("")
+  io.println(
+    "    pub fn rows_matching_status(row: Row, want: StatusScalar) {",
+  )
+  io.println(
+    "      Query(shape: option.None, filter: option.None, order: option.None)",
+  )
+  io.println("    }")
   io.println("")
 }
 
@@ -96,8 +120,8 @@ pub fn entity_without_relationships_parses_test() {
 }
 
 /// `library_manager_schema.gleam.gleam` is intentionally not a hippo-style schema.
-/// `schema_definition.parse_module` stops at the first violation (order of `custom_types` from Glance).
-/// This test prints that error, then a checklist of other problems in the file.
+/// `parse_module` stops at the first violation; this test prints that finding, then
+/// additional locations in **source order** as one continuous sequence.
 pub fn library_manager_schema_rejected_test() {
   let path = "src/case_studies/library_manager_schema.gleam.gleam"
   let assert Ok(src) = simplifile.read(path)
@@ -108,42 +132,26 @@ pub fn library_manager_schema_rejected_test() {
       io.println("\n========== library_manager schema rejection ==========")
       io.println("file: " <> path)
       io.println("")
-      io.println(schema_definition.format_parse_error(src, parse_err))
+      case parse_err {
+        schema_definition.GlanceError(e) ->
+          io.println(schema_diagnostics.format_glance_parse_error(src, e))
+        schema_definition.UnsupportedSchema(Some(span), message) ->
+          io.println(schema_diagnostics.format_source_diagnostic(
+            src,
+            span,
+            message,
+          ))
+        schema_definition.UnsupportedSchema(None, message) ->
+          io.println(schema_diagnostics.format_diagnostic_without_span(message))
+      }
       io.println("")
-      io.println(
-        "--- other violations (same line | ^ style; parser stops at first error) ---",
-      )
-      io.println("")
+      println_fix_entity_constructor_matches_type()
       println_reference_line(
         src,
-        8,
-        "entity with required identities only is valid here; relationships are optional",
+        111,
+        "public function must return a Query (annotation or trailing Query(...))",
       )
-      println_reference_line(
-        src,
-        23,
-        "not a supported shape (not scalar, *Identities, *Relationships, *Attributes, or entity with identities)",
-      )
-      println_reference_line(
-        src,
-        37,
-        "plain struct: not a supported squeal schema type",
-      )
-      println_reference_line(
-        src,
-        54,
-        "multi-variant type: only scalar enums or *Identities may have multiple variants here",
-      )
-      println_reference_line(
-        src,
-        69,
-        "zero-variant public type is not a supported squeal shape",
-      )
-      println_reference_line(
-        src,
-        95,
-        "public function must be a Query spec with typed parameters (if types are reached)",
-      )
+      println_valid_query_spec_example()
       io.println("========================================================\n")
       Nil
     }

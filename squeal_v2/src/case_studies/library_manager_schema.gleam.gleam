@@ -27,8 +27,15 @@ pub type Tag {
     updated_at: timestamp.Timestamp,
     label: String,
     emoji: option.Option(String),
+    identities: TagIdentities
   )
 }
+
+pub type TagIdentities {
+  ByLabel(label: String)
+}
+
+
 
 // should I think about types for this?
 // without path nor XYZ is invalid?
@@ -45,28 +52,37 @@ pub type TrackBucket {
     // tag with a numeric param
     tags: List(#(Tag, Int)),
     // implies join table
+    identities: TrackBucketIdentities
   )
 }
 
+pub type TrackBucketIdentities {
+  ByTitleAndArtist(title: String, artist: String)
+}
 
 
 // persisted in db
 pub type Tab {
-  FilterTab(
+  Tab(
     label: Exclusive(String),
     order: Float,
-    filter_config: Scalar(FilterConfig),
+    view_config: ViewConfigScalar,
+    identities: TabIdentities
   )
-  SourceTab(label: Exclusive(String), order: Float, source_selector: String)
+  // SourceTab(label: Exclusive(String), order: Float, source_selector: String)
   // = flat data
 }
+// later: unions
+// later: trees
 
+pub type TabIdentities {
+  ByLabel(label: String)
+}
 
 // scalar is a single value, like a string, a number, a boolean, etc, not another object type in the db
 // custom scalars could also be vectors
 // scalars have their own implementaiton - to / from sql I guess
 
-pub type FilterConfig
 
 // todo: boolean filter structure
 // list of sources
