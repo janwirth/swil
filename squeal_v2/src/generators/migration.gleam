@@ -4,9 +4,9 @@ import gleam/option.{Some}
 import gleam/result as gleam_result
 import gleam/string
 
-import generator/gleamgen_emit
-import generator/schema_context
-import generator/sql_types
+import generators/gleamgen_emit
+import generators/schema_context
+import generators/sql_types
 
 import gleamgen/expression as gex
 import gleamgen/expression/block as gblock
@@ -16,7 +16,7 @@ import gleamgen/module as gmod
 import gleamgen/parameter as gparam
 import gleamgen/types as gtypes
 
-import help/migrate as migration_help
+import generators/help/migrate as migration_help
 import sqlight
 
 pub fn generate(module: String) -> String {
