@@ -1,4 +1,5 @@
-import gleam/option
+import dsl
+import gleam/option.{type Option, Some, None}
 
 pub type Fruit {
   Fruit(
@@ -12,4 +13,13 @@ pub type Fruit {
 
 pub type FruitIdentities {
   ByName(name: String)
+}
+
+
+pub fn query_cheap_fruit(max_price: Float, fruit: Fruit) {
+    dsl.Query(
+        shape: fruit,
+        filter: Some(dsl.exclude_if_missing(fruit.price) <. max_price),
+        order: dsl.order_by(fruit.price, dsl.Asc),
+    )
 }

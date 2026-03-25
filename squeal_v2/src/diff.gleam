@@ -1,3 +1,5 @@
+/// from jak's birdie library
+
 import gleam/dict.{type Dict}
 import gleam/list
 import gleam/option.{type Option, None, Some}
