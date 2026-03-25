@@ -20,7 +20,16 @@ pub fn generate(import_path: String, def: SchemaDefinition) -> String {
     list.map(def.scalars, fn(s) { s.type_name })
     |> list.sort(string.compare)
   let ctx = TypeCtx(schema_alias:, entity_names:, scalar_names:)
-  let import_types = string.join(entity_names, ", type ")
+  let type_import_inner =
+    string.join(list.map(entity_names, fn(e) { "type " <> e }), ", ")
+  let schema_type_import_lines = case list.length(entity_names) <= 2 {
+    True -> ["import " <> import_path <> ".{" <> type_import_inner <> "}"]
+    False -> [
+      "import " <> import_path <> ".{",
+      "  " <> type_import_inner <> ",",
+      "}",
+    ]
+  }
   let entities_sorted =
     list.sort(def.entities, fn(a, b) {
       string.compare(a.type_name, b.type_name)
@@ -43,8 +52,8 @@ pub fn generate(import_path: String, def: SchemaDefinition) -> String {
 
   let prefix =
     list.flatten([
+      schema_type_import_lines,
       [
-        "import " <> import_path <> ".{type " <> import_types <> "}",
         "import dsl",
         "import gleam/option",
       ],
