@@ -1,3 +1,5 @@
+import generators/pragma_migration_data
+import generators/pragma_migration_emit
 import generators/sql_types
 import glance
 import gleam/int
@@ -29,11 +31,11 @@ pub fn generate_migration(
   }
 }
 
-fn entity_table_name(entity_type: String) -> String {
+pub fn entity_table_name(entity_type: String) -> String {
   string.lowercase(entity_type)
 }
 
-fn type_is_list(t: glance.Type) -> Bool {
+pub fn type_is_list(t: glance.Type) -> Bool {
   case t {
     glance.NamedType(_, "List", _, _) -> True
     _ -> False
@@ -99,7 +101,7 @@ fn entity_ddl(schema: SchemaDefinition, entity: EntityDefinition) -> String {
   create_table <> "\n" <> create_index
 }
 
-fn pragma_affinity_upper(type_: glance.Type) -> String {
+pub fn pragma_affinity_upper(type_: glance.Type) -> String {
   case ddl_sql_type(type_) {
     "integer" -> "INTEGER"
     "text" -> "TEXT"
@@ -108,7 +110,7 @@ fn pragma_affinity_upper(type_: glance.Type) -> String {
   }
 }
 
-fn build_create_table_sql(
+pub fn build_create_table_sql(
   table: String,
   data_fields: List(FieldDefinition),
 ) -> String {
@@ -133,7 +135,7 @@ fn build_create_table_sql(
   <> "\n);"
 }
 
-fn build_expected_table_info(rows: List(#(String, String, Int, Int))) -> String {
+pub fn build_expected_table_info(rows: List(#(String, String, Int, Int))) -> String {
   let body =
     rows
     |> list.index_map(fn(row, cid) {
@@ -152,7 +154,7 @@ fn build_expected_table_info(rows: List(#(String, String, Int, Int))) -> String 
   "cid\tname\ttype\tnotnull\tdflt_value\tpk\n" <> body
 }
 
-fn label_to_cid(full: List(String), label: String) -> Int {
+pub fn label_to_cid(full: List(String), label: String) -> Int {
   let assert Ok(#(i, _)) =
     full
     |> list.index_map(fn(name, idx) { #(idx, name) })
@@ -160,7 +162,7 @@ fn label_to_cid(full: List(String), label: String) -> Int {
   i
 }
 
-fn build_expected_index_info(
+pub fn build_expected_index_info(
   id_fields: List(FieldDefinition),
   full_col_names: List(String),
 ) -> String {
@@ -174,20 +176,17 @@ fn build_expected_index_info(
   "seqno\tcid\tname\n" <> body
 }
 
-fn gleam_quote(s: String) -> String {
+fn pragma_gleam_quote(s: String) -> String {
   "\"" <> s <> "\""
 }
 
-/// Gleam source for a single-entity pragma reconcile blueprint like
-/// `example_migration_fruit` / `example_migration_animal`. [module_tag] appears in
-/// panic strings (e.g. `example_migration_fruit`).
-pub fn generate_pragma_migration_module(
+fn build_pragma_migration_data(
   schema: SchemaDefinition,
   module_tag: String,
-) -> String {
+) -> pragma_migration_data.PragmaMigrationData {
   let assert [entity] = schema.entities
   let table = entity_table_name(entity.type_name)
-  let col_type = entity.type_name <> "Col"
+  let col_type = string.append(entity.type_name, "Col")
   let assert Ok(identity_type) =
     list.find(schema.identities, fn(i) {
       i.type_name == entity.identity_type_name
@@ -237,350 +236,66 @@ pub fn generate_pragma_migration_module(
     "seq\tname\tunique\torigin\tpartial\n0\t" <> index_name <> "\t1\tc\t0"
   let expected_index_info =
     build_expected_index_info(variant.fields, full_col_names)
-  let columns_wanted_lines =
-    wanted_rows
-    |> list.map(fn(row) {
-      let #(n, t, nn, pk) = row
-      "  "
-      <> col_type
-      <> "("
-      <> gleam_quote(n)
-      <> ", "
-      <> gleam_quote(t)
-      <> ", "
-      <> int.to_string(nn)
-      <> ", "
-      <> int.to_string(pk)
-      <> "),"
-    })
-    |> string.join("\n")
-  let conn_t = "(conn, " <> gleam_quote(table) <> ")"
-  let conn_index = "(conn, " <> gleam_quote(index_name) <> ")"
-  let panic_no_fix = gleam_quote(module_tag <> ": no column fix applies")
-  let panic_no_conv =
-    gleam_quote(module_tag <> ": column reconcile did not converge")
-  let apply_one_none_panic = case
-    string.length("            None -> panic as " <> panic_no_fix) > 79
-  {
-    True -> "            None ->\n              panic as " <> panic_no_fix
-    False -> "            None -> panic as " <> panic_no_fix
+  let panic_lit =
+    pragma_gleam_quote(module_tag <> ": no column fix applies")
+  let none_panic_line =
+    "            None -> panic as " <> panic_lit
+  let apply_one_none_panic = case string.length(none_panic_line) > 79 {
+    True ->
+      string.join(
+        [
+          "            None ->",
+          "              panic as " <> panic_lit,
+        ],
+        "\n",
+      )
+    False -> none_panic_line
   }
-  let table_info_rows_try_line =
+  let conn_t =
+    "(conn, " <> pragma_gleam_quote(table) <> ")"
+  let table_info_try =
     "      use rows <- result.try(sqlite_pragma_assert.table_info_rows"
     <> conn_t
     <> "))"
-  let reconcile_table_info_rows_stmt = case
-    string.length(table_info_rows_try_line) > 81
-  {
+  let reconcile_table_info_rows_stmt = case string.length(table_info_try) > 81 {
     True ->
-      "      use rows <- result.try(sqlite_pragma_assert.table_info_rows(\n"
-      <> "        conn,\n"
-      <> "        "
-      <> gleam_quote(table)
-      <> ",\n"
-      <> "      ))"
-    False -> table_info_rows_try_line
+      string.join(
+        [
+          "      use rows <- result.try(sqlite_pragma_assert.table_info_rows(",
+          "        conn,",
+          "        " <> pragma_gleam_quote(table) <> ",",
+          "      ))",
+        ],
+        "\n",
+      )
+    False -> table_info_try
   }
+  let panic_no_conv =
+    pragma_gleam_quote(module_tag <> ": column reconcile did not converge")
 
-  string.join(
-    [
-      "//// Blueprint for a generated `migrate`: introspect user tables and `"
-        <> table
-        <> "` columns /",
-      "//// indexes, then move to the desired state using `ALTER TABLE` only (add / drop column),",
-      "//// never `DROP TABLE` / `CREATE TABLE` for shape fixes once `"
-        <> table
-        <> "` exists.",
-      "",
-      "import gleam/dynamic/decode",
-      "import gleam/list",
-      "import gleam/option.{type Option, None, Some}",
-      "import gleam/result",
-      "import gleam/string",
-      "import sqlight",
-      "import sqlite_pragma_assert.{type TableInfoRow}",
-      "",
-      "const create_" <> table <> "_table_sql = \"" <> create_table_sql <> "\"",
-      "",
-      "const create_"
-        <> table
-        <> "_by_"
-        <> index_suffix
-        <> "_index_sql = \""
-        <> create_index_sql
-        <> "\"",
-      "",
-      "const expected_table_info = \"" <> expected_table_info <> "\"",
-      "",
-      "const expected_index_list = \"" <> expected_index_list <> "\"",
-      "",
-      "const expected_index_info = \"" <> expected_index_info <> "\"",
-      "",
-      "type " <> col_type <> " {",
-      "  " <> col_type <> "(name: String, type_: String, notnull: Int, pk: Int)",
-      "}",
-      "",
-      "const " <> table <> "_columns_wanted = [",
-      columns_wanted_lines,
-      "]",
-      "",
-      "fn pragma_index_name_origin_rows(",
-      "  conn: sqlight.Connection,",
-      "  table: String,",
-      ") -> Result(List(#(String, String)), sqlight.Error) {",
-      "  sqlight.query(",
-      "    \"pragma index_list(\" <> table <> \")\",",
-      "    on: conn,",
-      "    with: [],",
-      "    expecting: {",
-      "      use name <- decode.field(1, decode.string)",
-      "      use origin <- decode.field(3, decode.string)",
-      "      decode.success(#(name, origin))",
-      "    },",
-      "  )",
-      "}",
-      "",
-      "fn drop_surplus_user_indexes_on_" <> table <> "(",
-      "  conn: sqlight.Connection,",
-      ") -> Result(Nil, sqlight.Error) {",
-      "  use rows <- result.try(pragma_index_name_origin_rows" <> conn_t <> ")",
-      "  list.try_each(rows, fn(pair) {",
-      "    let #(name, origin) = pair",
-      "    case origin == "
-        <> gleam_quote("c")
-        <> " && name != "
-        <> gleam_quote(index_name)
-        <> " {",
-      "      True -> sqlight.exec(\"drop index if exists \" <> name <> \";\", conn)",
-      "      False -> Ok(Nil)",
-      "    }",
-      "  })",
-      "}",
-      "",
-      "fn type_matches(expected: String, got: String) -> Bool {",
-      "  string.uppercase(got) == expected",
-      "}",
-      "",
-      "fn "
-        <> table
-        <> "_row_matches(want: "
-        <> col_type
-        <> ", got: TableInfoRow) -> Bool {",
-      "  want.name == got.name",
-      "  && type_matches(want.type_, got.type_)",
-      "  && want.notnull == got.notnull",
-      "  && want.pk == got.pk",
-      "  && case want.notnull {",
-      "    0 -> got.dflt == None || got.dflt == Some(\"\")",
-      "    _ -> True",
-      "  }",
-      "}",
-      "",
-      "fn first_surplus_column(",
-      "  rows: List(TableInfoRow),",
-      "  wanted: List(" <> col_type <> "),",
-      ") -> Option(String) {",
-      "  case",
-      "    list.find(rows, fn(r) { !list.any(wanted, fn(w) { w.name == r.name }) })",
-      "  {",
-      "    Ok(r) -> Some(r.name)",
-      "    Error(Nil) -> None",
-      "  }",
-      "}",
-      "",
-      "fn first_mismatched_column_name(",
-      "  rows: List(TableInfoRow),",
-      "  wanted: List(" <> col_type <> "),",
-      ") -> Option(String) {",
-      "  case",
-      "    list.find_map(wanted, fn(w) {",
-      "      case list.find(rows, fn(r) { r.name == w.name }) {",
-      "        Error(Nil) -> Error(Nil)",
-      "        Ok(row) ->",
-      "          case " <> table <> "_row_matches(w, row) {",
-      "            True -> Error(Nil)",
-      "            False -> Ok(w.name)",
-      "          }",
-      "      }",
-      "    })",
-      "  {",
-      "    Ok(name) -> Some(name)",
-      "    Error(Nil) -> None",
-      "  }",
-      "}",
-      "",
-      "fn first_missing_column(",
-      "  rows: List(TableInfoRow),",
-      "  wanted: List(" <> col_type <> "),",
-      ") -> Option(" <> col_type <> ") {",
-      "  case",
-      "    list.find(wanted, fn(w) { !list.any(rows, fn(r) { r.name == w.name }) })",
-      "  {",
-      "    Ok(w) -> Some(w)",
-      "    Error(Nil) -> None",
-      "  }",
-      "}",
-      "",
-      "fn alter_add_"
-        <> table
-        <> "_column_sql(w: "
-        <> col_type
-        <> ") -> String {",
-      "  let fragment = case w.name {",
-      "    \"id\" -> \"integer primary key autoincrement not null\"",
-      "    \"deleted_at\" -> \"integer\"",
-      "    _ ->",
-      "      case string.uppercase(w.type_) {",
-      "        \"INTEGER\" -> \"integer\"",
-      "        \"TEXT\" -> \"text\"",
-      "        \"REAL\" -> \"real\"",
-      "        _ -> \"text\"",
-      "      }",
-      "      <> case w.notnull {",
-      "        1 -> \" not null\"",
-      "        _ -> \"\"",
-      "      }",
-      "  }",
-      "  \"alter table "
-        <> table
-        <> " add column \" <> w.name <> \" \" <> fragment <> \";\"",
-      "}",
-      "",
-      "fn apply_one_" <> table <> "_column_fix(",
-      "  conn: sqlight.Connection,",
-      "  rows: List(TableInfoRow),",
-      ") -> Result(Nil, sqlight.Error) {",
-      "  case first_surplus_column(rows, " <> table <> "_columns_wanted) {",
-      "    Some(name) ->",
-      "      sqlight.exec(\"alter table "
-        <> table
-        <> " drop column \" <> name <> \";\", conn)",
-      "    None ->",
-      "      case first_mismatched_column_name(rows, "
-        <> table
-        <> "_columns_wanted) {",
-      "        Some(name) ->",
-      "          sqlight.exec(\"alter table "
-        <> table
-        <> " drop column \" <> name <> \";\", conn)",
-      "        None ->",
-      "          case first_missing_column(rows, "
-        <> table
-        <> "_columns_wanted) {",
-      "            Some(w) -> sqlight.exec(alter_add_"
-        <> table
-        <> "_column_sql(w), conn)",
-      apply_one_none_panic,
-      "          }",
-      "      }",
-      "  }",
-      "}",
-      "",
-      "fn reconcile_" <> table <> "_columns_loop(",
-      "  conn: sqlight.Connection,",
-      "  iter: Int,",
-      ") -> Result(Nil, sqlight.Error) {",
-      "  case iter > 64 {",
-      "    True ->",
-      "      panic as " <> panic_no_conv,
-      "    False -> {",
-      reconcile_table_info_rows_stmt,
-      "      case",
-      "        list.length(rows) == list.length(" <> table <> "_columns_wanted)",
-      "        && list.all(" <> table <> "_columns_wanted, fn(w) {",
-      "          case list.find(rows, fn(r) { r.name == w.name }) {",
-      "            Ok(row) -> " <> table <> "_row_matches(w, row)",
-      "            Error(Nil) -> False",
-      "          }",
-      "        })",
-      "      {",
-      "        True -> Ok(Nil)",
-      "        False -> {",
-      "          use _ <- result.try(apply_one_"
-        <> table
-        <> "_column_fix(conn, rows))",
-      "          reconcile_" <> table <> "_columns_loop(conn, iter + 1)",
-      "        }",
-      "      }",
-      "    }",
-      "  }",
-      "}",
-      "",
-      "fn ensure_"
-        <> table
-        <> "_table(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {",
-      "  use tables <- result.try(sqlite_pragma_assert.user_table_names(conn))",
-      "  case list.contains(tables, " <> gleam_quote(table) <> ") {",
-      "    False -> sqlight.exec(create_" <> table <> "_table_sql, conn)",
-      "    True -> reconcile_" <> table <> "_columns_loop(conn, 0)",
-      "  }",
-      "}",
-      "",
-      "fn ensure_"
-        <> table
-        <> "_indexes(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {",
-      "  use _ <- result.try(drop_surplus_user_indexes_on_"
-        <> table
-        <> "(conn))",
-      "  case",
-      "    sqlite_pragma_assert.index_list_tsv" <> conn_t <> ",",
-      "    sqlite_pragma_assert.index_info_tsv" <> conn_index,
-      "  {",
-      "    Ok(list_tsv), Ok(info_tsv) ->",
-      "      case list_tsv == expected_index_list && info_tsv == expected_index_info {",
-      "        True -> Ok(Nil)",
-      "        False -> {",
-      "          use _ <- result.try(sqlight.exec(",
-      "            \"drop index if exists " <> index_name <> ";\",",
-      "            conn,",
-      "          ))",
-      "          sqlight.exec(create_"
-        <> table
-        <> "_by_"
-        <> index_suffix
-        <> "_index_sql, conn)",
-      "        }",
-      "      }",
-      "    _, _ -> {",
-      "      use _ <- result.try(sqlight.exec(",
-      "        \"drop index if exists " <> index_name <> ";\",",
-      "        conn,",
-      "      ))",
-      "      sqlight.exec(create_"
-        <> table
-        <> "_by_"
-        <> index_suffix
-        <> "_index_sql, conn)",
-      "    }",
-      "  }",
-      "}",
-      "",
-      "/// Applies this version: remove non-"
-        <> table
-        <> " user tables, align `"
-        <> table
-        <> "` columns and",
-      "/// identity indexes to the expected shape, then verify with pragmas.",
-      "pub fn migration(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {",
-      "  use _ <- result.try(sqlite_pragma_assert.drop_user_tables_except(",
-      "    conn,",
-      "    " <> gleam_quote(table) <> ",",
-      "  ))",
-      "  use _ <- result.try(ensure_" <> table <> "_table(conn))",
-      "  use _ <- result.try(ensure_" <> table <> "_indexes(conn))",
-      "  sqlite_pragma_assert.assert_pragma_snapshot(",
-      "    conn,",
-      "    [" <> gleam_quote(table) <> "],",
-      "    " <> gleam_quote(table) <> ",",
-      "    expected_table_info,",
-      "    expected_index_list,",
-      "    " <> gleam_quote(index_name) <> ",",
-      "    expected_index_info,",
-      "  )",
-      "  Ok(Nil)",
-      "}",
-    ],
-    "\n",
+  pragma_migration_data.PragmaMigrationData(
+    table:,
+    col_type:,
+    index_suffix:,
+    index_name:,
+    create_table_sql:,
+    create_index_sql:,
+    expected_table_info:,
+    expected_index_list:,
+    expected_index_info:,
+    wanted_rows:,
+    apply_one_none_panic:,
+    reconcile_table_info_rows_stmt:,
+    panic_no_conv:,
   )
-  <> "\n"
+}
+
+/// Gleam source for a single-entity pragma reconcile blueprint like
+/// `example_migration_fruit` / `example_migration_animal`. [module_tag] appears in
+/// panic strings (e.g. `example_migration_fruit`).
+pub fn generate_pragma_migration_module(
+  schema: SchemaDefinition,
+  module_tag: String,
+) -> String {
+  pragma_migration_emit.emit(build_pragma_migration_data(schema, module_tag))
 }
