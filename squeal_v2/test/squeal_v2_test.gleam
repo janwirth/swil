@@ -1,10 +1,11 @@
-import gleeunit
 import case_studies/hippo_db_skeleton as hippo_db
+import case_studies/hippo_schema
 import generator.{generate, parse}
-import simplifile
-import sqlight
 import gleam/option
 import gleam/time/calendar
+import gleeunit
+import simplifile
+import sqlight
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -28,12 +29,29 @@ pub fn hippo_skeleton_api_consumer_completeness_test() {
   // multiple migrations should be idempotent
   let assert Ok(_) = hippo_db.migrate(conn)
 
-  let assert Ok(hippo) = hippo_db.upsert_hippo_by_name_and_date_of_birth(conn, "Test Hippo", calendar.Date(year: 2020, month: calendar.February, day: 1), option.Some(True))
+  let assert Ok(girl) =
+    hippo_db.upsert_hippo_by_name_and_date_of_birth(
+      conn,
+      "Test Hippo",
+      calendar.Date(year: 2020, month: calendar.February, day: 1),
+      option.Some(hippo_schema.Female),
+    )
+  let assert Ok(boy) =
+    hippo_db.upsert_hippo_by_name_and_date_of_birth(
+      conn,
+      "Test Hippo",
+      calendar.Date(year: 2020, month: calendar.February, day: 1),
+      option.Some(hippo_schema.Male),
+    )
 
-  let assert Ok(human) = hippo_db.upsert_human_by_email(conn, "test@example.com", option.Some("Test User"))
-  let assert Ok(_) = hippo_db.query_hippos_by_gender(conn, hippo_schema.Gender.Male)
+  let assert Ok(human) =
+    hippo_db.upsert_human_by_email(
+      conn,
+      "test@example.com",
+      option.Some("Test User"),
+    )
+  let assert Ok([one]) = hippo_db.query_hippos_by_gender(conn, hippo_schema.Male)
   let assert Ok(_) = hippo_db.delete_human_by_email(conn, "test@example.com")
-
 
   sqlight.close(conn)
 }

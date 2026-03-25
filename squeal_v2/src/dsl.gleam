@@ -1,6 +1,6 @@
 import gleam/option.{type Option}
-import gleam/time/timestamp.{type Timestamp}
 import gleam/time/calendar.{type Date}
+import gleam/time/timestamp.{type Timestamp}
 
 // these functions implementations are expanded into individual queries when done
 // idempotent migrations _may_ work
@@ -13,13 +13,14 @@ pub type Mutual(a, attributes) {
   Mutual(item: a)
   // maps to same field
 }
+
 pub type MutualWith(a, attributes) {
   MutualWith(item: a, attributes: Option(attributes))
 }
 
 pub type BelongsTo(a) {
   BelongsTo(item: a)
-} 
+}
 
 pub type BelongsToWith(a, attributes) {
   BelongsToWith(item: a, attributes: Option(attributes))
@@ -40,7 +41,6 @@ pub fn exclude_if_missing(some_val: option.Option(some_type)) -> some_type {
 pub fn nullable(some_val: option.Option(some_type)) -> some_type {
   todo
 }
-
 
 // then it generates a query that just writes sql amd has a decoder for the right fields
 
@@ -69,6 +69,7 @@ pub type MagicFields {
     deleted_at: Option(Timestamp),
   )
 }
+
 pub type Direction {
   Asc
   Desc

@@ -1,24 +1,115 @@
-# squeal_v2
+# Squeal experiment v2
 
-[![Package Version](https://img.shields.io/hexpm/v/squeal_v2)](https://hex.pm/packages/squeal_v2)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/squeal_v2/)
+New assumpitons
 
-```sh
-gleam add squeal_v2@1
-```
-```gleam
-import squeal_v2
+- 1 file
+- dsl that instructs code generator.
+- outside of there it's direct funciton calls. basta
+  - migrations
+  - mutation
+  - query
 
-pub fn main() -> Nil {
-  // TODO: An example of the project in use
+## Approach
+
+- validate
+- migrate
+- mutate
+- query
+
+- syntax module
+  - reads spec
+  - validates
+  - creates todo block
+
+- Build case studies
+- cover each module independently, breadth
+- first
+- avoid cake
+- it's better when code is written by hand, as in, viewed as 'competing' module
+- gleamgan can stay but will become a thin layer arounnd sql that gets executed
+
+## Focus
+
+Reference: geldata (ex edgedb) code generation for typescript
+
+- call functions, get back typed data.
+
+- Dev-Friendly for now (me and user bc less complexity - just works)
+  - no mgirations
+
+## Out of scope
+
+- decentralized
+  - soft delete
+  - syncing / WAL merge whatever
+
+# squeal
+
+Write types, get sqlite access
+Opinionated
+Soft deletes
+All fields optional (idemptotent migrations)
+
+Declarative identities
+Unique index / identities can not be dropped
+
+Check out the examples
+
+## Usage
+
+```cat_schema.gleam
+
+type Cat {
+    age:...
+
 }
+// copy this example from tests?
+
+
 ```
 
-Further documentation can be found at <https://hexdocs.pm/squeal_v2>.
+Auto-generates during gleam dev cat_db. which you can use
 
-## Development
+```
 
-```sh
-gleam run   # Run the project
-gleam test  # Run the tests
+import cat_db.gleam
+```
+
+## CLI
+
+Generate a SQLite access layer from a schema module:
+
+```bash
+gleam run -m squeal -- cat_schema
+```
+
+This reads `src/cat_schema.gleam` and writes generated files to the layer
+derived from the first schema type name as `<type>_db` (for example `src/cat_db/`).
+
+Common commands:
+
+```bash
+# Generate cat DB layer
+gleam run -m squeal -- cat_schema
+
+# Generate dog DB layer
+gleam run -m squeal -- dog_schema
+
+# Regenerate cat + dog ORM layers in one step
+gleam run -m regenerate_orm_layers
+```
+
+## Testing with generated ORM code
+
+For ORM integration tests (`cat_orm_test` / `dog_orm_test`), regenerate before
+test compile:
+
+```bash
+bun run test
+```
+
+Equivalent manual flow:
+
+```bash
+gleam run -m regenerate_orm_layers && gleam test
 ```

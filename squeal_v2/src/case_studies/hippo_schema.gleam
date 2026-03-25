@@ -1,10 +1,9 @@
-import gleam/option
 import dsl.{
-  type BacklinkWith, type BelongsTo, type Mutual, Desc, Query,
-  age, exclude_if_missing, nullable,
+  type BacklinkWith, type BelongsTo, type Mutual, Desc, Query, age,
+  exclude_if_missing, nullable,
 }
+import gleam/option
 import gleam/time/calendar.{type Date}
-
 
 /// Example schema module.
 ///
@@ -27,10 +26,9 @@ pub type HippoRelationships {
     owner: option.Option(BelongsTo(Human)),
   )
 }
+
 pub type FriendshipAttributes {
-  FriendshipAttributes(
-    since: Date,
-  )
+  FriendshipAttributes(since: Date)
 }
 
 /// Identities define unique upsert/delete keys.
