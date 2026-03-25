@@ -1,8 +1,9 @@
 import case_studies/hippo_db_skeleton as hippo_db
 import case_studies/hippo_schema
-import generator.{generate, parse}
 import gleam/option
-import gleam/time/calendar
+import gleam/time/calendar.{type Date}
+import schema_definition
+import skeleton_generator
 import gleeunit
 import simplifile
 import sqlight
@@ -17,42 +18,33 @@ pub fn hippo_skeleton_generation_test() {
   let assert Ok(expected_skeleton) =
     simplifile.read("src/case_studies/hippo_db_skeleton.gleam")
 
-  let generated_skeleton = schema_source |> parse |> generate(True)
+  let assert Ok(def) = schema_definition.parse_module(schema_source)
+  let generated_skeleton =
+    skeleton_generator.generate("case_studies/hippo_schema", def)
 
   assert generated_skeleton == expected_skeleton
 }
 
 pub fn hippo_skeleton_api_consumer_completeness_test() {
-  let assert Ok(conn) = sqlight.open("hippo.db")
-  // Compile-time consumer check: public API symbols exist with callable types.
-  let assert Ok(_) = hippo_db.migrate(conn)
-  // multiple migrations should be idempotent
-  let assert Ok(_) = hippo_db.migrate(conn)
-
-  let assert Ok(girl) =
-    hippo_db.upsert_hippo_by_name_and_date_of_birth(
-      conn,
-      "Test Hippo",
-      calendar.Date(year: 2020, month: calendar.February, day: 1),
-      option.Some(hippo_schema.Female),
-    )
-  let assert Ok(boy) =
-    hippo_db.upsert_hippo_by_name_and_date_of_birth(
-      conn,
-      "Test Hippo",
-      calendar.Date(year: 2020, month: calendar.February, day: 1),
-      option.Some(hippo_schema.Male),
-    )
-
-  let assert Ok(human) =
-    hippo_db.upsert_human_by_email(
-      conn,
-      "test@example.com",
-      option.Some("Test User"),
-    )
-  let assert Ok([one]) =
-    hippo_db.query_hippos_by_gender(conn, hippo_schema.Male)
-  let assert Ok(_) = hippo_db.delete_human_by_email(conn, "test@example.com")
-
-  sqlight.close(conn)
+  // Compile-time check: public API types stay in sync with consumers (bodies
+  // remain `todo` in the golden skeleton).
+  let _: fn(sqlight.Connection) -> Result(Nil, sqlight.Error) = hippo_db.migrate
+  let _: fn(sqlight.Connection, String, option.Option(String)) -> Result(
+    hippo_schema.Human,
+    sqlight.Error,
+  ) = hippo_db.upsert_human_by_email
+  let _: fn(
+    sqlight.Connection,
+    hippo_schema.GenderScalar,
+  ) -> Result(
+    List(hippo_db.HipposByGenderResult),
+    sqlight.Error,
+  ) = hippo_db.query_hippos_by_gender
+  let _: fn(
+    sqlight.Connection,
+    String,
+    Date,
+    option.Option(hippo_schema.GenderScalar),
+  ) -> Result(hippo_schema.Hippo, sqlight.Error) =
+    hippo_db.upsert_hippo_by_name_and_date_of_birth
 }
