@@ -4,7 +4,7 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
-import schema_diagnostics
+import glance_armstrong
 
 /// Parsed view of a squeal schema module in the **hippo shape** only (see parser rules).
 pub type SchemaDefinition {
@@ -90,11 +90,11 @@ pub type ParseError {
 /// Turn a [`ParseError`](#ParseError) into text using [`schema_diagnostics`](schema_diagnostics.html) (line + caret layout).
 pub fn format_parse_error(source: String, error: ParseError) -> String {
   case error {
-    GlanceError(e) -> schema_diagnostics.format_glance_parse_error(source, e)
+    GlanceError(e) -> glance_armstrong.format_glance_parse_error(source, e)
     UnsupportedSchema(None, message) ->
-      schema_diagnostics.format_diagnostic_without_span(message)
+      glance_armstrong.format_diagnostic_without_span(message)
     UnsupportedSchema(Some(span), message) ->
-      schema_diagnostics.format_source_diagnostic(source, span, message)
+      glance_armstrong.format_source_diagnostic(source, span, message)
   }
 }
 
@@ -123,6 +123,10 @@ fn build_schema_strict(
       }
     },
   ))
+  use _ <- result.try(validate_identity_types_linked_to_entities(
+    buckets.entities,
+    buckets.identities,
+  ))
   use queries <- result.try(extract_query_specs_strict(functions_ordered))
   Ok(SchemaDefinition(
     entities: list.reverse(buckets.entities),
@@ -148,6 +152,45 @@ type Buckets {
 
 fn initial_buckets() -> Buckets {
   Buckets([], [], [], [], [])
+}
+
+fn validate_identity_types_linked_to_entities(
+  entities: List(EntityDefinition),
+  identities: List(IdentityTypeDefinition),
+) -> Result(Nil, ParseError) {
+  let referenced =
+    entities
+    |> list.map(fn(e) { e.identity_type_name })
+  use _ <- result.try(list.try_each(over: identities, with: fn(id) {
+    case list.any(referenced, fn(r) { r == id.type_name }) {
+      True -> Ok(Nil)
+      False ->
+        Error(UnsupportedSchema(
+          None,
+          "*Identities type "
+            <> id.type_name
+            <> " must be the `identities` field on a public entity in this module (or use a `*Scalar` enum for standalone sum types without an entity)",
+        ))
+    }
+  }))
+  list.try_each(over: entities, with: fn(entity) {
+    case
+      list.any(identities, fn(id) {
+        id.type_name == entity.identity_type_name
+      })
+    {
+      True -> Ok(Nil)
+      False ->
+        Error(UnsupportedSchema(
+          None,
+          "entity "
+            <> entity.type_name
+            <> " references "
+            <> entity.identity_type_name
+            <> ", but that public *Identities type is not defined in this module",
+        ))
+    }
+  })
 }
 
 fn insert_custom_type_strict(
@@ -200,7 +243,17 @@ fn classify_strict(ct: glance.CustomType) -> Result(Classified, ParseError) {
     _ -> Ok(Nil)
   })
   case try_scalar_strict(ct) {
-    Some(s) -> Ok(ScalarBucket(s))
+    Some(s) ->
+      case string.ends_with(ct.name, "Scalar") {
+        True -> Ok(ScalarBucket(s))
+        False ->
+          Error(UnsupportedSchema(
+            Some(ct.location),
+            "public scalar enum "
+              <> ct.name
+              <> " must end with `Scalar` (for example GenderScalar); types without that suffix that carry data on variants belong in a `*Identities` type referenced from an entity",
+          ))
+      }
     None ->
       case string.ends_with(ct.name, "Identities") {
         True -> identities_strict(ct)
@@ -218,7 +271,7 @@ fn classify_strict(ct: glance.CustomType) -> Result(Classified, ParseError) {
                         Some(ct.location),
                         "public type "
                         <> ct.name
-                        <> " is not a supported squeal shape (expected entity with required identities, optional relationships, *Identities, *Relationships, *Attributes, or scalar enum)",
+                        <> " is not a supported squeal shape (expected entity with required identities, optional relationships, *Identities, *Relationships, *Attributes, or payload-free enum ending in `Scalar`)",
                       ))
                   }
               }

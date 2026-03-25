@@ -1,4 +1,5 @@
 import gleam/io
+import gleam/string
 import birdie
 import glance
 import gleeunit
@@ -36,6 +37,31 @@ pub fn format_diagnostic_without_span_test() {
   glance_armstrong.format_diagnostic_without_span("Here is some extra test on this")
   |> log
   |> birdie.snap(title: "glance_armstrong diagnostic without span")
+}
+
+pub fn source_diagnostic_with_tips_test() {
+  let line = "pub fn all_tabs() -> List(Tab) {"
+  let source = "\n\n" <> line
+  let start = string.byte_size("\n\n")
+  let span = glance.Span(start, start + string.byte_size(line))
+  let message =
+    "public function must return a Query (annotation or trailing Query(...))"
+  let tips = [
+    "Public query specs must return `Query(...)` (or use a `-> Query` return annotation) and type every parameter.",
+    "For example:\n\npub fn rows_matching_status(row: Row, want: StatusScalar) {\n  Query(shape: option.None, filter: option.None, order: option.None)\n}",
+  ]
+  glance_armstrong.format_source_diagnostic_with_tips(source, span, message, tips)
+  |> log
+  |> birdie.snap(title: "glance_armstrong source diagnostic with tips")
+}
+
+pub fn diagnostic_without_span_with_tips_test() {
+  glance_armstrong.format_diagnostic_without_span_with_tips(
+    "could not load module",
+    ["Check that the path exists.", "Try `gleam deps download`."],
+  )
+  |> log
+  |> birdie.snap(title: "glance_armstrong diagnostic without span with tips")
 }
 
 fn log (a: String) -> String {

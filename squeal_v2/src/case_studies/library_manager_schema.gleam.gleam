@@ -108,25 +108,25 @@ type RouteModal {
 
 // let's think UI
 // first think I see is
-pub fn all_tabs() -> List(Tab) {
-  // select * from tabs
-  // 
+// pub fn all_tabs() -> List(Tab) {
+//   // select * from tabs
+//   // 
 
-  // this comes from DB and is reactive
-  // how do I describe it?
-  // execute sqlite query
-  todo
-}
+//   // this comes from DB and is reactive
+//   // how do I describe it?
+//   // execute sqlite query
+//   todo
+// }
 
-pub fn all_tabs_for_header() -> List(Tab) {
-  // select {label, order} from tabs
-  // order by order
-  todo
-}
+// pub fn all_tabs_for_header() -> List(Tab) {
+//   // select {label, order} from tabs
+//   // order by order
+//   todo
+// }
 
-pub fn select(a, b) -> b {
-  b
-}
+// pub fn select(a, b) -> b {
+//   b
+// }
 
 // pub type Field {
 //     Field
@@ -149,50 +149,50 @@ pub fn select(a, b) -> b {
 // }
 
 
-pub fn select_tabs_for_header(tab: Tab) -> OrderBy(c) {
-  order_by(tab.order, Asc)
-}
+// pub fn select_tabs_for_header(tab: Tab) -> OrderBy(c) {
+//   order_by(tab.order, Asc)
+// }
 
-// query spec - also never executed
-pub fn select_active_tab(tab: Tab) -> OrderBy(c) {
-  NoOrderBy
-  |> filter_single(fn(tab: Tab) -> Bool { tab.label == Exclusive("Active") })
-}
+// // query spec - also never executed
+// pub fn select_active_tab(tab: Tab) -> OrderBy(c) {
+//   NoOrderBy
+//   |> filter_single(fn(tab: Tab) -> Bool { tab.label == Exclusive("Active") })
+// }
 
-// INTERNALS
-// code-generation helpers - never executed
-// query builder
-pub fn filter_single(
-  ord: OrderBy(field),
-  predicate: fn(object_type) -> Bool,
-) -> OrderBy(field) {
-  todo
-}
+// // INTERNALS
+// // code-generation helpers - never executed
+// // query builder
+// pub fn filter_single(
+//   ord: OrderBy(field),
+//   predicate: fn(object_type) -> Bool,
+// ) -> OrderBy(field) {
+//   todo
+// }
 
-pub fn query(select: fn(object_type) -> OrderBy(field)) -> List(object_type) {
-  // this is query implementation - fetching the 
-  // generated per chema
-  todo
-}
+// pub fn query(select: fn(object_type) -> OrderBy(field)) -> List(object_type) {
+//   // this is query implementation - fetching the 
+//   // generated per chema
+//   todo
+// }
 
-pub fn query_single(
-  select: fn(object_type) -> OrderBy(field),
-) -> option.Option(object_type) {
-  // this is query implementation - fetching the 
-  // actual usage -> generated per schema
-  todo
-}
+// pub fn query_single(
+//   select: fn(object_type) -> OrderBy(field),
+// ) -> option.Option(object_type) {
+//   // this is query implementation - fetching the 
+//   // actual usage -> generated per schema
+//   todo
+// }
 
-// EXAMPLE
-pub fn in_render_example() -> List(Tab) {
-  // can I sync exec this?
-  // yes against sqlite inmem
-  // sync exec this in runtime
-  let tabs = query(select_tabs_for_header)
-  let active_tab = query_single(select_active_tab)
-  // final parsed results
-  todo
-}
+// // EXAMPLE
+// pub fn in_render_example() -> List(Tab) {
+//   // can I sync exec this?
+//   // yes against sqlite inmem
+//   // sync exec this in runtime
+//   let tabs = query(select_tabs_for_header)
+//   let active_tab = query_single(select_active_tab)
+//   // final parsed results
+//   todo
+// }
 // server components
 // sync query against db connection
 // why? distirbution easier

@@ -1,0 +1,11 @@
+---
+version: 1.5.4
+title: glance_armstrong diagnostic without span with tips
+file: ./test/glance_armstrong_test.gleam
+test_name: diagnostic_without_span_with_tips_test
+---
+   — | <no source location>
+       ^ could not load module
+
+  • Check that the path exists.
+  • Try `gleam deps download`.

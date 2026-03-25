@@ -1,0 +1,15 @@
+---
+version: 1.5.4
+title: glance_armstrong source diagnostic with tips
+file: ./test/glance_armstrong_test.gleam
+test_name: source_diagnostic_with_tips_test
+---
+   3 | pub fn all_tabs() -> List(Tab) {
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ public function must return a Query (annotation or trailing Query(...))
+
+  • Public query specs must return `Query(...)` (or use a `-> Query` return annotation) and type every parameter.
+  • For example:
+
+    pub fn rows_matching_status(row: Row, want: StatusScalar) {
+      Query(shape: option.None, filter: option.None, order: option.None)
+    }

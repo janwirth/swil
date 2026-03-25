@@ -2,11 +2,12 @@
 ///
 /// Spec summary (see `schema_definition` implementation for messages and edge cases):
 ///
-/// 1. **Scalar enum** — every variant is payload-free; at least one variant.
-/// 2. **`*Identities`** — type name ends with `Identities`; variants named `By…`; labelled fields only.
+/// 1. **Scalar enum** — every variant is payload-free; at least one variant; type name ends with `Scalar`.
+/// 2. **`*Identities`** — type name ends with `Identities`; variants named `By…`; labelled fields only; must be the `identities` field on a public entity in the same module.
 /// 3. **Entity** — one variant; constructor name equals the type name; labelled fields only;
 ///    required `identities: …` with a simple type name ending in `Identities`;
 ///    optional `relationships: …` with a simple type name ending in `Relationships`.
+///    See `entity_object_schema_test` for entity / identities edge cases.
 /// 4. **`*Relationships`** — one variant named like the type; labelled fields only.
 /// 5. **`*Attributes`** — one variant named like the type; labelled fields only.
 /// 6. **Public `pub fn` query specs** — every public function must return `Query` (annotated or tail
@@ -26,7 +27,7 @@ pub fn main() -> Nil {
 }
 
 pub fn documented_shape_scalar_enum_parses_test() {
-  let input = "pub type Status {
+  let input = "pub type StatusScalar {
   On
   Off
 }
@@ -36,41 +37,21 @@ pub fn documented_shape_scalar_enum_parses_test() {
   assert def.identities == []
   assert list.length(def.scalars) == 1
   let assert [scalar] = def.scalars
-  assert scalar.type_name == "Status"
+  assert scalar.type_name == "StatusScalar"
   assert list.sort(scalar.variant_names, string.compare) == ["Off", "On"]
 }
 
-pub fn documented_shape_identities_type_parses_test() {
+pub fn standalone_identities_without_entity_rejected_test() {
   let input = "pub type RowIdentities {
   ByName(name: String)
   ById(id: Int)
 }
 "
-  let assert Ok(def) = schema_definition.parse_module(input)
-  assert list.length(def.identities) == 1
-  let assert [id] = def.identities
-  assert id.type_name == "RowIdentities"
-  assert list.length(id.variants) == 2
-}
-
-pub fn documented_shape_entity_identities_only_parses_test() {
-  let input = "import gleam/option
-
-pub type Row {
-  Row(name: option.Option(String), identities: RowIdentities)
-}
-
-pub type RowIdentities {
-  ByName(name: String)
-}
-"
-  let assert Ok(def) = schema_definition.parse_module(input)
-  assert list.length(def.entities) == 1
-  let assert [entity] = def.entities
-  assert entity.type_name == "Row"
-  assert list.length(def.identities) == 1
-  let assert [id] = def.identities
-  assert id.type_name == "RowIdentities"
+  case schema_definition.parse_module(input) {
+    Ok(_) ->
+      panic as "expected *Identities type without a referencing entity to be rejected"
+    Error(_) -> Nil
+  }
 }
 
 pub fn documented_shape_entity_with_relationships_parses_test() {
@@ -130,7 +111,7 @@ pub fn documented_shape_private_type_ignored_parses_test() {
   Secret(x: Int)
 }
 
-pub type Status {
+pub type StatusScalar {
   On
 }
 "
@@ -139,7 +120,7 @@ pub type Status {
   assert def.identities == []
   assert list.length(def.scalars) == 1
   let assert [scalar] = def.scalars
-  assert scalar.type_name == "Status"
+  assert scalar.type_name == "StatusScalar"
 }
 
 pub fn documented_shape_query_tail_call_parses_test() {

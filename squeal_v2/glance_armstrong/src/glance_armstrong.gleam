@@ -31,12 +31,12 @@ pub fn format_source_diagnostic(
             True -> #(c, w)
             False -> #(
               col_clamped,
-              int.max(1, int.min(int.min(raw_w, max_w), 28)),
+              int.max(1, int.min(raw_w, max_w)),
             )
           }
         None -> #(
           col_clamped,
-          int.max(1, int.min(int.min(raw_w, max_w), 28)),
+          int.max(1, int.min(raw_w, max_w)),
         )
       }
       render_gutter_block(line_no, line_text, caret_col, caret_width, message)
@@ -48,10 +48,28 @@ pub fn format_source_diagnostic(
 pub fn format_diagnostic_without_span(message: String) -> String {
   let gutter = "   — | "
   let code_line = gutter <> "<no source location>"
-  let pad = string.byte_size(gutter)
+  let pad = gutter_display_width(gutter)
   let pointer =
     string.repeat(" ", times: pad) <> "^ " <> message
   code_line <> "\n" <> pointer
+}
+
+/// Like [`format_source_diagnostic`](#format_source_diagnostic), then bullet tips (for longer help text).
+pub fn format_source_diagnostic_with_tips(
+  source: String,
+  span: glance.Span,
+  message: String,
+  tips: List(String),
+) -> String {
+  format_source_diagnostic(source, span, message) <> format_tips_suffix(tips)
+}
+
+/// Like [`format_diagnostic_without_span`](#format_diagnostic_without_span), then bullet tips.
+pub fn format_diagnostic_without_span_with_tips(
+  message: String,
+  tips: List(String),
+) -> String {
+  format_diagnostic_without_span(message) <> format_tips_suffix(tips)
 }
 
 pub fn format_glance_parse_error(source: String, error: glance.Error) -> String {
@@ -75,7 +93,7 @@ fn format_unexpected_eof_diagnostic(source: String) -> String {
       )
     Ok(#(line_no, _line_start, line_text)) -> {
       let line_blen = string.byte_size(line_text)
-      let caret_col = int.max(0, line_blen)
+      let caret_col = int.max(0, line_blen - 1)
       render_gutter_block(line_no, line_text, caret_col, 1, "unexpected end of input when parsing Gleam")
     }
   }
@@ -102,11 +120,42 @@ fn render_gutter_block(
   let num = string.pad_start(int.to_string(line_no), to: 4, with: " ")
   let gutter = num <> " | "
   let code_line = gutter <> line_text
-  let pad_width = string.byte_size(gutter) + caret_col
+  let pad_width = gutter_display_width(gutter) + caret_col
   let spaces = string.repeat(" ", times: pad_width)
   let carets = string.repeat("^", times: int.max(1, caret_width))
   let pointer = spaces <> carets <> " " <> message
   code_line <> "\n" <> pointer
+}
+
+fn gutter_display_width(gutter: String) -> Int {
+  string.length(gutter)
+}
+
+fn format_tips_suffix(tips: List(String)) -> String {
+  case tips {
+    [] -> ""
+    lines -> "\n\n" <> format_tip_blocks(lines)
+  }
+}
+
+fn format_tip_blocks(tips: List(String)) -> String {
+  list.map(tips, format_one_tip_block)
+  |> string.join("\n")
+}
+
+fn format_one_tip_block(tip: String) -> String {
+  case string.split(tip, "\n") {
+    [] -> "  • "
+    [first, ..rest] -> {
+      let head = "  • " <> first
+      list.fold(over: rest, from: head, with: fn(acc, line) {
+        case line {
+          "" -> acc <> "\n"
+          _ -> acc <> "\n    " <> line
+        }
+      })
+    }
+  }
 }
 
 fn generic_param_highlight_bytes(line_text: String) -> Option(#(Int, Int)) {

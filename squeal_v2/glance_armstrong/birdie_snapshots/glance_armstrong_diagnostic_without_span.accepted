@@ -5,4 +5,4 @@ file: ./test/glance_armstrong_test.gleam
 test_name: format_diagnostic_without_span_test
 ---
    — | <no source location>
-         ^ Here is some extra test on this
+       ^ Here is some extra test on this
