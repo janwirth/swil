@@ -1,4 +1,5 @@
 import gleam/option
+import dsl
 
 // id / created_at / updated_at / deleted_at come from `dsl.MagicFields`, not the schema type.
 pub type ImportedTrack {
@@ -68,6 +69,22 @@ pub type ViewConfigScalar {
 
 pub type TabIdentities {
   ByTabLabel(label: String)
+}
+
+pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields) {
+  dsl.Query(
+    filter: option.None,
+    order: dsl.order_by(tab_meta.updated_at, dsl.Desc),
+    shape: option.None,
+  )
+}
+
+pub fn query_tracks_by_view_config(track_bucket: TrackBucket, view_config: ViewConfigScalar) {
+  dsl.Query(
+    filter: option.None,
+    order: dsl.order_by(view_config.updated_at, dsl.Desc),
+    shape: option.None,
+  )
 }
 
 // scalar is a single value, like a string, a number, a boolean, etc, not another object type in the db

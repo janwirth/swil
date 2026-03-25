@@ -74,3 +74,7 @@ pub type Direction {
   Asc
   Desc
 }
+
+pub fn order_by(field: field, direction: Direction) -> Option(#(field, Direction)) {
+  option.Some(#(field, direction))
+}

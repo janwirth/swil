@@ -2,6 +2,9 @@
 // fruit vs animal versions, idempotent replays, and switching back and forth.
 import example_migration_animal
 import example_migration_fruit
+import generators/migration
+import schema_definition
+import simplifile
 import sqlight
 const schema1 = "
 import gleam/option
@@ -35,6 +38,24 @@ pub type AnimalIdentities {
     ByName(name: String)
 }
 "
+
+pub fn pragma_migration_codegen_matches_example_blueprints_test() {
+  let assert Ok(fruit_expected) =
+    simplifile.read("src/example_migration_fruit.gleam")
+  let assert Ok(animal_expected) =
+    simplifile.read("src/example_migration_animal.gleam")
+
+  let assert Ok(fruit_def) = schema_definition.parse_module(schema1)
+  let assert Ok(animal_def) = schema_definition.parse_module(schema2)
+
+  let fruit_gleam =
+    migration.generate_pragma_migration_module(fruit_def, "example_migration_fruit")
+  let animal_gleam =
+    migration.generate_pragma_migration_module(animal_def, "example_migration_animal")
+
+  assert fruit_gleam == fruit_expected
+  assert animal_gleam == animal_expected
+}
 
 pub fn idempotent_migration_test() {
   let assert Ok(conn) = sqlight.open(":memory:")
