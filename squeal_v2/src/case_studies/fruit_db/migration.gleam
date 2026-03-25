@@ -2,13 +2,13 @@
 //// indexes, then move to the desired state using `ALTER TABLE` only (add / drop column),
 //// never `DROP TABLE` / `CREATE TABLE` for shape fixes once `fruit` exists.
 
+import gleam/dynamic/decode
+import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/result
 import gleam/string
 import sqlight
 import sqlite_pragma_assert.{type TableInfoRow}
-import gleam/result
-import gleam/list
-import gleam/dynamic/decode
 
 const create_fruit_table_sql = "create table fruit (
   id integer primary key autoincrement not null,

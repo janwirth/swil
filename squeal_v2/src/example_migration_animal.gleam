@@ -7,10 +7,9 @@ import gleam/string
 import sqlight
 import sqlite_pragma_assert.{type TableInfoRow}
 
-import gleam/result
-import gleam/list
 import gleam/dynamic/decode
-
+import gleam/list
+import gleam/result
 
 const create_animal_table_sql = "create table animal (
   id integer primary key autoincrement not null,
