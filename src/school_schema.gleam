@@ -13,14 +13,11 @@ pub type Student {
     // this is a link without attributes
     //! squeal outline outlink: Student -> Class without attributes
     classes: List(Class),
-    
     //! squeal outlink
     best_friend: Option(Student),
-
     //! squeal backlink .best_friend
     best_fiend_of: List(Student),
-
-    friends_book: Scalar(FriendBook)
+    friends_book: Scalar(FriendBook),
   )
 }
 
@@ -35,15 +32,11 @@ pub type Class {
     // any multi ref should prompt the user
     //! squeal backlink: Student -> Class
     students: List(Student),
-
   )
 }
 
-
 pub type FriendBook {
-  FriendBook(
-    friends: List(Student),
-  )
+  FriendBook(friends: List(Student))
 }
 
 pub type Scalar(t) {
@@ -66,5 +59,3 @@ pub fn identities_student(student: Student) {
 pub fn identities_class(class: Class) {
   [identity.Identity2(class.title, class.subject_code)]
 }
-
-

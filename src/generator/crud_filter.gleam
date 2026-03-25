@@ -60,7 +60,9 @@ pub fn generate(ctx: SchemaContext) -> String {
   let frag_str = gex.raw("frag_string")
   let frag_ph = gex.raw("frag_ph")
 
-  let concat_str = fn(parts: List(gex.Expression(String))) -> gex.Expression(String) {
+  let concat_str = fn(parts: List(gex.Expression(String))) -> gex.Expression(
+    String,
+  ) {
     let assert [first, ..rest] = parts
     list.fold(rest, first, fn(acc, p) { gex.concat_string(acc, p) })
   }
@@ -74,8 +76,7 @@ pub fn generate(ctx: SchemaContext) -> String {
       ]),
     )
 
-  let opt_filter_t =
-    gtypes.custom_type(None, "Option", [gtypes.raw("Filter")])
+  let opt_filter_t = gtypes.custom_type(None, "Option", [gtypes.raw("Filter")])
   let sort_param_t =
     gtypes.custom_type(None, "Option", [
       gtypes.custom_type(Some("filter"), "SortOrder", [gtypes.raw(fe)]),
@@ -141,12 +142,10 @@ pub fn generate(ctx: SchemaContext) -> String {
 
   let num_ref_int_pat = fn(label: String) {
     let inner =
-      gpat.from_constructor0(
-        gcon.new(
-          gvariant.new(pascal_case_field_label(label) <> "Int")
-          |> gvariant.to_dynamic,
-        ),
-      )
+      gpat.from_constructor0(gcon.new(
+        gvariant.new(pascal_case_field_label(label) <> "Int")
+        |> gvariant.to_dynamic,
+      ))
     gpat.from_constructor1(
       gcon.new(
         gvariant.new("NumRef")
@@ -161,24 +160,27 @@ pub fn generate(ctx: SchemaContext) -> String {
     let where_value_t = gtypes.custom_type(Some("where"), "WhereValue", [])
     let op_t = gtypes.raw("NumRefOrValue")
     let case_on_op = fn(subject) {
-      let with_col = fn(col: String) {
-        gex.call1(w_col, gex.string(col))
-      }
+      let with_col = fn(col: String) { gex.call1(w_col, gex.string(col)) }
       let schema_cases =
         list.map(numeric_fields(ctx), fn(pair) {
           let #(label, _) = pair
           #(num_ref_int_pat(label), fn(_) { with_col(label) })
         })
       let system_labels = ["id", "created_at", "updated_at", "deleted_at"]
-      let system_suffixes = ["IdInt", "CreatedAtInt", "UpdatedAtInt", "DeletedAtInt"]
+      let system_suffixes = [
+        "IdInt",
+        "CreatedAtInt",
+        "UpdatedAtInt",
+        "DeletedAtInt",
+      ]
       let system_cases =
         list.zip(system_labels, system_suffixes)
         |> list.map(fn(z) {
           let #(col, suffix) = z
           let inner =
-            gpat.from_constructor0(
-              gcon.new(gvariant.new(suffix) |> gvariant.to_dynamic),
-            )
+            gpat.from_constructor0(gcon.new(
+              gvariant.new(suffix) |> gvariant.to_dynamic,
+            ))
           let pat =
             gpat.from_constructor1(
               gcon.new(
@@ -219,21 +221,17 @@ pub fn generate(ctx: SchemaContext) -> String {
       |> gcase.with_pattern(float_val_pat, fn(v) { gex.call1(w_float, v) })
       |> gcase.build_expression()
     }
-    gfun.new1(
-      gparam.new("op", op_t),
-      where_value_t,
-      fn(op_ex) { case_on_op(op_ex) },
-    )
+    gfun.new1(gparam.new("op", op_t), where_value_t, fn(op_ex) {
+      case_on_op(op_ex)
+    })
   }
 
   let string_ref_string_pat = fn(label: String) {
     let inner =
-      gpat.from_constructor0(
-        gcon.new(
-          gvariant.new(pascal_case_field_label(label) <> "String")
-          |> gvariant.to_dynamic,
-        ),
-      )
+      gpat.from_constructor0(gcon.new(
+        gvariant.new(pascal_case_field_label(label) <> "String")
+        |> gvariant.to_dynamic,
+      ))
     gpat.from_constructor1(
       gcon.new(
         gvariant.new("StringRef")
@@ -250,10 +248,9 @@ pub fn generate(ctx: SchemaContext) -> String {
     let schema_cases =
       list.map(string_fields(ctx), fn(pair) {
         let #(label, _) = pair
-        #(
-          string_ref_string_pat(label),
-          fn(_) { gex.tuple2(gex.bool(True), gex.string(label)) },
-        )
+        #(string_ref_string_pat(label), fn(_) {
+          gex.tuple2(gex.bool(True), gex.string(label))
+        })
       })
     let string_value_pat =
       gpat.from_constructor1(
@@ -264,22 +261,18 @@ pub fn generate(ctx: SchemaContext) -> String {
         ),
         gpat.variable("s"),
       )
-    gfun.new1(
-      gparam.new("op", op_t),
-      bool_string,
-      fn(op_ex) {
-        let after_schema =
-          list.fold(schema_cases, gcase.new(op_ex), fn(c, arm) {
-            let #(pat, h) = arm
-            gcase.with_pattern(c, pat, h)
-          })
-        after_schema
-        |> gcase.with_pattern(string_value_pat, fn(s) {
-          gex.tuple2(gex.bool(False), s)
+    gfun.new1(gparam.new("op", op_t), bool_string, fn(op_ex) {
+      let after_schema =
+        list.fold(schema_cases, gcase.new(op_ex), fn(c, arm) {
+          let #(pat, h) = arm
+          gcase.with_pattern(c, pat, h)
         })
-        |> gcase.build_expression()
-      },
-    )
+      after_schema
+      |> gcase.with_pattern(string_value_pat, fn(s) {
+        gex.tuple2(gex.bool(False), s)
+      })
+      |> gcase.build_expression()
+    })
   }
 
   let instr_where_fn = {
@@ -325,11 +318,7 @@ pub fn generate(ctx: SchemaContext) -> String {
                 gex.string(") = 0"),
               ])
             let prepared =
-              gex.call2(
-                frag_prep,
-                sql,
-                gex.list([gex.call1(frag_str, nv)]),
-              )
+              gex.call2(frag_prep, sql, gex.list([gex.call1(frag_str, nv)]))
             gex.call1(w_fragment, prepared)
           },
         )
@@ -349,11 +338,7 @@ pub fn generate(ctx: SchemaContext) -> String {
                 gex.string(") = 0"),
               ])
             let prepared =
-              gex.call2(
-                frag_prep,
-                sql,
-                gex.list([gex.call1(frag_str, hv)]),
-              )
+              gex.call2(frag_prep, sql, gex.list([gex.call1(frag_str, hv)]))
             gex.call1(w_fragment, prepared)
           },
         )
@@ -438,54 +423,47 @@ pub fn generate(ctx: SchemaContext) -> String {
         gpat.list_spread("wheres") |> gpat.to_dynamic,
       )
     }
-    gfun.new1(
-      gparam.new("expr", expr_t),
-      where_t,
-      fn(expr_ex) {
-        gcase.new(expr_ex)
-        |> gcase.with_pattern(p0("filter.LiteralTrue"), fn(_) {
-          gex.call2(w_eq, one, one)
-        })
-        |> gcase.with_pattern(p0("filter.LiteralFalse"), fn(_) {
-          gex.call2(w_eq, one, zero)
-        })
-        |> gcase.with_pattern(p1("filter.Not", "expr"), fn(expr) {
-          gex.call1(w_not, gex.call1(b, expr))
-        })
-        |> gcase.with_pattern(p_and_or_list("filter.And"), fn(_) {
-          gex.call1(
-            w_and,
-            gex.call2(list_map, gex.raw("wheres"), b),
-          )
-        })
-        |> gcase.with_pattern(p_and_or_list("filter.Or"), fn(_) {
-          gex.call1(
-            w_or,
-            gex.call2(list_map, gex.raw("wheres"), b),
-          )
-        })
-        |> gcase.with_pattern(p2("filter.Gt", "left", "right"), fn(pair) {
-          let #(left, right) = pair
-          gex.call2(w_gt, gex.call1(n, left), gex.call1(n, right))
-        })
-        |> gcase.with_pattern(p2("filter.Eq", "left", "right"), fn(pair) {
-          let #(left, right) = pair
-          gex.call2(w_eq, gex.call1(n, left), gex.call1(n, right))
-        })
-        |> gcase.with_pattern(p2("filter.Ne", "left", "right"), fn(pair) {
-          let #(left, right) = pair
-          gex.call1(
-            w_not,
-            gex.call2(w_eq, gex.call1(n, left), gex.call1(n, right)),
-          )
-        })
-        |> gcase.with_pattern(p2("filter.NotContains", "haystack", "needle"), fn(pair) {
+    gfun.new1(gparam.new("expr", expr_t), where_t, fn(expr_ex) {
+      gcase.new(expr_ex)
+      |> gcase.with_pattern(p0("filter.LiteralTrue"), fn(_) {
+        gex.call2(w_eq, one, one)
+      })
+      |> gcase.with_pattern(p0("filter.LiteralFalse"), fn(_) {
+        gex.call2(w_eq, one, zero)
+      })
+      |> gcase.with_pattern(p1("filter.Not", "expr"), fn(expr) {
+        gex.call1(w_not, gex.call1(b, expr))
+      })
+      |> gcase.with_pattern(p_and_or_list("filter.And"), fn(_) {
+        gex.call1(w_and, gex.call2(list_map, gex.raw("wheres"), b))
+      })
+      |> gcase.with_pattern(p_and_or_list("filter.Or"), fn(_) {
+        gex.call1(w_or, gex.call2(list_map, gex.raw("wheres"), b))
+      })
+      |> gcase.with_pattern(p2("filter.Gt", "left", "right"), fn(pair) {
+        let #(left, right) = pair
+        gex.call2(w_gt, gex.call1(n, left), gex.call1(n, right))
+      })
+      |> gcase.with_pattern(p2("filter.Eq", "left", "right"), fn(pair) {
+        let #(left, right) = pair
+        gex.call2(w_eq, gex.call1(n, left), gex.call1(n, right))
+      })
+      |> gcase.with_pattern(p2("filter.Ne", "left", "right"), fn(pair) {
+        let #(left, right) = pair
+        gex.call1(
+          w_not,
+          gex.call2(w_eq, gex.call1(n, left), gex.call1(n, right)),
+        )
+      })
+      |> gcase.with_pattern(
+        p2("filter.NotContains", "haystack", "needle"),
+        fn(pair) {
           let #(haystack, needle) = pair
           gex.call2(i, gex.call1(s, haystack), gex.call1(s, needle))
-        })
-        |> gcase.build_expression()
-      },
-    )
+        },
+      )
+      |> gcase.build_expression()
+    })
   }
 
   gleamgen_emit.render_module(

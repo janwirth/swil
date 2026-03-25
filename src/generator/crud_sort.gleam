@@ -23,14 +23,10 @@ pub fn generate(ctx: SchemaContext) -> String {
     gtypes.custom_type(Some(structure_ref), ctx.field_enum_name, [])
   let fn_name = string.concat([ctx.singular, "_field_sql"])
   let func =
-    gfun.new1(
-      gparam.new("field", field_type),
-      gtypes.string,
-      fn(field_expr) {
-        build_field_sql_case(ctx, structure_ref, field_expr)
-        |> gcase.build_expression()
-      },
-    )
+    gfun.new1(gparam.new("field", field_type), gtypes.string, fn(field_expr) {
+      build_field_sql_case(ctx, structure_ref, field_expr)
+      |> gcase.build_expression()
+    })
   let body =
     gleamgen_emit.render_module(
       gmod.with_function(gleamgen_emit.pub_def(fn_name), func, fn(_) {
@@ -58,46 +54,38 @@ fn build_field_sql_case(
           "Field",
         ])
       let m =
-        gpat.from_constructor0(
-          gcon.new(gvariant.new(variant) |> gvariant.to_dynamic),
-        )
+        gpat.from_constructor0(gcon.new(
+          gvariant.new(variant) |> gvariant.to_dynamic,
+        ))
       #(m, fn(_) { gex.string(label) })
     })
   let system_arms = [
     #(
-      gpat.from_constructor0(
-        gcon.new(
-          gvariant.new(string.concat([structure_ref, ".IdField"]))
-          |> gvariant.to_dynamic,
-        ),
-      ),
+      gpat.from_constructor0(gcon.new(
+        gvariant.new(string.concat([structure_ref, ".IdField"]))
+        |> gvariant.to_dynamic,
+      )),
       fn(_) { gex.string("id") },
     ),
     #(
-      gpat.from_constructor0(
-        gcon.new(
-          gvariant.new(string.concat([structure_ref, ".CreatedAtField"]))
-          |> gvariant.to_dynamic,
-        ),
-      ),
+      gpat.from_constructor0(gcon.new(
+        gvariant.new(string.concat([structure_ref, ".CreatedAtField"]))
+        |> gvariant.to_dynamic,
+      )),
       fn(_) { gex.string("created_at") },
     ),
     #(
-      gpat.from_constructor0(
-        gcon.new(
-          gvariant.new(string.concat([structure_ref, ".UpdatedAtField"]))
-          |> gvariant.to_dynamic,
-        ),
-      ),
+      gpat.from_constructor0(gcon.new(
+        gvariant.new(string.concat([structure_ref, ".UpdatedAtField"]))
+        |> gvariant.to_dynamic,
+      )),
       fn(_) { gex.string("updated_at") },
     ),
     #(
-      gpat.from_constructor0(
-        gcon.new(
-          gvariant.new(string.concat([structure_ref, ".DeletedAtField"]))
-          |> gvariant.to_dynamic,
-        ),
-      ),
+      gpat.from_constructor0(gcon.new(
+        gvariant.new(string.concat([structure_ref, ".DeletedAtField"]))
+        |> gvariant.to_dynamic,
+      )),
       fn(_) { gex.string("deleted_at") },
     ),
   ]

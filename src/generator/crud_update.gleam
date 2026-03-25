@@ -20,9 +20,9 @@ import gleamgen/expression/block as gblock
 import gleamgen/expression/case_ as gcase
 import gleamgen/function as gfun
 import gleamgen/import_ as gim
+import gleamgen/module as gmod
 import gleamgen/parameter as gparam
 import gleamgen/pattern as gpat
-import gleamgen/module as gmod
 import gleamgen/types as gtypes
 
 import help/cake_sql_exec
@@ -50,8 +50,7 @@ pub fn generate(ctx: SchemaContext) -> String {
       [ctx.layer, "structure"],
       "type " <> ctx.row_name <> ", " <> decoder_fn,
     )
-  let schema_mod =
-    gim.new_with_exposing(schema_path, "type " <> ctx.type_name)
+  let schema_mod = gim.new_with_exposing(schema_path, "type " <> ctx.type_name)
 
   let cu_new = gim.function0(cake_update_mod, cake_update.new)
   let cu_table = gim.function2(cake_update_mod, cake_update.table)
@@ -91,9 +90,7 @@ pub fn generate(ctx: SchemaContext) -> String {
   let deleted_null =
     gex.call1(w_is_null, gex.call1(w_col, gex.string("deleted_at")))
 
-  let field_access_raw = fn(label: String) {
-    gex.raw(singular <> "." <> label)
-  }
+  let field_access_raw = fn(label: String) { gex.raw(singular <> "." <> label) }
 
   let update_field_step = fn(
     u_ref: gex.Expression(cake_update.Update(Nil)),
@@ -103,11 +100,7 @@ pub fn generate(ctx: SchemaContext) -> String {
     let acc = field_access_raw(label)
     case sql_types.rendered_type(typ) {
       "Int" ->
-        gex.call2(
-          cu_set,
-          u_ref,
-          gex.call2(cu_set_int, gex.string(label), acc),
-        )
+        gex.call2(cu_set, u_ref, gex.call2(cu_set_int, gex.string(label), acc))
       "Float" ->
         gex.call2(
           cu_set,
@@ -141,11 +134,7 @@ pub fn generate(ctx: SchemaContext) -> String {
       "Option(Int)" ->
         gcase.new(gex.to_dynamic(acc))
         |> gcase.with_pattern(gpat.option_some(gpat.variable("v")), fn(v) {
-          gex.call2(
-            cu_set,
-            u_ref,
-            gex.call2(cu_set_int, gex.string(label), v),
-          )
+          gex.call2(cu_set, u_ref, gex.call2(cu_set_int, gex.string(label), v))
         })
         |> gcase.with_pattern(gpat.option_none(), fn(_) {
           gex.call2(cu_set, u_ref, gex.call1(cu_set_null, gex.string(label)))
@@ -167,11 +156,7 @@ pub fn generate(ctx: SchemaContext) -> String {
       "Option(Bool)" ->
         gcase.new(gex.to_dynamic(acc))
         |> gcase.with_pattern(gpat.option_some(gpat.variable("v")), fn(v) {
-          gex.call2(
-            cu_set,
-            u_ref,
-            gex.call2(cu_set_bool, gex.string(label), v),
-          )
+          gex.call2(cu_set, u_ref, gex.call2(cu_set_bool, gex.string(label), v))
         })
         |> gcase.with_pattern(gpat.option_none(), fn(_) {
           gex.call2(cu_set, u_ref, gex.call1(cu_set_null, gex.string(label)))
@@ -206,10 +191,8 @@ pub fn generate(ctx: SchemaContext) -> String {
       False,
       fn(pair) {
         let now_sec = pair.0
-        let u_table =
-          gex.call2(cu_table, gex.call0(cu_new), gex.string(table))
-        let u_after_fields =
-          list.fold(ctx.fields, u_table, update_field_step)
+        let u_table = gex.call2(cu_table, gex.call0(cu_new), gex.string(table))
+        let u_after_fields = list.fold(ctx.fields, u_table, update_field_step)
         let u_with_stamp =
           gex.call2(
             cu_set,
@@ -222,14 +205,17 @@ pub fn generate(ctx: SchemaContext) -> String {
             gex.call2(
               cu_where,
               u_with_stamp,
-              gex.call1(w_and, gex.list([
-                gex.call2(
-                  w_eq,
-                  gex.call1(w_col, gex.string("id")),
-                  gex.call1(w_int, gex.raw("id")),
-                ),
-                deleted_null,
-              ])),
+              gex.call1(
+                w_and,
+                gex.list([
+                  gex.call2(
+                    w_eq,
+                    gex.call1(w_col, gex.string("id")),
+                    gex.call1(w_int, gex.raw("id")),
+                  ),
+                  deleted_null,
+                ]),
+              ),
             ),
           )
         gex.call3(
@@ -261,11 +247,10 @@ pub fn generate(ctx: SchemaContext) -> String {
               "rows",
               fn(rows) {
                 gcase.new(rows)
-                |> gcase.with_pattern(gpat.list_first_discard_rest("row"), fn(
-                  row,
-                ) {
-                  gex.ok(gex.call1(gex.raw("Some"), row))
-                })
+                |> gcase.with_pattern(
+                  gpat.list_first_discard_rest("row"),
+                  fn(row) { gex.ok(gex.call1(gex.raw("Some"), row)) },
+                )
                 |> gcase.with_pattern(gpat.list_empty(), fn(_) {
                   gex.ok(gex.raw("None"))
                 })
@@ -280,10 +265,7 @@ pub fn generate(ctx: SchemaContext) -> String {
   let update_many_fn =
     gfun.new2(
       gparam.new("conn", conn_t),
-      gparam.new(
-        "rows",
-        gtypes.list(gtypes.tuple2(gtypes.int, schema_t_row)),
-      ),
+      gparam.new("rows", gtypes.list(gtypes.tuple2(gtypes.int, schema_t_row))),
       ret_many,
       fn(conn, rows) {
         gex.call2(
@@ -295,19 +277,11 @@ pub fn generate(ctx: SchemaContext) -> String {
               ret_one,
               fn(row_var) {
                 gblock.with_matching_let_declaration(
-                  gpat.tuple2(
-                    gpat.variable("id"),
-                    gpat.variable(singular),
-                  ),
+                  gpat.tuple2(gpat.variable("id"), gpat.variable(singular)),
                   row_var,
                   False,
                   fn(pair) {
-                    gex.call3(
-                      gex.raw("update_one"),
-                      conn,
-                      pair.0,
-                      pair.1,
-                    )
+                    gex.call3(gex.raw("update_one"), conn, pair.0, pair.1)
                   },
                 )
               },

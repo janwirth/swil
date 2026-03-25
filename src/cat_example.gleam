@@ -6,23 +6,16 @@ import help/filter.{And, Eq, Gt, NotContains}
 import sqlight
 
 pub fn cat_older_than(age: Int) -> cats_crud.Filter {
-  fn(cat: cats.FilterableCat) {
-    Gt(left: cat.age, right: IntVal(value: age))
-  }
+  fn(cat: cats.FilterableCat) { Gt(left: cat.age, right: IntVal(value: age)) }
 }
 
 pub fn cat_age_eq(age: Int) -> cats_crud.Filter {
-  fn(cat: cats.FilterableCat) {
-    Eq(left: cat.age, right: IntVal(value: age))
-  }
+  fn(cat: cats.FilterableCat) { Eq(left: cat.age, right: IntVal(value: age)) }
 }
 
 pub fn cat_name_excludes(substr: String) -> cats_crud.Filter {
   fn(cat: cats.FilterableCat) {
-    NotContains(
-      haystack: cat.name,
-      needle: StrVal(value: substr),
-    )
+    NotContains(haystack: cat.name, needle: StrVal(value: substr))
   }
 }
 
@@ -32,10 +25,8 @@ pub fn cat_older_than_and_name_excludes(
 ) -> cats_crud.Filter {
   fn(cat: cats.FilterableCat) {
     let age_filter = Gt(left: cat.age, right: IntVal(value: age))
-    let name_filter = NotContains(
-      haystack: cat.name,
-      needle: StrVal(value: substr),
-    )
+    let name_filter =
+      NotContains(haystack: cat.name, needle: StrVal(value: substr))
     And(wheres: [age_filter, name_filter])
   }
 }

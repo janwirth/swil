@@ -39,8 +39,7 @@ pub fn generate(ctx: SchemaContext) -> String {
     <> singular
     <> "` (constructor helper).\n\n"
 
-  let option_mod =
-    gim.new_with_exposing(["gleam", "option"], "type Option")
+  let option_mod = gim.new_with_exposing(["gleam", "option"], "type Option")
   let sqlight_mod = gim.new(["sqlight"])
   let crud_mod = gim.new([layer, "crud"])
   let migrate_mod = gim.new([layer, "migrate"])
@@ -52,8 +51,7 @@ pub fn generate(ctx: SchemaContext) -> String {
       "type " <> t <> ", " <> ctx.variant_name,
     )
 
-  let conn_t =
-    gtypes.custom_type(option.Some("sqlight"), "Connection", [])
+  let conn_t = gtypes.custom_type(option.Some("sqlight"), "Connection", [])
   let migrate_ret =
     gtypes.result(
       gtypes.nil,
@@ -115,22 +113,14 @@ pub fn generate(ctx: SchemaContext) -> String {
     )
 
   let table_fn_inner =
-    gfun.new1(
-      gparam.new("conn", conn_t),
-      db_t,
-      fn(_conn) {
-        gex.raw("crud." <> table_fn <> "(conn)")
-      },
-    )
+    gfun.new1(gparam.new("conn", conn_t), db_t, fn(_conn) {
+      gex.raw("crud." <> table_fn <> "(conn)")
+    })
 
   let migrate_fn =
-    gfun.new1(
-      gparam.new("conn", conn_t),
-      migrate_ret,
-      fn(_conn) {
-        gex.raw("migrate.migrate_idempotent(conn)")
-      },
-    )
+    gfun.new1(gparam.new("conn", conn_t), migrate_ret, fn(_conn) {
+      gex.raw("migrate.migrate_idempotent(conn)")
+    })
 
   header
   <> gleamgen_emit.render_module(
@@ -158,31 +148,19 @@ pub fn generate(ctx: SchemaContext) -> String {
                                 gtypes.raw("structure." <> filterable),
                                 fn(_) {
                                   gmod.with_type_alias(
-                                    gleamgen_emit.pub_def(
-                                      "StringRefOrValue",
-                                    ),
-                                    gtypes.raw(
-                                      "structure.StringRefOrValue",
-                                    ),
+                                    gleamgen_emit.pub_def("StringRefOrValue"),
+                                    gtypes.raw("structure.StringRefOrValue"),
                                     fn(_) {
                                       gmod.with_type_alias(
-                                        gleamgen_emit.pub_def(
-                                          "NumRefOrValue",
-                                        ),
-                                        gtypes.raw(
-                                          "structure.NumRefOrValue",
-                                        ),
+                                        gleamgen_emit.pub_def("NumRefOrValue"),
+                                        gtypes.raw("structure.NumRefOrValue"),
                                         fn(_) {
                                           gmod.with_type_alias(
                                             gleamgen_emit.pub_def(num_ref),
-                                            gtypes.raw(
-                                              "structure." <> num_ref,
-                                            ),
+                                            gtypes.raw("structure." <> num_ref),
                                             fn(_) {
                                               gmod.with_type_alias(
-                                                gleamgen_emit.pub_def(
-                                                  str_ref,
-                                                ),
+                                                gleamgen_emit.pub_def(str_ref),
                                                 gtypes.raw(
                                                   "structure." <> str_ref,
                                                 ),
@@ -192,8 +170,7 @@ pub fn generate(ctx: SchemaContext) -> String {
                                                       field_enum,
                                                     ),
                                                     gtypes.raw(
-                                                      "structure."
-                                                      <> field_enum,
+                                                      "structure." <> field_enum,
                                                     ),
                                                     fn(_) {
                                                       gmod.with_function(

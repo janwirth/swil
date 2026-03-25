@@ -21,8 +21,7 @@ pub fn generate(ctx: SchemaContext) -> String {
   let singular = ctx.singular
   let with_suffix = string.join(ctx.identity_labels, "_")
 
-  let option_mod =
-    gim.new_with_exposing(["gleam", "option"], "type Option")
+  let option_mod = gim.new_with_exposing(["gleam", "option"], "type Option")
 
   let arg_pairs =
     list.map(ctx.fields, fn(pair) {

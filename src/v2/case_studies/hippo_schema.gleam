@@ -1,80 +1,141 @@
-import gleam/option
+import gleam/option.{type Option, Some}
 
-import v2/dsl.{query, filter, sort, select, age, exclude_if_missing, nullable, CalendarDate, Desc}
+import gleam/time/timestamp.{type Timestamp}
+import v2/dsl.{
+  type Backlink, type BelongsTo, type CalendarDate, type Mutual, Desc, age,
+  exclude_if_missing, filter, nullable, query, select, sort,
+}
 
 // ACTUAL SCHEMA
 // Identies = By...
 
+// This is how you define types by constructors
+// additional magic fields are : created_at, updated_at, deleted_at, id
+// you can't redefined them
+// every data field is optional to make migrations easier
+// anything you define here you can then use in your queries
 pub type Hippo {
-    Hippo(name: option.Option(String),
-        gender: option.Option(Bool),
-         date_of_birth: option.Option(dsl.CalendarDate),
-         friends: List(Hippo), //! mutual
-         best_friend: MutualLink(Hippo), //! mutual
-         owner: option.Option (Human), //! outlink
-         identities: HippoIdentities
-     )
+  Hippo(
+    name: option.Option(String),
+    gender: option.Option(Bool),
+    date_of_birth: option.Option(CalendarDate),
+    // this is inspired by ash - you define identities for each type, those create indexes
+
+    identities: HippoIdentities,
+    // same for relationships - you define them and most of them automatically create backlinks
+    relationships: HippoRelationships,
+  )
 }
-// identities are required - you need at least one to be able to query
+
+pub type HippoRelationships {
+  HippoRelationships(
+    // mutual lists point to the same field in both items
+    // and they resolve back and forth automatically
+    friends: option.Option(Mutual(List(Hippo))),
+    // they support single and multi
+    best_friend: option.Option(Mutual(Hippo)),
+    // outlinks point to a different field in an item of another type
+    owner: option.Option(BelongsTo(Human)),
+  )
+}
+
+// identities define by what key to insert items into the database
+// this is important to ensure idempotency on upsert
 pub type HippoIdentities {
-    ByNameAndDateOfBirth(name: String, date_of_birth: dsl.CalendarDate)
-    // This will create exclusive index tables
-    ById(id: String)
-    ByCreatedAt(created_at: dsl.Timestamp) // magicFields
-    ByUpdatedAt(updated_at: dsl.Timestamp) // magicFields
-    ByDeletedAt(deleted_at: dsl.Timestamp) // magicFields
+  ByNameAndDateOfBirth(name: String, date_of_birth: CalendarDate)
+  // This will create exclusive index tables
+  ById(id: String)
 }
 
 pub type Human {
-    Human(
-            name: option.Option (String),
-            email: option.Option (String),
-            hippos: List(Hippo), //! backlink.owner
-    )
-    HumanIdentities(
-        ByNameAndEmail(name: String, email: String)
-    )
+  Human(
+    name: option.Option(String),
+    email: option.Option(String),
+    hippos: List(Hippo),
+    // backlink.owner is automatically resolved -- because there is only one backlink to hippo that is possible
+    identities: HumanIdentities,
+    relationships: HumanRelationships,
+  )
+}
+
+pub type HumanRelationships {
+  HumanRelationships(
+    // backlinks resolved always list time
+    hippos: Backlink(List(Hippo)),
+  )
 }
 
 pub type HumanIdentities {
-    ByEmail(email: String)
+  ByNameAndEmail(name: String, email: String)
+  ByEmail(email: String)
 }
 
-pub type FriendshipProperties {
-    FriendshipProperties(since: dsl.CalendarDate)
+// how do I describe links?
+// I want to figure out backlinks too
+// attach metadata but still access the data
+
+pub type Query(type_, shape, order, select) {
+  Query(
+    shape: Option(shape),
+    filter: Option(Bool),
+    order: Option(#(dsl.Direction, order)),
+    select: Option(select),
+  )
 }
 
+pub fn old_hippo_owner_emails(hippo: Hippo, min_age: Int) {
+  // departure from edgedb - nullable only automatic if it's a leaf - if it's a node we must be explicit
+  // hippo or None would fetch all fields from hippo
+  // #(hippo, hippo.owner) would fetch all fields from hippo and owner
+  // #(hippo.owner) would fetch all fields from owner as {owner: {name: "John", email: "john@example.com"}}
+  // #(hippo.owner.name) would fetch only the name field from owner as {owner: {name: "John"}}
 
-pub type MutualLink(a) {}
-pub type MutualMultiLink(a) {}
+  let shape = #(
+    #("age", age(exclude_if_missing(hippo.date_of_birth))),
+    nullable(hippo.relationships.owner).item.email,
+  )
+  let filter = age(exclude_if_missing(hippo.date_of_birth)) > min_age
+  let order = #(Desc, age(exclude_if_missing(hippo.date_of_birth)))
 
+  Query(
+    shape: Some(shape),
+    filter: Some(filter),
+    order: Some(order),
+    select: Some(select),
+  )
+  // can I isolate selects? this is overkill
+  // is this enough to spec everything
+}
 
-pub fn old_friends(hippo: Hippo) {
-    query(hippo)
-    |> filter(fn (hippo) {age(exclude_if_missing(hippo.date_of_birth)) > 5})
-    |> sort(fn(hippo) {#(age(exclude_if_missing(hippo.date_of_birth)), Desc)})
-    |> select(fn(hippo) {#(age(exclude_if_missing(hippo.date_of_birth)), nullable(hippo.owner).name, nullable(hippo.owner).email)})
-    // hippo would fetch all fields from hippo
-    // #(hippo, hippo.owner) would fetch all fields from hippo and owner
-    // #(hippo.owner) would fetch all fields from owner as {owner: {name: "John", email: "john@example.com"}}
-    // #(hippo.owner.name) would fetch only the name field from owner as {owner: {name: "John"}}
-    // can I isolate selects? this is overkill
-    // is this enough to spec everything
+// generates
+pub type QueryOldFriendsResult {
+  QueryOldFriends(age: Int, owner: option.Option(Human))
+}
+
+pub fn query_old_friends(hippo: Hippo) {
+  todo(
+    "This will be filled by codegen, maybe we put the data structure here of what has been parsed?",
+  )
+}
+
+pub fn hippos_by_gender(hippo: Hippo, gender_to_match: Bool) {
+  query(hippo)
+  |> filter(fn(hippo) { exclude_if_missing(hippo.gender) == gender_to_match })
+  |> select(fn(hippo) { hippo })
 }
 
 // DERIVED
 pub type Output {
-    MyQueryResult(
-        age: option.Option(Int),
-        // we get this because there are no
-        owner: OutputOwner
-    )
+  MyQueryResult(
+    age: option.Option(Int),
+    // we get this because there are no
+    owner: OutputOwner,
+  )
 }
 
 pub type OutputOwner {
-    OutputOwner(name: option.Option(String), email: option.Option(String))
+  OutputOwner(name: option.Option(String), email: option.Option(String))
 }
-
 // then it generates a query that just writes sql amd has a decoder for the right fields
 
 // pub fn exclude_if_missing(some_val: option.Option(some_type)) -> some_type {

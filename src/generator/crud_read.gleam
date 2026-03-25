@@ -67,8 +67,7 @@ pub fn generate(ctx: SchemaContext) -> String {
   let exec_mod = gim.new(["help", "cake_sql_exec"])
   let crud_filter_mod =
     gim.new_with_alias([layer, "crud", "filter"], "crud_filter")
-  let crud_sort_mod =
-    gim.new_with_alias([layer, "crud", "sort"], "crud_sort")
+  let crud_sort_mod = gim.new_with_alias([layer, "crud", "sort"], "crud_sort")
 
   let result_try = gim.function2(result_mod, gleam_result.try)
 
@@ -97,14 +96,15 @@ pub fn generate(ctx: SchemaContext) -> String {
       read_one_ret,
       fn(_conn, _id) {
         let try_body = read_one_try_body_expression(table, cols, decoder)
-        let use_try =
-          gblock.use_function1(result_try, try_body)
+        let use_try = gblock.use_function1(result_try, try_body)
         gblock.with_use1(use_try, "rows", fn(rows) {
           gcase.new(rows)
           |> gcase.with_pattern(gpat.list_first_discard_rest("row"), fn(row) {
             gex.ok(gex.call1(gex.raw("Some"), row))
           })
-          |> gcase.with_pattern(gpat.list_empty(), fn(_) { gex.ok(gex.raw("None")) })
+          |> gcase.with_pattern(gpat.list_empty(), fn(_) {
+            gex.ok(gex.raw("None"))
+          })
           |> gcase.build_expression()
         })
       },
@@ -135,27 +135,24 @@ pub fn generate(ctx: SchemaContext) -> String {
   let w_int = gim.function1(where_mod, where.int)
 
   let read_many_filter_fn =
-    gfun.new1(
-      gparam.new("arg", filter_arg_t),
-      where_t,
-      fn(arg_ex) {
-        gcase.new(arg_ex)
-        |> gcase.with_pattern(no_filter_pat, fn(_) {
-          gex.call2(w_eq, gex.call1(w_int, gex.int(1)), gex.call1(w_int, gex.int(1)))
-        })
-        |> gcase.with_pattern(filter_arg_pat, fn(pair) {
-          let #(f, _) = pair
-          gex.call1(
-            gex.raw("crud_filter.bool_expr_where"),
-            gex.call1(
-              f,
-              gex.call0(gex.raw("crud_filter.filterable_refs")),
-            ),
-          )
-        })
-        |> gcase.build_expression()
-      },
-    )
+    gfun.new1(gparam.new("arg", filter_arg_t), where_t, fn(arg_ex) {
+      gcase.new(arg_ex)
+      |> gcase.with_pattern(no_filter_pat, fn(_) {
+        gex.call2(
+          w_eq,
+          gex.call1(w_int, gex.int(1)),
+          gex.call1(w_int, gex.int(1)),
+        )
+      })
+      |> gcase.with_pattern(filter_arg_pat, fn(pair) {
+        let #(f, _) = pair
+        gex.call1(
+          gex.raw("crud_filter.bool_expr_where"),
+          gex.call1(f, gex.call0(gex.raw("crud_filter.filterable_refs"))),
+        )
+      })
+      |> gcase.build_expression()
+    })
 
   let no_filter_sort_pat =
     gpat.from_constructor1(
@@ -185,50 +182,45 @@ pub fn generate(ctx: SchemaContext) -> String {
   let sort_sql = gex.raw("crud_sort." <> field_sql_fn)
 
   let read_many_ordered_fn =
-    gfun.new1(
-      gparam.new("arg", filter_arg_t),
-      gtypes.dynamic(),
-      fn(arg_ex) {
-        let order_expr =
-          gcase.new(arg_ex)
-          |> gcase.with_pattern(no_filter_sort_pat, fn(s) { s })
-          |> gcase.with_pattern(filter_arg_sort_pat, fn(pair) { pair.1 })
-          |> gcase.build_expression()
-        let base_expr =
-          gex.raw(render_read_many_base_select_where(table, cols))
-        gblock.with_let_declaration("order", order_expr, fn(_order) {
-          gblock.with_let_declaration("base", base_expr, fn(base) {
-            let asc_pat =
-              gpat.from_constructor1(
-                gcon.new(
-                  gvariant.new("filter.Asc")
-                  |> gvariant.with_argument(opt.None, gtypes.dynamic())
-                  |> gvariant.to_dynamic,
-                ),
-                gpat.variable("f"),
-              )
-            let desc_pat =
-              gpat.from_constructor1(
-                gcon.new(
-                  gvariant.new("filter.Desc")
-                  |> gvariant.with_argument(opt.None, gtypes.dynamic())
-                  |> gvariant.to_dynamic,
-                ),
-                gpat.variable("f"),
-              )
-            gcase.new(gex.raw("order"))
-            |> gcase.with_pattern(gpat.option_none(), fn(_) { base })
-            |> gcase.with_pattern(gpat.option_some(asc_pat), fn(f_expr) {
-              gex.call2(s_order_asc, base, gex.call1(sort_sql, f_expr))
-            })
-            |> gcase.with_pattern(gpat.option_some(desc_pat), fn(f_expr) {
-              gex.call2(s_order_desc, base, gex.call1(sort_sql, f_expr))
-            })
-            |> gcase.build_expression()
+    gfun.new1(gparam.new("arg", filter_arg_t), gtypes.dynamic(), fn(arg_ex) {
+      let order_expr =
+        gcase.new(arg_ex)
+        |> gcase.with_pattern(no_filter_sort_pat, fn(s) { s })
+        |> gcase.with_pattern(filter_arg_sort_pat, fn(pair) { pair.1 })
+        |> gcase.build_expression()
+      let base_expr = gex.raw(render_read_many_base_select_where(table, cols))
+      gblock.with_let_declaration("order", order_expr, fn(_order) {
+        gblock.with_let_declaration("base", base_expr, fn(base) {
+          let asc_pat =
+            gpat.from_constructor1(
+              gcon.new(
+                gvariant.new("filter.Asc")
+                |> gvariant.with_argument(opt.None, gtypes.dynamic())
+                |> gvariant.to_dynamic,
+              ),
+              gpat.variable("f"),
+            )
+          let desc_pat =
+            gpat.from_constructor1(
+              gcon.new(
+                gvariant.new("filter.Desc")
+                |> gvariant.with_argument(opt.None, gtypes.dynamic())
+                |> gvariant.to_dynamic,
+              ),
+              gpat.variable("f"),
+            )
+          gcase.new(gex.raw("order"))
+          |> gcase.with_pattern(gpat.option_none(), fn(_) { base })
+          |> gcase.with_pattern(gpat.option_some(asc_pat), fn(f_expr) {
+            gex.call2(s_order_asc, base, gex.call1(sort_sql, f_expr))
           })
+          |> gcase.with_pattern(gpat.option_some(desc_pat), fn(f_expr) {
+            gex.call2(s_order_desc, base, gex.call1(sort_sql, f_expr))
+          })
+          |> gcase.build_expression()
         })
-      },
-    )
+      })
+    })
 
   let read_many_fn =
     gfun.new2(
@@ -241,12 +233,7 @@ pub fn generate(ctx: SchemaContext) -> String {
         let run_read = gim.function3(exec_mod, cake_sql_exec.run_read_query)
         let ordered = gex.call1(gex.raw("read_many_ordered"), arg)
         let q = gex.call1(s_to_q, ordered)
-        gex.call3(
-          run_read,
-          q,
-          gex.call0(gex.raw(decoder)),
-          conn,
-        )
+        gex.call3(run_read, q, gex.call0(gex.raw(decoder)), conn)
       },
     )
 
@@ -261,7 +248,10 @@ pub fn generate(ctx: SchemaContext) -> String {
       use _ <- gmod.with_import(crud_sort_mod)
       use _ <- gmod.with_import(filter_mod)
       use _ <- gmod.with_import(exec_mod)
-      use _ <- gmod.with_function(gleamgen_emit.pub_def("read_one"), read_one_fn)
+      use _ <- gmod.with_function(
+        gleamgen_emit.pub_def("read_one"),
+        read_one_fn,
+      )
       use _ <- gmod.with_function(
         gdef.new("read_many_filter_where"),
         read_many_filter_fn,
@@ -365,8 +355,7 @@ pub fn render_read_many_base_select_where(
     )
   let deleted_null =
     gex.call1(w_is_null(), gex.call1(w_col(), gex.string("deleted_at")))
-  let filter_call =
-    gex.call1(gex.raw("read_many_filter_where"), gex.raw("arg"))
+  let filter_call = gex.call1(gex.raw("read_many_filter_where"), gex.raw("arg"))
   let wh = gex.call1(w_and(), gex.list([deleted_null, filter_call]))
   let e = gex.call2(s_where, sel, wh)
   let ctx = grender.default_context()

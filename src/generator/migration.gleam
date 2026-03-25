@@ -76,55 +76,51 @@ fn generate_migration(
   let ret_t = gtypes.result(gtypes.nil, err_t)
 
   let migrate_fn =
-    gfun.new1(
-      gparam.new("conn", conn_t),
-      ret_t,
-      fn(conn) {
-        let base_call =
-          gex.call2(ensure_base_table_fn, conn, gex.string(module_name))
-        let identity_expr = case ctx.identity_labels {
-          [] -> gex.ok(gex.nil())
-          labels -> {
-            let ddl = identity_exec_ddl(module_name, labels)
-            gex.call2(sqlight_exec_fn, gex.string(ddl), conn)
+    gfun.new1(gparam.new("conn", conn_t), ret_t, fn(conn) {
+      let base_call =
+        gex.call2(ensure_base_table_fn, conn, gex.string(module_name))
+      let identity_expr = case ctx.identity_labels {
+        [] -> gex.ok(gex.nil())
+        labels -> {
+          let ddl = identity_exec_ddl(module_name, labels)
+          gex.call2(sqlight_exec_fn, gex.string(ddl), conn)
+        }
+      }
+      case ctx.columns {
+        [] ->
+          case has_tail_after_columns {
+            True ->
+              gblock.with_use1(
+                gblock.use_function1(result_try, base_call),
+                "_",
+                fn(_) { identity_expr },
+              )
+            False ->
+              gblock.with_use1(
+                gblock.use_function1(result_try, base_call),
+                "_",
+                fn(_) { gex.ok(gex.nil()) },
+              )
           }
-        }
-        case ctx.columns {
-          [] ->
-            case has_tail_after_columns {
-              True ->
-                gblock.with_use1(
-                  gblock.use_function1(result_try, base_call),
-                  "_",
-                  fn(_) { identity_expr },
-                )
-              False ->
-                gblock.with_use1(
-                  gblock.use_function1(result_try, base_call),
-                  "_",
-                  fn(_) { gex.ok(gex.nil()) },
-                )
-            }
-          cols ->
-            gblock.with_use1(
-              gblock.use_function1(result_try, base_call),
-              "_",
-              fn(_) {
-                columns_suffix(
-                  cols,
-                  0,
-                  module_name,
-                  has_tail_after_columns,
-                  identity_expr,
-                  conn,
-                  ensure_column_fn,
-                  result_try,
-                )
-              },
-            )
-        }
-      },
-    )
+        cols ->
+          gblock.with_use1(
+            gblock.use_function1(result_try, base_call),
+            "_",
+            fn(_) {
+              columns_suffix(
+                cols,
+                0,
+                module_name,
+                has_tail_after_columns,
+                identity_expr,
+                conn,
+                ensure_column_fn,
+                result_try,
+              )
+            },
+          )
+      }
+    })
 
   gleamgen_emit.render_module(
     gmod.with_import(migration_help_mod, fn(_) {
@@ -185,11 +181,9 @@ fn columns_suffix(
             result_try,
           )
       }
-      gblock.with_use1(
-        gblock.use_function1(result_try, call),
-        "_",
-        fn(_) { inner },
-      )
+      gblock.with_use1(gblock.use_function1(result_try, call), "_", fn(_) {
+        inner
+      })
     }
   }
 }

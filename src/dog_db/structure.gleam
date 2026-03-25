@@ -68,15 +68,13 @@ pub type DogsDb {
     upsert_one: fn(DogForUpsert) -> Result(DogRow, sqlight.Error),
     upsert_many: fn(List(DogForUpsert)) -> Result(List(DogRow), sqlight.Error),
     update_one: fn(Int, Dog) -> Result(Option(DogRow), sqlight.Error),
-    update_many: fn(List(#(Int, Dog)))
-    ->
-    Result(List(Option(DogRow)), sqlight.Error),
+    update_many: fn(List(#(Int, Dog))) ->
+      Result(List(Option(DogRow)), sqlight.Error),
     read_one: fn(Int) -> Result(Option(DogRow), sqlight.Error),
     read_many: fn(
       filter.FilterArg(FilterableDog, NumRefOrValue, StringRefOrValue, DogField),
-    )
-    ->
-    Result(List(DogRow), sqlight.Error),
+    ) ->
+      Result(List(DogRow), sqlight.Error),
     delete_one: fn(Int) -> Result(Nil, sqlight.Error),
     delete_many: fn(List(Int)) -> Result(Nil, sqlight.Error),
   )

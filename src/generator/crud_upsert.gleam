@@ -15,9 +15,9 @@ import gleamgen/expression/block as gblock
 import gleamgen/expression/case_ as gcase
 import gleamgen/function as gfun
 import gleamgen/import_ as gim
+import gleamgen/module as gmod
 import gleamgen/parameter as gparam
 import gleamgen/pattern as gpat
-import gleamgen/module as gmod
 import gleamgen/types as gtypes
 
 import gleam/dynamic/decode as dynamic_decode
@@ -41,10 +41,7 @@ fn upsert_module(ctx: SchemaContext) -> gmod.Module {
   let resource_mod =
     gim.new_with_exposing(
       [ctx.layer, "resource"],
-      "type "
-        <> ctx.for_upsert_type_name
-        <> ", "
-        <> ctx.for_upsert_variant_name,
+      "type " <> ctx.for_upsert_type_name <> ", " <> ctx.for_upsert_variant_name,
     )
   let structure_mod =
     gim.new_with_exposing(
@@ -69,7 +66,8 @@ fn upsert_module(ctx: SchemaContext) -> gmod.Module {
   let ci_source_values = gim.function2(ci_mod, cake_insert.source_values)
   let ci_row = gim.function1(ci_mod, cake_insert.row)
   let ci_to_query = gim.function1(ci_mod, cake_insert.to_query)
-  let ci_on_conflict = gim.function4(ci_mod, cake_insert.on_columns_conflict_update)
+  let ci_on_conflict =
+    gim.function4(ci_mod, cake_insert.on_columns_conflict_update)
   let ci_string = gim.function1(ci_mod, cake_insert.string)
   let ci_int = gim.function1(ci_mod, cake_insert.int)
   let ci_bool = gim.function1(ci_mod, cake_insert.bool)
@@ -113,10 +111,11 @@ fn upsert_module(ctx: SchemaContext) -> gmod.Module {
   let ret_many = gtypes.result(gtypes.list(row_t), err_t)
 
   let insert_col_strings =
-    list.append(
-      list.map(ctx.fields, fn(p) { p.0 }),
-      ["created_at", "updated_at", "deleted_at"],
-    )
+    list.append(list.map(ctx.fields, fn(p) { p.0 }), [
+      "created_at",
+      "updated_at",
+      "deleted_at",
+    ])
   let select_col_strings = upsert_select_column_names(ctx)
   let insert_cols_list = gex.list(list.map(insert_col_strings, gex.string))
   let select_cols_list = gex.list(list.map(select_col_strings, gex.string))
@@ -124,9 +123,7 @@ fn upsert_module(ctx: SchemaContext) -> gmod.Module {
 
   let conflict_inner =
     list.fold(
-      list.filter(ctx.fields, fn(p) {
-        !list.contains(ctx.identity_labels, p.0)
-      }),
+      list.filter(ctx.fields, fn(p) { !list.contains(ctx.identity_labels, p.0) }),
       gex.call0(cu_new),
       fn(acc, pair) {
         gex.call2(
@@ -156,11 +153,7 @@ fn upsert_module(ctx: SchemaContext) -> gmod.Module {
     )
 
   let trivial_where =
-    gex.call2(
-      w_eq,
-      gex.call1(w_int, gex.int(1)),
-      gex.call1(w_int, gex.int(1)),
-    )
+    gex.call2(w_eq, gex.call1(w_int, gex.int(1)), gex.call1(w_int, gex.int(1)))
 
   let field_patterns =
     list.map(ctx.fields, fn(pair) { gpat.variable(pair.0) |> gpat.to_dynamic })
@@ -170,10 +163,8 @@ fn upsert_module(ctx: SchemaContext) -> gmod.Module {
     detail_exprs: List(gex.Expression(gtypes.Dynamic)),
     label: String,
   ) -> gex.Expression(gtypes.Dynamic) {
-    let indexed =
-      list.index_map(fields, fn(p, i) { #(i, p.0) })
-    let assert Ok(#(idx, _)) =
-      list.find(indexed, fn(ix) { ix.1 == label })
+    let indexed = list.index_map(fields, fn(p, i) { #(i, p.0) })
+    let assert Ok(#(idx, _)) = list.find(indexed, fn(ix) { ix.1 == label })
     binding_at_index(detail_exprs, idx)
   }
 
@@ -202,19 +193,22 @@ fn upsert_module(ctx: SchemaContext) -> gmod.Module {
         |> gex.to_dynamic
       False ->
         case r {
-          "Int" -> gex.call1(ci_int, gex.coerce_dynamic_unsafe(expr)) |> gex.to_dynamic
+          "Int" ->
+            gex.call1(ci_int, gex.coerce_dynamic_unsafe(expr)) |> gex.to_dynamic
           "Float" ->
-            gex.call1(ci_float, gex.coerce_dynamic_unsafe(expr)) |> gex.to_dynamic
+            gex.call1(ci_float, gex.coerce_dynamic_unsafe(expr))
+            |> gex.to_dynamic
           "Bool" ->
-            gex.call1(ci_bool, gex.coerce_dynamic_unsafe(expr)) |> gex.to_dynamic
+            gex.call1(ci_bool, gex.coerce_dynamic_unsafe(expr))
+            |> gex.to_dynamic
           "String" ->
-            gex.call1(ci_string, gex.coerce_dynamic_unsafe(expr)) |> gex.to_dynamic
+            gex.call1(ci_string, gex.coerce_dynamic_unsafe(expr))
+            |> gex.to_dynamic
           "Option(Int)" ->
             gcase.new(expr)
-            |> gcase.with_pattern(
-              gpat.option_some(gpat.variable("v")),
-              fn(v) { gex.call1(ci_int, v) |> gex.to_dynamic },
-            )
+            |> gcase.with_pattern(gpat.option_some(gpat.variable("v")), fn(v) {
+              gex.call1(ci_int, v) |> gex.to_dynamic
+            })
             |> gcase.with_pattern(gpat.option_none(), fn(_) {
               gex.raw("cake_insert.null()") |> gex.to_dynamic
             })
@@ -222,10 +216,9 @@ fn upsert_module(ctx: SchemaContext) -> gmod.Module {
             |> gex.to_dynamic
           "Option(Float)" ->
             gcase.new(expr)
-            |> gcase.with_pattern(
-              gpat.option_some(gpat.variable("v")),
-              fn(v) { gex.call1(ci_float, v) |> gex.to_dynamic },
-            )
+            |> gcase.with_pattern(gpat.option_some(gpat.variable("v")), fn(v) {
+              gex.call1(ci_float, v) |> gex.to_dynamic
+            })
             |> gcase.with_pattern(gpat.option_none(), fn(_) {
               gex.raw("cake_insert.null()") |> gex.to_dynamic
             })
@@ -233,10 +226,9 @@ fn upsert_module(ctx: SchemaContext) -> gmod.Module {
             |> gex.to_dynamic
           "Option(Bool)" ->
             gcase.new(expr)
-            |> gcase.with_pattern(
-              gpat.option_some(gpat.variable("v")),
-              fn(v) { gex.call1(ci_bool, v) |> gex.to_dynamic },
-            )
+            |> gcase.with_pattern(gpat.option_some(gpat.variable("v")), fn(v) {
+              gex.call1(ci_bool, v) |> gex.to_dynamic
+            })
             |> gcase.with_pattern(gpat.option_none(), fn(_) {
               gex.raw("cake_insert.null()") |> gex.to_dynamic
             })
@@ -244,10 +236,9 @@ fn upsert_module(ctx: SchemaContext) -> gmod.Module {
             |> gex.to_dynamic
           "Option(String)" ->
             gcase.new(expr)
-            |> gcase.with_pattern(
-              gpat.option_some(gpat.variable("v")),
-              fn(v) { gex.call1(ci_string, v) |> gex.to_dynamic },
-            )
+            |> gcase.with_pattern(gpat.option_some(gpat.variable("v")), fn(v) {
+              gex.call1(ci_string, v) |> gex.to_dynamic
+            })
             |> gcase.with_pattern(gpat.option_none(), fn(_) {
               gex.raw("cake_insert.null()") |> gex.to_dynamic
             })
@@ -255,10 +246,9 @@ fn upsert_module(ctx: SchemaContext) -> gmod.Module {
             |> gex.to_dynamic
           _ ->
             gcase.new(expr)
-            |> gcase.with_pattern(
-              gpat.option_some(gpat.variable("v")),
-              fn(v) { gex.call1(ci_string, v) |> gex.to_dynamic },
-            )
+            |> gcase.with_pattern(gpat.option_some(gpat.variable("v")), fn(v) {
+              gex.call1(ci_string, v) |> gex.to_dynamic
+            })
             |> gcase.with_pattern(gpat.option_none(), fn(_) {
               gex.raw("cake_insert.null()") |> gex.to_dynamic
             })
@@ -290,8 +280,7 @@ fn upsert_module(ctx: SchemaContext) -> gmod.Module {
     detail_exprs: List(gex.Expression(gtypes.Dynamic)),
   ) -> List(gex.Expression(where.Where)) {
     list.map(ctx.identity_labels, fn(label) {
-      let assert Ok(#(_, typ)) =
-        list.find(ctx.fields, fn(p) { p.0 == label })
+      let assert Ok(#(_, typ)) = list.find(ctx.fields, fn(p) { p.0 == label })
       let ex = field_binding_at(ctx.fields, detail_exprs, label)
       case sql_types.rendered_type(typ) {
         "String" ->
@@ -370,10 +359,7 @@ fn upsert_module(ctx: SchemaContext) -> gmod.Module {
               fn(detail_exprs) {
                 let row_dyn = insert_row_values_dynamic(detail_exprs, stamp_sec)
                 let row_expr =
-                  gex.call1(
-                    ci_row,
-                    gex.coerce_dynamic_unsafe(row_dyn),
-                  )
+                  gex.call1(ci_row, gex.coerce_dynamic_unsafe(row_dyn))
                 let ins_expr =
                   gex.call1(
                     ci_to_query,
@@ -397,13 +383,14 @@ fn upsert_module(ctx: SchemaContext) -> gmod.Module {
                       conflict_upd_expr,
                     ),
                   )
-                let decode_nil =
-                  gex.call1(decode_success, gex.nil())
-                let try_write =
-                  gex.call3(run_write, ins_expr, decode_nil, conn)
+                let decode_nil = gex.call1(decode_success, gex.nil())
+                let try_write = gex.call3(run_write, ins_expr, decode_nil, conn)
                 let id_wheres = identity_where_expressions(detail_exprs)
                 let deleted_null =
-                  gex.call1(w_is_null, gex.call1(w_col, gex.string("deleted_at")))
+                  gex.call1(
+                    w_is_null,
+                    gex.call1(w_col, gex.string("deleted_at")),
+                  )
                 let sel0 =
                   gex.call2(
                     s_cols,
@@ -411,15 +398,14 @@ fn upsert_module(ctx: SchemaContext) -> gmod.Module {
                     select_cols_list,
                   )
                 let wh =
-                  gex.call1(w_and, gex.list(list.append(id_wheres, [deleted_null])))
+                  gex.call1(
+                    w_and,
+                    gex.list(list.append(id_wheres, [deleted_null])),
+                  )
                 let read_q = gex.call1(s_to_q, gex.call2(s_where, sel0, wh))
                 let decoder_call = gex.call0(gex.raw(decoder_fn))
-                let read_call =
-                  gex.call3(run_read, read_q, decoder_call, conn)
-                let assert_row =
-                  gex.raw(
-                    "fn(rows) { let assert [r] = rows r }",
-                  )
+                let read_call = gex.call3(run_read, read_q, decoder_call, conn)
+                let assert_row = gex.raw("fn(rows) { let assert [r] = rows r }")
                 let mapped = gex.call2(result_map, read_call, assert_row)
                 gblock.with_use1(
                   gblock.use_function1(result_try, try_write),
@@ -444,18 +430,14 @@ fn upsert_module(ctx: SchemaContext) -> gmod.Module {
           list_try_map,
           rows,
           gfun.anonymous(
-            gfun.new1(
-              gparam.new("c", upsert_t),
-              ret_one,
-              fn(c) {
-                gex.call2(
-                  gex.raw("upsert_one"),
-                  conn |> gex.coerce_dynamic_unsafe,
-                  c |> gex.coerce_dynamic_unsafe,
-                )
-                |> gex.coerce_dynamic_unsafe
-              },
-            ),
+            gfun.new1(gparam.new("c", upsert_t), ret_one, fn(c) {
+              gex.call2(
+                gex.raw("upsert_one"),
+                conn |> gex.coerce_dynamic_unsafe,
+                c |> gex.coerce_dynamic_unsafe,
+              )
+              |> gex.coerce_dynamic_unsafe
+            }),
           ),
         )
       },

@@ -31,8 +31,7 @@ pub fn generate(ctx: SchemaContext) -> String {
   let singular = ctx.singular
 
   let decode_mod = gim.new(["gleam", "dynamic", "decode"])
-  let option_mod =
-    gim.new_with_exposing(["gleam", "option"], "type Option")
+  let option_mod = gim.new_with_exposing(["gleam", "option"], "type Option")
   let resource_mod =
     gim.new_with_exposing([layer, "resource"], "type " <> upsert)
   let schema_import =
@@ -52,8 +51,7 @@ pub fn generate(ctx: SchemaContext) -> String {
   let decoder_fn = singular <> "_row_decoder"
   let decoder_body = row_decoder_expression(ctx, row, v)
   let decoder_ret = gtypes.raw("decode.Decoder(" <> row <> ")")
-  let decoder =
-    gfun.new0(returns: decoder_ret, handler: fn() { decoder_body })
+  let decoder = gfun.new0(returns: decoder_ret, handler: fn() { decoder_body })
 
   gleamgen_emit.render_module(
     gmod.with_import(decode_mod, fn(_) {
@@ -134,10 +132,7 @@ fn format_structure_module(src: String) -> String {
     each: "    update_many:\n    fn(",
     with: "    update_many: fn(",
   )
-  |> string.replace(
-    each: "    read_many:\n    fn(",
-    with: "    read_many: fn(",
-  )
+  |> string.replace(each: "    read_many:\n    fn(", with: "    read_many: fn(")
 }
 
 fn reorder_structure_import_block(src: String) -> String {
@@ -164,7 +159,9 @@ fn reorder_structure_import_block(src: String) -> String {
         [], _ -> string.join(other_sorted, "\n")
         _, [] -> string.join(gleam_sorted, "\n")
         _, _ ->
-          string.join(gleam_sorted, "\n") <> "\n\n" <> string.join(other_sorted, "\n")
+          string.join(gleam_sorted, "\n")
+          <> "\n\n"
+          <> string.join(other_sorted, "\n")
       }
       import_block <> "\n\npub " <> after
     }
@@ -201,7 +198,7 @@ fn filterable_custom(ctx: SchemaContext, fl: String) {
   |> gcustom.with_dynamic_variants(fn(_) {
     [
       gvariant.with_arguments_dynamic(gvariant.new(fl), args)
-        |> gvariant.to_dynamic,
+      |> gvariant.to_dynamic,
     ]
   })
 }
@@ -302,7 +299,7 @@ fn row_custom(_ctx: SchemaContext, row: String, t: String) {
   |> gcustom.with_dynamic_variants(fn(_) {
     [
       gvariant.with_arguments_dynamic(gvariant.new(row), args)
-        |> gvariant.to_dynamic,
+      |> gvariant.to_dynamic,
     ]
   })
 }
@@ -316,8 +313,7 @@ fn db_custom(
   fl: String,
   fe: String,
 ) {
-  let sqlight_error =
-    gtypes.custom_type(option.Some("sqlight"), "Error", [])
+  let sqlight_error = gtypes.custom_type(option.Some("sqlight"), "Error", [])
   let row_t = gtypes.raw(row)
   let schema_t = gtypes.raw(t)
   let upsert_t = gtypes.raw(upsert)
@@ -334,14 +330,10 @@ fn db_custom(
   let result_row = gtypes.result(row_t, sqlight_error)
   let result_list_row = gtypes.result(gtypes.list(row_t), sqlight_error)
   let result_opt_row = gtypes.result(opt_row, sqlight_error)
-  let result_list_opt_row =
-    gtypes.result(gtypes.list(opt_row), sqlight_error)
+  let result_list_opt_row = gtypes.result(gtypes.list(opt_row), sqlight_error)
 
   let args = [
-    #(
-      option.Some("migrate"),
-      gtypes.function0(result_nil) |> gtypes.to_dynamic,
-    ),
+    #(option.Some("migrate"), gtypes.function0(result_nil) |> gtypes.to_dynamic),
     #(
       option.Some("upsert_one"),
       gtypes.function1(upsert_t, result_row) |> gtypes.to_dynamic,
@@ -386,7 +378,7 @@ fn db_custom(
   |> gcustom.with_dynamic_variants(fn(_) {
     [
       gvariant.with_arguments_dynamic(gvariant.new(db), args)
-        |> gvariant.to_dynamic,
+      |> gvariant.to_dynamic,
     ]
   })
 }
@@ -472,4 +464,3 @@ fn field_index_loop(fields: List(#(String, a)), label: String, i: Int) -> Int {
       }
   }
 }
-

@@ -5,14 +5,17 @@ import cat_db/crud/update as crud_update
 import cat_db/crud/upsert as crud_upsert
 import cat_db/migrate
 import cat_db/resource.{type CatForUpsert}
-import cat_db/structure.{type CatField, type CatsDb, type FilterableCat, type NumRefOrValue,
-  type StringRefOrValue, CatsDb}
+import cat_db/structure.{
+  type CatField, type CatsDb, type FilterableCat, type NumRefOrValue,
+  type StringRefOrValue, CatsDb,
+}
 import cat_schema.{type Cat}
 import gleam/option.{type Option}
 import help/filter
 import sqlight
 
-pub type Filter = crud_filter.Filter
+pub type Filter =
+  crud_filter.Filter
 
 pub fn filter_arg(
   nullable_filter: Option(Filter),

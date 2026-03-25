@@ -74,11 +74,9 @@ pub fn generate(ctx: SchemaContext) -> String {
     )
 
   let cats_fn =
-    gfun.new1(
-      gparam.new("conn", conn_t),
-      gtypes.raw(db),
-      fn(_conn) { gex.raw(cats_record_source(ctx)) },
-    )
+    gfun.new1(gparam.new("conn", conn_t), gtypes.raw(db), fn(_conn) {
+      gex.raw(cats_record_source(ctx))
+    })
 
   gleamgen_emit.render_module(
     gmod.with_import(option_mod, fn(_) {
@@ -101,11 +99,9 @@ pub fn generate(ctx: SchemaContext) -> String {
             gleamgen_emit.pub_def("filter_arg"),
             filter_arg_fn,
           )
-          gmod.with_function(
-            gleamgen_emit.pub_def(table_fn),
-            cats_fn,
-            fn(_) { gmod.eof() },
-          )
+          gmod.with_function(gleamgen_emit.pub_def(table_fn), cats_fn, fn(_) {
+            gmod.eof()
+          })
         },
       )
     }),

@@ -11,7 +11,13 @@ pub type ImportedTrack {
     artist: option.Option(String),
     file_path: option.Option(String),
     tags: List(Tag),
+    identities: ImportedTrackIdentities
   )
+}
+
+pub type ImportedTrackIdentities {
+  ByTitleAndArtist(title: String, artist: String)
+  ByFilePath(file_path: String)
 }
 
 pub type Tag {
@@ -54,6 +60,7 @@ pub type Tab {
   SourceTab(label: Exclusive(String), order: Float, source_selector: String)
   // = flat data
 }
+
 
 // scalar is a single value, like a string, a number, a boolean, etc, not another object type in the db
 // custom scalars could also be vectors

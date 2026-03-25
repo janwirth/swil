@@ -14,9 +14,9 @@ import gleamgen/expression/block as gblock
 import gleamgen/expression/case_ as gcase
 import gleamgen/function as gfun
 import gleamgen/import_ as gim
+import gleamgen/module as gmod
 import gleamgen/parameter as gparam
 import gleamgen/pattern as gpat
-import gleamgen/module as gmod
 import gleamgen/types as gtypes
 
 import help/cake_sql_exec
@@ -74,28 +74,37 @@ pub fn generate(ctx: SchemaContext) -> String {
     gex.call1(w_is_null, gex.call1(w_col, gex.string("deleted_at")))
 
   let soft_update_where_from_eq = fn(id: gex.Expression(Int)) {
-    gex.call1(w_and, gex.list([
-      gex.call2(
-        w_eq,
-        gex.call1(w_col, gex.string("id")),
-        gex.call1(w_int, id),
-      ),
-      deleted_null,
-    ]))
+    gex.call1(
+      w_and,
+      gex.list([
+        gex.call2(
+          w_eq,
+          gex.call1(w_col, gex.string("id")),
+          gex.call1(w_int, id),
+        ),
+        deleted_null,
+      ]),
+    )
   }
 
   let soft_update_where_from_ids = fn(ids: gex.Expression(List(Int))) {
-    gex.call1(w_and, gex.list([
-      gex.call2(
-        w_in,
-        gex.call1(w_col, gex.string("id")),
-        gex.call2(list_map, ids, w_int),
-      ),
-      deleted_null,
-    ]))
+    gex.call1(
+      w_and,
+      gex.list([
+        gex.call2(
+          w_in,
+          gex.call1(w_col, gex.string("id")),
+          gex.call2(list_map, ids, w_int),
+        ),
+        deleted_null,
+      ]),
+    )
   }
 
-  let to_soft_update_query = fn(where_clause: gex.Expression(cake_where.Where), now_sec: gex.Expression(Int)) {
+  let to_soft_update_query = fn(
+    where_clause: gex.Expression(cake_where.Where),
+    now_sec: gex.Expression(Int),
+  ) {
     let u0 = gex.call2(cu_table, gex.call0(cu_new), gex.string(table))
     let u1 =
       gex.call2(
@@ -144,11 +153,9 @@ pub fn generate(ctx: SchemaContext) -> String {
       fn(conn, ids) {
         let try_cont =
           gfun.anonymous(
-            gfun.new1(
-              gparam.new("_", gtypes.dynamic()),
-              ret_t,
-              fn(_) { gex.ok(gex.nil()) },
-            ),
+            gfun.new1(gparam.new("_", gtypes.dynamic()), ret_t, fn(_) {
+              gex.ok(gex.nil())
+            }),
           )
         gcase.new(ids)
         |> gcase.with_pattern(gpat.list_empty(), fn(_) { gex.ok(gex.nil()) })

@@ -1,6 +1,7 @@
 import gleam/option.{type Option}
 
 import help/identity
+
 pub type Dog {
   Dog(name: Option(String), age: Option(Int), is_neutered: Option(Bool))
 }
