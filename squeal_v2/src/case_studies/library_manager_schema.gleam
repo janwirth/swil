@@ -66,6 +66,7 @@ pub type ViewConfigScalar {
     source_selector: option.Option(String),
   )
 }
+// I haven't figured out tags yet
 
 pub type TabIdentities {
   ByTabLabel(label: String)
@@ -79,13 +80,15 @@ pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields) {
   )
 }
 
-pub fn query_tracks_by_view_config(track_bucket: TrackBucket, view_config: ViewConfigScalar) {
-  dsl.Query(
-    filter: option.None,
-    order: dsl.order_by(view_config.updated_at, dsl.Desc),
-    shape: option.None,
-  )
-}
+
+
+// pub fn query_tracks_by_view_config(track_bucket: TrackBucket, view_config: ViewConfigScalar) {
+//   dsl.Query(
+//     filter: option.None,
+//     order: dsl.order_by(view_config.updated_at, dsl.Desc),
+//     shape: option.None,
+//   )
+// }
 
 // scalar is a single value, like a string, a number, a boolean, etc, not another object type in the db
 // custom scalars could also be vectors

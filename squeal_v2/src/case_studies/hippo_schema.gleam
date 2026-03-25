@@ -79,5 +79,5 @@ pub fn old_hippos_owner_emails(hippo: Hippo, min_age: Int) {
 /// Query input spec for "hippos by gender".
 pub fn hippos_by_gender(hippo: Hippo, gender_to_match: GenderScalar) {
   let filter = exclude_if_missing(hippo.gender) == gender_to_match
-  Query(shape: hippo, filter: option.Some(filter), order: option.None)
+  dsl.Query(shape: hippo, filter: option.Some(filter), order: #(hippo.name, dsl.Desc))
 }

@@ -53,11 +53,11 @@ pub fn nullable(some_val: option.Option(some_type)) -> some_type {
 // o
 
 // composing queries
-pub type Query(type_, shape, order) {
+pub type Query(type_, shape, order_field) {
   Query(
-    shape: Option(shape),
+    shape: shape,
     filter: Option(Bool),
-    order: Option(#(Direction, order)),
+    order: #(order_field, Direction),
   )
 }
 
@@ -75,6 +75,6 @@ pub type Direction {
   Desc
 }
 
-pub fn order_by(field: field, direction: Direction) -> Option(#(field, Direction)) {
-  option.Some(#(field, direction))
+pub fn order_by(field: field, direction: Direction) -> #(field, Direction) {
+  #(field, direction)
 }
