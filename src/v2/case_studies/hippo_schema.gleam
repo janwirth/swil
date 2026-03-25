@@ -1,4 +1,5 @@
 import gleam/option.{type Option, Some}
+import sqlight
 
 import gleam/time/timestamp.{type Timestamp}
 import v2/dsl.{
@@ -112,12 +113,15 @@ pub type QueryOldFriendsResult {
   QueryOldFriends(age: Int, owner: option.Option(Human))
 }
 
-pub fn query_old_friends(hippo: Hippo) {
-  todo(
-    "This will be filled by codegen, maybe we put the data structure here of what has been parsed?",
-  )
+pub fn old_hippos_owners_emails(conn: sqlight.Connection, age: Int) {
+  let sql = todo("Generate SQL from query spec")
+  let parameters = todo("Generate parameters from query spec")
+  let decoder = todo("Generate decoder from query spec")
+  let assert Ok(result) = sqlight.query(sql, on: conn, with: parameters, expecting: decoder)
+  result
 }
 
+// another example
 pub fn hippos_by_gender(hippo: Hippo, gender_to_match: Bool) {
   query(hippo)
   |> filter(fn(hippo) { exclude_if_missing(hippo.gender) == gender_to_match })
