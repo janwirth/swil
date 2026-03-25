@@ -20,7 +20,7 @@ pub fn upsert_fruit_by_name(
   color: option.Option(String),
   price: option.Option(Float),
   quantity: option.Option(Int),
-) -> Result(Fruit, sqlight.Error) {
+) -> Result(#(Fruit, dsl.MagicFields), sqlight.Error) {
   todo as "TODO: generated upsert SQL and decoding"
 }
 
