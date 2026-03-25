@@ -3,8 +3,9 @@ import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
 import schema_definition/fields.{
-  type FieldDefinition, find_labelled_field, require_no_unwrapped_primitive_fields,
-  type_named_type_name, variant_fields_all_labelled, variant_fields_to_defs,
+  type FieldDefinition, find_labelled_field, require_no_magic_field_labels,
+  require_no_unwrapped_primitive_fields, type_named_type_name,
+  variant_fields_all_labelled, variant_fields_to_defs,
 }
 import schema_definition/parse_error.{type ParseError, UnsupportedSchema}
 
@@ -74,12 +75,20 @@ pub fn try_parse(
                           case find_labelled_field(vfields, "relationships") {
                             None -> {
                               let fields = variant_fields_to_defs(vfields)
-                              use _ <- result.try(require_no_unwrapped_primitive_fields(
+                              use _ <- result.try(require_no_magic_field_labels(
                                 fields,
                                 ["identities", "relationships"],
                                 ct.name,
                                 ct.location,
                               ))
+                              use _ <- result.try(
+                                require_no_unwrapped_primitive_fields(
+                                  fields,
+                                  ["identities", "relationships"],
+                                  ct.name,
+                                  ct.location,
+                                ),
+                              )
                               Ok(
                                 Some(EntityDefinition(
                                   ct.name,
@@ -112,12 +121,22 @@ pub fn try_parse(
                                     True -> {
                                       let fields =
                                         variant_fields_to_defs(vfields)
-                                      use _ <- result.try(require_no_unwrapped_primitive_fields(
-                                        fields,
-                                        ["identities", "relationships"],
-                                        ct.name,
-                                        ct.location,
-                                      ))
+                                      use _ <- result.try(
+                                        require_no_magic_field_labels(
+                                          fields,
+                                          ["identities", "relationships"],
+                                          ct.name,
+                                          ct.location,
+                                        ),
+                                      )
+                                      use _ <- result.try(
+                                        require_no_unwrapped_primitive_fields(
+                                          fields,
+                                          ["identities", "relationships"],
+                                          ct.name,
+                                          ct.location,
+                                        ),
+                                      )
                                       Ok(
                                         Some(EntityDefinition(
                                           ct.name,

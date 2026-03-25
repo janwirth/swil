@@ -1,17 +1,13 @@
 import gleam/option
-import gleam/time/timestamp
 
-// id
-// created ad
-// updated at
-// - there atuomatically
+// id / created_at / updated_at / deleted_at come from `dsl.MagicFields`, not the schema type.
 pub type ImportedTrack {
   ImportedTrack(
     title: option.Option(String),
     artist: option.Option(String),
     file_path: option.Option(String),
     tags: List(Tag),
-    identities: ImportedTrackIdentities
+    identities: ImportedTrackIdentities,
   )
 }
 
@@ -22,12 +18,9 @@ pub type ImportedTrackIdentities {
 
 pub type Tag {
   Tag(
-    id: option.Option(Int),
-    created_at: timestamp.Timestamp,
-    updated_at: timestamp.Timestamp,
     label: option.Option(String),
     emoji: option.Option(String),
-    identities: TagIdentities
+    identities: TagIdentities,
   )
 }
 
@@ -35,31 +28,25 @@ pub type TagIdentities {
   ByTagLabel(label: String)
 }
 
-
-
 // should I think about types for this?
 // without path nor XYZ is invalid?
 // let's stay with this and validate later?
 
 pub type TrackBucket {
   TrackBucket(
-    id: option.Option(Int),
-    created_at: timestamp.Timestamp,
-    updated_at: timestamp.Timestamp,
     title: option.Option(String),
     artist: option.Option(String),
     matched_tracks: List(ImportedTrack),
     // tag with a numeric param
     tags: List(#(Tag, Int)),
     // implies join table
-    identities: TrackBucketIdentities
+    identities: TrackBucketIdentities,
   )
 }
 
 pub type TrackBucketIdentities {
   ByBucketTitleAndArtist(title: String, artist: String)
 }
-
 
 // persisted in db
 pub type Tab {
@@ -68,7 +55,7 @@ pub type Tab {
     order: option.Option(Float),
     view_config: option.Option(ViewConfigScalar),
     identities: TabIdentities,
-    tracks: List(TrackBucket)
+    tracks: List(TrackBucket),
   )
 }
 
@@ -79,7 +66,6 @@ pub type ViewConfigScalar {
   )
 }
 
-
 pub type TabIdentities {
   ByTabLabel(label: String)
 }
@@ -87,7 +73,6 @@ pub type TabIdentities {
 // scalar is a single value, like a string, a number, a boolean, etc, not another object type in the db
 // custom scalars could also be vectors
 // scalars have their own implementaiton - to / from sql I guess
-
 
 // todo: boolean filter structure
 // list of sources
@@ -108,7 +93,6 @@ type RouteModal {
   // CRUD tabs
   // find individual tracks
 }
-
 // tags grouping is done by UI code
 
 // let's think UI
@@ -152,7 +136,6 @@ type RouteModal {
 // pub fn never_example() -> Never {   
 //    JustOneMore(JustOneMore(JustOneMore(...))) // doesn't compile
 // }
-
 
 // pub fn select_tabs_for_header(tab: Tab) -> OrderBy(c) {
 //   order_by(tab.order, Asc)

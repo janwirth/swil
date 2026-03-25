@@ -1,7 +1,7 @@
-import case_studies/library_manager_schema.{type ImportedTrack, type Tab, type Tag, type TrackBucket}
-import dsl
+import case_studies/library_manager_schema.{
+  type ImportedTrack, type Tab, type Tag, type TrackBucket,
+}
 import gleam/option
-import gleam/time/timestamp.{type Timestamp}
 import sqlight
 
 /// Generated from `case_studies/library_manager_schema`.
@@ -10,7 +10,6 @@ import sqlight
 /// - `migrate/1`
 /// - Entity ops: ImportedTrack, Tab, Tag, TrackBucket
 /// - Query specs: none
-
 pub fn migrate(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   todo as "TODO: generated migration SQL"
 }
@@ -93,9 +92,6 @@ pub fn delete_tab_by_tab_label(
 pub fn upsert_tag_by_tag_label(
   conn: sqlight.Connection,
   label: String,
-  id: option.Option(Int),
-  created_at: Timestamp,
-  updated_at: Timestamp,
   emoji: option.Option(String),
 ) -> Result(Tag, sqlight.Error) {
   todo as "TODO: generated upsert SQL and decoding"
@@ -113,9 +109,6 @@ pub fn get_tag_by_tag_label(
 pub fn update_tag_by_tag_label(
   conn: sqlight.Connection,
   label: String,
-  id: option.Option(Int),
-  created_at: Timestamp,
-  updated_at: Timestamp,
   emoji: option.Option(String),
 ) -> Result(Tag, sqlight.Error) {
   todo as "TODO: generated update SQL and decoding"
@@ -134,9 +127,6 @@ pub fn upsert_trackbucket_by_bucket_title_and_artist(
   conn: sqlight.Connection,
   title: String,
   artist: String,
-  id: option.Option(Int),
-  created_at: Timestamp,
-  updated_at: Timestamp,
 ) -> Result(TrackBucket, sqlight.Error) {
   todo as "TODO: generated upsert SQL and decoding"
 }
@@ -155,9 +145,6 @@ pub fn update_trackbucket_by_bucket_title_and_artist(
   conn: sqlight.Connection,
   title: String,
   artist: String,
-  id: option.Option(Int),
-  created_at: Timestamp,
-  updated_at: Timestamp,
 ) -> Result(TrackBucket, sqlight.Error) {
   todo as "TODO: generated update SQL and decoding"
 }

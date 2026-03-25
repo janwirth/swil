@@ -24,6 +24,8 @@
 /// 11. **Nullable primitives** — on entities (except `identities` / `relationships`), `*Relationships`,
 ///     and `*Attributes`, fields must not use bare `String` / `Int` / `Float` / `Bool` / `Date`; wrap
 ///     with `option.Option(...)`.
+/// 12. **Magic row fields** — entity fields must not use the labels `id`, `created_at`, `updated_at`, or
+///     `deleted_at` (see `dsl.MagicFields`); generated code supplies those.
 ///
 import gleam/list
 import gleam/string
@@ -231,8 +233,7 @@ pub type RowIdentities {
 }
 "
   case schema_definition.parse_module(input) {
-    Ok(_) ->
-      panic as "expected entity field with bare String to be rejected"
+    Ok(_) -> panic as "expected entity field with bare String to be rejected"
     Error(_) -> Nil
   }
 }
@@ -269,8 +270,32 @@ pub type LinkAttributes {
 }
 "
   case schema_definition.parse_module(input) {
+    Ok(_) -> panic as "expected *Attributes field with bare Int to be rejected"
+    Error(_) -> Nil
+  }
+}
+
+pub fn entity_magic_field_labels_rejected_test() {
+  let input =
+    "import gleam/option
+import gleam/time/timestamp
+
+pub type Row {
+  Row(
+    id: option.Option(Int),
+    created_at: timestamp.Timestamp,
+    updated_at: timestamp.Timestamp,
+    identities: RowIdentities,
+  )
+}
+
+pub type RowIdentities {
+  ByKey(key: String)
+}
+"
+  case schema_definition.parse_module(input) {
     Ok(_) ->
-      panic as "expected *Attributes field with bare Int to be rejected"
+      panic as "expected entity fields reserved for dsl.MagicFields to be rejected"
     Error(_) -> Nil
   }
 }

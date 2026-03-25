@@ -57,6 +57,34 @@ pub fn type_is_unwrapped_primitive(t: glance.Type) -> Bool {
   }
 }
 
+/// Labels reserved for `dsl.MagicFields` must not appear on entity records; the generator supplies them.
+pub fn require_no_magic_field_labels(
+  fields: List(FieldDefinition),
+  skip_labels: List(String),
+  owning_type: String,
+  location: glance.Span,
+) -> Result(Nil, ParseError) {
+  let reserved = ["id", "created_at", "updated_at", "deleted_at"]
+  list.try_each(over: fields, with: fn(field) {
+    case list.contains(skip_labels, field.label) {
+      True -> Ok(Nil)
+      False ->
+        case list.contains(reserved, field.label) {
+          False -> Ok(Nil)
+          True ->
+            Error(UnsupportedSchema(
+              Some(location),
+              "field `"
+                <> field.label
+                <> "` on "
+                <> owning_type
+                <> " is reserved for `dsl.MagicFields` (`id`, timestamps, `deleted_at`); remove it from the schema type",
+            ))
+        }
+    }
+  })
+}
+
 pub fn require_no_unwrapped_primitive_fields(
   fields: List(FieldDefinition),
   skip_labels: List(String),

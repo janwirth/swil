@@ -112,6 +112,6 @@ pub type HipposByGenderResult {
 pub fn query_hippos_by_gender(
   conn: sqlight.Connection,
   gender_to_match: hippo_schema.GenderScalar,
-) -> Result(List(#(HipposByGenderResult, dsl.MagicFields)), sqlight.Error) {
+) -> Result(List(HipposByGenderResult), sqlight.Error) {
   todo as "TODO: generated select SQL, parameters, and decoder"
 }
