@@ -1,7 +1,9 @@
 import generators/migration/migration_sql
 import gleam/list
 import gleam/string
-import schema_definition/schema_definition.{type EntityDefinition, type FieldDefinition}
+import schema_definition/schema_definition.{
+  type EntityDefinition, type FieldDefinition,
+}
 
 pub fn entity_data_fields(entity: EntityDefinition) -> List(FieldDefinition) {
   list.filter(entity.fields, fn(f) {
@@ -31,8 +33,7 @@ pub fn upsert_sql(
   let value_placeholders =
     string.join(list.flatten([placeholders_before_null, ["null"]]), ", ")
   let conflict_cols = comma_join(id_cols)
-  let non_id_data =
-    list.filter(data_cols, fn(c) { !list.contains(id_cols, c) })
+  let non_id_data = list.filter(data_cols, fn(c) { !list.contains(id_cols, c) })
   let update_sets =
     list.map(non_id_data, fn(c) { c <> " = excluded." <> c })
     |> list.append([
