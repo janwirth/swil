@@ -99,6 +99,7 @@ fn importedtrack_with_magic_row_decoder() -> decode.Decoder(#(ImportedTrack, dsl
       title: Some(title),
       artist: Some(artist),
       file_path: opt_string_from_db(file_path),
+      tags: [],
       identities: ByTitleAndArtist(title:, artist:),
     )
   decode.success(#(

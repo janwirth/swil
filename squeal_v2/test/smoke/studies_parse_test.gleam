@@ -1,6 +1,5 @@
 /// This module just makes sure the studies parse correctly.
 import gleam/list
-import gleam/option.{Some}
 import gleam/string
 import gleeunit
 import schema_definition/schema_definition as schema_definition
@@ -82,5 +81,5 @@ pub fn library_manager_schema_test() {
   let path = "src/case_studies/library_manager_schema.gleam"
   let assert Ok(src) = simplifile.read(path)
 
-  let assert Ok(def) = schema_definition.parse_module(src)
+  let assert Ok(_) = schema_definition.parse_module(src)
 }

@@ -282,8 +282,11 @@ fn entity_rich_row_decoder_fn(
   }
   let row_local = string.lowercase(entity.type_name)
   let field_lines =
-    list.map(data_fields, fn(f) { "      " <> f.label <> ":," })
-    |> string.join("\n")
+    join_data_and_list_field_lines(
+      list.map(data_fields, fn(f) { "      " <> f.label <> ":," })
+        |> string.join("\n"),
+      entity,
+    )
   let ident = "      identities: " <> rich_identity_construct_call(v) <> ","
   let rel =
     "      relationships: "
@@ -361,6 +364,22 @@ fn identity_construct_call(v: IdentityVariantDefinition) -> String {
   v.variant_name <> "(" <> args <> ")"
 }
 
+fn entity_constructor_list_placeholder_lines(entity: EntityDefinition) -> String {
+  api_sql.entity_row_list_placeholder_fields(entity)
+  |> list.map(fn(f) { "      " <> f.label <> ": []," })
+  |> string.join("\n")
+}
+
+fn join_data_and_list_field_lines(
+  data_lines: String,
+  entity: EntityDefinition,
+) -> String {
+  case entity_constructor_list_placeholder_lines(entity) {
+    "" -> data_lines
+    list_lines -> data_lines <> "\n" <> list_lines
+  }
+}
+
 fn field_to_constructor_arg(
   f: FieldDefinition,
   ids: List(String),
@@ -421,12 +440,15 @@ fn entity_simple_magic_decoder_fn(
     <> ", decode.optional(decode.int))"
   let row_local = string.lowercase(entity.type_name)
   let field_lines =
-    list.map(data_fields, fn(f) {
-      let var = f.label
-      let expr = field_to_constructor_arg(f, ids, var)
-      "      " <> f.label <> ": " <> expr <> ","
-    })
-    |> string.join("\n")
+    join_data_and_list_field_lines(
+      list.map(data_fields, fn(f) {
+        let var = f.label
+        let expr = field_to_constructor_arg(f, ids, var)
+        "      " <> f.label <> ": " <> expr <> ","
+      })
+        |> string.join("\n"),
+      entity,
+    )
   let ident = "      identities: " <> identity_construct_call(v) <> ","
   uses
   <> "\n"

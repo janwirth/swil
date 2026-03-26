@@ -13,6 +13,17 @@ pub fn entity_data_fields(entity: EntityDefinition) -> List(FieldDefinition) {
   })
 }
 
+/// `List(_)` fields are not columns on the main table row; decoders use `[]` until join-loaded lists exist.
+pub fn entity_row_list_placeholder_fields(
+  entity: EntityDefinition,
+) -> List(FieldDefinition) {
+  list.filter(entity.fields, fn(f) {
+    f.label != "identities"
+    && f.label != "relationships"
+    && migration_sql.type_is_list(f.type_)
+  })
+}
+
 fn comma_join(xs: List(String)) -> String {
   string.join(xs, ", ")
 }
