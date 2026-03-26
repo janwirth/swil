@@ -1,4 +1,4 @@
-import dsl/parser_error_formatter
+/// This module just makes sure the studies parse correctly.
 import gleam/list
 import gleam/option.{Some}
 import gleam/string

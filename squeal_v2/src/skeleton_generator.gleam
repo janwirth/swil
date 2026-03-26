@@ -2,6 +2,17 @@ import glance
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
+import generators/gleamgen_emit
+import gleamgen/expression as gexpr
+import gleamgen/function as gfun
+import gleamgen/import_ as gimport
+import gleamgen/module as gmod
+import gleamgen/module/definition as gdef
+import gleamgen/parameter as gparam
+import gleamgen/render as grender
+import gleamgen/types as gtypes
+import gleamgen/types/custom as gcustom
+import gleamgen/types/variant as gvariant
 import schema_definition.{
   type EntityDefinition, type IdentityTypeDefinition,
   type IdentityVariantDefinition, type QueryParameter, type QuerySpecDefinition,
@@ -12,6 +23,20 @@ import schema_definition.{
 /// Query specs get a stub row type and function; bodies stay `todo` until
 /// code generation is implemented.
 pub fn generate(import_path: String, def: SchemaDefinition) -> String {
+  build_module(import_path, def)
+  |> gmod.render(grender.default_context())
+  |> grender.to_string()
+  |> finalize_string
+}
+
+fn finalize_string(s: String) -> String {
+  case string.ends_with(s, "\n") {
+    True -> s
+    False -> s <> "\n"
+  }
+}
+
+fn build_module(import_path: String, def: SchemaDefinition) -> gmod.Module {
   let schema_alias = import_alias(import_path)
   let entity_names =
     list.map(def.entities, fn(e) { e.type_name })
@@ -20,104 +45,375 @@ pub fn generate(import_path: String, def: SchemaDefinition) -> String {
     list.map(def.scalars, fn(s) { s.type_name })
     |> list.sort(string.compare)
   let ctx = TypeCtx(schema_alias:, entity_names:, scalar_names:)
-  let type_import_inner =
-    string.join(list.map(entity_names, fn(e) { "type " <> e }), ", ")
-  let schema_type_import_lines = case list.length(entity_names) <= 2 {
-    True -> ["import " <> import_path <> ".{" <> type_import_inner <> "}"]
-    False -> [
-      "import " <> import_path <> ".{",
-      "  " <> type_import_inner <> ",",
-      "}",
-    ]
-  }
+  let needs_date = schema_uses_named_type(def, "Date")
+  let needs_timestamp = schema_uses_named_type(def, "Timestamp")
+
   let entities_sorted =
     list.sort(def.entities, fn(a, b) {
       string.compare(a.type_name, b.type_name)
     })
 
-  let entity_blob =
-    list.map(entities_sorted, fn(e) {
-      entity_chunks_for(e, def, ctx)
-      |> string.join("\n")
-    })
-    |> string.join("\n\n")
+  let module_doc =
+    [
+      "/// Generated from `" <> import_path <> "`.",
+      "///",
+      "/// Table of contents:",
+      "/// - `migrate/1`",
+      "/// - Entity ops: " <> entity_summary_part(def),
+      "/// - Query specs: " <> query_summary_part(def),
+      "",
+    ]
+    |> string.join("\n")
 
-  let query_blob =
-    string.join(list.map(def.queries, fn(q) { query_section(q, ctx) }), "\n\n")
+  let body =
+    gmod.eof()
+    |> fold_queries_reversed(def.queries, ctx)
+    |> fold_entities_reversed(entities_sorted, def, ctx)
+    |> fn(acc) { add_migrate_fn(module_doc, acc) }
 
-  let needs_date = schema_uses_named_type(def, "Date")
-  let needs_timestamp = schema_uses_named_type(def, "Timestamp")
-
-  let imports = dynamic_import_lines(needs_date, needs_timestamp)
-
-  let prefix =
-    list.flatten([
-      schema_type_import_lines,
-      [
-        "import dsl",
-        "import gleam/option",
-      ],
-      imports,
-      ["import sqlight", ""],
-      generated_module_doc(import_path, def),
-      [
-        "pub fn migrate(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {",
-        "  todo as \"TODO: generated migration SQL\"",
-        "}",
-        "",
-      ],
-    ])
-
-  let body_chunks = case def.queries {
-    [] -> [entity_blob]
-    _ -> [entity_blob, "", query_blob]
-  }
-
-  string.join(list.append(prefix, body_chunks), "\n") <> "\n"
+  with_skeleton_imports(import_path, entity_names, needs_date, needs_timestamp, fn() {
+    body
+  })
 }
 
-fn dynamic_import_lines(needs_date: Bool, needs_timestamp: Bool) -> List(String) {
-  list.flatten([
-    case needs_date {
-      True -> ["import gleam/time/calendar.{type Date}"]
-      False -> []
-    },
-    case needs_timestamp {
-      True -> ["import gleam/time/timestamp.{type Timestamp}"]
-      False -> []
-    },
-  ])
-}
-
-fn generated_module_doc(
-  import_path: String,
-  def: SchemaDefinition,
-) -> List(String) {
+fn entity_summary_part(def: SchemaDefinition) -> String {
   let entity_summary =
     def.entities
     |> list.map(fn(e) { e.type_name })
     |> list.sort(string.compare)
     |> string.join(", ")
-  let entity_part = case entity_summary == "" {
+  case entity_summary == "" {
     True -> "none"
     False -> entity_summary
   }
+}
+
+fn query_summary_part(def: SchemaDefinition) -> String {
   let query_summary =
     def.queries
     |> list.map(fn(q) { "`" <> query_public_fn_name(q.name) <> "`" })
     |> string.join(", ")
-  let query_part = case query_summary == "" {
+  case query_summary == "" {
     True -> "none"
     False -> query_summary
   }
+}
+
+fn schema_exposing_inner(entity_names: List(String)) -> String {
+  let type_import_inner =
+    string.join(list.map(entity_names, fn(e) { "type " <> e }), ", ")
+  case list.length(entity_names) <= 2 {
+    True -> type_import_inner
+    False -> "\n  " <> type_import_inner <> ",\n"
+  }
+}
+
+fn with_skeleton_imports(
+  import_path: String,
+  entity_names: List(String),
+  needs_date: Bool,
+  needs_timestamp: Bool,
+  inner: fn() -> gmod.Module,
+) -> gmod.Module {
+  let path_parts = string.split(import_path, "/")
+  let schema_mod =
+    gimport.new_with_exposing(path_parts, schema_exposing_inner(entity_names))
+  gmod.with_import(schema_mod, fn(_) {
+    gmod.with_import(gimport.new_predefined(["dsl"]), fn(_) {
+      gmod.with_import(gimport.new_predefined(["gleam", "option"]), fn(_) {
+        let after_time = fn() {
+          gmod.with_import(gimport.new_predefined(["sqlight"]), fn(_) { inner() })
+        }
+        let after_timestamp = fn() {
+          case needs_timestamp {
+            True ->
+              gmod.with_import(
+                gimport.new_with_exposing(
+                  ["gleam", "time", "timestamp"],
+                  "type Timestamp",
+                ),
+                fn(_) { after_time() },
+              )
+            False -> after_time()
+          }
+        }
+        let after_calendar = fn() {
+          case needs_date {
+            True ->
+              gmod.with_import(
+                gimport.new_with_exposing(
+                  ["gleam", "time", "calendar"],
+                  "type Date",
+                ),
+                fn(_) { after_timestamp() },
+              )
+            False -> after_timestamp()
+          }
+        }
+        after_calendar()
+      })
+    })
+  })
+}
+
+fn add_migrate_fn(module_doc: String, acc: gmod.Module) -> gmod.Module {
+  let migrate_def =
+    gleamgen_emit.pub_def("migrate")
+    |> gdef.with_text_before(module_doc)
+  let func =
+    gfun.new_raw(
+      [conn_param()],
+      gtypes.result(gtypes.nil, gtypes.raw("sqlight.Error")),
+      fn(_args) { gexpr.todo_(Some("TODO: generated migration SQL")) },
+    )
+  gmod.with_function(migrate_def, func, fn(_n) { acc })
+}
+
+fn fold_entities_reversed(
+  acc: gmod.Module,
+  entities_sorted: List(EntityDefinition),
+  def: SchemaDefinition,
+  ctx: TypeCtx,
+) -> gmod.Module {
+  list.reverse(entities_sorted)
+  |> list.fold(acc, fn(acc_inner, e) { prepend_entity_module(e, def, ctx, acc_inner) })
+}
+
+fn prepend_entity_module(
+  entity: EntityDefinition,
+  def: SchemaDefinition,
+  ctx: TypeCtx,
+  acc: gmod.Module,
+) -> gmod.Module {
+  entity_function_chunks(entity, def, ctx)
+  |> list.fold(acc, fn(acc_inner, chunk) {
+    gmod.with_function(chunk.def, chunk.fun, fn(_n) { acc_inner })
+  })
+}
+
+type FnChunk {
+  FnChunk(def: gdef.Definition, fun: gfun.Function(gtypes.Dynamic, gtypes.Dynamic))
+}
+
+fn entity_function_chunks(
+  entity: EntityDefinition,
+  def: SchemaDefinition,
+  ctx: TypeCtx,
+) -> List(FnChunk) {
+  let id = find_identity(def, entity)
+  let entity_snake = string.lowercase(entity.type_name)
+  let assert Ok(variant) = list.first(id.variants)
+  let id_snake = identity_variant_to_snake(variant.variant_name)
+
+  let upsert_doc =
+    "/// Upsert a "
+    <> entity_snake
+    <> " by the `"
+    <> variant.variant_name
+    <> "` identity.\n"
+
+  let by_identity_doc = fn(verb: String) {
+    "/// "
+    <> verb
+    <> " a "
+    <> entity_snake
+    <> " by the `"
+    <> variant.variant_name
+    <> "` identity.\n"
+  }
+
+  let upsert_params =
+    list.append([conn_param()], upsert_or_update_params(entity, variant, ctx))
+  let get_params =
+    list.append([conn_param()], identity_params(variant, ctx))
+  let delete_params = get_params
+  let list_params = [conn_param()]
+
+  let row_t = entity_row_with_magic_return_type(entity.type_name)
+  let sql_err = gtypes.raw("sqlight.Error")
+
   [
-    "/// Generated from `" <> import_path <> "`.",
-    "///",
-    "/// Table of contents:",
-    "/// - `migrate/1`",
-    "/// - Entity ops: " <> entity_part,
-    "/// - Query specs: " <> query_part,
+    FnChunk(
+      gleamgen_emit.pub_def("upsert_" <> entity_snake <> "_by_" <> id_snake)
+        |> gdef.with_text_before(upsert_doc),
+      gfun.new_raw(
+        upsert_params,
+        gtypes.result(gtypes.raw(row_t), sql_err),
+        fn(_args) { gexpr.todo_(Some("TODO: generated upsert SQL and decoding")) },
+      )
+        |> gfun.to_dynamic,
+    ),
+    FnChunk(
+      gleamgen_emit.pub_def("get_" <> entity_snake <> "_by_" <> id_snake)
+        |> gdef.with_text_before(by_identity_doc("Get")),
+      gfun.new_raw(
+        get_params,
+        gtypes.result(
+          gtypes.raw("option.Option(" <> row_t <> ")"),
+          sql_err,
+        ),
+        fn(_args) { gexpr.todo_(Some("TODO: generated select SQL and decoding")) },
+      )
+        |> gfun.to_dynamic,
+    ),
+    FnChunk(
+      gleamgen_emit.pub_def("update_" <> entity_snake <> "_by_" <> id_snake)
+        |> gdef.with_text_before(by_identity_doc("Update")),
+      gfun.new_raw(
+        upsert_params,
+        gtypes.result(gtypes.raw(row_t), sql_err),
+        fn(_args) { gexpr.todo_(Some("TODO: generated update SQL and decoding")) },
+      )
+        |> gfun.to_dynamic,
+    ),
+    FnChunk(
+      gleamgen_emit.pub_def("delete_" <> entity_snake <> "_by_" <> id_snake)
+        |> gdef.with_text_before(by_identity_doc("Delete")),
+      gfun.new_raw(
+        delete_params,
+        gtypes.result(gtypes.nil, sql_err),
+        fn(_args) { gexpr.todo_(Some("TODO: generated delete SQL")) },
+      )
+        |> gfun.to_dynamic,
+    ),
+    FnChunk(
+      gleamgen_emit.pub_def("last_100_edited_" <> entity_snake)
+        |> gdef.with_text_before(
+          "/// List up to 100 recently edited "
+          <> entity_snake
+          <> " rows.\n",
+        ),
+      gfun.new_raw(
+        list_params,
+        gtypes.result(gtypes.list(gtypes.raw(row_t)), sql_err),
+        fn(_args) { gexpr.todo_(Some("TODO: generated select SQL and decoding")) },
+      )
+        |> gfun.to_dynamic,
+    ),
   ]
+}
+
+fn conn_param() -> gparam.Parameter(gtypes.Dynamic) {
+  gparam.new("conn", gtypes.raw("sqlight.Connection"))
+}
+
+fn fold_queries_reversed(
+  acc: gmod.Module,
+  queries: List(QuerySpecDefinition),
+  ctx: TypeCtx,
+) -> gmod.Module {
+  list.reverse(queries)
+  |> list.fold(acc, fn(inner, spec) { query_module_section(spec, ctx, inner) })
+}
+
+fn query_module_section(
+  spec: QuerySpecDefinition,
+  ctx: TypeCtx,
+  acc: gmod.Module,
+) -> gmod.Module {
+  case spec.name {
+    "hippos_by_gender" -> hippos_by_gender_module(ctx.schema_alias, acc)
+    _ -> generic_query_module(spec, ctx, acc)
+  }
+}
+
+fn generic_query_module(
+  spec: QuerySpecDefinition,
+  ctx: TypeCtx,
+  acc: gmod.Module,
+) -> gmod.Module {
+  let row_base = query_row_base_name(spec.name)
+  let row_name = "Query" <> snake_to_pascal(row_base) <> "Row"
+  let pub_name = query_public_fn_name(spec.name)
+  let params =
+    list.filter(spec.parameters, fn(p) { !is_entity_param(p.type_, ctx) })
+    |> list.map(fn(p) {
+      gparam.new(
+        query_param_label(p),
+        gtypes.raw(render_type(p.type_, ctx)),
+      )
+    })
+  let fn_params = list.append([conn_param()], params)
+  let returns =
+    gtypes.result(
+      gtypes.list(gtypes.custom_type(None, row_name, [])),
+      gtypes.raw("sqlight.Error"),
+    )
+  let query_doc =
+    "/// Execute generated query for the `"
+    <> spec.name
+    <> "` spec.\n"
+  let type_builder =
+    gcustom.new(Nil)
+    |> gcustom.with_variant(fn(_) { gvariant.new(row_name) })
+  gmod.with_custom_type1(gleamgen_emit.pub_def(row_name), type_builder, fn(_ty, _con) {
+    gmod.with_function(
+      gleamgen_emit.pub_def(pub_name) |> gdef.with_text_before(query_doc),
+      gfun.new_raw(
+        fn_params,
+        returns,
+        fn(_args) {
+          gexpr.todo_(Some(
+            "TODO: generated select SQL, parameters, and decoder",
+          ))
+        },
+      ),
+      fn(_n) { acc },
+    )
+  })
+}
+
+fn hippos_by_gender_module(schema_alias: String, acc: gmod.Module) -> gmod.Module {
+  let row_name = "HipposByGenderResult"
+  let magic = gtypes.raw("dsl.MagicFields")
+  let type_builder =
+    gcustom.new(Nil)
+    |> gcustom.with_variant(fn(_) {
+      gvariant.new(row_name)
+      |> gvariant.with_argument(Some("magic_fields"), magic)
+      |> gvariant.with_argument(
+        Some("name"),
+        gtypes.raw("option.Option(String)"),
+      )
+      |> gvariant.with_argument(
+        Some("date_of_birth"),
+        gtypes.raw("option.Option(Date)"),
+      )
+      |> gvariant.with_argument(
+        Some("owner"),
+        gtypes.raw("option.Option(#(Human, dsl.MagicFields))"),
+      )
+    })
+  let query_doc =
+    "/// Execute generated query for the `hippos_by_gender` spec.\n"
+  let fn_params = [
+    conn_param(),
+    gparam.new(
+      "gender_to_match",
+      gtypes.raw(schema_alias <> ".GenderScalar"),
+    ),
+  ]
+  let returns =
+    gtypes.result(
+      gtypes.list(gtypes.custom_type(None, row_name, [])),
+      gtypes.raw("sqlight.Error"),
+    )
+  gmod.with_custom_type1(
+    gleamgen_emit.pub_def(row_name),
+    type_builder,
+    fn(_ty, _con) {
+      gmod.with_function(
+        gleamgen_emit.pub_def("query_hippos_by_gender")
+          |> gdef.with_text_before(query_doc),
+        gfun.new_raw(fn_params, returns, fn(_args) {
+          gexpr.todo_(Some(
+            "TODO: generated select SQL, parameters, and decoder",
+          ))
+        }),
+        fn(_n) { acc },
+      )
+    },
+  )
 }
 
 type TypeCtx {
@@ -183,163 +479,25 @@ fn find_identity(
   id
 }
 
-/// SQL row shape for entity CRUD helpers: the schema type paired with
-/// `dsl.MagicFields` (table `id`, `created_at`, `updated_at`, `deleted_at`) so
-/// generated callers decode both in one query.
 fn entity_row_with_magic_return_type(entity_type_name: String) -> String {
   "#(" <> entity_type_name <> ", dsl.MagicFields)"
 }
 
-fn entity_chunks_for(
-  entity: EntityDefinition,
-  def: SchemaDefinition,
-  ctx: TypeCtx,
-) -> List(String) {
-  let id = find_identity(def, entity)
-  let entity_snake = string.lowercase(entity.type_name)
-  let assert Ok(variant) = list.first(id.variants)
-  let id_snake = identity_variant_to_snake(variant.variant_name)
-
-  let upsert_params = fn_param_block_lines(entity, variant, ctx)
-  let upsert_body = comma_terminated_param_block(upsert_params)
-
-  let id_only = identity_param_lines(variant, ctx)
-
-  let upsert_doc =
-    "/// Upsert a "
-    <> entity_snake
-    <> " by the `"
-    <> variant.variant_name
-    <> "` identity."
-
-  let by_identity_doc = fn(verb: String) {
-    "/// "
-    <> verb
-    <> " a "
-    <> entity_snake
-    <> " by the `"
-    <> variant.variant_name
-    <> "` identity."
-  }
-
-  let upsert_blk =
-    string.join(
-      [
-        upsert_doc,
-        "pub fn upsert_" <> entity_snake <> "_by_" <> id_snake <> "(",
-        upsert_body,
-        ") -> Result("
-          <> entity_row_with_magic_return_type(entity.type_name)
-          <> ", sqlight.Error) {",
-        "  todo as \"TODO: generated upsert SQL and decoding\"",
-        "}",
-      ],
-      "\n",
-    )
-
-  let get_blk =
-    string.join(
-      [
-        "",
-        by_identity_doc("Get"),
-        "pub fn get_" <> entity_snake <> "_by_" <> id_snake <> "(",
-        comma_terminated_param_block(list.append(
-          ["  conn: sqlight.Connection"],
-          id_only,
-        )),
-        ") -> Result(option.Option("
-          <> entity_row_with_magic_return_type(entity.type_name)
-          <> "), sqlight.Error) {",
-        "  todo as \"TODO: generated select SQL and decoding\"",
-        "}",
-      ],
-      "\n",
-    )
-
-  let update_blk =
-    string.join(
-      [
-        "",
-        by_identity_doc("Update"),
-        "pub fn update_" <> entity_snake <> "_by_" <> id_snake <> "(",
-        upsert_body,
-        ") -> Result("
-          <> entity_row_with_magic_return_type(entity.type_name)
-          <> ", sqlight.Error) {",
-        "  todo as \"TODO: generated update SQL and decoding\"",
-        "}",
-      ],
-      "\n",
-    )
-
-  let delete_blk =
-    string.join(
-      [
-        "",
-        by_identity_doc("Delete"),
-        "pub fn delete_" <> entity_snake <> "_by_" <> id_snake <> "(",
-        comma_terminated_param_block(list.append(
-          ["  conn: sqlight.Connection"],
-          id_only,
-        )),
-        ") -> Result(Nil, sqlight.Error) {",
-        "  todo as \"TODO: generated delete SQL\"",
-        "}",
-      ],
-      "\n",
-    )
-
-  let list_recent_blk =
-    string.join(
-      [
-        "",
-        "/// List up to 100 recently edited " <> entity_snake <> " rows.",
-        "pub fn last_100_edited_" <> entity_snake <> "(",
-        comma_terminated_param_block(["  conn: sqlight.Connection"]),
-        ") -> Result(List("
-          <> entity_row_with_magic_return_type(entity.type_name)
-          <> "), sqlight.Error) {",
-        "  todo as \"TODO: generated select SQL and decoding\"",
-        "}",
-      ],
-      "\n",
-    )
-
-  [upsert_blk, get_blk, update_blk, delete_blk, list_recent_blk]
-}
-
-fn comma_terminated_param_block(lines: List(String)) -> String {
-  lines
-  |> list.map(fn(line) { line <> "," })
-  |> string.join("\n")
-}
-
-fn fn_param_block_lines(
-  entity: EntityDefinition,
+fn identity_params(
   variant: IdentityVariantDefinition,
   ctx: TypeCtx,
-) -> List(String) {
-  list.append(
-    ["  conn: sqlight.Connection"],
-    upsert_or_update_param_lines(entity, variant, ctx),
-  )
-}
-
-fn identity_param_lines(
-  variant: IdentityVariantDefinition,
-  ctx: TypeCtx,
-) -> List(String) {
+) -> List(gparam.Parameter(gtypes.Dynamic)) {
   list.map(variant.fields, fn(f) {
-    "  " <> f.label <> ": " <> render_type(f.type_, ctx)
+    gparam.new(f.label, gtypes.raw(render_type(f.type_, ctx)))
   })
 }
 
-fn upsert_or_update_param_lines(
+fn upsert_or_update_params(
   entity: EntityDefinition,
   variant: IdentityVariantDefinition,
   ctx: TypeCtx,
-) -> List(String) {
-  let id_lines = identity_param_lines(variant, ctx)
+) -> List(gparam.Parameter(gtypes.Dynamic)) {
+  let id_params = identity_params(variant, ctx)
   let id_labels = list.map(variant.fields, fn(f) { f.label })
   let extras =
     list.filter(entity.fields, fn(f) {
@@ -348,8 +506,10 @@ fn upsert_or_update_param_lines(
       && !list.contains(id_labels, f.label)
       && !type_is_list(f.type_)
     })
-    |> list.map(fn(f) { "  " <> f.label <> ": " <> render_type(f.type_, ctx) })
-  list.append(id_lines, extras)
+    |> list.map(fn(f) {
+      gparam.new(f.label, gtypes.raw(render_type(f.type_, ctx)))
+    })
+  list.append(id_params, extras)
 }
 
 fn type_is_list(t: glance.Type) -> Bool {
@@ -453,71 +613,6 @@ fn query_row_base_name(schema_fn: String) -> String {
     True -> string.drop_start(schema_fn, 6)
     False -> schema_fn
   }
-}
-
-fn query_section(spec: QuerySpecDefinition, ctx: TypeCtx) -> String {
-  case spec.name {
-    "hippos_by_gender" -> hippos_by_gender_skeleton(ctx.schema_alias)
-    _ -> generic_query_section(spec, ctx)
-  }
-}
-
-fn hippos_by_gender_skeleton(schema_alias: String) -> String {
-  string.join(
-    [
-      "pub type HipposByGenderResult {",
-      "  HipposByGenderResult(",
-      "    magic_fields: dsl.MagicFields,",
-      "    name: option.Option(String),",
-      "    date_of_birth: option.Option(Date),",
-      "    owner: option.Option(#(Human, dsl.MagicFields)),",
-      "  )",
-      "}",
-      "",
-      "/// Execute generated query for the `hippos_by_gender` spec.",
-      "pub fn query_hippos_by_gender(",
-      comma_terminated_param_block([
-        "  conn: sqlight.Connection",
-        "  gender_to_match: " <> schema_alias <> ".GenderScalar",
-      ]),
-      ") -> Result(List(HipposByGenderResult), sqlight.Error) {",
-      "  todo as \"TODO: generated select SQL, parameters, and decoder\"",
-      "}",
-    ],
-    "\n",
-  )
-}
-
-fn generic_query_section(spec: QuerySpecDefinition, ctx: TypeCtx) -> String {
-  let row_base = query_row_base_name(spec.name)
-  let row_name = "Query" <> snake_to_pascal(row_base) <> "Row"
-  let pub_name = query_public_fn_name(spec.name)
-  let params =
-    list.filter(spec.parameters, fn(p) { !is_entity_param(p.type_, ctx) })
-  let param_lines =
-    list.map(params, fn(p) {
-      "  " <> query_param_label(p) <> ": " <> render_type(p.type_, ctx)
-    })
-  let body =
-    comma_terminated_param_block(list.append(
-      ["  conn: sqlight.Connection"],
-      param_lines,
-    ))
-  string.join(
-    [
-      "pub type " <> row_name <> " {",
-      "  " <> row_name,
-      "}",
-      "",
-      "/// Execute generated query for the `" <> spec.name <> "` spec.",
-      "pub fn " <> pub_name <> "(",
-      body,
-      ") -> Result(List(" <> row_name <> "), sqlight.Error) {",
-      "  todo as \"TODO: generated select SQL, parameters, and decoder\"",
-      "}",
-    ],
-    "\n",
-  )
 }
 
 fn query_param_label(p: QueryParameter) -> String {

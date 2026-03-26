@@ -10,27 +10,26 @@ import sqlight
 /// - `migrate/1`
 /// - Entity ops: Hippo, Human
 /// - Query specs: `query_old_hippos_owner_emails`, `query_hippos_by_gender`
-pub fn migrate(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
+pub fn migrate(
+  conn: sqlight.Connection,
+) -> Result(Nil, sqlight.Error) {
   todo as "TODO: generated migration SQL"
 }
 
-/// Upsert a hippo by the `ByNameAndDateOfBirth` identity.
-pub fn upsert_hippo_by_name_and_date_of_birth(
+/// List up to 100 recently edited hippo rows.
+pub fn last_100_edited_hippo(
   conn: sqlight.Connection,
-  name: String,
-  date_of_birth: Date,
-  gender: option.Option(hippo_schema.GenderScalar),
-) -> Result(#(Hippo, dsl.MagicFields), sqlight.Error) {
-  todo as "TODO: generated upsert SQL and decoding"
+) -> Result(List(#(Hippo, dsl.MagicFields)), sqlight.Error) {
+  todo as "TODO: generated select SQL and decoding"
 }
 
-/// Get a hippo by the `ByNameAndDateOfBirth` identity.
-pub fn get_hippo_by_name_and_date_of_birth(
+/// Delete a hippo by the `ByNameAndDateOfBirth` identity.
+pub fn delete_hippo_by_name_and_date_of_birth(
   conn: sqlight.Connection,
   name: String,
   date_of_birth: Date,
-) -> Result(option.Option(#(Hippo, dsl.MagicFields)), sqlight.Error) {
-  todo as "TODO: generated select SQL and decoding"
+) -> Result(Nil, sqlight.Error) {
+  todo as "TODO: generated delete SQL"
 }
 
 /// Update a hippo by the `ByNameAndDateOfBirth` identity.
@@ -43,37 +42,38 @@ pub fn update_hippo_by_name_and_date_of_birth(
   todo as "TODO: generated update SQL and decoding"
 }
 
-/// Delete a hippo by the `ByNameAndDateOfBirth` identity.
-pub fn delete_hippo_by_name_and_date_of_birth(
+/// Get a hippo by the `ByNameAndDateOfBirth` identity.
+pub fn get_hippo_by_name_and_date_of_birth(
   conn: sqlight.Connection,
   name: String,
   date_of_birth: Date,
-) -> Result(Nil, sqlight.Error) {
-  todo as "TODO: generated delete SQL"
-}
-
-/// List up to 100 recently edited hippo rows.
-pub fn last_100_edited_hippo(
-  conn: sqlight.Connection,
-) -> Result(List(#(Hippo, dsl.MagicFields)), sqlight.Error) {
+) -> Result(option.Option(#(Hippo, dsl.MagicFields)), sqlight.Error) {
   todo as "TODO: generated select SQL and decoding"
 }
 
-/// Upsert a human by the `ByEmail` identity.
-pub fn upsert_human_by_email(
+/// Upsert a hippo by the `ByNameAndDateOfBirth` identity.
+pub fn upsert_hippo_by_name_and_date_of_birth(
   conn: sqlight.Connection,
-  email: String,
-  name: option.Option(String),
-) -> Result(#(Human, dsl.MagicFields), sqlight.Error) {
+  name: String,
+  date_of_birth: Date,
+  gender: option.Option(hippo_schema.GenderScalar),
+) -> Result(#(Hippo, dsl.MagicFields), sqlight.Error) {
   todo as "TODO: generated upsert SQL and decoding"
 }
 
-/// Get a human by the `ByEmail` identity.
-pub fn get_human_by_email(
+/// List up to 100 recently edited human rows.
+pub fn last_100_edited_human(
+  conn: sqlight.Connection,
+) -> Result(List(#(Human, dsl.MagicFields)), sqlight.Error) {
+  todo as "TODO: generated select SQL and decoding"
+}
+
+/// Delete a human by the `ByEmail` identity.
+pub fn delete_human_by_email(
   conn: sqlight.Connection,
   email: String,
-) -> Result(option.Option(#(Human, dsl.MagicFields)), sqlight.Error) {
-  todo as "TODO: generated select SQL and decoding"
+) -> Result(Nil, sqlight.Error) {
+  todo as "TODO: generated delete SQL"
 }
 
 /// Update a human by the `ByEmail` identity.
@@ -85,19 +85,21 @@ pub fn update_human_by_email(
   todo as "TODO: generated update SQL and decoding"
 }
 
-/// Delete a human by the `ByEmail` identity.
-pub fn delete_human_by_email(
+/// Get a human by the `ByEmail` identity.
+pub fn get_human_by_email(
   conn: sqlight.Connection,
   email: String,
-) -> Result(Nil, sqlight.Error) {
-  todo as "TODO: generated delete SQL"
+) -> Result(option.Option(#(Human, dsl.MagicFields)), sqlight.Error) {
+  todo as "TODO: generated select SQL and decoding"
 }
 
-/// List up to 100 recently edited human rows.
-pub fn last_100_edited_human(
+/// Upsert a human by the `ByEmail` identity.
+pub fn upsert_human_by_email(
   conn: sqlight.Connection,
-) -> Result(List(#(Human, dsl.MagicFields)), sqlight.Error) {
-  todo as "TODO: generated select SQL and decoding"
+  email: String,
+  name: option.Option(String),
+) -> Result(#(Human, dsl.MagicFields), sqlight.Error) {
+  todo as "TODO: generated upsert SQL and decoding"
 }
 
 pub type QueryOldHipposOwnerEmailsRow {
