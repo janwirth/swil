@@ -30,6 +30,7 @@ pub type QueryParameter {
   QueryParameter(label: Option(String), name: String, type_: glance.Type)
 }
 
+/// Collects `Query` specs from public functions. Public `BooleanFilter` helpers (`-> … BooleanFilter`) are allowed and skipped.
 pub fn extract_from_functions(
   functions: List(glance.Definition(glance.Function)),
 ) -> Result(List(QuerySpecDefinition), ParseError) {
@@ -40,17 +41,22 @@ pub fn extract_from_functions(
           glance.Private -> Ok(acc)
           glance.Public ->
             case function_is_query_spec(f) {
-              False ->
-                Error(UnsupportedSchema(
-                  Some(f.location),
-                  "public function "
-                    <> f.name
-                    <> " must return a Query (annotation or trailing Query(...))",
-                ))
               True ->
                 case query_spec_from_function_strict(f) {
                   Ok(spec) -> Ok([spec, ..acc])
                   Error(e) -> Error(e)
+                }
+              False ->
+                case function_is_boolean_filter_helper(f) {
+                  True -> Ok(acc)
+                  False ->
+                    Error(UnsupportedSchema(
+                      Some(f.location),
+                      "public function "
+                        <> f.name
+                        <> " must return a Query (annotation or trailing Query(...)) "
+                        <> "or BooleanFilter (annotation) for nested filter helpers",
+                    ))
                 }
             }
         }
@@ -300,9 +306,25 @@ fn function_is_query_spec(f: glance.Function) -> Bool {
   }
 }
 
+/// Public helpers that build `dsl.BooleanFilter` trees are allowed alongside query specs.
+/// They are not emitted as `QuerySpecDefinition`; use an explicit `-> ... BooleanFilter` annotation.
+fn function_is_boolean_filter_helper(f: glance.Function) -> Bool {
+  case f.return {
+    Some(t) -> type_is_boolean_filter(t)
+    None -> False
+  }
+}
+
 fn type_is_query(t: glance.Type) -> Bool {
   case t {
     glance.NamedType(_, "Query", _, _) -> True
+    _ -> False
+  }
+}
+
+fn type_is_boolean_filter(t: glance.Type) -> Bool {
+  case t {
+    glance.NamedType(_, "BooleanFilter", _, _) -> True
     _ -> False
   }
 }
