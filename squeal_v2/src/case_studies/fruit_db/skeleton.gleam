@@ -1,5 +1,5 @@
 import case_studies/fruit_schema.{type Fruit}
-import dsl
+import dsl/dsl as dsl
 import gleam/option
 import sqlight
 

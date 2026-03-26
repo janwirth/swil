@@ -1,11 +1,10 @@
 // Drives the hand-written example migration modules (blueprints for codegen): exclusive
 // fruit vs animal versions, idempotent replays, and switching back and forth.
-import sqlite_pragma_assert
 import assert_diff.{assert_diff}
 import case_studies/fruit_db/migration as example_migration_fruit
-import example_migration_animal
+import case_studies/example_migration_animal as example_migration_animal
 import generators/migration/migration
-import schema_definition
+import schema_definition/schema_definition as schema_definition
 import simplifile
 import sqlight
 
@@ -42,14 +41,14 @@ pub fn fruit_pragma_test() {
 
 pub fn animal_pragma_test() {
   let assert Ok(animal_expected) =
-    simplifile.read("src/example_migration_animal.gleam")
+    simplifile.read("src/case_studies/example_migration_animal.gleam")
   let assert Ok(animal_def) = schema_definition.parse_module(schema2)
   let animal_gleam =
     migration.generate_pragma_migration_module(
       animal_def,
-      "example_migration_animal",
+      "case_studies/example_migration_animal",
     )
-  // let written_output = simplifile.write("src/example_migration_animal.gleam", animal_gleam)
+  // let written_output = simplifile.write("src/case_studies/example_migration_animal.gleam", animal_gleam)
   assert_diff(animal_expected, animal_gleam)
 }
 

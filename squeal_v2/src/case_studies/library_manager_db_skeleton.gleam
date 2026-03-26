@@ -1,7 +1,7 @@
 import case_studies/library_manager_schema.{
   type ImportedTrack, type Tab, type Tag, type TrackBucket,
 }
-import dsl
+import dsl/dsl as dsl
 import gleam/option
 import sqlight
 

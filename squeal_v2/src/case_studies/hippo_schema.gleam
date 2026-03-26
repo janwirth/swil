@@ -1,4 +1,4 @@
-import dsl.{
+import dsl/dsl.{
   type BacklinkWith, type BelongsTo, type Mutual, Desc, Query, age,
   exclude_if_missing, nullable,
 }

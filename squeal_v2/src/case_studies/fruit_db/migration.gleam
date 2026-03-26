@@ -6,8 +6,8 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
+import sql/pragma_assert.{type TableInfoRow} as sqlite_pragma_assert
 import sqlight
-import sqlite_pragma_assert.{type TableInfoRow}
 
 const create_fruit_table_sql = "create table fruit (
   id integer primary key autoincrement not null,

@@ -30,7 +30,7 @@
 import gleam/list
 import gleam/string
 import gleeunit
-import schema_definition
+import schema_definition/schema_definition as schema_definition
 
 pub fn main() -> Nil {
   gleeunit.main()

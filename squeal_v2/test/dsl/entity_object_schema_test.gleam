@@ -2,7 +2,7 @@
 /// required `identities: *Identities`, and that *Identities type must exist with `By…` variants.
 import gleam/list
 import gleeunit
-import schema_definition
+import schema_definition/schema_definition as schema_definition
 
 pub fn main() -> Nil {
   gleeunit.main()

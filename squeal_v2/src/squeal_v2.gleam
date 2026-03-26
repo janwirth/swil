@@ -4,9 +4,9 @@ import gleam/list
 import gleam/result
 import gleam/string
 import glint
-import schema_definition
+import schema_definition/schema_definition as schema_definition
 import simplifile
-import skeleton_generator
+import generators/skeleton as skeleton_generator
 
 pub fn main() -> Nil {
   glint.run(app(), argv.load().arguments)

@@ -6,8 +6,8 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
+import sql/pragma_assert.{type TableInfoRow} as sqlite_pragma_assert
 import sqlight
-import sqlite_pragma_assert.{type TableInfoRow}
 
 const create_animal_table_sql = "create table animal (
   id integer primary key autoincrement not null,
@@ -164,7 +164,8 @@ fn apply_one_animal_column_fix(
       None ->
         case first_missing_column(rows, animal_columns_wanted) {
           Some(w) -> sqlight.exec(alter_add_animal_column_sql(w), conn)
-            None -> panic as "example_migration_animal: no column fix applies"
+            None ->
+              panic as "case_studies/example_migration_animal: no column fix applies"
         }
     }
 }
@@ -173,7 +174,7 @@ fn apply_one_animal_column_fix(
 fn reconcile_animal_columns_loop(conn: sqlight.Connection, iter: Int) -> Result(Nil, sqlight.Error) {
   case iter > 64 {
   True ->
-    panic as "example_migration_animal: column reconcile did not converge"
+    panic as "case_studies/example_migration_animal: column reconcile did not converge"
   False -> {
       use rows <- result.try(sqlite_pragma_assert.table_info_rows(conn, "animal"))
     case

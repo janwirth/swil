@@ -1,4 +1,4 @@
-import diff.{type DiffLine, New, Old, Shared}
+import help/diff.{type DiffLine, histogram, New, Old, Shared}
 import gleam/int
 import gleam/list
 import gleam/string
@@ -7,7 +7,7 @@ pub fn assert_diff(expected: String, actual: String) -> Nil {
   case expected == actual {
     True -> Nil
     False -> {
-      let lines = diff.histogram(expected, actual)
+      let lines = histogram(expected, actual)
       let report = format_diff_report(lines)
       panic as string.concat([
           "\nassert_diff: expected and actual differ\n\n",

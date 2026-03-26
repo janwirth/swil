@@ -1,5 +1,5 @@
 import case_studies/hippo_schema.{type Hippo, type Human}
-import dsl
+import dsl/dsl as dsl
 import gleam/option
 import gleam/time/calendar.{type Date}
 import sqlight

@@ -3,7 +3,7 @@ import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
-import schema_definition
+import schema_definition/schema_definition as schema_definition
 import schema_definition/parse_error as schema_parse_err
 
 fn nth_line(source: String, line_no: Int) -> String {

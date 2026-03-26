@@ -110,8 +110,9 @@ fn with_all_imports(inner: fn() -> gmod.Module) -> gmod.Module {
             gmod.with_import(gimport.new(["gleam", "string"]), fn(_s) {
               gmod.with_import(gimport.new(["sqlight"]), fn(_sql) {
                 gmod.with_import(
-                  gimport.new_with_exposing(
-                    ["sqlite_pragma_assert"],
+                  gimport.new_with_alias_and_exposing(
+                    ["sql", "pragma_assert"],
+                    "sqlite_pragma_assert",
                     "type TableInfoRow",
                   ),
                   fn(_p) { inner() },

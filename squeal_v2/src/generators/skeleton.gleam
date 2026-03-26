@@ -13,7 +13,7 @@ import gleamgen/render as grender
 import gleamgen/types as gtypes
 import gleamgen/types/custom as gcustom
 import gleamgen/types/variant as gvariant
-import schema_definition.{
+import schema_definition/schema_definition.{
   type EntityDefinition, type IdentityTypeDefinition,
   type IdentityVariantDefinition, type QueryParameter, type QuerySpecDefinition,
   type SchemaDefinition,
@@ -119,7 +119,7 @@ fn with_skeleton_imports(
   let schema_mod =
     gimport.new_with_exposing(path_parts, schema_exposing_inner(entity_names))
   gmod.with_import(schema_mod, fn(_) {
-    gmod.with_import(gimport.new_predefined(["dsl"]), fn(_) {
+    gmod.with_import(gimport.new_predefined_with_alias(["dsl", "dsl"], "dsl"), fn(_) {
       gmod.with_import(gimport.new_predefined(["gleam", "option"]), fn(_) {
         let after_time = fn() {
           gmod.with_import(gimport.new_predefined(["sqlight"]), fn(_) { inner() })

@@ -1,6 +1,6 @@
 import case_studies/fruit_db/migration
 import case_studies/fruit_schema.{type Fruit, ByName, Fruit}
-import dsl
+import dsl/dsl as dsl
 import gleam/dynamic/decode
 import gleam/option.{type Option, None, Some}
 import gleam/result

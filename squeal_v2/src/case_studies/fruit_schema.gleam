@@ -1,4 +1,4 @@
-import dsl
+import dsl/dsl as dsl
 import gleam/option.{type Option, None, Some}
 
 pub type Fruit {

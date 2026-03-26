@@ -8,7 +8,10 @@ import gleam/string
 import gleamgen/expression as gexpr
 import gleamgen/expression/statement as gstmt
 import gleamgen/render as grender
-import schema_definition.{type FieldDefinition, type SchemaDefinition}
+import schema_definition/schema_definition.{
+  type FieldDefinition,
+  type SchemaDefinition,
+}
 
 // --- Re-exports: SQL helpers live in `migration_sql` for a smaller API surface here. ---
 

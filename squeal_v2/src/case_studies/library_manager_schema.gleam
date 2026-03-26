@@ -1,4 +1,4 @@
-import dsl
+import dsl/dsl as dsl
 import gleam/option
 
 // id / created_at / updated_at / deleted_at come from `dsl.MagicFields`, not the schema type.

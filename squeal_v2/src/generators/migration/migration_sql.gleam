@@ -3,7 +3,7 @@ import glance
 import gleam/int
 import gleam/list
 import gleam/string
-import schema_definition.{
+import schema_definition/schema_definition.{
   type EntityDefinition, type FieldDefinition, type SchemaDefinition,
 }
 

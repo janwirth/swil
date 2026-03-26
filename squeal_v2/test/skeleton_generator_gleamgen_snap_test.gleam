@@ -1,8 +1,8 @@
 import assert_diff.{assert_diff}
 import gleeunit
-import schema_definition
+import schema_definition/schema_definition as schema_definition
 import simplifile
-import skeleton_generator
+import generators/skeleton as skeleton_generator
 
 pub fn main() -> Nil {
   gleeunit.main()

@@ -1,5 +1,5 @@
 import simplifile
-import schema_definition
+import schema_definition/schema_definition as schema_definition
 import generators/api/api
 import assert_diff.{assert_diff}
 
