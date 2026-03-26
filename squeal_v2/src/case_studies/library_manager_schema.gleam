@@ -93,6 +93,31 @@ pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields) {
 // custom scalars could also be vectors
 // scalars have their own implementaiton - to / from sql I guess
 
+// AND [OR[], AND[]]
+// 
+pub type FilterScalar {
+  And(
+    exprs: List(FilterScalar)
+  )
+  Or(
+    exprs: List(FilterScalar)
+  )
+  Not(
+    expr: FilterScalar
+  )
+  TagExpression(
+    tag_id: Int,
+    operator: TagExpression,
+  )
+}
+pub type TagExpression {
+  Has
+  DoesNotHave
+  IsAtLeast(value: Int)
+  IsAtMost(value: Int)
+  IsEqualTo(value: Int)
+}
+
 // todo: boolean filter structure
 // list of sources
 // all tracks
