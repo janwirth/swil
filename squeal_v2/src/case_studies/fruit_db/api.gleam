@@ -34,25 +34,25 @@ import sqlight
 //   order by updated_at desc
 //   limit 100;
 
-const upsert_sql = "insert into fruit (name, color, price, quantity, created_at, updated_at, deleted_at)
+const upsert_sql = "insert into \"fruit\" (\"name\", \"color\", \"price\", \"quantity\", \"created_at\", \"updated_at\", \"deleted_at\")
 values (?, ?, ?, ?, ?, ?, null)
-on conflict(name) do update set
-  color = excluded.color,
-  price = excluded.price,
-  quantity = excluded.quantity,
-  updated_at = excluded.updated_at,
-  deleted_at = null
-returning name, color, price, quantity, id, created_at, updated_at, deleted_at;"
+on conflict(\"name\") do update set
+  \"color\" = excluded.\"color\",
+  \"price\" = excluded.\"price\",
+  \"quantity\" = excluded.\"quantity\",
+  \"updated_at\" = excluded.\"updated_at\",
+  \"deleted_at\" = null
+returning \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
 
-const select_by_name_sql = "select name, color, price, quantity, id, created_at, updated_at, deleted_at from fruit where name = ? and deleted_at is null;"
+const select_by_name_sql = "select \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"fruit\" where \"name\" = ? and \"deleted_at\" is null;"
 
-const update_by_name_sql = "update fruit set color = ?, price = ?, quantity = ?, updated_at = ? where name = ? and deleted_at is null returning name, color, price, quantity, id, created_at, updated_at, deleted_at;"
+const update_by_name_sql = "update \"fruit\" set \"color\" = ?, \"price\" = ?, \"quantity\" = ?, \"updated_at\" = ? where \"name\" = ? and \"deleted_at\" is null returning \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
 
-const soft_delete_by_name_sql = "update fruit set deleted_at = ?, updated_at = ? where name = ? and deleted_at is null returning name;"
+const soft_delete_by_name_sql = "update \"fruit\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"name\" = ? and \"deleted_at\" is null returning \"name\";"
 
-const last_100_sql = "select name, color, price, quantity, id, created_at, updated_at, deleted_at from fruit where deleted_at is null order by updated_at desc limit 100;"
+const last_100_sql = "select \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"fruit\" where \"deleted_at\" is null order by \"updated_at\" desc limit 100;"
 
-const cheap_fruit_sql = "select name, color, price, quantity, id, created_at, updated_at, deleted_at from fruit where deleted_at is null and price < ? order by price asc;"
+const cheap_fruit_sql = "select \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"fruit\" where \"deleted_at\" is null and \"price\" < ? order by \"price\" asc;"
 
 fn unix_seconds_now() -> Int {
   let #(s, _) =

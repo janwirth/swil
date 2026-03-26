@@ -179,15 +179,15 @@ pub fn build_pragma_migration_data_for_entity(
   let rel_fields = relationship_container_field_defs(schema, entity)
   let fk_col_names = belongs_to_fk_column_names(rel_fields)
   let fk_sql_lines =
-    list.map(fk_col_names, fn(col) { col <> " integer" })
+    list.map(fk_col_names, fn(col) {
+      migration_sql.quote_ident(col) <> " integer"
+    })
   let fk_wanted_rows =
     list.map(fk_col_names, fn(col) { #(col, "INTEGER", 0, 0) })
   let index_suffix =
     list.map(variant.fields, fn(f) { f.label })
     |> string.join("_")
   let index_name = string.append(string.append(table, "_by_"), index_suffix)
-  let index_cols =
-    list.map(variant.fields, fn(f) { f.label }) |> string.join(", ")
   let full_col_names =
     list.flatten([
       ["id"],
@@ -215,7 +215,7 @@ pub fn build_pragma_migration_data_for_entity(
     migration_sql.build_create_unique_index_sql(
       table:,
       index_name:,
-      index_columns_csv: index_cols,
+      index_column_labels: list.map(variant.fields, fn(f) { f.label }),
       if_not_exists: False,
     )
   let expected_table_info = migration_sql.build_expected_table_info(wanted_rows)

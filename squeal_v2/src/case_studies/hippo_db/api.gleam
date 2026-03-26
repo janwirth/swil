@@ -35,21 +35,21 @@ import sqlight
 //   order by updated_at desc
 //   limit 100;
 
-const upsert_sql = "insert into hippo (name, gender, date_of_birth, created_at, updated_at, deleted_at)
+const upsert_sql = "insert into \"hippo\" (\"name\", \"gender\", \"date_of_birth\", \"created_at\", \"updated_at\", \"deleted_at\")
 values (?, ?, ?, ?, ?, null)
-on conflict(name, date_of_birth) do update set
-  gender = excluded.gender,
-  updated_at = excluded.updated_at,
-  deleted_at = null
-returning name, gender, date_of_birth, id, created_at, updated_at, deleted_at;"
+on conflict(\"name\", \"date_of_birth\") do update set
+  \"gender\" = excluded.\"gender\",
+  \"updated_at\" = excluded.\"updated_at\",
+  \"deleted_at\" = null
+returning \"name\", \"gender\", \"date_of_birth\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
 
-const select_by_name_and_date_of_birth_sql = "select name, gender, date_of_birth, id, created_at, updated_at, deleted_at from hippo where name = ? and date_of_birth = ? and deleted_at is null;"
+const select_by_name_and_date_of_birth_sql = "select \"name\", \"gender\", \"date_of_birth\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"hippo\" where \"name\" = ? and \"date_of_birth\" = ? and \"deleted_at\" is null;"
 
-const update_by_name_and_date_of_birth_sql = "update hippo set gender = ?, updated_at = ? where name = ? and date_of_birth = ? and deleted_at is null returning name, gender, date_of_birth, id, created_at, updated_at, deleted_at;"
+const update_by_name_and_date_of_birth_sql = "update \"hippo\" set \"gender\" = ?, \"updated_at\" = ? where \"name\" = ? and \"date_of_birth\" = ? and \"deleted_at\" is null returning \"name\", \"gender\", \"date_of_birth\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
 
-const soft_delete_by_name_and_date_of_birth_sql = "update hippo set deleted_at = ?, updated_at = ? where name = ? and date_of_birth = ? and deleted_at is null returning name, date_of_birth;"
+const soft_delete_by_name_and_date_of_birth_sql = "update \"hippo\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"name\" = ? and \"date_of_birth\" = ? and \"deleted_at\" is null returning \"name\", \"date_of_birth\";"
 
-const last_100_sql = "select name, gender, date_of_birth, id, created_at, updated_at, deleted_at from hippo where deleted_at is null order by updated_at desc limit 100;"
+const last_100_sql = "select \"name\", \"gender\", \"date_of_birth\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"hippo\" where \"deleted_at\" is null order by \"updated_at\" desc limit 100;"
 
 fn unix_seconds_now() -> Int {
   let #(s, _) =

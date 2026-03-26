@@ -1,6 +1,8 @@
 //// Blueprint for a generated `migrate`: introspect user tables and `animal` columns /
 //// indexes, then move to the desired state using `ALTER TABLE` only (add / drop column),
 //// never `DROP TABLE` / `CREATE TABLE` for shape fixes once `animal` exists.
+import sql/sqlite_ident as sqlite_ident
+
 import gleam/dynamic/decode
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -9,18 +11,18 @@ import gleam/string
 import sql/pragma_assert.{type TableInfoRow} as sqlite_pragma_assert
 import sqlight
 
-const create_animal_table_sql = "create table animal (
-  id integer primary key autoincrement not null,
-  name text not null,
-  species text not null,
-  age integer not null,
-  color text not null,
-  created_at integer not null,
-  updated_at integer not null,
-  deleted_at integer
+const create_animal_table_sql = "create table \"animal\" (
+  \"id\" integer primary key autoincrement not null,
+  \"name\" text not null,
+  \"species\" text not null,
+  \"age\" integer not null,
+  \"color\" text not null,
+  \"created_at\" integer not null,
+  \"updated_at\" integer not null,
+  \"deleted_at\" integer
 );"
 
-const create_animal_by_name_index_sql = "create unique index animal_by_name on animal(name);"
+const create_animal_by_name_index_sql = "create unique index animal_by_name on \"animal\"(\"name\");"
 
 const expected_table_info = "cid	name	type	notnull	dflt_value	pk
 0	id	INTEGER	1	NULL	1
@@ -147,7 +149,7 @@ fn alter_add_animal_column_sql(w: AnimalCol) -> String {
       _ -> ""
     }
 }
-"alter table animal add column " <> w.name <> " " <> fragment <> ";"
+"alter table " <> sqlite_ident.quote("animal") <> " add column " <> sqlite_ident.quote(w.name) <> " " <> fragment <> ";"
 }
 
 fn apply_one_animal_column_fix(
@@ -156,11 +158,11 @@ fn apply_one_animal_column_fix(
 ) -> Result(Nil, sqlight.Error) {
   case first_surplus_column(rows, animal_columns_wanted) {
   Some(name) ->
-    sqlight.exec("alter table animal drop column " <> name <> ";", conn)
+    sqlight.exec("alter table " <> sqlite_ident.quote("animal") <> " drop column " <> sqlite_ident.quote(name) <> ";", conn)
   None ->
     case first_mismatched_column_name(rows, animal_columns_wanted) {
       Some(name) ->
-        sqlight.exec("alter table animal drop column " <> name <> ";", conn)
+        sqlight.exec("alter table " <> sqlite_ident.quote("animal") <> " drop column " <> sqlite_ident.quote(name) <> ";", conn)
       None ->
         case first_missing_column(rows, animal_columns_wanted) {
           Some(w) -> sqlight.exec(alter_add_animal_column_sql(w), conn)

@@ -3,6 +3,7 @@ import glance
 import gleam/int
 import gleam/list
 import gleam/string
+import sql/sqlite_ident
 import schema_definition/schema_definition.{
   type EntityDefinition, type FieldDefinition, type SchemaDefinition,
 }
@@ -33,6 +34,16 @@ pub fn entity_table_name(entity_type: String) -> String {
   string.lowercase(entity_type)
 }
 
+/// Quote a column or table name for SQLite DDL/DML.
+pub fn quote_ident(label: String) -> String {
+  sqlite_ident.quote(label)
+}
+
+fn comma_join_quoted(xs: List(String)) -> String {
+  list.map(xs, quote_ident)
+  |> string.join(", ")
+}
+
 /// True when a field’s Gleam type is `List(_)`, so it is stored outside the main row / DDL.
 pub fn type_is_list(t: glance.Type) -> Bool {
   case t {
@@ -58,6 +69,7 @@ fn entity_ddl(schema: SchemaDefinition, entity: EntityDefinition) -> String {
     })
   let assert [variant, ..] = identity_type.variants
   let table = entity_table_name(entity.type_name)
+  let qtable = quote_ident(table)
   let data_fields =
     list.filter(entity.fields, fn(f) {
       f.label != "identities"
@@ -66,27 +78,25 @@ fn entity_ddl(schema: SchemaDefinition, entity: EntityDefinition) -> String {
     })
   let column_lines =
     list.map(data_fields, fn(f) {
-      f.label <> " " <> ddl_sql_type(f.type_) <> " not null"
+      quote_ident(f.label) <> " " <> ddl_sql_type(f.type_) <> " not null"
     })
   let all_columns =
     list.flatten([
-      ["id integer primary key autoincrement not null"],
+      [quote_ident("id") <> " integer primary key autoincrement not null"],
       column_lines,
       [
-        "created_at integer not null",
-        "updated_at integer not null",
-        "deleted_at integer",
+        quote_ident("created_at") <> " integer not null",
+        quote_ident("updated_at") <> " integer not null",
+        quote_ident("deleted_at") <> " integer",
       ],
     ])
   let create_table =
     "create table if not exists "
-    <> table
+    <> qtable
     <> " (\n  "
     <> string.join(all_columns, ",\n  ")
     <> "\n);"
-  let cols =
-    list.map(variant.fields, fn(f) { f.label })
-    |> string.join(", ")
+  let cols = comma_join_quoted(list.map(variant.fields, fn(f) { f.label }))
   let index_suffix =
     list.map(variant.fields, fn(f) { f.label })
     |> string.join("_")
@@ -95,7 +105,7 @@ fn entity_ddl(schema: SchemaDefinition, entity: EntityDefinition) -> String {
     build_create_unique_index_sql(
       table:,
       index_name:,
-      index_columns_csv: cols,
+      index_column_labels: list.map(variant.fields, fn(f) { f.label }),
       if_not_exists: True,
     )
   create_table <> "\n" <> create_index
@@ -121,21 +131,21 @@ pub fn build_create_table_sql(
 ) -> String {
   let col_lines =
     list.map(data_fields, fn(f) {
-      f.label <> " " <> ddl_sql_type(f.type_) <> " not null"
+      quote_ident(f.label) <> " " <> ddl_sql_type(f.type_) <> " not null"
     })
   let all_lines =
     list.flatten([
-      ["id integer primary key autoincrement not null"],
+      [quote_ident("id") <> " integer primary key autoincrement not null"],
       col_lines,
       [
-        "created_at integer not null",
-        "updated_at integer not null",
+        quote_ident("created_at") <> " integer not null",
+        quote_ident("updated_at") <> " integer not null",
       ],
       extra_before_deleted,
-      ["deleted_at integer"],
+      [quote_ident("deleted_at") <> " integer"],
     ])
   "create table "
-  <> table
+  <> quote_ident(table)
   <> " (\n  "
   <> string.join(all_lines, ",\n  ")
   <> "\n);"
@@ -200,17 +210,21 @@ pub fn build_expected_index_info(
 pub fn build_create_unique_index_sql(
   table table: String,
   index_name index_name: String,
-  index_columns_csv index_columns_csv: String,
+  index_column_labels index_column_labels: List(String),
   if_not_exists if_not_exists: Bool,
 ) -> String {
+  let cols =
+    index_column_labels
+    |> list.map(quote_ident)
+    |> string.join(", ")
   case if_not_exists {
     True -> "create unique index if not exists "
     False -> "create unique index "
   }
   <> index_name
   <> " on "
-  <> table
+  <> quote_ident(table)
   <> "("
-  <> index_columns_csv
+  <> cols
   <> ");"
 }

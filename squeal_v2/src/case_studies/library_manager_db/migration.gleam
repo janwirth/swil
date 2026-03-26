@@ -1,6 +1,8 @@
 //// Blueprint for a generated `migrate`: introspect user tables `importedtrack`, `tab`, `tag`, `trackbucket`
 //// columns / indexes, then move to the desired state using `ALTER TABLE` only
 //// (add / drop column), never `DROP TABLE` / `CREATE TABLE` for shape fixes once those tables exist.
+import sql/sqlite_ident as sqlite_ident
+
 import gleam/dynamic/decode
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -9,17 +11,17 @@ import gleam/string
 import sql/pragma_assert.{type TableInfoRow} as sqlite_pragma_assert
 import sqlight
 
-const create_importedtrack_table_sql = "create table importedtrack (
-  id integer primary key autoincrement not null,
-  title text not null,
-  artist text not null,
-  file_path text not null,
-  created_at integer not null,
-  updated_at integer not null,
-  deleted_at integer
+const create_importedtrack_table_sql = "create table \"importedtrack\" (
+  \"id\" integer primary key autoincrement not null,
+  \"title\" text not null,
+  \"artist\" text not null,
+  \"file_path\" text not null,
+  \"created_at\" integer not null,
+  \"updated_at\" integer not null,
+  \"deleted_at\" integer
 );"
 
-const create_importedtrack_by_title_artist_index_sql = "create unique index importedtrack_by_title_artist on importedtrack(title, artist);"
+const create_importedtrack_by_title_artist_index_sql = "create unique index importedtrack_by_title_artist on \"importedtrack\"(\"title\", \"artist\");"
 
 const expected_importedtrack_table_info = "cid	name	type	notnull	dflt_value	pk
 0	id	INTEGER	1	NULL	1
@@ -151,7 +153,7 @@ fn alter_add_importedtrack_column_sql(w: ImportedTrackCol) -> String {
       _ -> ""
     }
 }
-"alter table importedtrack add column " <> w.name <> " " <> fragment <> ";"
+"alter table " <> sqlite_ident.quote("importedtrack") <> " add column " <> sqlite_ident.quote(w.name) <> " " <> fragment <> ";"
 }
 
 fn apply_one_importedtrack_column_fix(
@@ -160,11 +162,11 @@ fn apply_one_importedtrack_column_fix(
 ) -> Result(Nil, sqlight.Error) {
   case first_surplus_column_importedtrack(rows, importedtrack_columns_wanted) {
   Some(name) ->
-    sqlight.exec("alter table importedtrack drop column " <> name <> ";", conn)
+    sqlight.exec("alter table " <> sqlite_ident.quote("importedtrack") <> " drop column " <> sqlite_ident.quote(name) <> ";", conn)
   None ->
     case first_mismatched_column_name_importedtrack(rows, importedtrack_columns_wanted) {
       Some(name) ->
-        sqlight.exec("alter table importedtrack drop column " <> name <> ";", conn)
+        sqlight.exec("alter table " <> sqlite_ident.quote("importedtrack") <> " drop column " <> sqlite_ident.quote(name) <> ";", conn)
       None ->
         case first_missing_column_importedtrack(rows, importedtrack_columns_wanted) {
           Some(w) -> sqlight.exec(alter_add_importedtrack_column_sql(w), conn)
@@ -237,17 +239,17 @@ case
 }
 }
 
-const create_tab_table_sql = "create table tab (
-  id integer primary key autoincrement not null,
-  label text not null,
-  order real not null,
-  view_config text not null,
-  created_at integer not null,
-  updated_at integer not null,
-  deleted_at integer
+const create_tab_table_sql = "create table \"tab\" (
+  \"id\" integer primary key autoincrement not null,
+  \"label\" text not null,
+  \"order\" real not null,
+  \"view_config\" text not null,
+  \"created_at\" integer not null,
+  \"updated_at\" integer not null,
+  \"deleted_at\" integer
 );"
 
-const create_tab_by_label_index_sql = "create unique index tab_by_label on tab(label);"
+const create_tab_by_label_index_sql = "create unique index tab_by_label on \"tab\"(\"label\");"
 
 const expected_tab_table_info = "cid	name	type	notnull	dflt_value	pk
 0	id	INTEGER	1	NULL	1
@@ -355,17 +357,17 @@ fn alter_add_tab_column_sql(w: TabCol) -> String {
       _ -> ""
     }
 }
-"alter table tab add column " <> w.name <> " " <> fragment <> ";"
+"alter table " <> sqlite_ident.quote("tab") <> " add column " <> sqlite_ident.quote(w.name) <> " " <> fragment <> ";"
 }
 
 fn apply_one_tab_column_fix(conn: sqlight.Connection, rows: List(TableInfoRow)) -> Result(Nil, sqlight.Error) {
   case first_surplus_column_tab(rows, tab_columns_wanted) {
   Some(name) ->
-    sqlight.exec("alter table tab drop column " <> name <> ";", conn)
+    sqlight.exec("alter table " <> sqlite_ident.quote("tab") <> " drop column " <> sqlite_ident.quote(name) <> ";", conn)
   None ->
     case first_mismatched_column_name_tab(rows, tab_columns_wanted) {
       Some(name) ->
-        sqlight.exec("alter table tab drop column " <> name <> ";", conn)
+        sqlight.exec("alter table " <> sqlite_ident.quote("tab") <> " drop column " <> sqlite_ident.quote(name) <> ";", conn)
       None ->
         case first_missing_column_tab(rows, tab_columns_wanted) {
           Some(w) -> sqlight.exec(alter_add_tab_column_sql(w), conn)
@@ -436,16 +438,16 @@ case
 }
 }
 
-const create_tag_table_sql = "create table tag (
-  id integer primary key autoincrement not null,
-  label text not null,
-  emoji text not null,
-  created_at integer not null,
-  updated_at integer not null,
-  deleted_at integer
+const create_tag_table_sql = "create table \"tag\" (
+  \"id\" integer primary key autoincrement not null,
+  \"label\" text not null,
+  \"emoji\" text not null,
+  \"created_at\" integer not null,
+  \"updated_at\" integer not null,
+  \"deleted_at\" integer
 );"
 
-const create_tag_by_label_index_sql = "create unique index tag_by_label on tag(label);"
+const create_tag_by_label_index_sql = "create unique index tag_by_label on \"tag\"(\"label\");"
 
 const expected_tag_table_info = "cid	name	type	notnull	dflt_value	pk
 0	id	INTEGER	1	NULL	1
@@ -551,17 +553,17 @@ fn alter_add_tag_column_sql(w: TagCol) -> String {
       _ -> ""
     }
 }
-"alter table tag add column " <> w.name <> " " <> fragment <> ";"
+"alter table " <> sqlite_ident.quote("tag") <> " add column " <> sqlite_ident.quote(w.name) <> " " <> fragment <> ";"
 }
 
 fn apply_one_tag_column_fix(conn: sqlight.Connection, rows: List(TableInfoRow)) -> Result(Nil, sqlight.Error) {
   case first_surplus_column_tag(rows, tag_columns_wanted) {
   Some(name) ->
-    sqlight.exec("alter table tag drop column " <> name <> ";", conn)
+    sqlight.exec("alter table " <> sqlite_ident.quote("tag") <> " drop column " <> sqlite_ident.quote(name) <> ";", conn)
   None ->
     case first_mismatched_column_name_tag(rows, tag_columns_wanted) {
       Some(name) ->
-        sqlight.exec("alter table tag drop column " <> name <> ";", conn)
+        sqlight.exec("alter table " <> sqlite_ident.quote("tag") <> " drop column " <> sqlite_ident.quote(name) <> ";", conn)
       None ->
         case first_missing_column_tag(rows, tag_columns_wanted) {
           Some(w) -> sqlight.exec(alter_add_tag_column_sql(w), conn)
@@ -632,16 +634,16 @@ case
 }
 }
 
-const create_trackbucket_table_sql = "create table trackbucket (
-  id integer primary key autoincrement not null,
-  title text not null,
-  artist text not null,
-  created_at integer not null,
-  updated_at integer not null,
-  deleted_at integer
+const create_trackbucket_table_sql = "create table \"trackbucket\" (
+  \"id\" integer primary key autoincrement not null,
+  \"title\" text not null,
+  \"artist\" text not null,
+  \"created_at\" integer not null,
+  \"updated_at\" integer not null,
+  \"deleted_at\" integer
 );"
 
-const create_trackbucket_by_title_artist_index_sql = "create unique index trackbucket_by_title_artist on trackbucket(title, artist);"
+const create_trackbucket_by_title_artist_index_sql = "create unique index trackbucket_by_title_artist on \"trackbucket\"(\"title\", \"artist\");"
 
 const expected_trackbucket_table_info = "cid	name	type	notnull	dflt_value	pk
 0	id	INTEGER	1	NULL	1
@@ -754,7 +756,7 @@ fn alter_add_trackbucket_column_sql(w: TrackBucketCol) -> String {
       _ -> ""
     }
 }
-"alter table trackbucket add column " <> w.name <> " " <> fragment <> ";"
+"alter table " <> sqlite_ident.quote("trackbucket") <> " add column " <> sqlite_ident.quote(w.name) <> " " <> fragment <> ";"
 }
 
 fn apply_one_trackbucket_column_fix(
@@ -763,11 +765,11 @@ fn apply_one_trackbucket_column_fix(
 ) -> Result(Nil, sqlight.Error) {
   case first_surplus_column_trackbucket(rows, trackbucket_columns_wanted) {
   Some(name) ->
-    sqlight.exec("alter table trackbucket drop column " <> name <> ";", conn)
+    sqlight.exec("alter table " <> sqlite_ident.quote("trackbucket") <> " drop column " <> sqlite_ident.quote(name) <> ";", conn)
   None ->
     case first_mismatched_column_name_trackbucket(rows, trackbucket_columns_wanted) {
       Some(name) ->
-        sqlight.exec("alter table trackbucket drop column " <> name <> ";", conn)
+        sqlight.exec("alter table " <> sqlite_ident.quote("trackbucket") <> " drop column " <> sqlite_ident.quote(name) <> ";", conn)
       None ->
         case first_missing_column_trackbucket(rows, trackbucket_columns_wanted) {
           Some(w) -> sqlight.exec(alter_add_trackbucket_column_sql(w), conn)

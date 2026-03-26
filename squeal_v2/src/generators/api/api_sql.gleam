@@ -24,8 +24,13 @@ pub fn entity_row_list_placeholder_fields(
   })
 }
 
-fn comma_join(xs: List(String)) -> String {
-  string.join(xs, ", ")
+fn q(c: String) -> String {
+  migration_sql.quote_ident(c)
+}
+
+fn comma_join_q(xs: List(String)) -> String {
+  list.map(xs, q)
+  |> string.join(", ")
 }
 
 pub fn upsert_sql(
@@ -34,29 +39,30 @@ pub fn upsert_sql(
   id_cols: List(String),
   returning_cols: List(String),
 ) -> String {
-  let insert_cols =
+  let insert_col_names =
     list.flatten([
       data_cols,
       ["created_at", "updated_at", "deleted_at"],
     ])
-    |> comma_join
   let placeholders_before_null = list.repeat("?", list.length(data_cols) + 2)
   let value_placeholders =
     string.join(list.flatten([placeholders_before_null, ["null"]]), ", ")
-  let conflict_cols = comma_join(id_cols)
+  let conflict_cols = comma_join_q(id_cols)
   let non_id_data = list.filter(data_cols, fn(c) { !list.contains(id_cols, c) })
   let update_sets =
-    list.map(non_id_data, fn(c) { c <> " = excluded." <> c })
+    list.map(non_id_data, fn(c) {
+      q(c) <> " = excluded." <> q(c)
+    })
     |> list.append([
-      "updated_at = excluded.updated_at",
-      "deleted_at = null",
+      q("updated_at") <> " = excluded." <> q("updated_at"),
+      q("deleted_at") <> " = null",
     ])
     |> string.join(",\n  ")
-  let returning = comma_join(returning_cols)
+  let returning = comma_join_q(returning_cols)
   "insert into "
-  <> table
+  <> q(table)
   <> " ("
-  <> insert_cols
+  <> comma_join_q(insert_col_names)
   <> ")\nvalues ("
   <> value_placeholders
   <> ")\non conflict("
@@ -75,15 +81,17 @@ pub fn select_by_identity_sql(
 ) -> String {
   let where_id =
     id_cols
-    |> list.map(fn(c) { c <> " = ?" })
+    |> list.map(fn(c) { q(c) <> " = ?" })
     |> string.join(" and ")
   "select "
-  <> comma_join(returning_cols)
+  <> comma_join_q(returning_cols)
   <> " from "
-  <> table
+  <> q(table)
   <> " where "
   <> where_id
-  <> " and deleted_at is null;"
+  <> " and "
+  <> q("deleted_at")
+  <> " is null;"
 }
 
 pub fn update_by_identity_sql(
@@ -94,21 +102,23 @@ pub fn update_by_identity_sql(
 ) -> String {
   let non_id = list.filter(data_cols, fn(c) { !list.contains(id_cols, c) })
   let set_parts =
-    list.map(non_id, fn(c) { c <> " = ?" })
-    |> list.append(["updated_at = ?"])
+    list.map(non_id, fn(c) { q(c) <> " = ?" })
+    |> list.append([q("updated_at") <> " = ?"])
   let set_clause = string.join(set_parts, ", ")
   let where_id =
     id_cols
-    |> list.map(fn(c) { c <> " = ?" })
+    |> list.map(fn(c) { q(c) <> " = ?" })
     |> string.join(" and ")
   "update "
-  <> table
+  <> q(table)
   <> " set "
   <> set_clause
   <> " where "
   <> where_id
-  <> " and deleted_at is null returning "
-  <> comma_join(returning_cols)
+  <> " and "
+  <> q("deleted_at")
+  <> " is null returning "
+  <> comma_join_q(returning_cols)
   <> ";"
 }
 
@@ -119,23 +129,33 @@ pub fn soft_delete_by_identity_sql(
 ) -> String {
   let where_id =
     id_cols
-    |> list.map(fn(c) { c <> " = ?" })
+    |> list.map(fn(c) { q(c) <> " = ?" })
     |> string.join(" and ")
   "update "
-  <> table
-  <> " set deleted_at = ?, updated_at = ? where "
+  <> q(table)
+  <> " set "
+  <> q("deleted_at")
+  <> " = ?, "
+  <> q("updated_at")
+  <> " = ? where "
   <> where_id
-  <> " and deleted_at is null returning "
-  <> comma_join(returning_cols)
+  <> " and "
+  <> q("deleted_at")
+  <> " is null returning "
+  <> comma_join_q(returning_cols)
   <> ";"
 }
 
 pub fn last_100_sql(table: String, returning_cols: List(String)) -> String {
   "select "
-  <> comma_join(returning_cols)
+  <> comma_join_q(returning_cols)
   <> " from "
-  <> table
-  <> " where deleted_at is null order by updated_at desc limit 100;"
+  <> q(table)
+  <> " where "
+  <> q("deleted_at")
+  <> " is null order by "
+  <> q("updated_at")
+  <> " desc limit 100;"
 }
 
 pub fn lt_column_asc_sql(
@@ -144,13 +164,15 @@ pub fn lt_column_asc_sql(
   column: String,
 ) -> String {
   "select "
-  <> comma_join(returning_cols)
+  <> comma_join_q(returning_cols)
   <> " from "
-  <> table
-  <> " where deleted_at is null and "
-  <> column
+  <> q(table)
+  <> " where "
+  <> q("deleted_at")
+  <> " is null and "
+  <> q(column)
   <> " < ? order by "
-  <> column
+  <> q(column)
   <> " asc;"
 }
 

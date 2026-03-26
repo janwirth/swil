@@ -32,21 +32,21 @@ import sqlight
 //   order by updated_at desc
 //   limit 100;
 
-const upsert_sql = "insert into importedtrack (title, artist, file_path, created_at, updated_at, deleted_at)
+const upsert_sql = "insert into \"importedtrack\" (\"title\", \"artist\", \"file_path\", \"created_at\", \"updated_at\", \"deleted_at\")
 values (?, ?, ?, ?, ?, null)
-on conflict(title, artist) do update set
-  file_path = excluded.file_path,
-  updated_at = excluded.updated_at,
-  deleted_at = null
-returning title, artist, file_path, id, created_at, updated_at, deleted_at;"
+on conflict(\"title\", \"artist\") do update set
+  \"file_path\" = excluded.\"file_path\",
+  \"updated_at\" = excluded.\"updated_at\",
+  \"deleted_at\" = null
+returning \"title\", \"artist\", \"file_path\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
 
-const select_by_title_and_artist_sql = "select title, artist, file_path, id, created_at, updated_at, deleted_at from importedtrack where title = ? and artist = ? and deleted_at is null;"
+const select_by_title_and_artist_sql = "select \"title\", \"artist\", \"file_path\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"importedtrack\" where \"title\" = ? and \"artist\" = ? and \"deleted_at\" is null;"
 
-const update_by_title_and_artist_sql = "update importedtrack set file_path = ?, updated_at = ? where title = ? and artist = ? and deleted_at is null returning title, artist, file_path, id, created_at, updated_at, deleted_at;"
+const update_by_title_and_artist_sql = "update \"importedtrack\" set \"file_path\" = ?, \"updated_at\" = ? where \"title\" = ? and \"artist\" = ? and \"deleted_at\" is null returning \"title\", \"artist\", \"file_path\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
 
-const soft_delete_by_title_and_artist_sql = "update importedtrack set deleted_at = ?, updated_at = ? where title = ? and artist = ? and deleted_at is null returning title, artist;"
+const soft_delete_by_title_and_artist_sql = "update \"importedtrack\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"title\" = ? and \"artist\" = ? and \"deleted_at\" is null returning \"title\", \"artist\";"
 
-const last_100_sql = "select title, artist, file_path, id, created_at, updated_at, deleted_at from importedtrack where deleted_at is null order by updated_at desc limit 100;"
+const last_100_sql = "select \"title\", \"artist\", \"file_path\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"importedtrack\" where \"deleted_at\" is null order by \"updated_at\" desc limit 100;"
 
 fn unix_seconds_now() -> Int {
   let #(s, _) =

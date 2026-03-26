@@ -1,6 +1,8 @@
 //// Blueprint for a generated `migrate`: introspect user tables `hippo`, `human`
 //// columns / indexes, then move to the desired state using `ALTER TABLE` only
 //// (add / drop column), never `DROP TABLE` / `CREATE TABLE` for shape fixes once those tables exist.
+import sql/sqlite_ident as sqlite_ident
+
 import gleam/dynamic/decode
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -9,18 +11,18 @@ import gleam/string
 import sql/pragma_assert.{type TableInfoRow} as sqlite_pragma_assert
 import sqlight
 
-const create_hippo_table_sql = "create table hippo (
-  id integer primary key autoincrement not null,
-  name text not null,
-  gender text not null,
-  date_of_birth text not null,
-  created_at integer not null,
-  updated_at integer not null,
-  owner_human_id integer,
-  deleted_at integer
+const create_hippo_table_sql = "create table \"hippo\" (
+  \"id\" integer primary key autoincrement not null,
+  \"name\" text not null,
+  \"gender\" text not null,
+  \"date_of_birth\" text not null,
+  \"created_at\" integer not null,
+  \"updated_at\" integer not null,
+  \"owner_human_id\" integer,
+  \"deleted_at\" integer
 );"
 
-const create_hippo_by_name_date_of_birth_index_sql = "create unique index hippo_by_name_date_of_birth on hippo(name, date_of_birth);"
+const create_hippo_by_name_date_of_birth_index_sql = "create unique index hippo_by_name_date_of_birth on \"hippo\"(\"name\", \"date_of_birth\");"
 
 const expected_hippo_table_info = "cid	name	type	notnull	dflt_value	pk
 0	id	INTEGER	1	NULL	1
@@ -148,7 +150,7 @@ fn alter_add_hippo_column_sql(w: HippoCol) -> String {
       _ -> ""
     }
 }
-"alter table hippo add column " <> w.name <> " " <> fragment <> ";"
+"alter table " <> sqlite_ident.quote("hippo") <> " add column " <> sqlite_ident.quote(w.name) <> " " <> fragment <> ";"
 }
 
 fn apply_one_hippo_column_fix(
@@ -157,11 +159,11 @@ fn apply_one_hippo_column_fix(
 ) -> Result(Nil, sqlight.Error) {
   case first_surplus_column_hippo(rows, hippo_columns_wanted) {
   Some(name) ->
-    sqlight.exec("alter table hippo drop column " <> name <> ";", conn)
+    sqlight.exec("alter table " <> sqlite_ident.quote("hippo") <> " drop column " <> sqlite_ident.quote(name) <> ";", conn)
   None ->
     case first_mismatched_column_name_hippo(rows, hippo_columns_wanted) {
       Some(name) ->
-        sqlight.exec("alter table hippo drop column " <> name <> ";", conn)
+        sqlight.exec("alter table " <> sqlite_ident.quote("hippo") <> " drop column " <> sqlite_ident.quote(name) <> ";", conn)
       None ->
         case first_missing_column_hippo(rows, hippo_columns_wanted) {
           Some(w) -> sqlight.exec(alter_add_hippo_column_sql(w), conn)
@@ -232,16 +234,16 @@ case
 }
 }
 
-const create_human_table_sql = "create table human (
-  id integer primary key autoincrement not null,
-  name text not null,
-  email text not null,
-  created_at integer not null,
-  updated_at integer not null,
-  deleted_at integer
+const create_human_table_sql = "create table \"human\" (
+  \"id\" integer primary key autoincrement not null,
+  \"name\" text not null,
+  \"email\" text not null,
+  \"created_at\" integer not null,
+  \"updated_at\" integer not null,
+  \"deleted_at\" integer
 );"
 
-const create_human_by_email_index_sql = "create unique index human_by_email on human(email);"
+const create_human_by_email_index_sql = "create unique index human_by_email on \"human\"(\"email\");"
 
 const expected_human_table_info = "cid	name	type	notnull	dflt_value	pk
 0	id	INTEGER	1	NULL	1
@@ -347,7 +349,7 @@ fn alter_add_human_column_sql(w: HumanCol) -> String {
       _ -> ""
     }
 }
-"alter table human add column " <> w.name <> " " <> fragment <> ";"
+"alter table " <> sqlite_ident.quote("human") <> " add column " <> sqlite_ident.quote(w.name) <> " " <> fragment <> ";"
 }
 
 fn apply_one_human_column_fix(
@@ -356,11 +358,11 @@ fn apply_one_human_column_fix(
 ) -> Result(Nil, sqlight.Error) {
   case first_surplus_column_human(rows, human_columns_wanted) {
   Some(name) ->
-    sqlight.exec("alter table human drop column " <> name <> ";", conn)
+    sqlight.exec("alter table " <> sqlite_ident.quote("human") <> " drop column " <> sqlite_ident.quote(name) <> ";", conn)
   None ->
     case first_mismatched_column_name_human(rows, human_columns_wanted) {
       Some(name) ->
-        sqlight.exec("alter table human drop column " <> name <> ";", conn)
+        sqlight.exec("alter table " <> sqlite_ident.quote("human") <> " drop column " <> sqlite_ident.quote(name) <> ";", conn)
       None ->
         case first_missing_column_human(rows, human_columns_wanted) {
           Some(w) -> sqlight.exec(alter_add_human_column_sql(w), conn)

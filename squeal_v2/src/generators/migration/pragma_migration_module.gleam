@@ -20,7 +20,13 @@ pub fn build_and_render(data: PragmaMigrationData) -> String {
     build(data)
     |> gmod.render(grender.default_context())
     |> grender.to_string()
-  let with_header = string.concat([module_comment_block(data), "\n", rendered])
+  let with_header =
+    string.concat([
+      module_comment_block(data),
+      "\n",
+      sqlite_ident_import_prefix(rendered),
+      rendered,
+    ])
   case string.ends_with(with_header, "\n") {
     True -> with_header
     False -> string.append(with_header, "\n")
@@ -34,10 +40,27 @@ pub fn build_and_render_multi(datas: List(PragmaMigrationData)) -> String {
     |> gmod.render(grender.default_context())
     |> grender.to_string()
   let with_header =
-    string.concat([module_comment_block_multi(datas), "\n", rendered])
+    string.concat([
+      module_comment_block_multi(datas),
+      "\n",
+      sqlite_ident_import_prefix(rendered),
+      rendered,
+    ])
   case string.ends_with(with_header, "\n") {
     True -> with_header
     False -> string.append(with_header, "\n")
+  }
+}
+
+/// Gleamgen omits imports only referenced from `gexpr.raw` bodies; ALTER helpers use
+/// `sqlite_ident.quote` in strings, so we inject this line when needed.
+fn sqlite_ident_import_prefix(rendered: String) -> String {
+  case
+    string.contains(rendered, "sqlite_ident.quote("),
+    string.contains(rendered, "import sql/sqlite_ident")
+  {
+    True, False -> "import sql/sqlite_ident as sqlite_ident\n\n"
+    _, _ -> ""
   }
 }
 
@@ -601,9 +624,9 @@ fn with_alter_add(data: PragmaMigrationData, next: fn() -> gmod.Module) {
         "    }",
         "}",
         string.concat([
-          "\"alter table ",
+          "\"alter table \" <> sqlite_ident.quote(\"",
           data.table,
-          " add column \" <> w.name <> \" \" <> fragment <> \";\"",
+          "\") <> \" add column \" <> sqlite_ident.quote(w.name) <> \" \" <> fragment <> \";\"",
         ]),
       ],
       "\n",
@@ -628,17 +651,17 @@ fn apply_one_body_lines(data: PragmaMigrationData) -> List(String) {
       string.concat(["case ", fs, "(rows, ", wl, ") {"]),
       "  Some(name) ->",
       string.concat([
-        "    sqlight.exec(\"alter table ",
+        "    sqlight.exec(\"alter table \" <> sqlite_ident.quote(\"",
         data.table,
-        " drop column \" <> name <> \";\", conn)",
+        "\") <> \" drop column \" <> sqlite_ident.quote(name) <> \";\", conn)",
       ]),
       "  None ->",
       string.concat(["    case ", fm, "(rows, ", wl, ") {"]),
       "      Some(name) ->",
       string.concat([
-        "        sqlight.exec(\"alter table ",
+        "        sqlight.exec(\"alter table \" <> sqlite_ident.quote(\"",
         data.table,
-        " drop column \" <> name <> \";\", conn)",
+        "\") <> \" drop column \" <> sqlite_ident.quote(name) <> \";\", conn)",
       ]),
       "      None ->",
       string.concat(["        case ", fmi, "(rows, ", wl, ") {"]),
