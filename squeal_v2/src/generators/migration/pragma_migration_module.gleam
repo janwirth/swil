@@ -27,6 +27,20 @@ pub fn build_and_render(data: PragmaMigrationData) -> String {
   }
 }
 
+/// One pragma migration module containing every entity in [datas] (sorted when built upstream).
+pub fn build_and_render_multi(datas: List(PragmaMigrationData)) -> String {
+  let rendered =
+    build_multi(datas)
+    |> gmod.render(grender.default_context())
+    |> grender.to_string()
+  let with_header =
+    string.concat([module_comment_block_multi(datas), "\n", rendered])
+  case string.ends_with(with_header, "\n") {
+    True -> with_header
+    False -> string.append(with_header, "\n")
+  }
+}
+
 fn module_comment_block(data: PragmaMigrationData) -> String {
   string.join(
     [
@@ -46,8 +60,123 @@ fn module_comment_block(data: PragmaMigrationData) -> String {
   )
 }
 
+fn module_comment_block_multi(datas: List(PragmaMigrationData)) -> String {
+  let names =
+    list.map(datas, fn(d) { d.table })
+    |> list.sort(string.compare)
+    |> string.join("`, `")
+  string.join(
+    [
+      "//// Blueprint for a generated `migrate`: introspect user tables `" <> names <> "`",
+      "//// columns / indexes, then move to the desired state using `ALTER TABLE` only",
+      "//// (add / drop column), never `DROP TABLE` / `CREATE TABLE` for shape fixes once those tables exist.",
+    ],
+    "\n",
+  )
+}
+
+fn build_multi(datas: List(PragmaMigrationData)) -> gmod.Module {
+  case datas {
+    [] -> panic as "pragma_migration_module.build_multi: empty entity list"
+    [first, ..rest] ->
+      with_all_imports(fn() {
+        build_entity_multi(first, True, rest, fn() {
+          with_migration_pub_multi(datas, fn() { gmod.eof() })
+        })
+      })
+  }
+}
+
+fn build_entity_multi(
+  data: PragmaMigrationData,
+  is_first: Bool,
+  rest: List(PragmaMigrationData),
+  final_inner: fn() -> gmod.Module,
+) -> gmod.Module {
+  let after_this = case rest {
+    [] -> final_inner
+    [next, ..tail] -> fn() {
+      build_entity_multi(next, False, tail, final_inner)
+    }
+  }
+  let wrap_shared_helpers = fn(next_inner: fn() -> gmod.Module) {
+    case is_first {
+      True ->
+        with_pragma_index(fn() { with_type_matches(fn() { next_inner() }) })
+      False -> next_inner()
+    }
+  }
+  with_string_constants(data, fn() {
+    with_col_type_and_columns(data, fn() {
+      wrap_shared_helpers(fn() {
+        with_drop_surplus(data, fn() {
+          with_row_matches(data, fn() {
+            with_first_surplus(data, fn() {
+              with_first_mismatched(data, fn() {
+                with_first_missing(data, fn() {
+                  with_alter_add(data, fn() {
+                    with_apply_one(data, fn() {
+                      with_reconcile_loop(data, fn() {
+                        with_ensure_table(data, fn() {
+                          with_ensure_indexes(data, after_this)
+                        })
+                      })
+                    })
+                  })
+                })
+              })
+            })
+          })
+        })
+      })
+    })
+  })
+}
+
 fn q(s: String) -> String {
   string.concat(["\"", s, "\""])
+}
+
+fn expected_table_info_const(data: PragmaMigrationData) -> String {
+  case data.multi_entity {
+    True -> string.concat(["expected_", data.table, "_table_info"])
+    False -> "expected_table_info"
+  }
+}
+
+fn expected_index_list_const(data: PragmaMigrationData) -> String {
+  case data.multi_entity {
+    True -> string.concat(["expected_", data.table, "_index_list"])
+    False -> "expected_index_list"
+  }
+}
+
+fn expected_index_info_const(data: PragmaMigrationData) -> String {
+  case data.multi_entity {
+    True -> string.concat(["expected_", data.table, "_index_info"])
+    False -> "expected_index_info"
+  }
+}
+
+fn first_surplus_column_fn(data: PragmaMigrationData) -> String {
+  case data.multi_entity {
+    True -> string.concat(["first_surplus_column_", data.table])
+    False -> "first_surplus_column"
+  }
+}
+
+fn first_mismatched_column_name_fn(data: PragmaMigrationData) -> String {
+  case data.multi_entity {
+    True -> string.concat(["first_mismatched_column_name_", data.table])
+    False -> "first_mismatched_column_name"
+  }
+}
+
+fn first_missing_column_fn(data: PragmaMigrationData) -> String {
+  case data.multi_entity {
+    True -> string.concat(["first_missing_column_", data.table])
+    False -> "first_missing_column"
+  }
 }
 
 fn wanted_list(data: PragmaMigrationData) -> String {
@@ -135,6 +264,9 @@ fn def_const(
 }
 
 fn with_string_constants(data: PragmaMigrationData, next: fn() -> gmod.Module) {
+  let exp_table = expected_table_info_const(data)
+  let exp_list = expected_index_list_const(data)
+  let exp_info = expected_index_info_const(data)
   def_const(
     string.concat(["create_", data.table, "_table_sql"]),
     gexpr.string(data.create_table_sql),
@@ -150,15 +282,15 @@ fn with_string_constants(data: PragmaMigrationData, next: fn() -> gmod.Module) {
         gexpr.string(data.create_index_sql),
         fn() {
           def_const(
-            "expected_table_info",
+            exp_table,
             gexpr.string(data.expected_table_info),
             fn() {
               def_const(
-                "expected_index_list",
+                exp_list,
                 gexpr.string(data.expected_index_list),
                 fn() {
                   def_const(
-                    "expected_index_info",
+                    exp_info,
                     gexpr.string(data.expected_index_info),
                     fn() { next() },
                   )
@@ -212,10 +344,6 @@ fn with_col_type_and_columns(
       )
     },
   )
-}
-
-fn raw_fn0(body: String, ret: gtypes.GeneratedType(a)) {
-  gfun.new0(ret, fn() { gexpr.raw(body) })
 }
 
 fn raw_fn1(body: String, p1: gparam.Parameter(p1), ret: gtypes.GeneratedType(a)) {
@@ -370,7 +498,7 @@ fn with_first_surplus(data: PragmaMigrationData, next: fn() -> gmod.Module) {
       "\n",
     )
   with_fn(
-    "first_surplus_column",
+    first_surplus_column_fn(data),
     raw_fn2(
       body,
       gparam.new("rows", gtypes.raw("List(TableInfoRow)")),
@@ -409,7 +537,7 @@ fn with_first_mismatched(data: PragmaMigrationData, next: fn() -> gmod.Module) {
       "\n",
     )
   with_fn(
-    "first_mismatched_column_name",
+    first_mismatched_column_name_fn(data),
     raw_fn2(
       body,
       gparam.new("rows", gtypes.raw("List(TableInfoRow)")),
@@ -438,7 +566,7 @@ fn with_first_missing(data: PragmaMigrationData, next: fn() -> gmod.Module) {
       "\n",
     )
   with_fn(
-    "first_missing_column",
+    first_missing_column_fn(data),
     raw_fn2(
       body,
       gparam.new("rows", gtypes.raw("List(TableInfoRow)")),
@@ -491,11 +619,13 @@ fn with_alter_add(data: PragmaMigrationData, next: fn() -> gmod.Module) {
 fn apply_one_body_lines(data: PragmaMigrationData) -> List(String) {
   let wl = wanted_list(data)
   let alter_fn = string.concat(["alter_add_", data.table, "_column_sql"])
-  let apply_fn = string.concat(["apply_one_", data.table, "_column_fix"])
+  let fs = first_surplus_column_fn(data)
+  let fm = first_mismatched_column_name_fn(data)
+  let fmi = first_missing_column_fn(data)
   let none_panic_lines = string.split(data.apply_one_none_panic, "\n")
   list.flatten([
     [
-      string.concat(["case first_surplus_column(rows, ", wl, ") {"]),
+      string.concat(["case ", fs, "(rows, ", wl, ") {"]),
       "  Some(name) ->",
       string.concat([
         "    sqlight.exec(\"alter table ",
@@ -503,11 +633,7 @@ fn apply_one_body_lines(data: PragmaMigrationData) -> List(String) {
         " drop column \" <> name <> \";\", conn)",
       ]),
       "  None ->",
-      string.concat([
-        "    case first_mismatched_column_name(rows, ",
-        wl,
-        ") {",
-      ]),
+      string.concat(["    case ", fm, "(rows, ", wl, ") {"]),
       "      Some(name) ->",
       string.concat([
         "        sqlight.exec(\"alter table ",
@@ -515,7 +641,7 @@ fn apply_one_body_lines(data: PragmaMigrationData) -> List(String) {
         " drop column \" <> name <> \";\", conn)",
       ]),
       "      None ->",
-      string.concat(["        case first_missing_column(rows, ", wl, ") {"]),
+      string.concat(["        case ", fmi, "(rows, ", wl, ") {"]),
       string.concat([
         "          Some(w) -> sqlight.exec(",
         alter_fn,
@@ -646,6 +772,8 @@ fn with_ensure_indexes(
 ) -> gmod.Module {
   let conn_t = conn_tuple_table(data)
   let conn_index = conn_tuple_index(data)
+  let exp_list = expected_index_list_const(data)
+  let exp_info = expected_index_info_const(data)
   let create_idx =
     string.concat([
       "create_",
@@ -676,7 +804,13 @@ fn with_ensure_indexes(
         ]),
         "{",
         "  Ok(list_tsv), Ok(info_tsv) ->",
-        "    case list_tsv == expected_index_list && info_tsv == expected_index_info {",
+        string.concat([
+          "    case list_tsv == ",
+          exp_list,
+          " && info_tsv == ",
+          exp_info,
+          " {",
+        ]),
         "      True -> Ok(Nil)",
         "      False -> {",
         "        use _ <- result.try(sqlight.exec(",
@@ -714,6 +848,74 @@ fn with_ensure_indexes(
     ),
     next,
     public: False,
+  )
+}
+
+fn migration_multi_body_string(datas: List(PragmaMigrationData)) -> String {
+  let tables_sorted =
+    list.map(datas, fn(d) { d.table })
+    |> list.sort(string.compare)
+  let keep_list = list.map(tables_sorted, q) |> string.join(", ")
+  let drop_block =
+    string.join(
+      [
+        "use _ <- result.try(sqlite_pragma_assert.drop_user_tables_except_any(",
+        "  conn,",
+        "  [" <> keep_list <> "],",
+        "))",
+      ],
+      "\n",
+    )
+  let ensure_each =
+    list.map(datas, fn(d) {
+      let t = d.table
+      string.join(
+        [
+          "use _ <- result.try(ensure_" <> t <> "_table(conn))",
+          "use _ <- result.try(ensure_" <> t <> "_indexes(conn))",
+        ],
+        "\n",
+      )
+    })
+    |> string.join("\n")
+  let snap_each =
+    list.map(datas, fn(d) {
+      let ti = expected_table_info_const(d)
+      let il = expected_index_list_const(d)
+      let ii = expected_index_info_const(d)
+      string.join(
+        [
+          "sqlite_pragma_assert.assert_pragma_snapshot(",
+          "  conn,",
+          "  [" <> keep_list <> "],",
+          "  " <> q(d.table) <> ",",
+          "  " <> ti <> ",",
+          "  " <> il <> ",",
+          "  " <> q(d.index_name) <> ",",
+          "  " <> ii <> ",",
+          ")",
+        ],
+        "\n",
+      )
+    })
+    |> string.join("\n")
+  string.join([drop_block, ensure_each, snap_each, "Ok(Nil)"], "\n")
+}
+
+fn with_migration_pub_multi(
+  datas: List(PragmaMigrationData),
+  next: fn() -> gmod.Module,
+) -> gmod.Module {
+  let body = migration_multi_body_string(datas)
+  with_fn(
+    "migration",
+    raw_fn1(
+      body,
+      gparam.new("conn", gtypes.raw("sqlight.Connection")),
+      gtypes.raw("Result(Nil, sqlight.Error)"),
+    ),
+    next,
+    public: True,
   )
 }
 

@@ -9,6 +9,7 @@ import gleamgen/expression as gexpr
 import gleamgen/expression/statement as gstmt
 import gleamgen/render as grender
 import schema_definition/schema_definition.{
+  type EntityDefinition,
   type FieldDefinition,
   type SchemaDefinition,
 }
@@ -99,12 +100,13 @@ fn panic_as_literal(message: String) -> String {
   string.concat(["\"", message, "\""])
 }
 
-/// Fills `PragmaMigrationData` for a single-entity schema: SQL/TSV fixtures and panic snippets.
-fn build_pragma_migration_data(
+/// Fills `PragmaMigrationData` for one entity (fixtures and panic snippets).
+pub fn build_pragma_migration_data_for_entity(
   schema: SchemaDefinition,
+  entity: EntityDefinition,
   module_tag: String,
+  multi_entity: Bool,
 ) -> pragma_migration_data.PragmaMigrationData {
-  let assert [entity] = schema.entities
   let table = migration_sql.entity_table_name(entity.type_name)
   let col_type = string.append(entity.type_name, "Col")
   let assert Ok(identity_type) =
@@ -192,14 +194,29 @@ fn build_pragma_migration_data(
     apply_one_none_panic:,
     reconcile_table_info_rows_stmt:,
     panic_no_conv:,
+    multi_entity:,
   )
 }
 
-/// Full Gleam module text for a single-entity pragma reconcile blueprint (e.g. fruit/animal examples).
+/// Full Gleam module text for pragma reconcile migrations: one module per schema,
+/// single- or multi-entity.
 /// [module_tag] is baked into panic messages so failures name the generating module.
 pub fn generate_pragma_migration_module(
   schema: SchemaDefinition,
   module_tag: String,
 ) -> String {
-  pragma_migration_emit.emit(build_pragma_migration_data(schema, module_tag))
+  let entities =
+    list.sort(schema.entities, fn(a, b) { string.compare(a.type_name, b.type_name) })
+  let multi_entity = list.length(entities) > 1
+  let datas =
+    list.map(entities, fn(e) {
+      build_pragma_migration_data_for_entity(schema, e, module_tag, multi_entity)
+    })
+  case multi_entity {
+    False -> {
+      let assert [d] = datas
+      pragma_migration_emit.emit(d)
+    }
+    True -> pragma_migration_emit.emit_multi(datas)
+  }
 }

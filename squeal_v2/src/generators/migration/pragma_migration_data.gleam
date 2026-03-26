@@ -17,6 +17,9 @@ pub type PragmaMigrationData {
     apply_one_none_panic: String,
     reconcile_table_info_rows_stmt: String,
     panic_no_conv: String,
+    /// When true, emitted constants and column-fix helpers are table-prefixed so
+    /// several entities can live in one module.
+    multi_entity: Bool,
   )
 }
 

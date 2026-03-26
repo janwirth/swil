@@ -1,20 +1,12 @@
 import case_studies/hippo_db/migration
-import case_studies/hippo_schema.{
-  type GenderScalar, type Hippo, type HippoRelationships, ByNameAndDateOfBirth,
-  Female, Hippo, HippoRelationships, Male,
-}
+import case_studies/hippo_schema.{type GenderScalar, type Hippo, type HippoRelationships, ByNameAndDateOfBirth, Female, Hippo, HippoRelationships, Male}
 import dsl/dsl as dsl
 import gleam/dynamic/decode
 import gleam/int
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
-import gleam/time/calendar.{
-  type Date,
-  Date as CalDate,
-  month_from_int,
-  month_to_int,
-}
+import gleam/time/calendar.{type Date, Date as CalDate, month_from_int, month_to_int}
 import gleam/time/timestamp
 import sqlight
 
@@ -30,13 +22,13 @@ import sqlight
 // select name, gender, date_of_birth, id, created_at, updated_at, deleted_at from hippo
 //   where name = ? and date_of_birth = ? and deleted_at is null;
 //
-// update hippo set color = ?, price = ?, quantity = ?, updated_at = ?
-//   where name = ? and deleted_at is null
-//   returning name, color, price, quantity, id, created_at, updated_at, deleted_at;
+// update hippo set gender = ?, updated_at = ?
+//   where name = ? and date_of_birth = ? and deleted_at is null
+//   returning name, gender, date_of_birth, id, created_at, updated_at, deleted_at;
 //
 // update hippo set deleted_at = ?, updated_at = ?
-//   where name = ? and deleted_at is null
-//   returning name;
+//   where name = ? and date_of_birth = ? and deleted_at is null
+//   returning name, date_of_birth;
 //
 // select name, gender, date_of_birth, id, created_at, updated_at, deleted_at from hippo
 //   where deleted_at is null

@@ -54,13 +54,20 @@ pub fn animal_pragma_test() {
   assert_diff(animal_expected, animal_gleam)
 }
 
-/// `hippo_schema` is multi-entity; pragma module codegen only covers single-entity schemas today.
-/// This ties the on-disk schema to the manual `hippo_db/migration` suite.
-pub fn hippo_schema_covers_migration_suite_test() {
+/// Multi-entity pragma migration matches the checked-in `hippo_db/migration.gleam`.
+pub fn hippo_pragma_codegen_matches_disk_test() {
   let assert Ok(src) =
     simplifile.read("src/case_studies/hippo_schema.gleam")
+  let assert Ok(hippo_expected) =
+    simplifile.read("src/case_studies/hippo_db/migration.gleam")
   let assert Ok(def) = schema_definition.parse_module(src)
   let assert True = list.length(def.entities) == 2
+  let hippo_gleam =
+    migration.generate_pragma_migration_module(
+      def,
+      "case_studies/hippo_db/migration",
+    )
+  assert_diff(hippo_expected, hippo_gleam)
 }
 
 pub fn idempotent_migration_test() {
