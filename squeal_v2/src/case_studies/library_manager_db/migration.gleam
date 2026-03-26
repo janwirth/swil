@@ -240,7 +240,7 @@ case
 const create_tab_table_sql = "create table tab (
   id integer primary key autoincrement not null,
   label text not null,
-  \"order\" real not null,
+  order real not null,
   view_config text not null,
   created_at integer not null,
   updated_at integer not null,
@@ -277,13 +277,6 @@ const tab_columns_wanted = [
   TabCol("updated_at", "INTEGER", 1, 0),
   TabCol("deleted_at", "INTEGER", 0, 0),
 ]
-
-fn tab_table_column_ident(name: String) -> String {
-  case name == "order" {
-    True -> "\"order\""
-    False -> name
-  }
-}
 
 fn drop_surplus_user_indexes_on_tab(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   use rows <- result.try(pragma_index_name_origin_rows(conn, "tab"))
@@ -362,27 +355,17 @@ fn alter_add_tab_column_sql(w: TabCol) -> String {
       _ -> ""
     }
 }
-"alter table tab add column "
-  <> tab_table_column_ident(w.name)
-  <> " "
-  <> fragment
-  <> ";"
+"alter table tab add column " <> w.name <> " " <> fragment <> ";"
 }
 
 fn apply_one_tab_column_fix(conn: sqlight.Connection, rows: List(TableInfoRow)) -> Result(Nil, sqlight.Error) {
   case first_surplus_column_tab(rows, tab_columns_wanted) {
   Some(name) ->
-    sqlight.exec(
-      "alter table tab drop column " <> tab_table_column_ident(name) <> ";",
-      conn,
-    )
+    sqlight.exec("alter table tab drop column " <> name <> ";", conn)
   None ->
     case first_mismatched_column_name_tab(rows, tab_columns_wanted) {
       Some(name) ->
-        sqlight.exec(
-          "alter table tab drop column " <> tab_table_column_ident(name) <> ";",
-          conn,
-        )
+        sqlight.exec("alter table tab drop column " <> name <> ";", conn)
       None ->
         case first_missing_column_tab(rows, tab_columns_wanted) {
           Some(w) -> sqlight.exec(alter_add_tab_column_sql(w), conn)
