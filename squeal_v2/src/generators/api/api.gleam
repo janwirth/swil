@@ -512,7 +512,303 @@ fn with_api_imports(
   })
 }
 
-fn build_module(path: String, def: SchemaDefinition) -> gmod.Module {
+fn optional_opt_for_db_fn_chunks(
+  entity: EntityDefinition,
+  variant: IdentityVariantDefinition,
+) {
+  let opt_int_chunk = #(
+    gdef.new("opt_int_for_db") |> gdef.with_publicity(False),
+    gfun.new_raw(
+      [gparam.new("o", gtypes.raw("Option(Int)")) |> gparam.to_dynamic],
+      gtypes.int,
+      fn(_) { gexpr.raw("case o {\n    Some(i) -> i\n    None -> 0\n  }") },
+    )
+      |> gfun.to_dynamic,
+  )
+  let opt_float_chunk = #(
+    gdef.new("opt_float_for_db") |> gdef.with_publicity(False),
+    gfun.new_raw(
+      [gparam.new("o", gtypes.raw("Option(Float)")) |> gparam.to_dynamic],
+      gtypes.float,
+      fn(_) { gexpr.raw("case o {\n    Some(f) -> f\n    None -> 0.0\n  }") },
+    )
+      |> gfun.to_dynamic,
+  )
+  let opt_text_chunk = #(
+    gdef.new("opt_text_for_db") |> gdef.with_publicity(False),
+    gfun.new_raw(
+      [gparam.new("o", gtypes.raw("Option(String)")) |> gparam.to_dynamic],
+      gtypes.string,
+      fn(_) { gexpr.raw("case o {\n    Some(s) -> s\n    None -> \"\"\n  }") },
+    )
+      |> gfun.to_dynamic,
+  )
+  list.flatten([
+    case entity_needs_opt_int_for_db(entity, variant) {
+      True -> [opt_int_chunk]
+      False -> []
+    },
+    case entity_needs_opt_float_for_db(entity, variant) {
+      True -> [opt_float_chunk]
+      False -> []
+    },
+    case entity_needs_opt_text_for_db(entity, variant) {
+      True -> [opt_text_chunk]
+      False -> []
+    },
+  ])
+}
+
+fn gender_scalar_fn_chunks(def: SchemaDefinition, entity: EntityDefinition) {
+  case entity_uses_gender_scalar(def, entity) {
+    True -> [
+      #(
+        gdef.new("gender_from_db_string") |> gdef.with_publicity(False),
+        gfun.new_raw(
+          [gparam.new("s", gtypes.string) |> gparam.to_dynamic],
+          gtypes.raw("Option(GenderScalar)"),
+          fn(_) {
+            gexpr.raw(
+              "case s {\n    \"\" -> None\n    \"Male\" -> Some(Male)\n    \"Female\" -> Some(Female)\n    _ -> None\n  }",
+            )
+          },
+        )
+          |> gfun.to_dynamic,
+      ),
+      #(
+        gdef.new("gender_to_db_string") |> gdef.with_publicity(False),
+        gfun.new_raw(
+          [
+            gparam.new("o", gtypes.raw("Option(GenderScalar)"))
+            |> gparam.to_dynamic,
+          ],
+          gtypes.string,
+          fn(_) {
+            gexpr.raw(
+              "case o {\n    None -> \"\"\n    Some(Male) -> \"Male\"\n    Some(Female) -> \"Female\"\n  }",
+            )
+          },
+        )
+          |> gfun.to_dynamic,
+      ),
+    ]
+    False -> []
+  }
+}
+
+fn calendar_date_fn_chunks(path: String, def: SchemaDefinition) {
+  let date_panic = api_date_panic_label(path)
+  case schema_uses_calendar_date(def) {
+    True -> [
+      #(
+        gdef.new("date_from_db_string") |> gdef.with_publicity(False),
+        gfun.new_raw(
+          [gparam.new("s", gtypes.string) |> gparam.to_dynamic],
+          gtypes.raw("Date"),
+          fn(_) {
+            gexpr.raw(
+              "case string.split(s, \"-\") {\n    [ys, ms, ds] -> {\n      let assert Ok(y) = int.parse(ys)\n      let assert Ok(mi) = int.parse(ms)\n      let assert Ok(d) = int.parse(ds)\n      let assert Ok(month) = month_from_int(mi)\n      CalDate(y, month, d)\n    }\n    _ -> panic as \""
+              <> date_panic
+              <> "\"\n  }",
+            )
+          },
+        )
+          |> gfun.to_dynamic,
+      ),
+      #(
+        gdef.new("date_to_db_string") |> gdef.with_publicity(False),
+        gfun.new_raw(
+          [gparam.new("d", gtypes.raw("Date")) |> gparam.to_dynamic],
+          gtypes.string,
+          fn(_) {
+            gexpr.raw(
+              "let CalDate(year:, month:, day:) = d\n  int.to_string(year)\n  <> \"-\"\n  <> pad2(month_to_int(month))\n  <> \"-\"\n  <> pad2(day)",
+            )
+          },
+        )
+          |> gfun.to_dynamic,
+      ),
+      #(
+        gdef.new("pad2") |> gdef.with_publicity(False),
+        gfun.new_raw(
+          [gparam.new("n", gtypes.int) |> gparam.to_dynamic],
+          gtypes.string,
+          fn(_) {
+            gexpr.raw(
+              "let s = int.to_string(n)\n  case string.length(s) {\n    1 -> \"0\" <> s\n    _ -> z\n      }",
+            )
+          },
+        )
+          |> gfun.to_dynamic,
+      ),
+    ]
+    False -> []
+  }
+}
+
+fn cheap_fruit_query_fn_chunks(
+  entity_snake: String,
+  row_t: gtypes.Type,
+  sql_err: gtypes.Type,
+  cheap_opt: Option(String),
+) {
+  case cheap_opt {
+    None -> []
+    Some(_) -> {
+      let body =
+        query_cheap_fruit_body(
+          entity_snake,
+          query_sql_const_name("query_cheap_fruit"),
+        )
+      [
+        #(
+          gleamgen_emit.pub_def("query_cheap_fruit")
+            |> gdef.with_text_before(
+              "/// Fruits with `price < max_price`, ordered by ascending price (see `query_cheap_fruit` spec).\n",
+            ),
+          gfun.new_raw(
+            [
+              conn_param(),
+              gparam.new("max_price", gtypes.float) |> gparam.to_dynamic,
+            ],
+            gtypes.result(gtypes.list(row_t), sql_err),
+            fn(_) { gexpr.raw(body) },
+          )
+            |> gfun.to_dynamic,
+        ),
+      ]
+    }
+  }
+}
+
+fn crud_public_fn_chunks(
+  entity: EntityDefinition,
+  variant: IdentityVariantDefinition,
+  entity_snake: String,
+  id_snake: String,
+  upsert_params: List(gparam.Parameter(gtypes.Dynamic)),
+  get_params: List(gparam.Parameter(gtypes.Dynamic)),
+  row_t: gtypes.Type,
+  sql_err: gtypes.Type,
+) {
+  [
+    #(
+      gleamgen_emit.pub_def("last_100_edited_" <> entity_snake)
+        |> gdef.with_text_before(
+          "/// List up to 100 recently edited " <> entity_snake <> " rows.\n",
+        ),
+      gfun.new_raw(
+        [conn_param()],
+        gtypes.result(gtypes.list(row_t), sql_err),
+        fn(_) { gexpr.raw(last_fn_body(entity_snake)) },
+      )
+        |> gfun.to_dynamic,
+    ),
+    ud.delete_fn_chunk(entity_snake, id_snake, variant, get_params, sql_err),
+    ud.update_fn_chunk(
+      entity,
+      variant,
+      entity_snake,
+      id_snake,
+      upsert_params,
+      row_t,
+      sql_err,
+    ),
+    #(
+      gleamgen_emit.pub_def("get_" <> entity_snake <> "_by_" <> id_snake)
+        |> gdef.with_text_before(
+          "/// Get a "
+          <> entity_snake
+          <> " by the `"
+          <> variant.variant_name
+          <> "` identity.\n",
+        ),
+      gfun.new_raw(
+        get_params,
+        gtypes.result(
+          gtypes.raw(
+            "Option(" <> dec.entity_row_tuple_type(entity.type_name) <> ")",
+          ),
+          sql_err,
+        ),
+        fn(_) { gexpr.raw(get_fn_body(variant, entity_snake, id_snake)) },
+      )
+        |> gfun.to_dynamic,
+    ),
+    #(
+      gleamgen_emit.pub_def("upsert_" <> entity_snake <> "_by_" <> id_snake)
+        |> gdef.with_text_before(
+          "/// Upsert a "
+          <> entity_snake
+          <> " by the `"
+          <> variant.variant_name
+          <> "` identity.\n",
+        ),
+      gfun.new_raw(upsert_params, gtypes.result(row_t, sql_err), fn(_) {
+        gexpr.raw(ud.upsert_fn_body(
+          entity,
+          variant,
+          entity_snake,
+          id_snake,
+          "upsert",
+        ))
+      })
+        |> gfun.to_dynamic,
+    ),
+    #(
+      gleamgen_emit.pub_def("migrate"),
+      gfun.new_raw(
+        [conn_param()],
+        gtypes.result(gtypes.nil, sql_err),
+        fn(_) { gexpr.raw("migration.migration(conn)") },
+      )
+        |> gfun.to_dynamic,
+    ),
+    #(
+      gdef.new("not_found_error") |> gdef.with_publicity(False),
+      gfun.new_raw(
+        [gparam.new("op", gtypes.string) |> gparam.to_dynamic],
+        gtypes.raw("sqlight.Error"),
+        fn(_) {
+          gexpr.raw(
+            "sqlight.SqlightError(sqlight.GenericError, \""
+            <> entity_snake
+            <> " not found: \" <> op, -1)",
+          )
+        },
+      )
+        |> gfun.to_dynamic,
+    ),
+  ]
+}
+
+fn unix_seconds_now_fn_chunk() {
+  #(
+    gdef.new("unix_seconds_now") |> gdef.with_publicity(False),
+    gfun.new_raw([], gtypes.int, fn(_) {
+      gexpr.raw(
+        "let #(s, _) =\n    timestamp.system_time()\n    |> timestamp.to_unix_seconds_and_nanoseconds\n  s",
+      )
+    })
+      |> gfun.to_dynamic,
+  )
+}
+
+fn fold_fn_chunks(
+  chunks: List(#(gdef.Definition, gfun.Dynamic)),
+  into: fn() -> gmod.Module,
+) -> gmod.Module {
+  list.fold(chunks, gmod.eof(), fn(acc, chunk) {
+    let #(def_f, fun) = chunk
+    gmod.with_function(def_f, fun, fn(_) { acc })
+  })
+  |> fn(module) {
+    // prepend: eof built from chunks needs to wrap `into` — original folded onto eof then wrapped imports
+    // Actually original was: list.fold(fn_chunks, gmod.eof(), ...) giving inner module, then constants, then with_api_imports(inner).
+    // So fold produces a module whose "next" is eof - the fold builds from last chunk to first onto eof.
+    module
+  }
+}
   let assert [entity, ..] = def.entities
   let ctx = dec.type_ctx(path, def)
   let exposing = api_schema_exposing(def, entity)
