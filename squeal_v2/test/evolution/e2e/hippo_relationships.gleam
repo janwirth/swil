@@ -7,6 +7,7 @@ import gleam/order
 import gleam/string
 import gleam/time/calendar.{Date, January}
 import sqlight
+import gleam/io
 
 /// End-to-end checks for [`hippo_schema.old_hippos_owner_emails`](src/case_studies/hippo_schema.gleam)
 /// and [`hippo_schema.hippos_by_gender`](src/case_studies/hippo_schema.gleam): owner `BelongsTo` join,
@@ -72,6 +73,7 @@ pub fn hippo_relationship_queries_e2e_test() {
 
   let expected_order = list.sort(male_names, order.reverse(string.compare))
   let assert True = male_names == expected_order
+  io.print(string.inspect(by_gender))
 
   let assert Ok(oldie_row) =
     list.find(by_gender, fn(r) { r.name == Some("Oldie") })

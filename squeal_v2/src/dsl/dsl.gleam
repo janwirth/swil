@@ -74,3 +74,41 @@ pub type Direction {
 pub fn order_by(field: field, direction: Direction) -> #(field, Direction) {
   #(field, direction)
 }
+
+pub type BooleanFilter {
+  And(
+    exprs: List(BooleanFilter)
+  )
+  Or(
+    exprs: List(BooleanFilter)
+  )
+  Not(
+    expr: BooleanFilter
+  )
+}
+
+pub fn has(field: field, value: value) -> BooleanFilter {
+  todo
+}
+
+pub fn not_has(field: field, value: value) -> BooleanFilter {
+  todo
+}
+
+pub fn has_with(field: field, related_id: Int, predicate: WithPredicate) -> BooleanFilter {
+  todo
+}
+pub type WithPredicate {}
+
+pub fn is_at_least(value: value) -> WithPredicate {
+  todo
+}
+pub fn is_at_most(value: value) -> WithPredicate {
+  todo
+}
+pub fn is_equal_to(value: value) -> WithPredicate {
+  todo
+}
+
+pub fn advanced_filter(filter: BooleanFilter) -> Option(Bool) {
+  todo }
