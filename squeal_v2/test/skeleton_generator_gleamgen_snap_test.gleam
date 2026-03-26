@@ -16,7 +16,7 @@ pub fn gleamgen_hippo_db_skeleton_exact_match_test() {
   let assert Ok(def) = schema_definition.parse_module(schema_src)
 
   let generated = skeleton_generator.generate("case_studies/hippo_schema", def)
-    simplifile.write("src/case_studies/hippo_db_skeleton.gleam", generated)
+  //   simplifile.write("src/case_studies/hippo_db_skeleton.gleam", generated)
 
   assert_diff(expected, generated)
 }
@@ -29,7 +29,7 @@ pub fn gleamgen_fruit_db_skeleton_exact_match_test() {
   let assert Ok(def) = schema_definition.parse_module(schema_src)
 
   let generated = skeleton_generator.generate("case_studies/fruit_schema", def)
-    simplifile.write("src/case_studies/fruit_db/skeleton.gleam", generated)
+    // simplifile.write("src/case_studies/fruit_db/skeleton.gleam", generated)
   assert_diff(expected, generated)
 }
 
