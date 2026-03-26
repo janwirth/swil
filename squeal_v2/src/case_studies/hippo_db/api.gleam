@@ -1,3 +1,4 @@
+import api_help
 import case_studies/hippo_db/migration
 import case_studies/hippo_schema.{type GenderScalar, type Hippo, type HippoRelationships, ByNameAndDateOfBirth, Female, Hippo, HippoRelationships, Male}
 import dsl/dsl as dsl
@@ -9,31 +10,6 @@ import gleam/string
 import gleam/time/calendar.{type Date, Date as CalDate, month_from_int, month_to_int}
 import gleam/time/timestamp
 import sqlight
-
-// --- SQL (hippo table shape matches `example_migration_hippo` / pragma migrations) ---
-//
-// insert into hippo (name, gender, date_of_birth, created_at, updated_at, deleted_at)
-//   values (?, ?, ?, ?, ?, null)
-//   on conflict(name, date_of_birth) do update set
-//     gender = excluded.gender,
-//     updated_at = excluded.updated_at,
-//     deleted_at = null;
-//
-// select name, gender, date_of_birth, id, created_at, updated_at, deleted_at from hippo
-//   where name = ? and date_of_birth = ? and deleted_at is null;
-//
-// update hippo set gender = ?, updated_at = ?
-//   where name = ? and date_of_birth = ? and deleted_at is null
-//   returning name, gender, date_of_birth, id, created_at, updated_at, deleted_at;
-//
-// update hippo set deleted_at = ?, updated_at = ?
-//   where name = ? and date_of_birth = ? and deleted_at is null
-//   returning name, date_of_birth;
-//
-// select name, gender, date_of_birth, id, created_at, updated_at, deleted_at from hippo
-//   where deleted_at is null
-//   order by updated_at desc
-//   limit 100;
 
 const upsert_sql = "insert into \"hippo\" (\"name\", \"gender\", \"date_of_birth\", \"created_at\", \"updated_at\", \"deleted_at\")
 values (?, ?, ?, ?, ?, null)
@@ -50,13 +26,6 @@ const update_by_name_and_date_of_birth_sql = "update \"hippo\" set \"gender\" = 
 const soft_delete_by_name_and_date_of_birth_sql = "update \"hippo\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"name\" = ? and \"date_of_birth\" = ? and \"deleted_at\" is null returning \"name\", \"date_of_birth\";"
 
 const last_100_sql = "select \"name\", \"gender\", \"date_of_birth\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"hippo\" where \"deleted_at\" is null order by \"updated_at\" desc limit 100;"
-
-fn unix_seconds_now() -> Int {
-  let #(s, _) =
-    timestamp.system_time()
-    |> timestamp.to_unix_seconds_and_nanoseconds
-  s
-}
 
 fn pad2(n: Int) -> String {
   let s = int.to_string(n)
@@ -105,13 +74,6 @@ pub fn gender_scalar_from_db_string(s: String) -> Option(GenderScalar) {
   }
 }
 
-fn opt_string_from_db(s: String) -> Option(String) {
-  case s {
-    "" -> None
-    _ -> Some(s)
-  }
-}
-
 fn magic_from_db_row(
   id: Int,
   created_s: Int,
@@ -137,7 +99,7 @@ fn hippo_with_magic_row_decoder() -> decode.Decoder(#(Hippo, dsl.MagicFields)) {
   use created_at <- decode.field(4, decode.int)
   use updated_at <- decode.field(5, decode.int)
   use deleted_at_raw <- decode.field(6, decode.optional(decode.int))
-  let name = opt_string_from_db(name_raw)
+  let name = api_help.opt_string_from_db(name_raw)
   let gender = gender_scalar_from_db_string(gender_raw)
   let date_of_birth = case dob_raw {
     "" -> None
@@ -177,7 +139,7 @@ pub fn upsert_hippo_by_name_and_date_of_birth(
   date_of_birth: Date,
   gender: Option(GenderScalar),
 ) -> Result(#(Hippo, dsl.MagicFields), sqlight.Error) {
-  let now = unix_seconds_now()
+  let now = api_help.unix_seconds_now()
   use rows <- result.try(sqlight.query(
     upsert_sql,
     on: conn,
@@ -229,7 +191,7 @@ pub fn update_hippo_by_name_and_date_of_birth(
   date_of_birth: Date,
   gender: Option(GenderScalar),
 ) -> Result(#(Hippo, dsl.MagicFields), sqlight.Error) {
-  let now = unix_seconds_now()
+  let now = api_help.unix_seconds_now()
   use rows <- result.try(sqlight.query(
     update_by_name_and_date_of_birth_sql,
     on: conn,
@@ -253,7 +215,7 @@ pub fn delete_hippo_by_name_and_date_of_birth(
   name: String,
   date_of_birth: Date,
 ) -> Result(Nil, sqlight.Error) {
-  let now = unix_seconds_now()
+  let now = api_help.unix_seconds_now()
   use rows <- result.try(
     sqlight.query(
       soft_delete_by_name_and_date_of_birth_sql,

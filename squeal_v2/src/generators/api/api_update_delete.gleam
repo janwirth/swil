@@ -102,11 +102,12 @@ pub fn upsert_fn_body(
           let v = non_id_temp_var(f, enum_scalar_names)
           case render_type_plain(f, enum_scalar_names) {
             "String" ->
-              "  let " <> v <> " = opt_text_for_db(" <> f.label <> ")\n"
+              "  let " <> v <> " = api_help.opt_text_for_db(" <> f.label <> ")\n"
             "Float" ->
-              "  let " <> v <> " = opt_float_for_db(" <> f.label <> ")\n"
-            "Int" -> "  let " <> v <> " = opt_int_for_db(" <> f.label <> ")\n"
-            _ -> "  let " <> v <> " = opt_text_for_db(" <> f.label <> ")\n"
+              "  let " <> v <> " = api_help.opt_float_for_db(" <> f.label <> ")\n"
+            "Int" ->
+              "  let " <> v <> " = api_help.opt_int_for_db(" <> f.label <> ")\n"
+            _ -> "  let " <> v <> " = api_help.opt_text_for_db(" <> f.label <> ")\n"
           }
         }
       }
@@ -174,7 +175,7 @@ pub fn upsert_fn_body(
     "" -> ""
     s -> s
   }
-  "let now = unix_seconds_now()\n"
+  "let now = api_help.unix_seconds_now()\n"
   <> let_block
   <> "  use rows <- result.try(sqlight.query(\n    "
   <> sql_const
@@ -203,7 +204,7 @@ pub fn delete_fn_body(
     }
     False -> "[" <> string.join(with_elems, ", ") <> "]"
   }
-  "let now = unix_seconds_now()\n  use rows <- result.try(\n    sqlight.query(\n      soft_delete_by_"
+  "let now = api_help.unix_seconds_now()\n  use rows <- result.try(\n    sqlight.query(\n      soft_delete_by_"
   <> id_snake
   <> "_sql,\n      on: conn,\n      with: "
   <> with_part

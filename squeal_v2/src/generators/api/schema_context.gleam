@@ -1,12 +1,11 @@
 import generators/api/api_decoders as dec
-import generators/api/api_sql
 import glance
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
 import schema_definition/schema_definition.{
-  type EntityDefinition, type FieldDefinition, type IdentityTypeDefinition,
-  type IdentityVariantDefinition, type ScalarTypeDefinition, type SchemaDefinition,
+  type EntityDefinition, type IdentityTypeDefinition,
+  type ScalarTypeDefinition, type SchemaDefinition,
 }
 
 pub fn migration_import_path(schema_path: String) -> String {
@@ -145,59 +144,6 @@ pub fn schema_uses_calendar_date(def: SchemaDefinition) -> Bool {
       list.any(id.variants, fn(v) {
         list.any(v.fields, fn(f) { dec.field_is_calendar_date(f) })
       })
-    }
-  })
-}
-
-pub fn entity_non_id_fields(
-  entity: EntityDefinition,
-  variant: IdentityVariantDefinition,
-) -> List(FieldDefinition) {
-  let labels = dec.id_labels_list(variant)
-  list.filter(api_sql.entity_data_fields(entity), fn(f) {
-    !list.contains(labels, f.label)
-  })
-}
-
-pub fn entity_needs_opt_text_for_db(
-  entity: EntityDefinition,
-  variant: IdentityVariantDefinition,
-) -> Bool {
-  list.any(entity_non_id_fields(entity, variant), fn(f) {
-    case f.type_ {
-      glance.NamedType(
-        _,
-        "Option",
-        _,
-        [glance.NamedType(_, "String", None, [])],
-      ) -> True
-      _ -> False
-    }
-  })
-}
-
-pub fn entity_needs_opt_float_for_db(
-  entity: EntityDefinition,
-  variant: IdentityVariantDefinition,
-) -> Bool {
-  list.any(entity_non_id_fields(entity, variant), fn(f) {
-    case f.type_ {
-      glance.NamedType(_, "Option", _, [glance.NamedType(_, "Float", None, [])]) ->
-        True
-      _ -> False
-    }
-  })
-}
-
-pub fn entity_needs_opt_int_for_db(
-  entity: EntityDefinition,
-  variant: IdentityVariantDefinition,
-) -> Bool {
-  list.any(entity_non_id_fields(entity, variant), fn(f) {
-    case f.type_ {
-      glance.NamedType(_, "Option", _, [glance.NamedType(_, "Int", None, [])]) ->
-        True
-      _ -> False
     }
   })
 }

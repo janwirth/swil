@@ -15,53 +15,6 @@ import schema_definition/schema_definition.{
   type EntityDefinition, type IdentityVariantDefinition, type SchemaDefinition,
 }
 
-pub fn optional_opt_for_db_fn_chunks(
-  entity: EntityDefinition,
-  variant: IdentityVariantDefinition,
-) {
-  let opt_int_chunk = #(
-    gdef.new("opt_int_for_db") |> gdef.with_publicity(False),
-    gfun.new_raw(
-      [gparam.new("o", gtypes.raw("Option(Int)")) |> gparam.to_dynamic],
-      gtypes.int,
-      fn(_) { gexpr.raw("case o {\n    Some(i) -> i\n    None -> 0\n  }") },
-    )
-      |> gfun.to_dynamic,
-  )
-  let opt_float_chunk = #(
-    gdef.new("opt_float_for_db") |> gdef.with_publicity(False),
-    gfun.new_raw(
-      [gparam.new("o", gtypes.raw("Option(Float)")) |> gparam.to_dynamic],
-      gtypes.float,
-      fn(_) { gexpr.raw("case o {\n    Some(f) -> f\n    None -> 0.0\n  }") },
-    )
-      |> gfun.to_dynamic,
-  )
-  let opt_text_chunk = #(
-    gdef.new("opt_text_for_db") |> gdef.with_publicity(False),
-    gfun.new_raw(
-      [gparam.new("o", gtypes.raw("Option(String)")) |> gparam.to_dynamic],
-      gtypes.string,
-      fn(_) { gexpr.raw("case o {\n    Some(s) -> s\n    None -> \"\"\n  }") },
-    )
-      |> gfun.to_dynamic,
-  )
-  list.flatten([
-    case schema_context.entity_needs_opt_int_for_db(entity, variant) {
-      True -> [opt_int_chunk]
-      False -> []
-    },
-    case schema_context.entity_needs_opt_float_for_db(entity, variant) {
-      True -> [opt_float_chunk]
-      False -> []
-    },
-    case schema_context.entity_needs_opt_text_for_db(entity, variant) {
-      True -> [opt_text_chunk]
-      False -> []
-    },
-  ])
-}
-
 fn scalar_enum_from_db_raw(variants: List(String)) -> String {
   let arms =
     list.map(variants, fn(v) {
@@ -268,16 +221,4 @@ pub fn crud_public_fn_chunks(
         |> gfun.to_dynamic,
     ),
   ]
-}
-
-pub fn unix_seconds_now_fn_chunk() {
-  #(
-    gdef.new("unix_seconds_now") |> gdef.with_publicity(False),
-    gfun.new_raw([], gtypes.int, fn(_) {
-      gexpr.raw(
-        "let #(s, _) =\n    timestamp.system_time()\n    |> timestamp.to_unix_seconds_and_nanoseconds\n  s",
-      )
-    })
-      |> gfun.to_dynamic,
-  )
 }

@@ -1,3 +1,4 @@
+import api_help
 import case_studies/library_manager_db/migration
 import case_studies/library_manager_schema.{type ImportedTrack, ByFilePath, ByTitleAndArtist, ImportedTrack}
 import dsl/dsl as dsl
@@ -6,31 +7,6 @@ import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/time/timestamp
 import sqlight
-
-// --- SQL (importedtrack table shape matches `example_migration_importedtrack` / pragma migrations) ---
-//
-// insert into importedtrack (title, artist, file_path, created_at, updated_at, deleted_at)
-//   values (?, ?, ?, ?, ?, null)
-//   on conflict(title, artist) do update set
-//     file_path = excluded.file_path,
-//     updated_at = excluded.updated_at,
-//     deleted_at = null;
-//
-// select title, artist, file_path, id, created_at, updated_at, deleted_at from importedtrack
-//   where title = ? and artist = ? and deleted_at is null;
-//
-// update importedtrack set file_path = ?, updated_at = ?
-//   where title = ? and artist = ? and deleted_at is null
-//   returning title, artist, file_path, id, created_at, updated_at, deleted_at;
-//
-// update importedtrack set deleted_at = ?, updated_at = ?
-//   where title = ? and artist = ? and deleted_at is null
-//   returning title, artist;
-//
-// select title, artist, file_path, id, created_at, updated_at, deleted_at from importedtrack
-//   where deleted_at is null
-//   order by updated_at desc
-//   limit 100;
 
 const upsert_sql = "insert into \"importedtrack\" (\"title\", \"artist\", \"file_path\", \"created_at\", \"updated_at\", \"deleted_at\")
 values (?, ?, ?, ?, ?, null)
@@ -47,27 +23,6 @@ const update_by_title_and_artist_sql = "update \"importedtrack\" set \"file_path
 const soft_delete_by_title_and_artist_sql = "update \"importedtrack\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"title\" = ? and \"artist\" = ? and \"deleted_at\" is null returning \"title\", \"artist\";"
 
 const last_100_sql = "select \"title\", \"artist\", \"file_path\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"importedtrack\" where \"deleted_at\" is null order by \"updated_at\" desc limit 100;"
-
-fn unix_seconds_now() -> Int {
-  let #(s, _) =
-    timestamp.system_time()
-    |> timestamp.to_unix_seconds_and_nanoseconds
-  s
-}
-
-fn opt_text_for_db(o: Option(String)) -> String {
-  case o {
-    Some(s) -> s
-    None -> ""
-  }
-}
-
-fn opt_string_from_db(s: String) -> Option(String) {
-  case s {
-    "" -> None
-    _ -> Some(s)
-  }
-}
 
 fn magic_from_db_row(
   id: Int,
@@ -98,7 +53,7 @@ fn importedtrack_with_magic_row_decoder() -> decode.Decoder(#(ImportedTrack, dsl
     ImportedTrack(
       title: Some(title),
       artist: Some(artist),
-      file_path: opt_string_from_db(file_path),
+      file_path: api_help.opt_string_from_db(file_path),
       tags: [],
       identities: ByTitleAndArtist(title:, artist:),
     )
@@ -123,8 +78,8 @@ pub fn upsert_importedtrack_by_title_and_artist(
   artist: String,
   file_path: Option(String),
 ) -> Result(#(ImportedTrack, dsl.MagicFields), sqlight.Error) {
-  let now = unix_seconds_now()
-  let c = opt_text_for_db(file_path)
+  let now = api_help.unix_seconds_now()
+  let c = api_help.opt_text_for_db(file_path)
   use rows <- result.try(sqlight.query(
     upsert_sql,
     on: conn,
@@ -176,8 +131,8 @@ pub fn update_importedtrack_by_title_and_artist(
   artist: String,
   file_path: Option(String),
 ) -> Result(#(ImportedTrack, dsl.MagicFields), sqlight.Error) {
-  let now = unix_seconds_now()
-  let c = opt_text_for_db(file_path)
+  let now = api_help.unix_seconds_now()
+  let c = api_help.opt_text_for_db(file_path)
   use rows <- result.try(sqlight.query(
     update_by_title_and_artist_sql,
     on: conn,
@@ -201,7 +156,7 @@ pub fn delete_importedtrack_by_title_and_artist(
   title: String,
   artist: String,
 ) -> Result(Nil, sqlight.Error) {
-  let now = unix_seconds_now()
+  let now = api_help.unix_seconds_now()
   use rows <- result.try(
     sqlight.query(
       soft_delete_by_title_and_artist_sql,

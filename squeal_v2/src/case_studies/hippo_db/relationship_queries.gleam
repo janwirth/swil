@@ -1,3 +1,4 @@
+import api_help
 import case_studies/hippo_db/api as hippo_api
 import case_studies/hippo_schema.{
   type GenderScalar, type Human, ByEmail, Human, HumanRelationships,
@@ -55,13 +56,6 @@ returning name, email, id, created_at, updated_at, deleted_at;"
 const set_hippo_owner_sql = "update hippo set owner_human_id = ?, updated_at = ?
 where name = ? and date_of_birth = ? and deleted_at is null returning id;"
 
-fn unix_seconds_now() -> Int {
-  let #(s, _) =
-    timestamp.system_time()
-    |> timestamp.to_unix_seconds_and_nanoseconds
-  s
-}
-
 fn pad2(n: Int) -> String {
   let s = int.to_string(n)
   case string.length(s) {
@@ -77,13 +71,6 @@ fn date_to_db_string(d: Date) -> String {
   <> pad2(month_to_int(month))
   <> "-"
   <> pad2(day)
-}
-
-fn opt_string_from_db(s: String) -> Option(String) {
-  case s {
-    "" -> None
-    _ -> Some(s)
-  }
 }
 
 fn date_from_db_string(s: String) -> Date {
@@ -125,8 +112,8 @@ fn human_with_magic_row_decoder() -> decode.Decoder(#(Human, dsl.MagicFields)) {
   use deleted_at_raw <- decode.field(5, decode.optional(decode.int))
   let human =
     Human(
-      name: opt_string_from_db(name_raw),
-      email: opt_string_from_db(email_raw),
+      name: api_help.opt_string_from_db(name_raw),
+      email: api_help.opt_string_from_db(email_raw),
       hippos: [],
       identities: ByEmail(email: email_raw),
       relationships: HumanRelationships(hippos: dsl.BacklinkWith([], None)),
@@ -152,7 +139,7 @@ fn hippos_by_gender_row_decoder() -> decode.Decoder(HipposByGenderRow) {
   use hu_created <- decode.field(11, decode.optional(decode.int))
   use hu_updated <- decode.field(12, decode.optional(decode.int))
   use hu_deleted_raw <- decode.field(13, decode.optional(decode.int))
-  let hippo_name = opt_string_from_db(h_name)
+  let hippo_name = api_help.opt_string_from_db(h_name)
   let _hippo_gender = hippo_api.gender_scalar_from_db_string(h_gender)
   let hippo_dob = case h_dob {
     "" -> None
@@ -164,8 +151,8 @@ fn hippos_by_gender_row_decoder() -> decode.Decoder(HipposByGenderRow) {
       let hu_del = hu_deleted_raw
       let human =
         Human(
-          name: opt_string_from_db(nraw),
-          email: opt_string_from_db(eraw),
+          name: api_help.opt_string_from_db(nraw),
+          email: api_help.opt_string_from_db(eraw),
           hippos: [],
           identities: ByEmail(email: eraw),
           relationships: HumanRelationships(hippos: dsl.BacklinkWith([], None)),
@@ -189,7 +176,7 @@ pub fn upsert_human_by_email(
   email: String,
   name: Option(String),
 ) -> Result(#(Human, dsl.MagicFields), sqlight.Error) {
-  let now = unix_seconds_now()
+  let now = api_help.unix_seconds_now()
   let name_raw = case name {
     Some(s) -> s
     None -> ""
@@ -223,7 +210,7 @@ pub fn set_hippo_owner_human_id(
   hippo_date_of_birth: Date,
   owner_human_id: Int,
 ) -> Result(Nil, sqlight.Error) {
-  let now = unix_seconds_now()
+  let now = api_help.unix_seconds_now()
   use rows <- result.try(sqlight.query(
     set_hippo_owner_sql,
     on: conn,
@@ -263,7 +250,7 @@ pub fn query_old_hippos_owner_emails(
       use email_raw <- decode.field(1, decode.string)
       decode.success(OldHipposOwnerEmailRow(
         age:,
-        owner_email: opt_string_from_db(email_raw),
+        owner_email: api_help.opt_string_from_db(email_raw),
       ))
     },
   ))

@@ -5,11 +5,9 @@ import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
 import gleamgen/expression as gexpr
-import gleamgen/expression/case_ as gcase
 import gleamgen/function as gfun
 import gleamgen/module/definition as gdef
 import gleamgen/parameter as gparam
-import gleamgen/pattern as gpat
 import gleamgen/types as gtypes
 import schema_definition/schema_definition.{
   type EntityDefinition, type FieldDefinition, type IdentityVariantDefinition,
@@ -200,7 +198,7 @@ fn rich_decode_lets(data_fields: List(FieldDefinition), ctx: TypeCtx) -> String 
       glance.NamedType(_, "Option", _, [inner]) -> {
         case inner {
           glance.NamedType(_, "String", None, []) ->
-            "  let " <> f.label <> " = opt_string_from_db(" <> raw(f) <> ")"
+            "  let " <> f.label <> " = api_help.opt_string_from_db(" <> raw(f) <> ")"
           glance.NamedType(_, "Date", _, []) ->
             "  let "
             <> f.label
@@ -220,14 +218,14 @@ fn rich_decode_lets(data_fields: List(FieldDefinition), ctx: TypeCtx) -> String 
               False ->
                 "  let "
                 <> f.label
-                <> " = opt_string_from_db("
+                <> " = api_help.opt_string_from_db("
                 <> raw(f)
                 <> ")"
             }
-          _ -> "  let " <> f.label <> " = opt_string_from_db(" <> raw(f) <> ")"
+          _ -> "  let " <> f.label <> " = api_help.opt_string_from_db(" <> raw(f) <> ")"
         }
       }
-      _ -> "  let " <> f.label <> " = opt_string_from_db(" <> raw(f) <> ")"
+      _ -> "  let " <> f.label <> " = api_help.opt_string_from_db(" <> raw(f) <> ")"
     }
   })
   |> string.join("\n")
@@ -394,7 +392,7 @@ fn field_to_constructor_arg(
       }
     False ->
       case type_is_option(f.type_), type_is_option_string(f.type_) {
-        True, True -> "opt_string_from_db(" <> var <> ")"
+        True, True -> "api_help.opt_string_from_db(" <> var <> ")"
         True, False -> "Some(" <> var <> ")"
         False, _ -> var
       }
@@ -484,22 +482,6 @@ fn entity_with_magic_decoder_fn(
   }
 }
 
-fn opt_string_from_db_fun() -> gfun.Function(gtypes.Dynamic, gtypes.Dynamic) {
-  gfun.new1(
-    gparam.new("s", gtypes.string) |> gparam.to_dynamic,
-    gtypes.raw("Option(String)"),
-    fn(s) {
-      gcase.new(s)
-      |> gcase.with_pattern(gpat.string_literal(""), fn(_) { gexpr.raw("None") })
-      |> gcase.with_pattern(gpat.discard(), fn(_) {
-        gexpr.call1(gexpr.raw("Some"), s)
-      })
-      |> gcase.build_expression()
-    },
-  )
-  |> gfun.to_dynamic
-}
-
 pub fn row_decode_helpers_fn_chunks(
   entity_snake: String,
   schema: SchemaDefinition,
@@ -540,10 +522,6 @@ pub fn row_decode_helpers_fn_chunks(
         },
       )
         |> gfun.to_dynamic,
-    ),
-    #(
-      gdef.new("opt_string_from_db") |> gdef.with_publicity(False),
-      opt_string_from_db_fun(),
     ),
   ]
 }

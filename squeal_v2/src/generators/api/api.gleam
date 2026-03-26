@@ -6,7 +6,6 @@ import generators/api/api_params
 import generators/api/api_query
 import generators/api/api_sql
 import generators/api/schema_context
-import generators/api/sql_doc
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
@@ -53,8 +52,6 @@ fn build_module(path: String, def: SchemaDefinition) -> gmod.Module {
     True -> api_naming.pascal_to_snake(string.drop_start(variant.variant_name, 2))
     False -> api_naming.pascal_to_snake(variant.variant_name)
   }
-  let sql_comment = sql_doc.sql_doc_comment(table, data_col_labels, id_cols, returning)
-
   let upsert_s = api_sql.upsert_sql(table, data_col_labels, id_cols, returning)
   let select_s = api_sql.select_by_identity_sql(table, returning, id_cols)
   let update_s =
@@ -102,12 +99,10 @@ fn build_module(path: String, def: SchemaDefinition) -> gmod.Module {
         enum_scalar_names,
       ),
       dec.row_decode_helpers_fn_chunks(entity_snake, def, entity, variant, ctx),
-      api_chunks.optional_opt_for_db_fn_chunks(entity, variant),
       list.flatten([
         api_chunks.scalar_enum_db_fn_chunks(def, entity),
         api_chunks.calendar_date_fn_chunks(path, def),
       ]),
-      [api_chunks.unix_seconds_now_fn_chunk()],
     ])
 
   let with_functions =
@@ -126,29 +121,25 @@ fn build_module(path: String, def: SchemaDefinition) -> gmod.Module {
       #(
         api_query.query_sql_const_name(spec.name),
         Some(api_sql.lt_column_asc_sql(table, returning, column)),
-        False,
       )
     })
 
   let const_entries =
     list.append(query_const_entries, [
-      #("last_100_sql", Some(last_s), False),
-      #("soft_delete_by_" <> id_snake <> "_sql", Some(soft_s), False),
-      #("update_by_" <> id_snake <> "_sql", Some(update_s), False),
-      #("select_by_" <> id_snake <> "_sql", Some(select_s), False),
-      #("upsert_sql", Some(upsert_s), True),
+      #("last_100_sql", Some(last_s)),
+      #("soft_delete_by_" <> id_snake <> "_sql", Some(soft_s)),
+      #("update_by_" <> id_snake <> "_sql", Some(update_s)),
+      #("select_by_" <> id_snake <> "_sql", Some(select_s)),
+      #("upsert_sql", Some(upsert_s)),
     ])
 
   let with_constants =
     list.fold(const_entries, with_functions, fn(acc, entry) {
-      let #(name, val_opt, comment) = entry
+      let #(name, val_opt) = entry
       case val_opt {
         None -> acc
         Some(v) -> {
-          let def_c = case comment {
-            True -> gdef.new(name) |> gdef.with_text_before(sql_comment)
-            False -> gdef.new(name)
-          }
+          let def_c = gdef.new(name)
           gmod.with_constant(def_c, gexpr.string(v), fn(_) { acc })
         }
       }

@@ -40,6 +40,7 @@ pub fn with_api_imports(
     }
   }
   use _ <- gmod.with_import(gimport.new(mig_parts))
+  use _ <- gmod.with_import(gimport.new_predefined(["api_help"]))
   use _ <- gmod.with_import(gimport.new_with_exposing(sch_parts, exposing))
   use _ <- gmod.with_import(gimport.new_with_alias(["dsl", "dsl"], "dsl"))
   use _ <- gmod.with_import(

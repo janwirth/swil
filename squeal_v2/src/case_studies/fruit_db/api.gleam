@@ -1,3 +1,4 @@
+import api_help
 import case_studies/fruit_db/migration
 import case_studies/fruit_schema.{type Fruit, ByName, Fruit}
 import dsl/dsl as dsl
@@ -6,33 +7,6 @@ import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/time/timestamp
 import sqlight
-
-// --- SQL (fruit table shape matches `example_migration_fruit` / pragma migrations) ---
-//
-// insert into fruit (name, color, price, quantity, created_at, updated_at, deleted_at)
-//   values (?, ?, ?, ?, ?, ?, null)
-//   on conflict(name) do update set
-//     color = excluded.color,
-//     price = excluded.price,
-//     quantity = excluded.quantity,
-//     updated_at = excluded.updated_at,
-//     deleted_at = null;
-//
-// select name, color, price, quantity, id, created_at, updated_at, deleted_at from fruit
-//   where name = ? and deleted_at is null;
-//
-// update fruit set color = ?, price = ?, quantity = ?, updated_at = ?
-//   where name = ? and deleted_at is null
-//   returning name, color, price, quantity, id, created_at, updated_at, deleted_at;
-//
-// update fruit set deleted_at = ?, updated_at = ?
-//   where name = ? and deleted_at is null
-//   returning name;
-//
-// select name, color, price, quantity, id, created_at, updated_at, deleted_at from fruit
-//   where deleted_at is null
-//   order by updated_at desc
-//   limit 100;
 
 const upsert_sql = "insert into \"fruit\" (\"name\", \"color\", \"price\", \"quantity\", \"created_at\", \"updated_at\", \"deleted_at\")
 values (?, ?, ?, ?, ?, ?, null)
@@ -53,41 +27,6 @@ const soft_delete_by_name_sql = "update \"fruit\" set \"deleted_at\" = ?, \"upda
 const last_100_sql = "select \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"fruit\" where \"deleted_at\" is null order by \"updated_at\" desc limit 100;"
 
 const cheap_fruit_sql = "select \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"fruit\" where \"deleted_at\" is null and \"price\" < ? order by \"price\" asc;"
-
-fn unix_seconds_now() -> Int {
-  let #(s, _) =
-    timestamp.system_time()
-    |> timestamp.to_unix_seconds_and_nanoseconds
-  s
-}
-
-fn opt_text_for_db(o: Option(String)) -> String {
-  case o {
-    Some(s) -> s
-    None -> ""
-  }
-}
-
-fn opt_float_for_db(o: Option(Float)) -> Float {
-  case o {
-    Some(f) -> f
-    None -> 0.0
-  }
-}
-
-fn opt_int_for_db(o: Option(Int)) -> Int {
-  case o {
-    Some(i) -> i
-    None -> 0
-  }
-}
-
-fn opt_string_from_db(s: String) -> Option(String) {
-  case s {
-    "" -> None
-    _ -> Some(s)
-  }
-}
 
 fn magic_from_db_row(
   id: Int,
@@ -118,7 +57,7 @@ fn fruit_with_magic_row_decoder() -> decode.Decoder(#(Fruit, dsl.MagicFields)) {
   let fruit =
     Fruit(
       name: Some(name),
-      color: opt_string_from_db(color),
+      color: api_help.opt_string_from_db(color),
       price: Some(price),
       quantity: Some(quantity),
       identities: ByName(name:),
@@ -145,10 +84,10 @@ pub fn upsert_fruit_by_name(
   price: Option(Float),
   quantity: Option(Int),
 ) -> Result(#(Fruit, dsl.MagicFields), sqlight.Error) {
-  let now = unix_seconds_now()
-  let c = opt_text_for_db(color)
-  let p = opt_float_for_db(price)
-  let q = opt_int_for_db(quantity)
+  let now = api_help.unix_seconds_now()
+  let c = api_help.opt_text_for_db(color)
+  let p = api_help.opt_float_for_db(price)
+  let q = api_help.opt_int_for_db(quantity)
   use rows <- result.try(sqlight.query(
     upsert_sql,
     on: conn,
@@ -198,10 +137,10 @@ pub fn update_fruit_by_name(
   price: Option(Float),
   quantity: Option(Int),
 ) -> Result(#(Fruit, dsl.MagicFields), sqlight.Error) {
-  let now = unix_seconds_now()
-  let c = opt_text_for_db(color)
-  let p = opt_float_for_db(price)
-  let q = opt_int_for_db(quantity)
+  let now = api_help.unix_seconds_now()
+  let c = api_help.opt_text_for_db(color)
+  let p = api_help.opt_float_for_db(price)
+  let q = api_help.opt_int_for_db(quantity)
   use rows <- result.try(sqlight.query(
     update_by_name_sql,
     on: conn,
@@ -225,7 +164,7 @@ pub fn delete_fruit_by_name(
   conn: sqlight.Connection,
   name: String,
 ) -> Result(Nil, sqlight.Error) {
-  let now = unix_seconds_now()
+  let now = api_help.unix_seconds_now()
   use rows <- result.try(
     sqlight.query(
       soft_delete_by_name_sql,
