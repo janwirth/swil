@@ -115,43 +115,51 @@ fn infer_lt_missing_field_asc(
     Some(shape_name) ->
       case unwrap_some_call(filter_expr) {
         None -> Unsupported
-        Some(pred) ->
-          case pred {
-            glance.BinaryOperator(_, glance.LtFloat, left, right) ->
-              case right {
-                glance.Variable(_, threshold_name) ->
-                  case left {
-                    glance.Call(_, l_callee, l_args) ->
-                      case expression_callee_name(l_callee) {
-                        Ok("exclude_if_missing") ->
-                          case single_unlabelled_arg(l_args) {
-                            None -> Unsupported
-                            Some(inner) ->
-                              case field_access_root_and_leaf(inner) {
+        Some(wrapped) ->
+          case unwrap_predicate_filter_value(wrapped) {
+            None -> Unsupported
+            Some(pred) ->
+              case pred {
+                glance.BinaryOperator(_, glance.LtFloat, left, right) ->
+                  case right {
+                    glance.Variable(_, threshold_name) ->
+                      case left {
+                        glance.Call(_, l_callee, l_args) ->
+                          case expression_callee_name(l_callee) {
+                            Ok("exclude_if_missing") ->
+                              case single_unlabelled_arg(l_args) {
                                 None -> Unsupported
-                                Some(#(root, column)) ->
-                                  case root == shape_name {
-                                    False -> Unsupported
-                                    True ->
-                                      case query_order_column(order_expr, shape_name) {
-                                        Error(Nil) -> Unsupported
-                                        Ok(order_col) ->
-                                          case column == order_col {
-                                            False -> Unsupported
-                                            True ->
-                                              case param_is_float_named(f, threshold_name) {
+                                Some(inner) ->
+                                  case field_access_root_and_leaf(inner) {
+                                    None -> Unsupported
+                                    Some(#(root, column)) ->
+                                      case root == shape_name {
+                                        False -> Unsupported
+                                        True ->
+                                          case query_order_column(order_expr, shape_name) {
+                                            Error(Nil) -> Unsupported
+                                            Ok(order_col) ->
+                                              case column == order_col {
                                                 False -> Unsupported
                                                 True ->
-                                                  LtMissingFieldAsc(
-                                                    column,
+                                                  case param_is_float_named(
+                                                    f,
                                                     threshold_name,
-                                                    shape_name,
-                                                  )
+                                                  ) {
+                                                    False -> Unsupported
+                                                    True ->
+                                                      LtMissingFieldAsc(
+                                                        column,
+                                                        threshold_name,
+                                                        shape_name,
+                                                      )
+                                                  }
                                               }
                                           }
                                       }
                                   }
                               }
+                            _ -> Unsupported
                           }
                         _ -> Unsupported
                       }
@@ -159,7 +167,6 @@ fn infer_lt_missing_field_asc(
                   }
                 _ -> Unsupported
               }
-            _ -> Unsupported
           }
       }
   }
@@ -226,6 +233,24 @@ fn unwrap_some_call(expr: glance.Expression) -> Option(glance.Expression) {
         _ -> None
       }
     _ -> None
+  }
+}
+
+/// `filter: Some(Predicate(expr))` or legacy `Some(expr)` for bool inference.
+fn unwrap_predicate_filter_value(expr: glance.Expression) -> Option(glance.Expression) {
+  case normalize_expr(expr) {
+    glance.Call(_, callee, args) ->
+      case expression_callee_name(callee) {
+        Ok("Predicate") ->
+          case args {
+            [glance.UnlabelledField(inner)] -> Some(inner)
+            [glance.LabelledField(label, _, inner)] if label == "value" ->
+              Some(inner)
+            _ -> None
+          }
+        _ -> Some(expr)
+      }
+    _ -> Some(expr)
   }
 }
 

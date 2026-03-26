@@ -1,5 +1,6 @@
 import assert_diff.{assert_diff}
 import generators/api/api
+import gleam/string
 import schema_definition/schema_definition as schema_definition
 import simplifile
 
@@ -11,5 +12,8 @@ pub fn library_manager_api_generation_test() {
   let assert Ok(def) = schema_definition.parse_module(schema_src)
   let generated =
     api.generate_api("case_studies/library_manager_schema", def)
-  assert_diff(expected, generated)
+  let norm = fn(s: String) {
+    string.trim_end(s) <> "\n"
+  }
+  assert_diff(norm(expected), norm(generated))
 }

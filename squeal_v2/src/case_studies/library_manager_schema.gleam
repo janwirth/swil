@@ -72,6 +72,18 @@ pub type TabIdentities {
   ByTabLabel(label: String)
 }
 
+/// Join naming for [`dsl.boolean_filter_tag_join_sql`](dsl.boolean_filter_tag_join_sql) on `trackbucket_tag`.
+fn trackbucket_tag_join_sql_naming() -> dsl.TagJoinSqlNaming {
+  dsl.TagJoinSqlNaming(
+    join_table: "trackbucket_tag",
+    parent_alias: "tb",
+    parent_pk_column: "id",
+    fk_column: "trackbucket_id",
+    tag_id_column: "tag_id",
+    weight_column: "weight",
+  )
+}
+
 pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields) {
   dsl.Query(
     filter: option.None,
@@ -118,8 +130,13 @@ pub fn filter_by_tag(track_bucket: TrackBucket, filter: FilterScalar) -> dsl.Boo
 }
 // reverse filtering?
 pub fn query_tracks_by_filter(track_bucket: TrackBucket, filter: FilterScalar, magic_fields: dsl.MagicFields) {
+  let sql_filter =
+    dsl.boolean_filter_tag_join_sql(
+      filter_by_tag(track_bucket, filter),
+      trackbucket_tag_join_sql_naming(),
+    )
   dsl.Query(
-    filter: dsl.advanced_filter(filter_by_tag(track_bucket, filter)),
+    filter: option.Some(dsl.SqlWhere(sql_filter)),
     order: dsl.order_by(magic_fields.updated_at, dsl.Desc),
     shape: option.None,
   )

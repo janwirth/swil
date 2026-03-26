@@ -21,7 +21,9 @@ pub fn query_cheap_fruit(
 ) -> dsl.Query(Fruit, Fruit, Option(Float)) {
   dsl.Query(
     shape: fruit,
-    filter: Some(dsl.exclude_if_missing(fruit.price) <. max_price),
+    filter: Some(dsl.Predicate(
+      dsl.exclude_if_missing(fruit.price) <. max_price,
+    )),
     order: dsl.order_by(fruit.price, dsl.Asc),
   )
 }
