@@ -96,14 +96,14 @@ pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields) {
 // AND [OR[], AND[]]
 // 
 import gleam/list
-pub fn make_tag_filter(track_bucket: TrackBucket, filter: FilterScalar) -> dsl.BooleanFilter {
+pub fn filter_by_tag(track_bucket: TrackBucket, filter: FilterScalar) -> dsl.BooleanFilter {
   case filter {
     And(exprs: exprs) ->
-      dsl.And(exprs: list.map(exprs, fn(expr) { make_tag_filter(track_bucket, expr) }))
+      dsl.And(exprs: list.map(exprs, fn(expr) { filter_by_tag(track_bucket, expr) }))
     Or(exprs: exprs) ->
-      dsl.Or(exprs: list.map(exprs, fn(expr) { make_tag_filter(track_bucket, expr) }))
+      dsl.Or(exprs: list.map(exprs, fn(expr) { filter_by_tag(track_bucket, expr) }))
     Not(expr: expr) ->
-      dsl.Not(expr: make_tag_filter(track_bucket, expr))
+      dsl.Not(expr: filter_by_tag(track_bucket, expr))
     TagExpression(tag_id: tag_id, operator: operator) ->
       case operator {
         Has -> dsl.has(track_bucket.tags, tag_id)
@@ -117,7 +117,7 @@ pub fn make_tag_filter(track_bucket: TrackBucket, filter: FilterScalar) -> dsl.B
 // reverse filtering?
 pub fn query_tracks_by_filter(track_bucket: TrackBucket, filter: FilterScalar, magic_fields: dsl.MagicFields) {
   dsl.Query(
-    filter: dsl.advanced_filter(make_tag_filter(track_bucket, filter)),
+    filter: dsl.advanced_filter(filter_by_tag(track_bucket, filter)),
     order: dsl.order_by(magic_fields.updated_at, dsl.Desc),
     shape: option.None,
   )
