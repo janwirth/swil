@@ -15,13 +15,22 @@ import schema_definition/schema_definition.{
   type EntityDefinition, type FieldDefinition, type IdentityVariantDefinition,
 }
 
-pub fn sql_bind_expr(f: FieldDefinition, value: String) -> String {
+pub fn sql_bind_expr(
+  f: FieldDefinition,
+  value: String,
+  row_qualifier: String,
+) -> String {
   case sql_types.sql_type(f.type_) {
     "int" -> "sqlight.int(" <> value <> ")"
     "real" -> "sqlight.float(" <> value <> ")"
     _ ->
       case dec.field_is_calendar_date(f) {
-        True -> "sqlight.text(date_to_db_string(" <> value <> "))"
+        True ->
+          "sqlight.text("
+          <> row_qualifier
+          <> ".date_to_db_string("
+          <> value
+          <> "))"
         False -> "sqlight.text(" <> value <> ")"
       }
   }
@@ -84,6 +93,7 @@ pub fn upsert_fn_body(
   id_snake: String,
   op_prefix: String,
   enum_scalar_names: List(String),
+  row_qualifier: String,
 ) -> String {
   let labels = dec.id_labels_list(variant)
   let data_fields = api_sql.entity_data_fields(entity)
@@ -117,18 +127,20 @@ pub fn upsert_fn_body(
     "upsert" -> {
       let row_bind = fn(col: String) -> String {
         case list.find(variant.fields, fn(f) { f.label == col }) {
-          Ok(f) -> "      " <> sql_bind_expr(f, f.label) <> ","
+          Ok(f) -> "      " <> sql_bind_expr(f, f.label, row_qualifier) <> ","
           Error(_) -> {
             let assert Ok(f) = list.find(non_id, fn(x) { x.label == col })
             let value = case is_option_enum_scalar(f, enum_scalar_names) {
               True ->
-                dec.scalar_to_db_fn_name(scalar_name_from_option_field(f))
+                row_qualifier
+                <> "."
+                <> dec.scalar_to_db_fn_name(scalar_name_from_option_field(f))
                 <> "("
                 <> f.label
                 <> ")"
               False -> non_id_temp_var(f, enum_scalar_names)
             }
-            "      " <> sql_bind_expr(f, value) <> ","
+            "      " <> sql_bind_expr(f, value, row_qualifier) <> ","
           }
         }
       }
@@ -144,18 +156,20 @@ pub fn upsert_fn_body(
         list.map(non_id, fn(f) {
           let value = case is_option_enum_scalar(f, enum_scalar_names) {
             True ->
-              dec.scalar_to_db_fn_name(scalar_name_from_option_field(f))
+              row_qualifier
+              <> "."
+              <> dec.scalar_to_db_fn_name(scalar_name_from_option_field(f))
               <> "("
               <> f.label
               <> ")"
             False -> non_id_temp_var(f, enum_scalar_names)
           }
-          "      " <> sql_bind_expr(f, value) <> ","
+          "      " <> sql_bind_expr(f, value, row_qualifier) <> ","
         })
         |> string.join("\n")
       let id_tail =
         list.map(variant.fields, fn(f) {
-          "      " <> sql_bind_expr(f, f.label) <> ","
+          "      " <> sql_bind_expr(f, f.label, row_qualifier) <> ","
         })
         |> string.join("\n")
       string.trim_end(extras <> "\n      sqlight.int(now),\n" <> id_tail)
@@ -163,9 +177,9 @@ pub fn upsert_fn_body(
   }
   let case_rows = case op_prefix {
     "upsert" ->
-      "  case rows {\n    [row, ..] -> Ok(row)\n    [] ->\n      Error(sqlight.SqlightError(\n        sqlight.GenericError,\n        \"upsert returned no row\",\n        -1,\n      ))\n  }"
+      "  case rows {\n    [r, ..] -> Ok(r)\n    [] ->\n      Error(sqlight.SqlightError(\n        sqlight.GenericError,\n        \"upsert returned no row\",\n        -1,\n      ))\n  }"
     _ ->
-      "  case rows {\n    [row, ..] -> Ok(row)\n    [] -> Error(not_found_error(\"update_"
+      "  case rows {\n    [r, ..] -> Ok(r)\n    [] -> Error(not_found_error(\"update_"
       <> entity_snake
       <> "_by_"
       <> id_snake
@@ -182,6 +196,8 @@ pub fn upsert_fn_body(
   <> ",\n    on: conn,\n    with: [\n"
   <> with_list
   <> "\n    ],\n    expecting: "
+  <> row_qualifier
+  <> "."
   <> entity_snake
   <> "_with_magic_row_decoder(),\n  ))\n"
   <> case_rows
@@ -191,8 +207,10 @@ pub fn delete_fn_body(
   variant: IdentityVariantDefinition,
   entity_snake: String,
   id_snake: String,
+  row_qualifier: String,
 ) -> String {
-  let id_binds = list.map(variant.fields, fn(f) { sql_bind_expr(f, f.label) })
+  let id_binds =
+    list.map(variant.fields, fn(f) { sql_bind_expr(f, f.label, row_qualifier) })
   let with_elems =
     list.flatten([["sqlight.int(now)", "sqlight.int(now)"], id_binds])
   let with_part = case list.length(variant.fields) > 1 {
@@ -232,7 +250,7 @@ pub fn delete_fn_chunk(
         <> "` identity.\n",
       ),
     gfun.new_raw(get_params, gtypes.result(gtypes.nil, sql_err), fn(_) {
-      gexpr.raw(delete_fn_body(variant, entity_snake, id_snake))
+      gexpr.raw(delete_fn_body(variant, entity_snake, id_snake, "row"))
     })
       |> gfun.to_dynamic,
   )
@@ -265,6 +283,7 @@ pub fn update_fn_chunk(
         id_snake,
         "update",
         enum_scalar_names,
+        "row",
       ))
     })
       |> gfun.to_dynamic,

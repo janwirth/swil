@@ -1,4 +1,5 @@
 import generators/api/api_sql
+import generators/gleamgen_emit
 import glance
 import gleam/int
 import gleam/list
@@ -491,8 +492,7 @@ pub fn row_decode_helpers_fn_chunks(
 ) -> List(#(gdef.Definition, gfun.Function(gtypes.Dynamic, gtypes.Dynamic))) {
   [
     #(
-      gdef.new(entity_snake <> "_with_magic_row_decoder")
-        |> gdef.with_publicity(False),
+      gleamgen_emit.pub_def(entity_snake <> "_with_magic_row_decoder"),
       gfun.new_raw(
         [],
         gtypes.raw(

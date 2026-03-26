@@ -24,8 +24,8 @@ pub fn main_as_skeleton_module() -> Nil {
   }
 }
 
-/// Read [schema_path], emit `skeleton.gleam`, `migration.gleam`, and `api.gleam`
-/// under the sibling `*_db` directory (e.g. `src/.../fruit_schema` → `src/.../fruit_db/`).
+/// Read [schema_path], emit `skeleton.gleam`, `migration.gleam`, `row.gleam`, `upsert.gleam`,
+/// `delete.gleam`, `query.gleam`, and `api.gleam` under the sibling `*_db` directory.
 pub fn run_generate(schema_path: String) -> Nil {
   case generate_from_schema_path(schema_path) {
     Ok(_) -> Nil
@@ -59,15 +59,27 @@ fn generate_from_schema_path(user_path: String) -> Result(Nil, String) {
   )
   let skeleton_out = out_dir <> "/skeleton.gleam"
   let migration_out = out_dir <> "/migration.gleam"
+  let row_out = out_dir <> "/row.gleam"
+  let upsert_out = out_dir <> "/upsert.gleam"
+  let delete_out = out_dir <> "/delete.gleam"
+  let query_out = out_dir <> "/query.gleam"
   let api_out = out_dir <> "/api.gleam"
   let skeleton_text = skeleton_generator.generate(schema_import, def)
-  let api_text = api_generator.generate_api(schema_import, def)
+  let api_outputs = api_generator.generate_api_db_outputs(schema_import, def)
   use _ <- result.try(write_file(skeleton_out, skeleton_text))
-  use _ <- result.try(write_file(api_out, api_text))
+  use _ <- result.try(write_file(row_out, api_outputs.row))
+  use _ <- result.try(write_file(upsert_out, api_outputs.upsert))
+  use _ <- result.try(write_file(delete_out, api_outputs.delete))
+  use _ <- result.try(write_file(query_out, api_outputs.query))
+  use _ <- result.try(write_file(api_out, api_outputs.api))
   let migration_text =
     migration_generator.generate_pragma_migration_module(def, migration_tag)
   use _ <- result.try(write_file(migration_out, migration_text))
   io.println("wrote " <> skeleton_out)
+  io.println("wrote " <> row_out)
+  io.println("wrote " <> upsert_out)
+  io.println("wrote " <> delete_out)
+  io.println("wrote " <> query_out)
   io.println("wrote " <> api_out)
   io.println("wrote " <> migration_out)
   Ok(Nil)
@@ -159,7 +171,7 @@ fn output_db_directory(schema_file: String) -> String {
 
 fn root_command() -> glint.Command(Nil) {
   use <- glint.command_help(
-    "Emit skeleton.gleam, migration.gleam, and api.gleam under the sibling *_db directory.",
+    "Emit skeleton, migration, row, upsert, delete, query, and api modules under the sibling *_db directory.",
   )
   use <- glint.unnamed_args(glint.EqArgs(1))
   use _n, unnamed, _f <- glint.command()

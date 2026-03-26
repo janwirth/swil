@@ -22,6 +22,21 @@ pub fn migration_import_path(schema_path: String) -> String {
   }
 }
 
+/// e.g. `case_studies/fruit_schema` → `case_studies/fruit_db`
+pub fn db_module_path_from_schema(schema_path: String) -> String {
+  let mig = migration_import_path(schema_path)
+  case string.split(mig, "/") {
+    [] -> mig
+    parts -> {
+      let n = list.length(parts)
+      case n <= 1 {
+        True -> mig
+        False -> string.join(list.take(parts, n - 1), "/")
+      }
+    }
+  }
+}
+
 fn glance_type_referenced_names(t: glance.Type) -> List(String) {
   case t {
     glance.NamedType(_, name, _, params) ->
@@ -150,6 +165,11 @@ pub fn schema_uses_calendar_date(def: SchemaDefinition) -> Bool {
 
 pub fn api_date_panic_label(schema_path: String) -> String {
   string.replace(import_alias(schema_path), "_schema", "_db/api")
+  <> ": expected YYYY-MM-DD date string"
+}
+
+pub fn api_row_panic_label(schema_path: String) -> String {
+  string.replace(import_alias(schema_path), "_schema", "_db/row")
   <> ": expected YYYY-MM-DD date string"
 }
 

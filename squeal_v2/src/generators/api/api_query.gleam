@@ -47,7 +47,7 @@ pub fn query_spec_targets_entity(
   }
 }
 
-fn schema_query_param_name(p: QueryParameter) -> String {
+pub fn schema_query_param_name(p: QueryParameter) -> String {
   case p.label {
     Some(l) -> l
     None -> p.name
@@ -58,12 +58,15 @@ fn lt_missing_field_asc_query_body(
   entity_snake: String,
   sql_const: String,
   threshold_param: String,
+  decoder_qualifier: String,
 ) -> String {
   "sqlight.query(\n    "
   <> sql_const
   <> ",\n    on: conn,\n    with: [sqlight.float("
   <> threshold_param
   <> ")],\n    expecting: "
+  <> decoder_qualifier
+  <> "."
   <> entity_snake
   <> "_with_magic_row_decoder(),\n  )"
 }
@@ -83,7 +86,12 @@ pub fn generated_query_fn_chunks(
     ) = spec.codegen
     let const_nm = query_sql_const_name(spec.name)
     let body =
-      lt_missing_field_asc_query_body(entity_snake, const_nm, threshold_param)
+      lt_missing_field_asc_query_body(
+        entity_snake,
+        const_nm,
+        threshold_param,
+        "row",
+      )
     let fn_params =
       list.append(
         [api_params.conn_param()],

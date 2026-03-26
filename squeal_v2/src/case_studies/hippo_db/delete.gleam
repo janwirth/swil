@@ -1,0 +1,43 @@
+import api_help
+import case_studies/hippo_db/row
+import case_studies/hippo_schema.{type GenderScalar, type Hippo, type HippoRelationships, ByNameAndDateOfBirth, Female, Hippo, HippoRelationships, Male}
+import gleam/dynamic/decode
+import gleam/option.{type Option, None, Some}
+import gleam/result
+import gleam/time/calendar.{type Date}
+import sqlight
+
+const soft_delete_by_name_and_date_of_birth_sql = "update \"hippo\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"name\" = ? and \"date_of_birth\" = ? and \"deleted_at\" is null returning \"name\", \"date_of_birth\";"
+
+/// Delete a hippo by the `ByNameAndDateOfBirth` identity.
+pub fn delete_hippo_by_name_and_date_of_birth(
+  conn: sqlight.Connection,
+  name: String,
+  date_of_birth: Date,
+) -> Result(Nil, sqlight.Error) {
+  let now = api_help.unix_seconds_now()
+  use rows <- result.try(
+    sqlight.query(
+      soft_delete_by_name_and_date_of_birth_sql,
+      on: conn,
+      with: [
+        sqlight.int(now),
+        sqlight.int(now),
+        sqlight.text(name),
+        sqlight.text(row.date_to_db_string(date_of_birth)),
+      ],
+      expecting: {
+        use _n <- decode.field(0, decode.string)
+        decode.success(Nil)
+      },
+    ),
+  )
+  case rows {
+    [Nil, ..] -> Ok(Nil)
+    [] -> Error(not_found_error("delete_hippo_by_name_and_date_of_birth"))
+  }
+}
+
+fn not_found_error(op: String) -> sqlight.Error {
+  sqlight.SqlightError(sqlight.GenericError, "hippo not found: " <> op, -1)
+}

@@ -7,19 +7,23 @@ pub fn get_fn_body(
   variant: IdentityVariantDefinition,
   entity_snake: String,
   id_snake: String,
+  decoder_qualifier: String,
+  row_qualifier: String,
 ) -> String {
   let with_part = case list.length(variant.fields) > 1 {
     True -> {
       let lines =
         list.map(variant.fields, fn(f) {
-          "      " <> ud.sql_bind_expr(f, f.label) <> ","
+          "      " <> ud.sql_bind_expr(f, f.label, row_qualifier) <> ","
         })
         |> string.join("\n")
       "[\n" <> lines <> "\n    ]"
     }
     False -> {
       let binds =
-        list.map(variant.fields, fn(f) { ud.sql_bind_expr(f, f.label) })
+        list.map(variant.fields, fn(f) {
+          ud.sql_bind_expr(f, f.label, row_qualifier)
+        })
         |> string.join(", ")
       "[" <> binds <> "]"
     }
@@ -29,12 +33,16 @@ pub fn get_fn_body(
   <> "_sql,\n    on: conn,\n    with: "
   <> with_part
   <> ",\n    expecting: "
+  <> decoder_qualifier
+  <> "."
   <> entity_snake
-  <> "_with_magic_row_decoder(),\n  ))\n  case rows {\n    [] -> Ok(None)\n    [row, ..] -> Ok(Some(row))\n  }"
+  <> "_with_magic_row_decoder(),\n  ))\n  case rows {\n    [] -> Ok(None)\n    [r, ..] -> Ok(Some(r))\n  }"
 }
 
-pub fn last_fn_body(entity_snake: String) -> String {
+pub fn last_fn_body(entity_snake: String, decoder_qualifier: String) -> String {
   "sqlight.query(\n    last_100_sql,\n    on: conn,\n    with: [],\n    expecting: "
+  <> decoder_qualifier
+  <> "."
   <> entity_snake
   <> "_with_magic_row_decoder(),\n  )"
 }
