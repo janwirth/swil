@@ -26,9 +26,17 @@ pub fn drop_user_tables_except(
   conn: sqlight.Connection,
   keep: String,
 ) -> Result(Nil, sqlight.Error) {
+  drop_user_tables_except_any(conn, [keep])
+}
+
+/// Drops every user table whose name is not in [keep].
+pub fn drop_user_tables_except_any(
+  conn: sqlight.Connection,
+  keep: List(String),
+) -> Result(Nil, sqlight.Error) {
   use tables <- result.try(user_table_names(conn))
   list.try_each(tables, fn(t) {
-    case t == keep {
+    case list.contains(keep, t) {
       True -> Ok(Nil)
       False -> sqlight.exec("drop table if exists " <> t <> ";", conn)
     }

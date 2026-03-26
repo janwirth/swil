@@ -61,16 +61,28 @@ fn generate_from_schema_path(user_path: String) -> Result(Nil, String) {
   let migration_out = out_dir <> "/migration.gleam"
   let api_out = out_dir <> "/api.gleam"
   let skeleton_text = skeleton_generator.generate(schema_import, def)
-  let migration_text =
-    migration_generator.generate_pragma_migration_module(def, migration_tag)
   let api_text = api_generator.generate_api(schema_import, def)
   use _ <- result.try(write_file(skeleton_out, skeleton_text))
-  use _ <- result.try(write_file(migration_out, migration_text))
   use _ <- result.try(write_file(api_out, api_text))
   io.println("wrote " <> skeleton_out)
-  io.println("wrote " <> migration_out)
   io.println("wrote " <> api_out)
-  Ok(Nil)
+  case list.length(def.entities) {
+    1 -> {
+      let migration_text =
+        migration_generator.generate_pragma_migration_module(def, migration_tag)
+      use _ <- result.try(write_file(migration_out, migration_text))
+      io.println("wrote " <> migration_out)
+      Ok(Nil)
+    }
+    _ -> {
+      io.println(
+        "skipped "
+        <> migration_out
+        <> " (pragma migration codegen is single-entity only; keep a hand-written module like case_studies/hippo_db/migration.gleam)",
+      )
+      Ok(Nil)
+    }
+  }
 }
 
 fn write_file(path: String, contents: String) -> Result(Nil, String) {

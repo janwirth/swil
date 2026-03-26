@@ -1,9 +1,11 @@
 // Drives the hand-written example migration modules (blueprints for codegen): exclusive
-// fruit vs animal versions, idempotent replays, and switching back and forth.
+// fruit vs animal vs hippo (+ human) versions, idempotent replays, and switching.
 import assert_diff.{assert_diff}
 import case_studies/fruit_db/migration as example_migration_fruit
+import case_studies/hippo_db/migration as example_migration_hippo
 import case_studies/example_migration_animal as example_migration_animal
 import generators/migration/migration
+import gleam/list
 import schema_definition/schema_definition as schema_definition
 import simplifile
 import sqlight
@@ -52,6 +54,15 @@ pub fn animal_pragma_test() {
   assert_diff(animal_expected, animal_gleam)
 }
 
+/// `hippo_schema` is multi-entity; pragma module codegen only covers single-entity schemas today.
+/// This ties the on-disk schema to the manual `hippo_db/migration` suite.
+pub fn hippo_schema_covers_migration_suite_test() {
+  let assert Ok(src) =
+    simplifile.read("src/case_studies/hippo_schema.gleam")
+  let assert Ok(def) = schema_definition.parse_module(src)
+  let assert True = list.length(def.entities) == 2
+}
+
 pub fn idempotent_migration_test() {
   let assert Ok(conn) = sqlight.open(":memory:")
 
@@ -60,6 +71,18 @@ pub fn idempotent_migration_test() {
 
   let assert Ok(Nil) = example_migration_animal.migration(conn)
   let assert Ok(Nil) = example_migration_animal.migration(conn)
+
+  let assert Ok(Nil) = example_migration_fruit.migration(conn)
+  let assert Ok(Nil) = example_migration_animal.migration(conn)
+
+  let assert Ok(Nil) = example_migration_hippo.migration(conn)
+  let assert Ok(Nil) = example_migration_hippo.migration(conn)
+
+  let assert Ok(Nil) = example_migration_fruit.migration(conn)
+  let assert Ok(Nil) = example_migration_hippo.migration(conn)
+
+  let assert Ok(Nil) = example_migration_animal.migration(conn)
+  let assert Ok(Nil) = example_migration_hippo.migration(conn)
 
   let assert Ok(Nil) = example_migration_fruit.migration(conn)
   let assert Ok(Nil) = example_migration_animal.migration(conn)

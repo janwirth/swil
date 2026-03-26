@@ -107,10 +107,10 @@ pub type FilterScalar {
   )
   TagExpression(
     tag_id: Int,
-    operator: TagExpression,
+    operator: TagExpressionScalar,
   )
 }
-pub type TagExpression {
+pub type TagExpressionScalar {
   Has
   DoesNotHave
   IsAtLeast(value: Int)
