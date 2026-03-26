@@ -15,59 +15,42 @@ pub fn with_api_imports(
   let sch_parts = string.split(schema_path, "/")
   let after_result = fn() -> gmod.Module {
     case schema_context.schema_uses_calendar_date(def) {
-      False ->
-        gmod.with_import(
+      False -> {
+        use _ <- gmod.with_import(
           gimport.new_predefined(["gleam", "time", "timestamp"]),
-          fn(_) {
-            gmod.with_import(gimport.new_predefined(["sqlight"]), fn(_) {
-              inner()
-            })
-          },
         )
-      True ->
-        gmod.with_import(gimport.new_predefined(["gleam", "int"]), fn(_) {
-          gmod.with_import(gimport.new_predefined(["gleam", "string"]), fn(_) {
-            gmod.with_import(
-              gimport.new_with_exposing(
-                ["gleam", "time", "calendar"],
-                "type Date, Date as CalDate, month_from_int, month_to_int",
-              ),
-              fn(_) {
-                gmod.with_import(
-                  gimport.new_predefined(["gleam", "time", "timestamp"]),
-                  fn(_) {
-                    gmod.with_import(gimport.new_predefined(["sqlight"]), fn(_) {
-                      inner()
-                    })
-                  },
-                )
-              },
-            )
-          })
-        })
+        use _ <- gmod.with_import(gimport.new_predefined(["sqlight"]))
+        inner()
+      }
+      True -> {
+        use _ <- gmod.with_import(gimport.new_predefined(["gleam", "int"]))
+        use _ <- gmod.with_import(gimport.new_predefined(["gleam", "string"]))
+        use _ <- gmod.with_import(
+          gimport.new_with_exposing(
+            ["gleam", "time", "calendar"],
+            "type Date, Date as CalDate, month_from_int, month_to_int",
+          ),
+        )
+        use _ <- gmod.with_import(
+          gimport.new_predefined(["gleam", "time", "timestamp"]),
+        )
+        use _ <- gmod.with_import(gimport.new_predefined(["sqlight"]))
+        inner()
+      }
     }
   }
-  gmod.with_import(gimport.new(mig_parts), fn(_) {
-    gmod.with_import(gimport.new_with_exposing(sch_parts, exposing), fn(_) {
-      gmod.with_import(gimport.new_with_alias(["dsl", "dsl"], "dsl"), fn(_) {
-        gmod.with_import(
-          gimport.new_predefined(["gleam", "dynamic", "decode"]),
-          fn(_) {
-            gmod.with_import(
-              gimport.new_with_exposing(
-                ["gleam", "option"],
-                "type Option, None, Some",
-              ),
-              fn(_) {
-                gmod.with_import(
-                  gimport.new_predefined(["gleam", "result"]),
-                  fn(_) { after_result() },
-                )
-              },
-            )
-          },
-        )
-      })
-    })
-  })
+  use _ <- gmod.with_import(gimport.new(mig_parts))
+  use _ <- gmod.with_import(gimport.new_with_exposing(sch_parts, exposing))
+  use _ <- gmod.with_import(gimport.new_with_alias(["dsl", "dsl"], "dsl"))
+  use _ <- gmod.with_import(
+    gimport.new_predefined(["gleam", "dynamic", "decode"]),
+  )
+  use _ <- gmod.with_import(
+    gimport.new_with_exposing(
+      ["gleam", "option"],
+      "type Option, None, Some",
+    ),
+  )
+  use _ <- gmod.with_import(gimport.new_predefined(["gleam", "result"]))
+  after_result()
 }
