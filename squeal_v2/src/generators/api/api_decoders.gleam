@@ -21,6 +21,8 @@ pub type TypeCtx {
     schema_alias: String,
     entity_names: List(String),
     scalar_names: List(String),
+    /// `*Scalar` types whose variants are all payload-free (enum string storage in SQL).
+    enum_scalar_names: List(String),
   )
 }
 
@@ -36,7 +38,53 @@ pub fn type_ctx(schema_path: String, def: SchemaDefinition) -> TypeCtx {
     schema_alias: import_alias(schema_path),
     entity_names: list.map(def.entities, fn(e) { e.type_name }),
     scalar_names: list.map(def.scalars, fn(s) { s.type_name }),
+    enum_scalar_names: def.scalars
+      |> list.filter(fn(s) { s.enum_only })
+      |> list.map(fn(s) { s.type_name }),
   )
+}
+
+fn underscore_cp() {
+  let assert Ok(cp) = string.utf_codepoint(95)
+  cp
+}
+
+fn is_upper_ascii(cp) -> Bool {
+  let i = string.utf_codepoint_to_int(cp)
+  i >= 65 && i <= 90
+}
+
+fn ascii_lower_codepoint(cp) {
+  let i = string.utf_codepoint_to_int(cp)
+  case i >= 65 && i <= 90 {
+    True -> {
+      let assert Ok(lower) = string.utf_codepoint(i + 32)
+      lower
+    }
+    False -> cp
+  }
+}
+
+/// Stable file-local name prefix for SQL text helpers (e.g. `GenderScalar` → `gender_scalar`).
+pub fn scalar_type_snake_case(type_name: String) -> String {
+  let cps = string.to_utf_codepoints(type_name)
+  let out =
+    list.index_fold(cps, [], fn(acc, cp, i) {
+      let lower = ascii_lower_codepoint(cp)
+      case i > 0 && is_upper_ascii(cp) {
+        True -> list.append(acc, [underscore_cp(), lower])
+        False -> list.append(acc, [lower])
+      }
+    })
+  string.from_utf_codepoints(out)
+}
+
+pub fn scalar_from_db_fn_name(type_name: String) -> String {
+  scalar_type_snake_case(type_name) <> "_from_db_string"
+}
+
+pub fn scalar_to_db_fn_name(type_name: String) -> String {
+  scalar_type_snake_case(type_name) <> "_to_db_string"
 }
 
 pub fn render_type(t: glance.Type, ctx: TypeCtx) -> String {
@@ -159,29 +207,22 @@ fn rich_decode_lets(data_fields: List(FieldDefinition), ctx: TypeCtx) -> String 
             <> " = case "
             <> raw(f)
             <> " {\n    \"\" -> None\n    s -> Some(date_from_db_string(s))\n  }"
-          glance.NamedType(_, n, None, []) ->
-            case n == "GenderScalar" {
+          glance.NamedType(_, n, _, []) ->
+            case list.contains(ctx.enum_scalar_names, n) {
               True ->
                 "  let "
                 <> f.label
-                <> " = gender_from_db_string("
+                <> " = "
+                <> scalar_from_db_fn_name(n)
+                <> "("
                 <> raw(f)
                 <> ")"
               False ->
-                case list.contains(ctx.scalar_names, n) {
-                  True ->
-                    "  let "
-                    <> f.label
-                    <> " = opt_string_from_db("
-                    <> raw(f)
-                    <> ")"
-                  False ->
-                    "  let "
-                    <> f.label
-                    <> " = opt_string_from_db("
-                    <> raw(f)
-                    <> ")"
-                }
+                "  let "
+                <> f.label
+                <> " = opt_string_from_db("
+                <> raw(f)
+                <> ")"
             }
           _ -> "  let " <> f.label <> " = opt_string_from_db(" <> raw(f) <> ")"
         }

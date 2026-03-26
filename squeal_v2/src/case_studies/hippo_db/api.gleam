@@ -88,7 +88,7 @@ fn date_from_db_string(s: String) -> Date {
   }
 }
 
-fn gender_to_db_string(o: Option(GenderScalar)) -> String {
+pub fn gender_scalar_to_db_string(o: Option(GenderScalar)) -> String {
   case o {
     None -> ""
     Some(Male) -> "Male"
@@ -96,7 +96,7 @@ fn gender_to_db_string(o: Option(GenderScalar)) -> String {
   }
 }
 
-fn gender_from_db_string(s: String) -> Option(GenderScalar) {
+pub fn gender_scalar_from_db_string(s: String) -> Option(GenderScalar) {
   case s {
     "" -> None
     "Male" -> Some(Male)
@@ -138,7 +138,7 @@ fn hippo_with_magic_row_decoder() -> decode.Decoder(#(Hippo, dsl.MagicFields)) {
   use updated_at <- decode.field(5, decode.int)
   use deleted_at_raw <- decode.field(6, decode.optional(decode.int))
   let name = opt_string_from_db(name_raw)
-  let gender = gender_from_db_string(gender_raw)
+  let gender = gender_scalar_from_db_string(gender_raw)
   let date_of_birth = case dob_raw {
     "" -> None
     s -> Some(date_from_db_string(s))
@@ -183,7 +183,7 @@ pub fn upsert_hippo_by_name_and_date_of_birth(
     on: conn,
     with: [
       sqlight.text(name),
-      sqlight.text(gender_to_db_string(gender)),
+      sqlight.text(gender_scalar_to_db_string(gender)),
       sqlight.text(date_to_db_string(date_of_birth)),
       sqlight.int(now),
       sqlight.int(now),
@@ -234,7 +234,7 @@ pub fn update_hippo_by_name_and_date_of_birth(
     update_by_name_and_date_of_birth_sql,
     on: conn,
     with: [
-      sqlight.text(gender_to_db_string(gender)),
+      sqlight.text(gender_scalar_to_db_string(gender)),
       sqlight.int(now),
       sqlight.text(name),
       sqlight.text(date_to_db_string(date_of_birth)),

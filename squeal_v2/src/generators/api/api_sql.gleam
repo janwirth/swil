@@ -127,12 +127,20 @@ pub fn last_100_sql(table: String, returning_cols: List(String)) -> String {
   <> " where deleted_at is null order by updated_at desc limit 100;"
 }
 
-pub fn cheap_by_price_sql(table: String, returning_cols: List(String)) -> String {
+pub fn lt_column_asc_sql(
+  table: String,
+  returning_cols: List(String),
+  column: String,
+) -> String {
   "select "
   <> comma_join(returning_cols)
   <> " from "
   <> table
-  <> " where deleted_at is null and price < ? order by price asc;"
+  <> " where deleted_at is null and "
+  <> column
+  <> " < ? order by "
+  <> column
+  <> " asc;"
 }
 
 pub fn full_row_columns(data_cols: List(String)) -> List(String) {

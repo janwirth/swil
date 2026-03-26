@@ -16,6 +16,7 @@ const create_hippo_table_sql = "create table hippo (
   date_of_birth text not null,
   created_at integer not null,
   updated_at integer not null,
+  owner_human_id integer,
   deleted_at integer
 );"
 
@@ -28,7 +29,8 @@ const expected_hippo_table_info = "cid	name	type	notnull	dflt_value	pk
 3	date_of_birth	TEXT	1	NULL	0
 4	created_at	INTEGER	1	NULL	0
 5	updated_at	INTEGER	1	NULL	0
-6	deleted_at	INTEGER	0	NULL	0"
+6	owner_human_id	INTEGER	0	NULL	0
+7	deleted_at	INTEGER	0	NULL	0"
 
 const expected_hippo_index_list = "seq	name	unique	origin	partial
 0	hippo_by_name_date_of_birth	1	c	0"
@@ -48,6 +50,7 @@ const hippo_columns_wanted = [
   HippoCol("date_of_birth", "TEXT", 1, 0),
   HippoCol("created_at", "INTEGER", 1, 0),
   HippoCol("updated_at", "INTEGER", 1, 0),
+  HippoCol("owner_human_id", "INTEGER", 0, 0),
   HippoCol("deleted_at", "INTEGER", 0, 0),
 ]
 

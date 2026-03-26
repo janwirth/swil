@@ -112,9 +112,12 @@ pub fn pragma_affinity_upper(type_: glance.Type) -> String {
 }
 
 /// `CREATE TABLE name (...)` for shape-reconcile blueprints (no `IF NOT EXISTS`).
+/// [extra_before_deleted] — nullable FK lines (e.g. `owner_human_id integer`) inserted
+/// after `updated_at` and before `deleted_at`.
 pub fn build_create_table_sql(
   table: String,
   data_fields: List(FieldDefinition),
+  extra_before_deleted: List(String),
 ) -> String {
   let col_lines =
     list.map(data_fields, fn(f) {
@@ -127,8 +130,9 @@ pub fn build_create_table_sql(
       [
         "created_at integer not null",
         "updated_at integer not null",
-        "deleted_at integer",
       ],
+      extra_before_deleted,
+      ["deleted_at integer"],
     ])
   "create table "
   <> table

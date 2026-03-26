@@ -30,7 +30,9 @@
 import gleam/list
 import gleam/string
 import gleeunit
+import schema_definition/query.{LtMissingFieldAsc}
 import schema_definition/schema_definition as schema_definition
+import simplifile
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -298,4 +300,16 @@ pub type RowIdentities {
       panic as "expected entity fields reserved for dsl.MagicFields to be rejected"
     Error(_) -> Nil
   }
+}
+
+pub fn fruit_schema_query_infers_lt_missing_field_asc_test() {
+  let assert Ok(src) = simplifile.read("src/case_studies/fruit_schema.gleam")
+  let assert Ok(def) = schema_definition.parse_module(src)
+  let assert [q] = def.queries
+  assert q.name == "query_cheap_fruit"
+  let assert LtMissingFieldAsc(
+    column: "price",
+    threshold_param: "max_price",
+    shape_param: "fruit",
+  ) = q.codegen
 }

@@ -48,6 +48,9 @@ pub type ScalarTypeDefinition =
 pub type QuerySpecDefinition =
   query_mod.QuerySpecDefinition
 
+pub type QueryCodegen =
+  query_mod.QueryCodegen
+
 pub type QueryParameter =
   query_mod.QueryParameter
 

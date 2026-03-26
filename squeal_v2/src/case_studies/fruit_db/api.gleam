@@ -255,7 +255,7 @@ pub fn last_100_edited_fruit(
   )
 }
 
-/// Fruits with `price < max_price`, ordered by ascending price (see `query_cheap_fruit` spec).
+/// `price < max_price`, ordered ascending by `price` (from `query_cheap_fruit` query spec).
 pub fn query_cheap_fruit(
   conn: sqlight.Connection,
   max_price: Float,

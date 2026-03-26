@@ -4,6 +4,7 @@ import generators/migration/pragma_migration_emit
 import generators/migration/pragma_migration_panic
 import glance
 import gleam/list
+import gleam/option.{type Option, None, Some}
 import gleam/string
 import gleamgen/expression as gexpr
 import gleamgen/expression/statement as gstmt
@@ -46,7 +47,62 @@ pub fn build_create_table_sql(
   table: String,
   data_fields: List(FieldDefinition),
 ) -> String {
-  migration_sql.build_create_table_sql(table, data_fields)
+  migration_sql.build_create_table_sql(table, data_fields, [])
+}
+
+fn unwrap_option_type(t: glance.Type) -> glance.Type {
+  case t {
+    glance.NamedType(_, "Option", _, [inner]) -> inner
+    
+    _ -> t
+  }
+}
+
+fn named_type_name(t: glance.Type) -> Option(String) {
+  case t {
+    glance.NamedType(_, n, None, []) | glance.NamedType(_, n, Some(_), []) ->
+      Some(n)
+    _ -> None
+  }
+}
+
+fn relationship_container_field_defs(
+  schema: SchemaDefinition,
+  entity: EntityDefinition,
+) -> List(FieldDefinition) {
+  case list.find(entity.fields, fn(f) { f.label == "relationships" }) {
+    Error(Nil) -> []
+    Ok(f) -> {
+      let inner = unwrap_option_type(f.type_)
+      case named_type_name(inner) {
+        None -> []
+        Some(container_name) ->
+          case
+            list.find(schema.relationship_containers, fn(c) {
+              c.type_name == container_name
+            })
+          {
+            Error(Nil) -> []
+            Ok(container) -> {
+              let assert [vw, ..] = container.variants
+              vw.fields
+            }
+          }
+      }
+    }
+  }
+}
+
+fn belongs_to_fk_column_names(rel_fields: List(FieldDefinition)) -> List(String) {
+  list.filter_map(rel_fields, fn(field) {
+    let t = unwrap_option_type(field.type_)
+    case t {
+      glance.NamedType(_, "BelongsTo", _, [
+        glance.NamedType(_, target, _, _),
+      ]) -> Ok(field.label <> "_" <> string.lowercase(target) <> "_id")
+      _ -> Error(Nil)
+    }
+  })
 }
 
 /// Expected `PRAGMA table_info` TSV (header + rows) for pragma-based migration tests.
@@ -120,6 +176,12 @@ pub fn build_pragma_migration_data_for_entity(
       && f.label != "relationships"
       && !migration_sql.type_is_list(f.type_)
     })
+  let rel_fields = relationship_container_field_defs(schema, entity)
+  let fk_col_names = belongs_to_fk_column_names(rel_fields)
+  let fk_sql_lines =
+    list.map(fk_col_names, fn(col) { col <> " integer" })
+  let fk_wanted_rows =
+    list.map(fk_col_names, fn(col) { #(col, "INTEGER", 0, 0) })
   let index_suffix =
     list.map(variant.fields, fn(f) { f.label })
     |> string.join("_")
@@ -130,7 +192,9 @@ pub fn build_pragma_migration_data_for_entity(
     list.flatten([
       ["id"],
       list.map(data_fields, fn(f) { f.label }),
-      ["created_at", "updated_at", "deleted_at"],
+      ["created_at", "updated_at"],
+      fk_col_names,
+      ["deleted_at"],
     ])
   let wanted_rows =
     list.flatten([
@@ -141,11 +205,12 @@ pub fn build_pragma_migration_data_for_entity(
       [
         #("created_at", "INTEGER", 1, 0),
         #("updated_at", "INTEGER", 1, 0),
-        #("deleted_at", "INTEGER", 0, 0),
       ],
+      fk_wanted_rows,
+      [#("deleted_at", "INTEGER", 0, 0)],
     ])
   let create_table_sql =
-    migration_sql.build_create_table_sql(table, data_fields)
+    migration_sql.build_create_table_sql(table, data_fields, fk_sql_lines)
   let create_index_sql =
     migration_sql.build_create_unique_index_sql(
       table:,
