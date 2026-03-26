@@ -1,3 +1,5 @@
+/// Buckets are used to group related types together.
+/// They essentially describe the whole schema in a single data structure.
 import schema_definition/classify
 import schema_definition/edge_attributes
 import schema_definition/entity

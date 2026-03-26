@@ -1,3 +1,8 @@
+/// Identities are ash-inspired - mention multiple fields that will get a unique constraint.
+/// An entity can have multiple identities, and an identity can have multiple fields.
+/// Examples:
+/// - ByNameAndAge(name: String, age: Int)
+/// - ByEmail(email: String)
 import glance
 import gleam/list
 import gleam/option.{Some}
