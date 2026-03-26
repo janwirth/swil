@@ -1,4 +1,5 @@
-import gleam/option.{type Option}
+import gleam/list
+import gleam/option.{type Option, Some}
 import gleam/time/calendar.{type Date}
 import gleam/time/timestamp.{type Timestamp}
 
@@ -85,30 +86,89 @@ pub type BooleanFilter {
   Not(
     expr: BooleanFilter
   )
+  /// `(tag_row_id, weight)` pairs (in-memory / UI until SQL expands this).
+  TagAssocHas(assoc: List(#(Int, Int)), tag_id: Int)
+  TagAssocNotHas(assoc: List(#(Int, Int)), tag_id: Int)
+  TagAssocCompare(
+    assoc: List(#(Int, Int)),
+    tag_id: Int,
+    pred: WithPredicate,
+  )
 }
 
-pub fn has(field: field, value: value) -> BooleanFilter {
-  todo
+pub fn has(field: List(#(Int, Int)), tag_id: Int) -> BooleanFilter {
+  TagAssocHas(field, tag_id)
 }
 
-pub fn not_has(field: field, value: value) -> BooleanFilter {
-  todo
+pub fn not_has(field: List(#(Int, Int)), tag_id: Int) -> BooleanFilter {
+  TagAssocNotHas(field, tag_id)
 }
 
-pub fn has_with(field: field, related_id: Int, predicate: WithPredicate) -> BooleanFilter {
-  todo
+pub fn has_with(
+  field: List(#(Int, Int)),
+  related_id: Int,
+  predicate: WithPredicate,
+) -> BooleanFilter {
+  TagAssocCompare(field, related_id, predicate)
 }
-pub type WithPredicate {}
 
-pub fn is_at_least(value: value) -> WithPredicate {
-  todo
+pub type WithPredicate {
+  AtLeast(value: Int)
+  AtMost(value: Int)
+  EqualTo(value: Int)
 }
-pub fn is_at_most(value: value) -> WithPredicate {
-  todo
+
+pub fn is_at_least(value: Int) -> WithPredicate {
+  AtLeast(value)
 }
-pub fn is_equal_to(value: value) -> WithPredicate {
-  todo
+
+pub fn is_at_most(value: Int) -> WithPredicate {
+  AtMost(value)
+}
+
+pub fn is_equal_to(value: Int) -> WithPredicate {
+  EqualTo(value)
+}
+
+fn pred_satisfied(weight: Int, pred: WithPredicate) -> Bool {
+  case pred {
+    AtLeast(n) -> weight >= n
+    AtMost(n) -> weight <= n
+    EqualTo(n) -> weight == n
+  }
+}
+
+pub fn eval_boolean_filter(filter: BooleanFilter) -> Bool {
+  case filter {
+    And(exprs) ->
+      case exprs {
+        [] -> True
+        _ -> list.all(exprs, eval_boolean_filter)
+      }
+    Or(exprs) ->
+      case exprs {
+        [] -> False
+        _ -> list.any(exprs, eval_boolean_filter)
+      }
+    Not(expr) -> !eval_boolean_filter(expr)
+    TagAssocHas(assoc, tag_id) ->
+      list.any(assoc, fn(p) {
+        let #(id, _) = p
+        id == tag_id
+      })
+    TagAssocNotHas(assoc, tag_id) ->
+      !list.any(assoc, fn(p) {
+        let #(id, _) = p
+        id == tag_id
+      })
+    TagAssocCompare(assoc, tag_id, pred) ->
+      case list.find(assoc, fn(p) { p.0 == tag_id }) {
+        Ok(#(_, w)) -> pred_satisfied(w, pred)
+        Error(Nil) -> False
+      }
+  }
 }
 
 pub fn advanced_filter(filter: BooleanFilter) -> Option(Bool) {
-  todo }
+  Some(eval_boolean_filter(filter))
+}

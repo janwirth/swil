@@ -38,9 +38,8 @@ pub type TrackBucket {
     title: option.Option(String),
     artist: option.Option(String),
     matched_tracks: List(ImportedTrack),
-    // tag with a numeric param
-    tags: List(#(Tag, Int)),
-    // implies join table
+    /// `(tag_row_id, weight)`; `tag_row_id` matches [`FilterScalar`](FilterScalar) `TagExpression.tag_id`.
+    tags: List(#(Int, Int)),
     identities: TrackBucketIdentities,
   )
 }
@@ -108,9 +107,12 @@ pub fn filter_by_tag(track_bucket: TrackBucket, filter: FilterScalar) -> dsl.Boo
       case operator {
         Has -> dsl.has(track_bucket.tags, tag_id)
         DoesNotHave -> dsl.not_has(track_bucket.tags, tag_id)
-        IsAtLeast(value: value) -> dsl.has_with(track_bucket.tags, tag_id, dsl.is_at_least(value), )
-        IsAtMost(value: value) -> dsl.has_with(track_bucket.tags, tag_id, dsl.is_at_most(value), )
-        IsEqualTo(value: value) -> dsl.has_with(track_bucket.tags, tag_id, dsl.is_equal_to(value), )
+        IsAtLeast(value: value) ->
+          dsl.has_with(track_bucket.tags, tag_id, dsl.is_at_least(value))
+        IsAtMost(value: value) ->
+          dsl.has_with(track_bucket.tags, tag_id, dsl.is_at_most(value))
+        IsEqualTo(value: value) ->
+          dsl.has_with(track_bucket.tags, tag_id, dsl.is_equal_to(value))
       }
   }
 }

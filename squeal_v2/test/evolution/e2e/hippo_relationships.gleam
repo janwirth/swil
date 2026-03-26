@@ -73,7 +73,6 @@ pub fn hippo_relationship_queries_e2e_test() {
 
   let expected_order = list.sort(male_names, order.reverse(string.compare))
   let assert True = male_names == expected_order
-  io.print(string.inspect(by_gender))
 
   let assert Ok(oldie_row) =
     list.find(by_gender, fn(r) { r.name == Some("Oldie") })
