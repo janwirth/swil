@@ -7,7 +7,7 @@ packages = [
   { name = "filepath", version = "1.1.2", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "filepath", source = "hex", outer_checksum = "B06A9AF0BF10E51401D64B98E4B627F1D2E48C154967DA7AF4D0914780A6D40A" },
   { name = "glam", version = "2.0.3", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "glam", source = "hex", outer_checksum = "237C2CE218A2A0A5D46D625F8EF5B78F964BC91018B78D692B17E1AB84295229" },
   { name = "glance", version = "6.0.0", build_tools = ["gleam"], requirements = ["gleam_stdlib", "glexer"], otp_app = "glance", source = "hex", outer_checksum = "49E0ED4793BB3F56C3E5ED00528D70CAE21D263F70A735604124B95C5F62E2DB" },
-  { name = "glance_armstrong", version = "1.0.0", build_tools = ["gleam"], requirements = ["glance", "gleam_stdlib"], source = "local", path = "glance_armstrong" },
+  { name = "glance_armstrong", version = "1.0.0", build_tools = ["gleam"], requirements = ["glance", "gleam_stdlib"], otp_app = "glance_armstrong", source = "hex", outer_checksum = "E24C5468680025E67216B318557840E35CE57DA8F9C2277F1F64B50A1EDC0CA0" },
   { name = "gleam_community_ansi", version = "1.4.4", build_tools = ["gleam"], requirements = ["gleam_community_colour", "gleam_regexp", "gleam_stdlib"], otp_app = "gleam_community_ansi", source = "hex", outer_checksum = "1B3AEA6074AB34D5F0674744F36DDC7290303A03295507E2DEC61EDD6F5777FE" },
   { name = "gleam_community_colour", version = "2.0.4", build_tools = ["gleam"], requirements = ["gleam_json", "gleam_stdlib"], otp_app = "gleam_community_colour", source = "hex", outer_checksum = "6DB4665555D7D2B27F0EA32EF47E8BEBC4303821765F9C73D483F38EE24894F0" },
   { name = "gleam_json", version = "3.1.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "gleam_json", source = "hex", outer_checksum = "44FDAA8847BE8FC48CA7A1C089706BD54BADCC4C45B237A992EDDF9F2CDB2836" },
@@ -28,7 +28,7 @@ packages = [
 argv = { version = ">= 1.0.2 and < 2.0.0" }
 glam = { version = ">= 2.0.1 and < 3.0.0" }
 glance = { version = ">= 6.0.0 and < 7.0.0" }
-glance_armstrong = { path = "./glance_armstrong" }
+glance_armstrong = { version = ">= 1.0.0 and < 2.0.0" }
 gleam_stdlib = { version = ">= 0.44.0 and < 2.0.0" }
 gleam_time = { version = ">= 1.7.0 and < 2.0.0" }
 gleamgen = { path = "../../vendor/gleamgen" }

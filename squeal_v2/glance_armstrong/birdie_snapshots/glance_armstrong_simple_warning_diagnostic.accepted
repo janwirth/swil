@@ -1,8 +1,0 @@
----
-version: 1.5.4
-title: glance_armstrong simple warning diagnostic
-file: ./test/glance_armstrong_test.gleam
-test_name: simple_warning_test
----
-   1 | fn foo(x: Int) -> Int {
-       ^ warning

@@ -1,8 +1,0 @@
----
-version: 1.5.4
-title: glance_armstrong diagnostic without span
-file: ./test/glance_armstrong_test.gleam
-test_name: format_diagnostic_without_span_test
----
-   — | <no source location>
-       ^ Here is some extra test on this

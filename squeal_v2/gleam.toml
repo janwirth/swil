@@ -21,9 +21,9 @@ simplifile = ">= 2.4.0 and < 3.0.0"
 glance = ">= 6.0.0 and < 7.0.0"
 glam = ">= 2.0.1 and < 3.0.0"
 gleamgen = { path = "../../vendor/gleamgen"}
-glance_armstrong = { path = "./glance_armstrong"}
 argv = ">= 1.0.2 and < 2.0.0"
 glint = ">= 1.2.1 and < 2.0.0"
+glance_armstrong = ">= 1.0.0 and < 2.0.0"
 
 
 [dev-dependencies]
