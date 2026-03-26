@@ -1,27 +1,22 @@
+import generators/api/api_chunks
 import generators/api/api_decoders as dec
+import generators/api/api_imports
+import generators/api/api_naming
+import generators/api/api_params
+import generators/api/api_query
 import generators/api/api_sql
-import generators/api/api_update_delete as ud
-import generators/gleamgen_emit
-import generators/sql_types
-import glance
+import generators/api/schema_context
+import generators/api/sql_doc
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
 import gleamgen/expression as gexpr
-import gleamgen/function as gfun
-import gleamgen/import_ as gimport
 import gleamgen/module as gmod
 import gleamgen/module/definition as gdef
-import gleamgen/parameter as gparam
 import gleamgen/render as grender
 import gleamgen/types as gtypes
-import schema_definition/query.{
-  type QueryParameter, type QuerySpecDefinition, LtMissingFieldAsc, Unsupported,
-}
-import schema_definition/schema_definition.{
-  type EntityDefinition, type FieldDefinition, type IdentityTypeDefinition,
-  type IdentityVariantDefinition, type ScalarTypeDefinition, type SchemaDefinition,
-}
+import schema_definition/query.{LtMissingFieldAsc}
+import schema_definition/schema_definition.{type SchemaDefinition}
 
 /// Renders a sqlight API module (constants, helpers, CRUD, generated query SQL).
 pub fn generate_api(
@@ -41,831 +36,12 @@ fn finalize_string(s: String) -> String {
   }
 }
 
-fn migration_import_path(schema_path: String) -> String {
-  case string.split(schema_path, "/") {
-    [] -> schema_path
-    parts -> {
-      let assert Ok(last) = list.last(parts)
-      let n = list.length(parts)
-      let prefix = list.take(parts, n - 1)
-      let base = string.replace(last, "_schema", "")
-      list.append(prefix, [base <> "_db", "migration"])
-      |> string.join("/")
-    }
-  }
-}
-
-fn glance_type_referenced_names(t: glance.Type) -> List(String) {
-  case t {
-    glance.NamedType(_, name, _, params) ->
-      list.append(
-        [name],
-        params
-          |> list.map(glance_type_referenced_names)
-          |> list.flatten,
-      )
-    glance.TupleType(_, els) ->
-      els
-      |> list.map(glance_type_referenced_names)
-      |> list.flatten
-    _ -> []
-  }
-}
-
-fn uniq_sorted_strings(xs: List(String)) -> List(String) {
-  list.sort(xs, string.compare)
-  |> list.reverse
-  |> list.fold([], fn(acc, x) {
-    case acc {
-      [y, ..] if x == y -> acc
-      _ -> [x, ..acc]
-    }
-  })
-  |> list.reverse
-}
-
-fn entity_used_scalar_type_names(
-  def: SchemaDefinition,
-  entity: EntityDefinition,
-) -> List(String) {
-  let scalar_type_names = list.map(def.scalars, fn(s) { s.type_name })
-  let id = find_identity(def, entity)
-  let from_fields =
-    entity.fields
-    |> list.filter(fn(f) {
-      f.label != "identities" && f.label != "relationships"
-    })
-    |> list.flat_map(fn(f) { glance_type_referenced_names(f.type_) })
-  let from_id =
-    id.variants
-    |> list.flat_map(fn(v) {
-      v.fields
-      |> list.flat_map(fn(f) { glance_type_referenced_names(f.type_) })
-    })
-  list.filter(list.append(from_fields, from_id), fn(n) {
-    list.contains(scalar_type_names, n)
-  })
-  |> uniq_sorted_strings
-}
-
-fn entity_relationship_container_names(entity: EntityDefinition) -> List(String) {
-  case list.find(entity.fields, fn(f) { f.label == "relationships" }) {
-    Error(_) -> []
-    Ok(f) ->
-      case f.type_ {
-        glance.NamedType(_, n, None, []) -> [n]
-        glance.NamedType(_, n, Some(_), []) -> [n]
-        _ -> []
-      }
-  }
-}
-
-/// Exposing list for a single-entity API module (first entity only): its types, referenced scalars,
-/// identity variants — not other entities in the schema.
-fn api_schema_exposing(
-  def: SchemaDefinition,
-  entity: EntityDefinition,
-) -> String {
-  let id = find_identity(def, entity)
-  let scalar_names = entity_used_scalar_type_names(def, entity)
-  let rel_names =
-    entity_relationship_container_names(entity)
-    |> list.sort(string.compare)
-  let type_exports =
-    list.flatten([
-      list.map(scalar_names, fn(s) { "type " <> s }),
-      ["type " <> entity.type_name],
-      list.map(rel_names, fn(r) { "type " <> r }),
-    ])
-    |> list.sort(string.compare)
-  let scalar_variants =
-    def.scalars
-    |> list.filter(fn(s) { list.contains(scalar_names, s.type_name) })
-    |> list.flat_map(fn(s) { s.variant_names })
-  let id_variant_names = list.map(id.variants, fn(v) { v.variant_name })
-  let value_exports =
-    list.flatten([
-      id_variant_names,
-      scalar_variants,
-      [entity.type_name, ..rel_names],
-    ])
-    |> list.sort(string.compare)
-  string.join(list.append(type_exports, value_exports), ", ")
-}
-
-fn import_alias(path: String) -> String {
-  case string.split(path, "/") |> list.reverse() {
-    [a, ..] -> a
-    [] -> path
-  }
-}
-
-fn find_identity(
-  def: SchemaDefinition,
-  entity: EntityDefinition,
-) -> IdentityTypeDefinition {
-  let assert Ok(id) =
-    list.find(def.identities, fn(i) { i.type_name == entity.identity_type_name })
-  id
-}
-
-fn schema_uses_calendar_date(def: SchemaDefinition) -> Bool {
-  list.any(def.entities, fn(e) {
-    list.any(e.fields, fn(f) { dec.field_is_calendar_date(f) })
-    || {
-      let id = find_identity(def, e)
-      list.any(id.variants, fn(v) {
-        list.any(v.fields, fn(f) { dec.field_is_calendar_date(f) })
-      })
-    }
-  })
-}
-
-fn conn_param() -> gparam.Parameter(gtypes.Dynamic) {
-  gparam.new("conn", gtypes.raw("sqlight.Connection"))
-  |> gparam.to_dynamic
-}
-
-fn entity_non_id_fields(
-  entity: EntityDefinition,
-  variant: IdentityVariantDefinition,
-) -> List(FieldDefinition) {
-  let labels = dec.id_labels_list(variant)
-  list.filter(api_sql.entity_data_fields(entity), fn(f) {
-    !list.contains(labels, f.label)
-  })
-}
-
-fn entity_needs_opt_text_for_db(
-  entity: EntityDefinition,
-  variant: IdentityVariantDefinition,
-) -> Bool {
-  list.any(entity_non_id_fields(entity, variant), fn(f) {
-    case f.type_ {
-      glance.NamedType(
-        _,
-        "Option",
-        _,
-        [glance.NamedType(_, "String", None, [])],
-      ) -> True
-      _ -> False
-    }
-  })
-}
-
-fn entity_needs_opt_float_for_db(
-  entity: EntityDefinition,
-  variant: IdentityVariantDefinition,
-) -> Bool {
-  list.any(entity_non_id_fields(entity, variant), fn(f) {
-    case f.type_ {
-      glance.NamedType(_, "Option", _, [glance.NamedType(_, "Float", None, [])]) ->
-        True
-      _ -> False
-    }
-  })
-}
-
-fn entity_needs_opt_int_for_db(
-  entity: EntityDefinition,
-  variant: IdentityVariantDefinition,
-) -> Bool {
-  list.any(entity_non_id_fields(entity, variant), fn(f) {
-    case f.type_ {
-      glance.NamedType(_, "Option", _, [glance.NamedType(_, "Int", None, [])]) ->
-        True
-      _ -> False
-    }
-  })
-}
-
-fn api_date_panic_label(schema_path: String) -> String {
-  string.replace(import_alias(schema_path), "_schema", "_db/api")
-  <> ": expected YYYY-MM-DD date string"
-}
-
-fn sql_doc_comment(
-  table: String,
-  data_cols: List(String),
-  id_cols: List(String),
-  returning: List(String),
-) -> String {
-  let insert_cols = string.join(data_cols, ", ")
-  let qmarks =
-    list.repeat("?", list.length(data_cols) + 2)
-    |> string.join(", ")
-  let on_up =
-    list.filter(data_cols, fn(c) { !list.contains(id_cols, c) })
-    |> list.map(fn(c) { c <> " = excluded." <> c })
-    |> string.join(",\n//     ")
-  let non_id_cols = list.filter(data_cols, fn(c) { !list.contains(id_cols, c) })
-  let where_sql =
-    list.map(id_cols, fn(c) { c <> " = ?" })
-    |> string.join(" and ")
-  let update_example_sets = case non_id_cols {
-    [] -> "updated_at = ?"
-    cols ->
-      string.join(list.map(cols, fn(c) { c <> " = ?" }), ", ")
-      <> ", updated_at = ?"
-  }
-  let returning_full = string.join(returning, ", ")
-  let soft_ret_example = string.join(id_cols, ", ")
-  "// --- SQL ("
-  <> table
-  <> " table shape matches `example_migration_"
-  <> table
-  <> "` / pragma migrations) ---\n//\n// insert into "
-  <> table
-  <> " ("
-  <> insert_cols
-  <> ", created_at, updated_at, deleted_at)\n//   values ("
-  <> qmarks
-  <> ", null)\n//   on conflict("
-  <> string.join(id_cols, ", ")
-  <> ") do update set\n//     "
-  <> on_up
-  <> ",\n//     updated_at = excluded.updated_at,\n//     deleted_at = null;\n//\n// select "
-  <> string.join(returning, ", ")
-  <> " from "
-  <> table
-  <> "\n//   where "
-  <> where_sql
-  <> " and deleted_at is null;\n//\n// update "
-  <> table
-  <> " set "
-  <> update_example_sets
-  <> "\n//   where "
-  <> where_sql
-  <> " and deleted_at is null\n//   returning "
-  <> returning_full
-  <> ";\n//\n// update "
-  <> table
-  <> " set deleted_at = ?, updated_at = ?\n//   where "
-  <> where_sql
-  <> " and deleted_at is null\n//   returning "
-  <> soft_ret_example
-  <> ";\n//\n// select "
-  <> string.join(returning, ", ")
-  <> " from "
-  <> table
-  <> "\n//   where deleted_at is null\n//   order by updated_at desc\n//   limit 100;\n\n"
-}
-
-fn upsert_gparams(
-  entity: EntityDefinition,
-  variant: IdentityVariantDefinition,
-  ctx: dec.TypeCtx,
-) -> List(gparam.Parameter(gtypes.Dynamic)) {
-  let id_ps = identity_gparams(variant)
-  let labels = dec.id_labels_list(variant)
-  let extras =
-    api_sql.entity_data_fields(entity)
-    |> list.filter(fn(f) { !list.contains(labels, f.label) })
-    |> list.map(fn(f) {
-      gparam.new(f.label, gtypes.raw(dec.render_type(f.type_, ctx)))
-      |> gparam.to_dynamic
-    })
-  list.append(id_ps, extras)
-}
-
-fn identity_gparams(
-  v: IdentityVariantDefinition,
-) -> List(gparam.Parameter(gtypes.Dynamic)) {
-  list.map(v.fields, fn(f) {
-    gparam.new(
-      f.label,
-      gtypes.raw(sql_types.identity_upsert_param_type(f.type_)),
-    )
-    |> gparam.to_dynamic
-  })
-}
-
-fn get_fn_body(
-  variant: IdentityVariantDefinition,
-  entity_snake: String,
-  id_snake: String,
-) -> String {
-  let with_part = case list.length(variant.fields) > 1 {
-    True -> {
-      let lines =
-        list.map(variant.fields, fn(f) {
-          "      " <> ud.sql_bind_expr(f, f.label) <> ","
-        })
-        |> string.join("\n")
-      "[\n" <> lines <> "\n    ]"
-    }
-    False -> {
-      let binds =
-        list.map(variant.fields, fn(f) { ud.sql_bind_expr(f, f.label) })
-        |> string.join(", ")
-      "[" <> binds <> "]"
-    }
-  }
-  "use rows <- result.try(sqlight.query(\n    select_by_"
-  <> id_snake
-  <> "_sql,\n    on: conn,\n    with: "
-  <> with_part
-  <> ",\n    expecting: "
-  <> entity_snake
-  <> "_with_magic_row_decoder(),\n  ))\n  case rows {\n    [] -> Ok(None)\n    [row, ..] -> Ok(Some(row))\n  }"
-}
-
-fn last_fn_body(entity_snake: String) -> String {
-  "sqlight.query(\n    last_100_sql,\n    on: conn,\n    with: [],\n    expecting: "
-  <> entity_snake
-  <> "_with_magic_row_decoder(),\n  )"
-}
-
-fn query_sql_const_name(spec_name: String) -> String {
-  case string.starts_with(spec_name, "query_") {
-    True -> string.drop_start(spec_name, 6) <> "_sql"
-    False -> spec_name <> "_sql"
-  }
-}
-
-fn type_named_entity(t: glance.Type, entity_name: String) -> Bool {
-  case t {
-    glance.NamedType(_, n, None, []) if n == entity_name -> True
-    glance.NamedType(_, n, Some(_), []) if n == entity_name -> True
-    _ -> False
-  }
-}
-
-fn query_spec_targets_entity(
-  spec: QuerySpecDefinition,
-  entity: EntityDefinition,
-) -> Bool {
-  case spec.codegen {
-    LtMissingFieldAsc(
-      shape_param: shape_param,
-      column: _,
-      threshold_param: _,
-    ) ->
-      list.any(spec.parameters, fn(p) {
-        p.name == shape_param && type_named_entity(p.type_, entity.type_name)
-      })
-    Unsupported -> False
-  }
-}
-
-fn schema_query_param_name(p: QueryParameter) -> String {
-  case p.label {
-    Some(l) -> l
-    None -> p.name
-  }
-}
-
-fn lt_missing_field_asc_query_body(
-  entity_snake: String,
-  sql_const: String,
-  threshold_param: String,
-) -> String {
-  "sqlight.query(\n    "
-  <> sql_const
-  <> ",\n    on: conn,\n    with: [sqlight.float("
-  <> threshold_param
-  <> ")],\n    expecting: "
-  <> entity_snake
-  <> "_with_magic_row_decoder(),\n  )"
-}
-
-fn generated_query_fn_chunks(
-  entity_snake: String,
-  row_t,
-  sql_err,
-  ctx: dec.TypeCtx,
-  specs: List(QuerySpecDefinition),
-) {
-  list.map(specs, fn(spec) {
-    let assert LtMissingFieldAsc(
-      column: column,
-      threshold_param: threshold_param,
-      shape_param: shape_param,
-    ) = spec.codegen
-    let const_nm = query_sql_const_name(spec.name)
-    let body =
-      lt_missing_field_asc_query_body(entity_snake, const_nm, threshold_param)
-    let fn_params =
-      list.append(
-        [conn_param()],
-        list.map(
-          list.filter(spec.parameters, fn(p) { p.name != shape_param }),
-          fn(p) {
-            gparam.new(
-              schema_query_param_name(p),
-              gtypes.raw(dec.render_type(p.type_, ctx)),
-            )
-            |> gparam.to_dynamic
-          },
-        ),
-      )
-    let doc =
-      "/// `"
-      <> column
-      <> " < "
-      <> threshold_param
-      <> "`, ordered ascending by `"
-      <> column
-      <> "` (from `"
-      <> spec.name
-      <> "` query spec).\n"
-    #(
-      gleamgen_emit.pub_def(spec.name)
-        |> gdef.with_text_before(doc),
-      gfun.new_raw(
-        fn_params,
-        gtypes.result(gtypes.list(row_t), sql_err),
-        fn(_) { gexpr.raw(body) },
-      )
-        |> gfun.to_dynamic,
-    )
-  })
-}
-
-fn pascal_to_snake(s: String) -> String {
-  let cps = string.to_utf_codepoints(s)
-  let out =
-    list.index_fold(cps, [], fn(acc, cp, i) {
-      let lower = ascii_lower_codepoint(cp)
-      case i > 0 && is_upper_ascii(cp) {
-        True -> list.append(acc, [underscore_cp(), lower])
-        False -> list.append(acc, [lower])
-      }
-    })
-  string.from_utf_codepoints(out)
-}
-
-fn underscore_cp() {
-  let assert Ok(cp) = string.utf_codepoint(95)
-  cp
-}
-
-fn is_upper_ascii(cp) -> Bool {
-  let i = string.utf_codepoint_to_int(cp)
-  i >= 65 && i <= 90
-}
-
-fn ascii_lower_codepoint(cp) {
-  let i = string.utf_codepoint_to_int(cp)
-  case i >= 65 && i <= 90 {
-    True -> {
-      let assert Ok(lower) = string.utf_codepoint(i + 32)
-      lower
-    }
-    False -> cp
-  }
-}
-
-fn with_api_imports(
-  migration_path: String,
-  schema_path: String,
-  def: SchemaDefinition,
-  exposing: String,
-  inner: fn() -> gmod.Module,
-) -> gmod.Module {
-  let mig_parts = string.split(migration_path, "/")
-  let sch_parts = string.split(schema_path, "/")
-  let after_result = fn() -> gmod.Module {
-    case schema_uses_calendar_date(def) {
-      False ->
-        gmod.with_import(
-          gimport.new_predefined(["gleam", "time", "timestamp"]),
-          fn(_) {
-            gmod.with_import(gimport.new_predefined(["sqlight"]), fn(_) {
-              inner()
-            })
-          },
-        )
-      True ->
-        gmod.with_import(gimport.new_predefined(["gleam", "int"]), fn(_) {
-          gmod.with_import(gimport.new_predefined(["gleam", "string"]), fn(_) {
-            gmod.with_import(
-              gimport.new_with_exposing(
-                ["gleam", "time", "calendar"],
-                "type Date, Date as CalDate, month_from_int, month_to_int",
-              ),
-              fn(_) {
-                gmod.with_import(
-                  gimport.new_predefined(["gleam", "time", "timestamp"]),
-                  fn(_) {
-                    gmod.with_import(gimport.new_predefined(["sqlight"]), fn(_) {
-                      inner()
-                    })
-                  },
-                )
-              },
-            )
-          })
-        })
-    }
-  }
-  gmod.with_import(gimport.new(mig_parts), fn(_) {
-    gmod.with_import(gimport.new_with_exposing(sch_parts, exposing), fn(_) {
-      gmod.with_import(gimport.new_with_alias(["dsl", "dsl"], "dsl"), fn(_) {
-        gmod.with_import(
-          gimport.new_predefined(["gleam", "dynamic", "decode"]),
-          fn(_) {
-            gmod.with_import(
-              gimport.new_with_exposing(
-                ["gleam", "option"],
-                "type Option, None, Some",
-              ),
-              fn(_) {
-                gmod.with_import(
-                  gimport.new_predefined(["gleam", "result"]),
-                  fn(_) { after_result() },
-                )
-              },
-            )
-          },
-        )
-      })
-    })
-  })
-}
-
-fn optional_opt_for_db_fn_chunks(
-  entity: EntityDefinition,
-  variant: IdentityVariantDefinition,
-) {
-  let opt_int_chunk = #(
-    gdef.new("opt_int_for_db") |> gdef.with_publicity(False),
-    gfun.new_raw(
-      [gparam.new("o", gtypes.raw("Option(Int)")) |> gparam.to_dynamic],
-      gtypes.int,
-      fn(_) { gexpr.raw("case o {\n    Some(i) -> i\n    None -> 0\n  }") },
-    )
-      |> gfun.to_dynamic,
-  )
-  let opt_float_chunk = #(
-    gdef.new("opt_float_for_db") |> gdef.with_publicity(False),
-    gfun.new_raw(
-      [gparam.new("o", gtypes.raw("Option(Float)")) |> gparam.to_dynamic],
-      gtypes.float,
-      fn(_) { gexpr.raw("case o {\n    Some(f) -> f\n    None -> 0.0\n  }") },
-    )
-      |> gfun.to_dynamic,
-  )
-  let opt_text_chunk = #(
-    gdef.new("opt_text_for_db") |> gdef.with_publicity(False),
-    gfun.new_raw(
-      [gparam.new("o", gtypes.raw("Option(String)")) |> gparam.to_dynamic],
-      gtypes.string,
-      fn(_) { gexpr.raw("case o {\n    Some(s) -> s\n    None -> \"\"\n  }") },
-    )
-      |> gfun.to_dynamic,
-  )
-  list.flatten([
-    case entity_needs_opt_int_for_db(entity, variant) {
-      True -> [opt_int_chunk]
-      False -> []
-    },
-    case entity_needs_opt_float_for_db(entity, variant) {
-      True -> [opt_float_chunk]
-      False -> []
-    },
-    case entity_needs_opt_text_for_db(entity, variant) {
-      True -> [opt_text_chunk]
-      False -> []
-    },
-  ])
-}
-
-fn entity_used_enum_scalars(
-  def: SchemaDefinition,
-  entity: EntityDefinition,
-) -> List(ScalarTypeDefinition) {
-  let used = entity_used_scalar_type_names(def, entity)
-  def.scalars
-  |> list.filter(fn(s) {
-    s.enum_only && list.contains(used, s.type_name)
-  })
-}
-
-fn scalar_enum_from_db_raw(variants: List(String)) -> String {
-  let arms =
-    list.map(variants, fn(v) {
-      "    \"" <> v <> "\" -> Some(" <> v <> ")"
-    })
-    |> string.join("\n")
-  "case s {\n    \"\" -> None\n" <> arms <> "\n    _ -> None\n  }"
-}
-
-fn scalar_enum_to_db_raw(variants: List(String)) -> String {
-  let some_arms =
-    list.map(variants, fn(v) {
-      "    Some(" <> v <> ") -> \"" <> v <> "\""
-    })
-    |> string.join("\n")
-  "case o {\n    None -> \"\"\n" <> some_arms <> "\n  }"
-}
-
-fn scalar_enum_db_fn_chunks(def: SchemaDefinition, entity: EntityDefinition) {
-  entity_used_enum_scalars(def, entity)
-  |> list.flat_map(fn(scalar) {
-    let base = dec.scalar_type_snake_case(scalar.type_name)
-    let from_fn = base <> "_from_db_string"
-    let to_fn = base <> "_to_db_string"
-    let from_body = scalar_enum_from_db_raw(scalar.variant_names)
-    let to_body = scalar_enum_to_db_raw(scalar.variant_names)
-    [
-      #(
-        gleamgen_emit.pub_def(from_fn),
-        gfun.new_raw(
-          [gparam.new("s", gtypes.string) |> gparam.to_dynamic],
-          gtypes.raw("Option(" <> scalar.type_name <> ")"),
-          fn(_) { gexpr.raw(from_body) },
-        )
-          |> gfun.to_dynamic,
-      ),
-      #(
-        gleamgen_emit.pub_def(to_fn),
-        gfun.new_raw(
-          [
-            gparam.new("o", gtypes.raw("Option(" <> scalar.type_name <> ")"))
-            |> gparam.to_dynamic,
-          ],
-          gtypes.string,
-          fn(_) { gexpr.raw(to_body) },
-        )
-          |> gfun.to_dynamic,
-      ),
-    ]
-  })
-}
-
-fn calendar_date_fn_chunks(path: String, def: SchemaDefinition) {
-  let date_panic = api_date_panic_label(path)
-  case schema_uses_calendar_date(def) {
-    True -> [
-      #(
-        gdef.new("date_from_db_string") |> gdef.with_publicity(False),
-        gfun.new_raw(
-          [gparam.new("s", gtypes.string) |> gparam.to_dynamic],
-          gtypes.raw("Date"),
-          fn(_) {
-            gexpr.raw(
-              "case string.split(s, \"-\") {\n    [ys, ms, ds] -> {\n      let assert Ok(y) = int.parse(ys)\n      let assert Ok(mi) = int.parse(ms)\n      let assert Ok(d) = int.parse(ds)\n      let assert Ok(month) = month_from_int(mi)\n      CalDate(y, month, d)\n    }\n    _ -> panic as \""
-              <> date_panic
-              <> "\"\n  }",
-            )
-          },
-        )
-          |> gfun.to_dynamic,
-      ),
-      #(
-        gdef.new("date_to_db_string") |> gdef.with_publicity(False),
-        gfun.new_raw(
-          [gparam.new("d", gtypes.raw("Date")) |> gparam.to_dynamic],
-          gtypes.string,
-          fn(_) {
-            gexpr.raw(
-              "let CalDate(year:, month:, day:) = d\n  int.to_string(year)\n  <> \"-\"\n  <> pad2(month_to_int(month))\n  <> \"-\"\n  <> pad2(day)",
-            )
-          },
-        )
-          |> gfun.to_dynamic,
-      ),
-      #(
-        gdef.new("pad2") |> gdef.with_publicity(False),
-        gfun.new_raw(
-          [gparam.new("n", gtypes.int) |> gparam.to_dynamic],
-          gtypes.string,
-          fn(_) {
-            gexpr.raw(
-              "let s = int.to_string(n)\n  case string.length(s) {\n    1 -> \"0\" <> s\n    _ -> s\n  }",
-            )
-          },
-        )
-          |> gfun.to_dynamic,
-      ),
-    ]
-    False -> []
-  }
-}
-
-fn crud_public_fn_chunks(
-  entity: EntityDefinition,
-  variant: IdentityVariantDefinition,
-  entity_snake: String,
-  id_snake: String,
-  upsert_params: List(gparam.Parameter(gtypes.Dynamic)),
-  get_params: List(gparam.Parameter(gtypes.Dynamic)),
-  row_t,
-  sql_err,
-  enum_scalar_names: List(String),
-) {
-  [
-    #(
-      gleamgen_emit.pub_def("last_100_edited_" <> entity_snake)
-        |> gdef.with_text_before(
-          "/// List up to 100 recently edited " <> entity_snake <> " rows.\n",
-        ),
-      gfun.new_raw(
-        [conn_param()],
-        gtypes.result(gtypes.list(row_t), sql_err),
-        fn(_) { gexpr.raw(last_fn_body(entity_snake)) },
-      )
-        |> gfun.to_dynamic,
-    ),
-    ud.delete_fn_chunk(entity_snake, id_snake, variant, get_params, sql_err),
-    ud.update_fn_chunk(
-      entity,
-      variant,
-      entity_snake,
-      id_snake,
-      upsert_params,
-      row_t,
-      sql_err,
-      enum_scalar_names,
-    ),
-    #(
-      gleamgen_emit.pub_def("get_" <> entity_snake <> "_by_" <> id_snake)
-        |> gdef.with_text_before(
-          "/// Get a "
-          <> entity_snake
-          <> " by the `"
-          <> variant.variant_name
-          <> "` identity.\n",
-        ),
-      gfun.new_raw(
-        get_params,
-        gtypes.result(
-          gtypes.raw(
-            "Option(" <> dec.entity_row_tuple_type(entity.type_name) <> ")",
-          ),
-          sql_err,
-        ),
-        fn(_) { gexpr.raw(get_fn_body(variant, entity_snake, id_snake)) },
-      )
-        |> gfun.to_dynamic,
-    ),
-    #(
-      gleamgen_emit.pub_def("upsert_" <> entity_snake <> "_by_" <> id_snake)
-        |> gdef.with_text_before(
-          "/// Upsert a "
-          <> entity_snake
-          <> " by the `"
-          <> variant.variant_name
-          <> "` identity.\n",
-        ),
-      gfun.new_raw(upsert_params, gtypes.result(row_t, sql_err), fn(_) {
-        gexpr.raw(ud.upsert_fn_body(
-          entity,
-          variant,
-          entity_snake,
-          id_snake,
-          "upsert",
-          enum_scalar_names,
-        ))
-      })
-        |> gfun.to_dynamic,
-    ),
-    #(
-      gleamgen_emit.pub_def("migrate"),
-      gfun.new_raw(
-        [conn_param()],
-        gtypes.result(gtypes.nil, sql_err),
-        fn(_) { gexpr.raw("migration.migration(conn)") },
-      )
-        |> gfun.to_dynamic,
-    ),
-    #(
-      gdef.new("not_found_error") |> gdef.with_publicity(False),
-      gfun.new_raw(
-        [gparam.new("op", gtypes.string) |> gparam.to_dynamic],
-        gtypes.raw("sqlight.Error"),
-        fn(_) {
-          gexpr.raw(
-            "sqlight.SqlightError(sqlight.GenericError, \""
-            <> entity_snake
-            <> " not found: \" <> op, -1)",
-          )
-        },
-      )
-        |> gfun.to_dynamic,
-    ),
-  ]
-}
-
-fn unix_seconds_now_fn_chunk() {
-  #(
-    gdef.new("unix_seconds_now") |> gdef.with_publicity(False),
-    gfun.new_raw([], gtypes.int, fn(_) {
-      gexpr.raw(
-        "let #(s, _) =\n    timestamp.system_time()\n    |> timestamp.to_unix_seconds_and_nanoseconds\n  s",
-      )
-    })
-      |> gfun.to_dynamic,
-  )
-}
-
 fn build_module(path: String, def: SchemaDefinition) -> gmod.Module {
   let assert [entity, ..] = def.entities
   let ctx = dec.type_ctx(path, def)
-  let exposing = api_schema_exposing(def, entity)
-  let migration_path = migration_import_path(path)
-  let id = find_identity(def, entity)
+  let exposing = schema_context.api_schema_exposing(def, entity)
+  let migration_path = schema_context.migration_import_path(path)
+  let id = schema_context.find_identity(def, entity)
   let assert Ok(variant) = list.first(id.variants)
   let table = string.lowercase(entity.type_name)
   let data_fields = api_sql.entity_data_fields(entity)
@@ -874,10 +50,10 @@ fn build_module(path: String, def: SchemaDefinition) -> gmod.Module {
   let returning = api_sql.full_row_columns(data_col_labels)
   let entity_snake = string.lowercase(entity.type_name)
   let id_snake = case string.starts_with(variant.variant_name, "By") {
-    True -> pascal_to_snake(string.drop_start(variant.variant_name, 2))
-    False -> pascal_to_snake(variant.variant_name)
+    True -> api_naming.pascal_to_snake(string.drop_start(variant.variant_name, 2))
+    False -> api_naming.pascal_to_snake(variant.variant_name)
   }
-  let sql_comment = sql_doc_comment(table, data_col_labels, id_cols, returning)
+  let sql_comment = sql_doc.sql_doc_comment(table, data_col_labels, id_cols, returning)
 
   let upsert_s = api_sql.upsert_sql(table, data_col_labels, id_cols, returning)
   let select_s = api_sql.select_by_identity_sql(table, returning, id_cols)
@@ -892,13 +68,13 @@ fn build_module(path: String, def: SchemaDefinition) -> gmod.Module {
   let last_s = api_sql.last_100_sql(table, returning)
 
   let generated_query_specs =
-    list.filter(def.queries, fn(q) { query_spec_targets_entity(q, entity) })
+    list.filter(def.queries, fn(q) { api_query.query_spec_targets_entity(q, entity) })
 
   let row_t = gtypes.raw(dec.entity_row_tuple_type(entity.type_name))
   let sql_err = gtypes.raw("sqlight.Error")
   let upsert_params =
-    list.append([conn_param()], upsert_gparams(entity, variant, ctx))
-  let get_params = list.append([conn_param()], identity_gparams(variant))
+    list.append([api_params.conn_param()], api_params.upsert_gparams(entity, variant, ctx))
+  let get_params = list.append([api_params.conn_param()], api_params.identity_gparams(variant))
 
   let enum_scalar_names =
     def.scalars
@@ -907,14 +83,14 @@ fn build_module(path: String, def: SchemaDefinition) -> gmod.Module {
 
   let fn_chunks =
     list.flatten([
-      generated_query_fn_chunks(
+      api_query.generated_query_fn_chunks(
         entity_snake,
         row_t,
         sql_err,
         ctx,
         generated_query_specs,
       ),
-      crud_public_fn_chunks(
+      api_chunks.crud_public_fn_chunks(
         entity,
         variant,
         entity_snake,
@@ -926,12 +102,12 @@ fn build_module(path: String, def: SchemaDefinition) -> gmod.Module {
         enum_scalar_names,
       ),
       dec.row_decode_helpers_fn_chunks(entity_snake, def, entity, variant, ctx),
-      optional_opt_for_db_fn_chunks(entity, variant),
+      api_chunks.optional_opt_for_db_fn_chunks(entity, variant),
       list.flatten([
-        scalar_enum_db_fn_chunks(def, entity),
-        calendar_date_fn_chunks(path, def),
+        api_chunks.scalar_enum_db_fn_chunks(def, entity),
+        api_chunks.calendar_date_fn_chunks(path, def),
       ]),
-      [unix_seconds_now_fn_chunk()],
+      [api_chunks.unix_seconds_now_fn_chunk()],
     ])
 
   let with_functions =
@@ -948,7 +124,7 @@ fn build_module(path: String, def: SchemaDefinition) -> gmod.Module {
         shape_param: _,
       ) = spec.codegen
       #(
-        query_sql_const_name(spec.name),
+        api_query.query_sql_const_name(spec.name),
         Some(api_sql.lt_column_asc_sql(table, returning, column)),
         False,
       )
@@ -956,12 +132,12 @@ fn build_module(path: String, def: SchemaDefinition) -> gmod.Module {
 
   let const_entries =
     list.append(query_const_entries, [
-    #("last_100_sql", Some(last_s), False),
-    #("soft_delete_by_" <> id_snake <> "_sql", Some(soft_s), False),
-    #("update_by_" <> id_snake <> "_sql", Some(update_s), False),
-    #("select_by_" <> id_snake <> "_sql", Some(select_s), False),
-    #("upsert_sql", Some(upsert_s), True),
-  ])
+      #("last_100_sql", Some(last_s), False),
+      #("soft_delete_by_" <> id_snake <> "_sql", Some(soft_s), False),
+      #("update_by_" <> id_snake <> "_sql", Some(update_s), False),
+      #("select_by_" <> id_snake <> "_sql", Some(select_s), False),
+      #("upsert_sql", Some(upsert_s), True),
+    ])
 
   let with_constants =
     list.fold(const_entries, with_functions, fn(acc, entry) {
@@ -978,5 +154,7 @@ fn build_module(path: String, def: SchemaDefinition) -> gmod.Module {
       }
     })
 
-  with_api_imports(migration_path, path, def, exposing, fn() { with_constants })
+  api_imports.with_api_imports(migration_path, path, def, exposing, fn() {
+    with_constants
+  })
 }
