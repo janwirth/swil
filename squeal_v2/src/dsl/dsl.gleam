@@ -169,26 +169,86 @@ pub type BacklinkWith(kind, attributes) {
   BacklinkWith(items: List(kind), attributes: Option(attributes))
 }
 
-pub type Query(t) {
+// --- Query pipeline (phantom types) -----------------------------------------
+/// Phantom markers for [`Query`](#Query) slots. Pipeline order: `query` → `shape` → optional
+/// `filter_*` → `order`. Duplicate steps are rejected at compile time via incompatible phantom parameters.
+
+pub opaque type QueryShapeNotSet {
+  QueryShapeNotSet
+}
+
+pub opaque type QueryShapeSet(projection) {
+  QueryShapeSet
+}
+
+pub opaque type QueryFilterNotSet {
+  QueryFilterNotSet
+}
+
+pub opaque type QueryFilterSet {
+  QueryFilterSet
+}
+
+pub opaque type QueryOrderNotSet {
+  QueryOrderNotSet
+}
+
+pub opaque type QueryOrderSet(field_order) {
+  QueryOrderSet
+}
+
+pub type Query(root, shape, filter, order) {
+  Query(root: root)
+}
+
+pub fn query(t: t) -> Query(t, QueryShapeNotSet, QueryFilterNotSet, QueryOrderNotSet) {
   Query(root: t)
 }
 
-pub fn query(t: t) -> Query(t) {
-  Query(root: t)
+pub fn shape(
+  q: Query(root, QueryShapeNotSet, QueryFilterNotSet, QueryOrderNotSet),
+  _shape: projection,
+) -> Query(root, QueryShapeSet(projection), QueryFilterNotSet, QueryOrderNotSet) {
+  let Query(root: r) = q
+  Query(root: r)
 }
 
-pub fn shape(q: Query(t), _shape: some) -> Query(t) {
-  q
+pub fn order(
+  q: Query(
+    root,
+    QueryShapeSet(projection),
+    filter_slot,
+    QueryOrderNotSet,
+  ),
+  _order: #(field, Direction),
+) -> Query(root, QueryShapeSet(projection), filter_slot, QueryOrderSet(#(field, Direction))) {
+  let Query(root: r) = q
+  Query(root: r)
 }
 
-pub fn order(q: Query(t), _order: #(some, Direction)) -> Query(t) {
-  q
-}
-
-pub fn filter_bool(q:Query(t), expr: Bool) -> Query(t) {
+pub fn filter_bool(
+  q: Query(
+    root,
+    QueryShapeSet(projection),
+    QueryFilterNotSet,
+    QueryOrderNotSet,
+  ),
+  _expr: Bool,
+) -> Query(root, QueryShapeSet(projection), QueryFilterSet, QueryOrderNotSet) {
+  let Query(root: _) = q
   panic as "this is DSL - should never be called"
 }
 
-pub fn filter_complex(q:Query(t), filter: RecursiveFilterSpec(f), predicate_fn: fn(t, f) -> BooleanFilter(a)) -> Query(t) {
+pub fn filter_complex(
+  q: Query(
+    root,
+    QueryShapeSet(projection),
+    QueryFilterNotSet,
+    QueryOrderNotSet,
+  ),
+  _filter: RecursiveFilterSpec(f),
+  _predicate_fn: fn(t, f) -> BooleanFilter(a),
+) -> Query(root, QueryShapeSet(projection), QueryFilterSet, QueryOrderNotSet) {
+  let Query(root: _) = q
   panic as "this is DSL - should never be called"
 }

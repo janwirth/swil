@@ -1,6 +1,8 @@
-# Recursive Filter Spec (v2)
+# Recursive filter and DSL spec (v2)
 
-## Goal
+## Overview
+
+### Goal
 
 Make recursive filters a first-class, reusable capability:
 
@@ -10,7 +12,41 @@ Make recursive filters a first-class, reusable capability:
 
 Query specs use the `query_` prefix; BooleanFilter helpers use `predicate_` (enforced by `schema_definition` parsing).
 
-## Naming (enforced convention)
+### Problem statement
+
+Earlier drafts used a local `RecursiveFilterSpec` plus hand-rolled recursion in the schema module. The target is a single shared recursive shape in `dsl` and consistent **predicate\_*** naming for leaf interpreters.
+
+### Scope
+
+**In scope:**
+
+- shared recursive filter type in `src/dsl/dsl.gleam`,
+- encodable recursive filter payloads,
+- parser/model updates in `src/schema_definition/schema_definition.gleam`,
+- extraction contract aligned with public function prefixes (`query_`, `predicate_`).
+
+**Out of scope (v2):**
+
+- full SQL runtime implementation details for every leaf operation,
+- cross-function inlining/optimization,
+- backwards-compat for arbitrary ad-hoc helper shapes.
+
+---
+
+## Query
+
+### Phantom pipeline type
+
+`dsl.Query` is `Query(root, shape, filter, order)` with **phantom** parameters that track the pipeline:
+
+1. `query(root)` — no shape, filter, or order yet.
+2. `shape(...)` — requires an unset shape slot; records the projection type.
+3. Optional `filter_bool` **or** `filter_complex` — requires shape set, filter unset, order unset; the two filter APIs are mutually exclusive after one is used.
+4. `order(...)` — requires shape set and order unset; filter slot may be still unset or already set.
+
+Pipeline steps that return a value re-wrap with `Query(root: r)` so the phantom parameters advance while the runtime payload stays the same `root`. Duplicate `shape` / `filter_*` / `order` steps fail at compile time.
+
+### Naming (enforced convention)
 
 Public functions passed as `predicate_fn` to `dsl.complex_filter` **must** use the prefix **`predicate_`**. Reference implementation: `predicate_complex_tags_filter` in `library_manager_schema_advanced.gleam`.
 
@@ -22,30 +58,51 @@ Public functions passed as `predicate_fn` to `dsl.complex_filter` **must** use t
 
 (Distinct from `dsl.WithPredicate`, which is only the numeric comparison wrapper for `has_with`.)
 
-## Problem Statement
+### Query and predicate authoring
 
-Earlier drafts used a local `RecursiveFilterSpec` plus hand-rolled recursion in the schema module. The target is a single shared recursive shape in `dsl` and consistent **predicate\_*** naming for leaf interpreters.
+Public functions in a schema module are restricted to **`query_*`** and **`predicate_*`** (see `parse_error.hint_public_function_prefixes`).
 
-## Scope
+A **`query_*`** spec uses the usual `(entity, dsl.MagicFields, simple)` parameters and ends in:
 
-In scope:
+`dsl.query |> dsl.shape |> [dsl.filter_bool \| dsl.filter_complex]? |> dsl.order`
 
-- shared recursive filter type in `src/dsl/dsl.gleam`,
-- encodable recursive filter payloads,
-- parser/model updates in `src/schema_definition/schema_definition.gleam`,
-- extraction contract aligned with public function prefixes (`query_`, `predicate_`).
+When the filter slot uses `dsl.complex_filter(...)` inside the schema layer, pass a **`predicate_*`** function as `predicate_fn` (see naming table). That helper must be `pub fn predicate_…(root, payload) -> dsl.BooleanFilter(...)` (or equivalent) with an explicit BooleanFilter return annotation.
 
-Out of scope (v2):
+---
 
-- full SQL runtime implementation details for every leaf operation,
-- cross-function inlining/optimization,
-- backwards-compat for arbitrary ad-hoc helper shapes.
+## Entities and schema model
 
-## DSL Contract
+### `SchemaDefinition` root model
 
-### 1) Recursive wrapper in `dsl`
+Add extracted filter specs to `SchemaDefinition`:
 
-Add this shared type to `src/dsl/dsl.gleam`:
+```gleam
+pub type SchemaDefinition {
+  SchemaDefinition(
+    entities: List(EntityDefinition),
+    identities: List(IdentityTypeDefinition),
+    relationship_containers: List(RelationshipContainerDefinition),
+    relationship_edge_attributes: List(RelationshipEdgeAttributesDefinition),
+    scalars: List(ScalarTypeDefinition),
+    queries: List(QuerySpecDefinition),
+    filters: List(FilterSpecDefinition),
+  )
+}
+```
+
+### Query integration
+
+No breaking change required for `QuerySpecDefinition` initially.
+
+`query_*` functions keep accepting filter arguments as today; generator resolves whether the filter type maps to a known `FilterSpecDefinition` via type name and uses that metadata.
+
+---
+
+## Relationships and recursive filters
+
+### Recursive wrapper in `dsl`
+
+Shared type in `src/dsl/dsl.gleam`:
 
 ```gleam
 pub type RecursiveFilterSpec(payload) {
@@ -75,7 +132,7 @@ pub fn filter_tag_complex(
 }
 ```
 
-### 2) Encodable data type requirement
+### Encodable data type requirement
 
 `dsl.RecursiveFilterSpec(payload)` is encodable iff `payload` is encodable.
 
@@ -95,35 +152,7 @@ Example JSON-like representation:
 
 Implementation detail (derive/manual encoder) is decided by the scalar/codegen layer; this spec only fixes semantic shape.
 
-## Query + predicate authoring (public functions)
-
-Public functions in a schema module are restricted to **`query_*`** and **`predicate_*`** (see `parse_error.hint_public_function_prefixes`).
-
-A **`query_*`** spec uses the usual `(entity, dsl.MagicFields, simple)` parameters and ends in `dsl.query |> dsl.shape |> dsl.filter |> dsl.order`.
-
-When the filter slot uses `dsl.complex_filter(...)`, pass a **`predicate_*`** function as `predicate_fn` (see naming table). That helper must be `pub fn predicate_…(root, payload) -> dsl.BooleanFilter(...)` (or equivalent) with an explicit BooleanFilter return annotation.
-
-## Applying This To `schema_definition.gleam`
-
-### 1) Extend root model
-
-Add extracted filter specs to `SchemaDefinition`:
-
-```gleam
-pub type SchemaDefinition {
-  SchemaDefinition(
-    entities: List(EntityDefinition),
-    identities: List(IdentityTypeDefinition),
-    relationship_containers: List(RelationshipContainerDefinition),
-    relationship_edge_attributes: List(RelationshipEdgeAttributesDefinition),
-    scalars: List(ScalarTypeDefinition),
-    queries: List(QuerySpecDefinition),
-    filters: List(FilterSpecDefinition),
-  )
-}
-```
-
-### 2) Add filter-specific definitions
+### Filter-specific definitions (`FilterSpecDefinition`)
 
 **Why no duplicate type-name strings on `FilterSpecDefinition`**
 
@@ -198,7 +227,11 @@ Design notes:
 - `FilterLeaf` is lowered/canonical form for generation/runtime.
 - `path` remains relationship-path semantics, never raw SQL naming.
 
-### 3) Parser responsibilities (where it hooks)
+---
+
+## Parser (`schema_definition`)
+
+### Responsibilities (where it hooks)
 
 In the schema parsing pipeline:
 
@@ -210,13 +243,9 @@ In the schema parsing pipeline:
 
 Unsupported forms must emit `UnsupportedSchema` with function span and reason.
 
-### 4) Query integration
+---
 
-No breaking change required for `QuerySpecDefinition` initially.
-
-`query_*` functions keep accepting filter arguments as today; generator resolves whether the filter type maps to a known `FilterSpecDefinition` via type name and uses that metadata.
-
-## Migration Plan
+## Migration plan
 
 1. **Factor DSL into `src/dsl/dsl.gleam`**: `RecursiveFilterSpec`, `RecursivePredicate`, `complex_filter(...)`, etc.
 2. Switch schema aliases (e.g. `FilterConfigScalar = dsl.RecursiveFilterSpec(...)`) and delete duplicate recursive types from schema modules.
@@ -227,7 +256,9 @@ No breaking change required for `QuerySpecDefinition` initially.
    - encoding/decoding round-trip for recursive filter payload,
    - e2e query using recursive filter input.
 
-## Acceptance Criteria
+---
+
+## Acceptance criteria
 
 - At least one case study uses `dsl.RecursiveFilterSpec` with a `predicate_*` interpreter (e.g. `predicate_complex_tags_filter`).
 - `SchemaDefinition` contains extracted `FilterSpecDefinition` entries.
