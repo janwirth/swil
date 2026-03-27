@@ -46,7 +46,9 @@ fn generate_from_schema_path(user_path: String) -> Result(Nil, String) {
   )
   use def <- result.try(
     schema_parser.parse_module(src)
-    |> result.map_error(schema_parser.format_parse_error(src, _)),
+    |> result.map_error(fn(e) {
+      "In " <> schema_file <> ":\n" <> schema_parser.format_parse_error(src, e)
+    }),
   )
   let schema_import = gleam_import_path(schema_file)
   let out_dir = output_db_directory(schema_file)

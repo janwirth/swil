@@ -14,6 +14,10 @@ import schema_definition/parse_error.{type ParseError, UnsupportedSchema}
 /// An entity must be a single record variant named like its type, include an
 /// `identities` field pointing to `*Identities`, and may include a
 /// `relationships` field pointing to `<EntityName>Relationships`.
+///
+/// Example parse:
+/// `type Hippo { Hippo(identities: HippoIdentities, relationships: HippoRelationships, name: Name) }`
+/// parses to `Some(EntityDefinition("Hippo", "Hippo", [...], "HippoIdentities"))`.
 /// Aggregate root: single record variant named like the type, with required `identities` and optional `relationships`.
 pub type EntityDefinition {
   EntityDefinition(
@@ -29,6 +33,9 @@ pub type EntityDefinition {
 /// Returns `Ok(None)` for non-entity shapes (for example, sum types or multiple
 /// variants), and `Error` when a type looks like an entity but violates entity
 /// constraints.
+///
+/// Example parse:
+/// `type Size { Small Int, Large Int }` returns `Ok(None)`.
 pub fn try_parse(
   ct: glance.CustomType,
 ) -> Result(Option(EntityDefinition), ParseError) {
@@ -39,6 +46,10 @@ pub fn try_parse(
 }
 
 /// Parses and validates the one allowed variant shape for an entity.
+///
+/// Example parse:
+/// `Variant("Cat", [identities: CatIdentities, age: Age], _)` with type `Cat`
+/// returns `Ok(Some(EntityDefinition("Cat", "Cat", [...], "CatIdentities")))`.
 fn parse_single_variant(
   ct: glance.CustomType,
   variant: glance.Variant,
@@ -57,6 +68,10 @@ fn parse_single_variant(
 }
 
 /// Ensures the entity variant constructor name equals the type name.
+///
+/// Example parse:
+/// type `Cat` with variant `Kitty(...)` returns
+/// `Error(UnsupportedSchema(... "must use a variant constructor named `Cat` ..."))`.
 fn require_variant_name_matches(
   ct: glance.CustomType,
   variant_name: String,
@@ -78,6 +93,10 @@ fn require_variant_name_matches(
 }
 
 /// Ensures all fields in the entity variant are labelled.
+///
+/// Example parse:
+/// `Cat(CatIdentities, age: Age)` returns
+/// `Error(UnsupportedSchema(... "must use only labelled fields ..."))`.
 fn require_all_fields_labelled(
   ct: glance.CustomType,
   vfields: List(_),
@@ -95,6 +114,11 @@ fn require_all_fields_labelled(
 }
 
 /// Extracts and validates the `identities` field type name.
+///
+/// Example parse:
+/// `identities: CatIdentities` returns `Ok("CatIdentities")`;
+/// `identities: Int` returns
+/// `Error(UnsupportedSchema(... "must reference a *Identities type"))`.
 fn parse_identities_type_name(
   ct: glance.CustomType,
   vfields: List(_),
@@ -129,6 +153,11 @@ fn parse_identities_type_name(
 }
 
 /// Validates the optional `relationships` field naming and shape.
+///
+/// Example parse:
+/// `relationships: CatRelationships` is accepted, but
+/// `relationships: OtherRelationships` returns
+/// `Error(UnsupportedSchema(... "must be exactly `relationships: CatRelationships` ..."))`.
 fn require_relationships_type_name_matches(
   ct: glance.CustomType,
   vfields: List(_),
@@ -175,6 +204,10 @@ fn require_relationships_type_name_matches(
 }
 
 /// Runs field-level validation that is shared across all entity shapes.
+///
+/// Example parse:
+/// fields including a reserved label beyond `identities`/`relationships` or an
+/// unwrapped primitive field return `Error`; otherwise returns `Ok(Nil)`.
 fn validate_non_magic_fields(
   ct: glance.CustomType,
   fields: List(FieldDefinition),
@@ -195,6 +228,10 @@ fn validate_non_magic_fields(
 }
 
 /// Builds a parse error anchored to the custom type location.
+///
+/// Example parse:
+/// for type `Cat` at its source location, `unsupported(ct, "bad shape")` returns
+/// `UnsupportedSchema(Some(ct.location), "bad shape")`.
 fn unsupported(ct: glance.CustomType, message: String) -> ParseError {
   UnsupportedSchema(Some(ct.location), message)
 }

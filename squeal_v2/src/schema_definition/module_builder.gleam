@@ -1,6 +1,6 @@
 import glance
 import gleam/list
-import gleam/option.{None}
+import gleam/option.{None, Some}
 import gleam/result
 import schema_definition/buckets
 import schema_definition/classify
@@ -8,6 +8,7 @@ import schema_definition/entity
 import schema_definition/identity
 import schema_definition/parse_error.{type ParseError, UnsupportedSchema}
 import schema_definition/query
+import schema_definition/scalar
 import schema_definition/schema_aggregate.{
   type SchemaDefinition, SchemaDefinition,
 }
@@ -27,6 +28,10 @@ pub fn build_schema_strict(
   use _ <- result.try(validate_identity_types_linked_to_entities(
     buckets.entities,
     buckets.identities,
+  ))
+  use _ <- result.try(validate_entity_data_field_types_for_api_codegen(
+    buckets.entities,
+    buckets.scalars,
   ))
   use queries <- result.try(query.extract_from_functions(functions_ordered))
   Ok(SchemaDefinition(
@@ -91,5 +96,43 @@ fn validate_identity_types_linked_to_entities(
             <> ", but that public *Identities type is not defined in this module",
         ))
     }
+  })
+}
+
+fn validate_entity_data_field_types_for_api_codegen(
+  entities: List(entity.EntityDefinition),
+  scalars: List(scalar.ScalarTypeDefinition),
+) -> Result(Nil, ParseError) {
+  let scalar_names = list.map(scalars, fn(s) { s.type_name })
+  let enum_scalar_names =
+    scalars
+    |> list.filter(fn(s) { s.enum_only })
+    |> list.map(fn(s) { s.type_name })
+
+  list.try_each(over: entities, with: fn(e) {
+    list.try_each(over: e.fields, with: fn(f) {
+      case f.type_ {
+        glance.NamedType(span, "Option", _, [glance.NamedType(_, n, _, [])]) ->
+          case
+            list.contains(scalar_names, n)
+            && !list.contains(enum_scalar_names, n)
+          {
+            True ->
+              Error(UnsupportedSchema(
+                Some(span),
+                "Unsupported field type in "
+                  <> e.type_name
+                  <> "."
+                  <> f.label
+                  <> ": Option("
+                  <> n
+                  <> "). Non-enum scalar decoding is not implemented yet. "
+                  <> "Use String/primitive fields or enum-only scalars for generated API rows.",
+              ))
+            False -> Ok(Nil)
+          }
+        _ -> Ok(Nil)
+      }
+    })
   })
 }
