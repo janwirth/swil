@@ -134,22 +134,6 @@ import gleam/list
 //   }
 // }
 
-// reverse filtering?
-// pub fn query_tracks_by_filter(
-//   track_bucket: TrackBucket,
-//   magic_fields: dsl.MagicFields,
-//   filter: FilterScalar,
-// ) {
-//   let sql_filter =
-//     dsl.boolean_filter_tag_join_sql(
-//       filter_by_tag(track_bucket, filter),
-//       trackbucket_tag_join_sql_naming(),
-//     )
-//   dsl.query(track_bucket)
-//   |> dsl.shape(option.None)
-//   |> dsl.filter(option.Some(dsl.SqlWhere(sql_filter)))
-//   |> dsl.order(dsl.order_by(magic_fields.updated_at, dsl.Desc))
-// }
 pub type FilterScalar {
   And(exprs: List(FilterScalar))
   Or(exprs: List(FilterScalar))

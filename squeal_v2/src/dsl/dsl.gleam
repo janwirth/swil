@@ -59,29 +59,29 @@ pub type SqlFilter {
   SqlFilter(where_sql: String, int_params: List(Int))
 }
 
-pub type BooleanFilter {
-  And(exprs: List(BooleanFilter))
-  Or(exprs: List(BooleanFilter))
-  Not(expr: BooleanFilter)
+pub type BooleanFilter(a) {
+  And(exprs: List(BooleanFilter(a)))
+  Or(exprs: List(BooleanFilter(a)))
+  Not(expr: BooleanFilter(a))
   /// OneToMany association leaf: `assoc` is ignored for SQL (EXISTS uses join table only); kept for optional in-memory eval.
-  OneToManyAssocHas(assoc: List(#(Int, Int)), related_item: Int)
-  OneToManyAssocNotHas(assoc: List(#(Int, Int)), related_item: Int)
-  OneToManyAssocCompare(assoc: List(#(Int, Int)), related_item: Int, pred: WithPredicate)
+  OneToManyAssocHas(assoc: List(a), related_item: Int)
+  OneToManyAssocNotHas(assoc: List(a), related_item: Int)
+  OneToManyAssocCompare(assoc: List(a), related_item: Int, pred: WithPredicate)
 }
 
-pub fn has(field: List(#(Int, Int)), related_item: Int) -> BooleanFilter {
+pub fn has(field: List(a), related_item: Int) -> BooleanFilter(a) {
   OneToManyAssocHas(field, related_item)
 }
 
-pub fn not_has(field: List(#(Int, Int)), related_item: Int) -> BooleanFilter {
+pub fn not_has(field: List(a), related_item: Int) -> BooleanFilter(a) {
   OneToManyAssocNotHas(field, related_item)
 }
 
 pub fn has_with(
-  field: List(#(Int, Int)),
+  field: List(a),
   related_id: Int,
   predicate: WithPredicate,
-) -> BooleanFilter {
+) -> BooleanFilter(a)  {
   OneToManyAssocCompare(field, related_id, predicate)
 }
 
@@ -130,39 +130,6 @@ fn pred_satisfied(weight: Int, pred: WithPredicate) -> Bool {
     EqualTo(n) -> weight == n
   }
 }
-
-/// In-memory evaluation for tests; not used by SQL paths.
-pub fn eval_boolean_filter(filter: BooleanFilter) -> Bool {
-  case filter {
-    And(exprs) ->
-      case exprs {
-        [] -> True
-        _ -> list.all(exprs, eval_boolean_filter)
-      }
-    Or(exprs) ->
-      case exprs {
-        [] -> False
-        _ -> list.any(exprs, eval_boolean_filter)
-      }
-    Not(expr) -> !eval_boolean_filter(expr)
-    OneToManyAssocHas(assoc, related_item) ->
-      list.any(assoc, fn(p) {
-        let #(id, _) = p
-        id == related_item
-      })
-    OneToManyAssocNotHas(assoc, related_item) ->
-      !list.any(assoc, fn(p) {
-        let #(id, _) = p
-        id == related_item
-      })
-    OneToManyAssocCompare(assoc, related_item, pred) ->
-      case list.find(assoc, fn(p) { p.0 == related_item }) {
-        Ok(#(_, w)) -> pred_satisfied(w, pred)
-        Error(Nil) -> False
-      }
-  }
-}
-
 pub type BelongsTo(a) {
   BelongsTo(item: a)
 }
