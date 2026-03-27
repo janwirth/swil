@@ -32,8 +32,8 @@ pub fn sql_bind_expr(
   }
 }
 
-fn non_id_temp_var(f: FieldDefinition, enum_scalar_names: List(String)) -> String {
-  case render_type_plain(f, enum_scalar_names) {
+fn non_id_temp_var(f: FieldDefinition, scalar_names: List(String)) -> String {
+  case render_type_plain(f, scalar_names) {
     "String" -> "c"
     "Float" -> "p"
     "Int" -> "q"
@@ -41,21 +41,21 @@ fn non_id_temp_var(f: FieldDefinition, enum_scalar_names: List(String)) -> Strin
   }
 }
 
-fn render_type_plain(f: FieldDefinition, enum_scalar_names: List(String)) -> String {
+fn render_type_plain(f: FieldDefinition, scalar_names: List(String)) -> String {
   case f.type_ {
     glance.NamedType(_, "Option", _, [inner]) ->
-      render_type_plain_field(inner, enum_scalar_names)
-    _ -> render_type_plain_field(f.type_, enum_scalar_names)
+      render_type_plain_field(inner, scalar_names)
+    _ -> render_type_plain_field(f.type_, scalar_names)
   }
 }
 
-fn render_type_plain_field(t: glance.Type, enum_scalar_names: List(String)) -> String {
+fn render_type_plain_field(t: glance.Type, scalar_names: List(String)) -> String {
   case t {
     glance.NamedType(_, "Int", None, []) -> "Int"
     glance.NamedType(_, "Float", None, []) -> "Float"
     glance.NamedType(_, "String", None, []) -> "String"
     glance.NamedType(_, name, _, []) ->
-      case list.contains(enum_scalar_names, name) {
+      case list.contains(scalar_names, name) {
         True -> name
         False -> "String"
       }
@@ -63,14 +63,14 @@ fn render_type_plain_field(t: glance.Type, enum_scalar_names: List(String)) -> S
   }
 }
 
-fn is_option_enum_scalar(
+fn is_option_scalar(
   f: FieldDefinition,
-  enum_scalar_names: List(String),
+  scalar_names: List(String),
 ) -> Bool {
   case f.type_ {
     glance.NamedType(_, "Option", _, [
       glance.NamedType(_, n, _, []),
-    ]) -> list.contains(enum_scalar_names, n)
+    ]) -> list.contains(scalar_names, n)
     _ -> False
   }
 }
@@ -88,7 +88,7 @@ pub fn upsert_fn_body(
   entity_snake: String,
   id_snake: String,
   op_prefix: String,
-  enum_scalar_names: List(String),
+  scalar_names: List(String),
   row_qualifier: String,
 ) -> String {
   let labels = dec.id_labels_list(variant)
@@ -102,11 +102,11 @@ pub fn upsert_fn_body(
   }
   let let_lines =
     list.map(non_id, fn(f) {
-      case is_option_enum_scalar(f, enum_scalar_names) {
+      case is_option_scalar(f, scalar_names) {
         True -> ""
         False -> {
-          let v = non_id_temp_var(f, enum_scalar_names)
-          case render_type_plain(f, enum_scalar_names) {
+          let v = non_id_temp_var(f, scalar_names)
+          case render_type_plain(f, scalar_names) {
             "String" ->
               "  let " <> v <> " = api_help.opt_text_for_db(" <> f.label <> ")\n"
             "Float" ->
@@ -126,7 +126,7 @@ pub fn upsert_fn_body(
           Ok(f) -> "      " <> sql_bind_expr(f, f.label, row_qualifier) <> ","
           Error(_) -> {
             let assert Ok(f) = list.find(non_id, fn(x) { x.label == col })
-            let value = case is_option_enum_scalar(f, enum_scalar_names) {
+            let value = case is_option_scalar(f, scalar_names) {
               True ->
                 row_qualifier
                 <> "."
@@ -134,7 +134,7 @@ pub fn upsert_fn_body(
                 <> "("
                 <> f.label
                 <> ")"
-              False -> non_id_temp_var(f, enum_scalar_names)
+              False -> non_id_temp_var(f, scalar_names)
             }
             "      " <> sql_bind_expr(f, value, row_qualifier) <> ","
           }
@@ -150,7 +150,7 @@ pub fn upsert_fn_body(
     _ -> {
       let extras =
         list.map(non_id, fn(f) {
-          let value = case is_option_enum_scalar(f, enum_scalar_names) {
+          let value = case is_option_scalar(f, scalar_names) {
             True ->
               row_qualifier
               <> "."
@@ -158,7 +158,7 @@ pub fn upsert_fn_body(
               <> "("
               <> f.label
               <> ")"
-            False -> non_id_temp_var(f, enum_scalar_names)
+            False -> non_id_temp_var(f, scalar_names)
           }
           "      " <> sql_bind_expr(f, value, row_qualifier) <> ","
         })
@@ -260,7 +260,7 @@ pub fn update_fn_chunk(
   upsert_params: List(gparam.Parameter(gtypes.Dynamic)),
   row_t: gtypes.GeneratedType(r),
   sql_err: gtypes.GeneratedType(e),
-  enum_scalar_names: List(String),
+  scalar_names: List(String),
 ) -> #(gdef.Definition, gfun.Function(gtypes.Dynamic, gtypes.Dynamic)) {
   #(
     gleamgen_emit.pub_def("update_" <> entity_snake <> "_by_" <> id_snake)
@@ -278,7 +278,7 @@ pub fn update_fn_chunk(
         entity_snake,
         id_snake,
         "update",
-        enum_scalar_names,
+        scalar_names,
         "row",
       ))
     })

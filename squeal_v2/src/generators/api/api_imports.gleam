@@ -89,7 +89,15 @@ pub fn with_row_module_imports(
       "type Option, None, Some",
     ),
   )
-  with_row_calendar_import(def, inner)
+  let with_optional_json = fn() {
+    case schema_context.schema_uses_non_enum_scalars(def) {
+      True -> gmod.with_import(gimport.new_predefined(["gleam", "json"]), fn(_) {
+        with_row_calendar_import(def, inner)
+      })
+      False -> with_row_calendar_import(def, inner)
+    }
+  }
+  with_optional_json()
 }
 
 pub fn with_upsert_module_imports(

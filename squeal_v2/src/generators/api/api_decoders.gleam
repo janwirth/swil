@@ -140,46 +140,10 @@ fn entity_has_relationships_field(entity: EntityDefinition) -> Bool {
   list.any(entity.fields, fn(f) { f.label == "relationships" })
 }
 
-fn entity_needs_rich_row_decoder(entity: EntityDefinition, ctx: TypeCtx) -> Bool {
+fn entity_needs_rich_row_decoder(entity: EntityDefinition, _ctx: TypeCtx) -> Bool {
   entity_has_relationships_field(entity)
   || list.any(api_sql.entity_data_fields(entity), fn(f) {
     field_is_calendar_date(f)
-    || case f.type_ {
-      glance.NamedType(_, "Option", _, [glance.NamedType(_, n, None, [])]) ->
-        list.contains(ctx.scalar_names, n)
-      _ -> False
-    }
-  })
-}
-
-fn assert_supported_entity_data_field_types(
-  entity: EntityDefinition,
-  ctx: TypeCtx,
-) -> Nil {
-  let data_fields = api_sql.entity_data_fields(entity)
-  list.each(data_fields, fn(f) {
-    case f.type_ {
-      glance.NamedType(_, "Option", _, [glance.NamedType(_, n, _, [])]) ->
-        case
-          list.contains(ctx.scalar_names, n)
-          && !list.contains(ctx.enum_scalar_names, n)
-        {
-          True -> {
-            let msg =
-              "Unsupported field type in "
-              <> entity.type_name
-              <> "."
-              <> f.label
-              <> ": Option("
-              <> n
-              <> "). Non-enum scalar decoding is not implemented yet. "
-              <> "Use String/primitive fields or enum-only scalars for generated API rows."
-            panic as msg
-          }
-          False -> Nil
-        }
-      _ -> Nil
-    }
   })
 }
 
@@ -400,18 +364,48 @@ pub fn entity_row_tuple_type(entity_name: String) -> String {
   "#(" <> entity_name <> ", dsl.MagicFields)"
 }
 
-fn row_decoder_expr(field_type: glance.Type) -> String {
-  let base = case field_type {
-    glance.NamedType(_, "Option", _, [inner]) -> inner
-    _ -> field_type
+fn row_decoder_expr_for_named(name: String, ctx: TypeCtx) -> String {
+  case name {
+    "Int" -> "decode.int"
+    "Float" -> "decode.float"
+    "String" -> "decode.string"
+    "Bool" -> "decode.map(decode.int, fn(i) { i != 0 })"
+    _ ->
+      case list.contains(ctx.enum_scalar_names, name) {
+        True ->
+          "decode.then(decode.string, fn(s) {\n    case "
+          <> scalar_from_db_fn_name(name)
+          <> "(s) {\n      Some(v) -> decode.success(v)\n      None -> decode.failure("
+          <> name
+          <> ", expected: \""
+          <> name
+          <> "\")\n    }\n  })"
+        False -> "decode.string"
+      }
   }
-  case base {
-    glance.NamedType(_, "Int", None, []) -> "decode.int"
-    glance.NamedType(_, "Float", None, []) -> "decode.float"
-    glance.NamedType(_, "String", None, []) -> "decode.string"
-    glance.NamedType(_, "Bool", None, []) ->
-      "decode.map(decode.int, fn(i) { i != 0 })"
+}
+
+fn row_decoder_expr(field_type: glance.Type, ctx: TypeCtx) -> String {
+  case field_type {
+    glance.NamedType(_, "Option", _, [glance.NamedType(_, n, _, [])]) ->
+      case list.contains(ctx.scalar_names, n), list.contains(ctx.enum_scalar_names, n) {
+        True, False ->
+          "decode.then(decode.string, fn(s) {\n    case "
+          <> scalar_from_db_fn_name(n)
+          <> "(s) {\n      Ok(v) -> decode.success(v)\n      Error(_) -> decode.failure(None, expected: \"Option("
+          <> n
+          <> ")\")\n    }\n  })"
+        True, True ->
+          "decode.then(decode.string, fn(s) { decode.success("
+          <> scalar_from_db_fn_name(n)
+          <> "(s) })"
+        False, _ -> row_decoder_expr_for_named(n, ctx)
+      }
+    _ ->
+      case field_type {
+    glance.NamedType(_, n, _, []) -> row_decoder_expr_for_named(n, ctx)
     _ -> "decode.string"
+  }
   }
 }
 
@@ -457,10 +451,19 @@ fn join_data_and_list_field_lines(
   }
 }
 
+fn is_option_non_enum_scalar_field(f: FieldDefinition, ctx: TypeCtx) -> Bool {
+  case f.type_ {
+    glance.NamedType(_, "Option", _, [glance.NamedType(_, n, _, [])]) ->
+      list.contains(ctx.scalar_names, n) && !list.contains(ctx.enum_scalar_names, n)
+    _ -> False
+  }
+}
+
 fn field_to_constructor_arg(
   f: FieldDefinition,
   ids: List(String),
   var: String,
+  ctx: TypeCtx,
 ) -> String {
   let in_id = list.contains(ids, f.label)
   case in_id {
@@ -470,10 +473,15 @@ fn field_to_constructor_arg(
         False -> var
       }
     False ->
-      case type_is_option(f.type_), type_is_option_string(f.type_) {
-        True, True -> "api_help.opt_string_from_db(" <> var <> ")"
-        True, False -> "Some(" <> var <> ")"
-        False, _ -> var
+      case
+        is_option_non_enum_scalar_field(f, ctx),
+        type_is_option(f.type_),
+        type_is_option_string(f.type_)
+      {
+        True, _, _ -> var
+        False, True, True -> "api_help.opt_string_from_db(" <> var <> ")"
+        False, True, False -> "Some(" <> var <> ")"
+        False, False, _ -> var
       }
   }
 }
@@ -481,6 +489,7 @@ fn field_to_constructor_arg(
 fn entity_simple_magic_decoder_fn(
   entity: EntityDefinition,
   v: IdentityVariantDefinition,
+  ctx: TypeCtx,
 ) -> String {
   let data_fields = api_sql.entity_data_fields(entity)
   let ids = id_labels_list(v)
@@ -496,7 +505,7 @@ fn entity_simple_magic_decoder_fn(
       <> " <- decode.field("
       <> int.to_string(i)
       <> ", "
-      <> row_decoder_expr(f.type_)
+      <> row_decoder_expr(f.type_, ctx)
       <> ")"
     })
     |> string.join("\n")
@@ -520,7 +529,7 @@ fn entity_simple_magic_decoder_fn(
     join_data_and_list_field_lines(
       list.map(data_fields, fn(f) {
         let var = f.label
-        let expr = field_to_constructor_arg(f, ids, var)
+        let expr = field_to_constructor_arg(f, ids, var, ctx)
         "      " <> f.label <> ": " <> expr <> ","
       })
         |> string.join("\n"),
@@ -555,10 +564,9 @@ fn entity_with_magic_decoder_fn(
   v: IdentityVariantDefinition,
   ctx: TypeCtx,
 ) -> String {
-  assert_supported_entity_data_field_types(entity, ctx)
   case entity_needs_rich_row_decoder(entity, ctx) {
     True -> entity_rich_row_decoder_fn(schema, entity, v, ctx)
-    False -> entity_simple_magic_decoder_fn(entity, v)
+    False -> entity_simple_magic_decoder_fn(entity, v, ctx)
   }
 }
 

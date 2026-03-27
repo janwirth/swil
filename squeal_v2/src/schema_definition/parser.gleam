@@ -154,9 +154,15 @@ fn from_scalar(scalar) -> schema_definition.ScalarTypeDefinition {
   let scalar_mod.ScalarTypeDefinition(
     type_name: type_name,
     variant_names: variant_names,
+    variants: variants,
     enum_only: enum_only,
   ) = scalar
-  schema_definition.ScalarTypeDefinition(type_name:, variant_names:, enum_only:)
+  schema_definition.ScalarTypeDefinition(
+    type_name:,
+    variant_names:,
+    variants: list.map(variants, from_variant_with_fields),
+    enum_only:,
+  )
 }
 
 fn from_query_spec(query_spec) -> schema_definition.QuerySpecDefinition {

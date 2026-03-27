@@ -149,6 +149,7 @@ pub type ScalarTypeDefinition {
   ScalarTypeDefinition(
     type_name: String,
     variant_names: List(String),
+    variants: List(VariantWithFields),
     enum_only: Bool,
   )
 }

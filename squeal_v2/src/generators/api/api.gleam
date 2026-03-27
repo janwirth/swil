@@ -301,10 +301,7 @@ pub fn generate_api_db_outputs(
   let get_params =
     list.append([api_params.conn_param()], api_params.identity_gparams(variant))
 
-  let enum_scalar_names =
-    def.scalars
-    |> list.filter(fn(s) { s.enum_only })
-    |> list.map(fn(s) { s.type_name })
+  let scalar_names = list.map(def.scalars, fn(s) { s.type_name })
 
   let row_chunks =
     list.flat_map(def.entities, fn(e) {
@@ -341,7 +338,7 @@ pub fn generate_api_db_outputs(
       upsert_params,
       row_t,
       sql_err,
-      enum_scalar_names,
+      scalar_names,
     )
   let upsert_mod =
     api_imports.with_upsert_module_imports(

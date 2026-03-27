@@ -206,3 +206,7 @@ pub fn entity_used_enum_scalars(
     s.enum_only && list.contains(used, s.type_name)
   })
 }
+
+pub fn schema_uses_non_enum_scalars(def: SchemaDefinition) -> Bool {
+  list.any(def.scalars, fn(s) { !s.enum_only })
+}
