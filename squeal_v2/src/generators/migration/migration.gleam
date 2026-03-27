@@ -99,6 +99,7 @@ fn belongs_to_fk_column_names(rel_fields: List(FieldDefinition)) -> List(String)
     case t {
       glance.NamedType(_, "BelongsTo", _, [
         glance.NamedType(_, target, _, _),
+        _,
       ]) -> Ok(field.label <> "_" <> string.lowercase(target) <> "_id")
       _ -> Error(Nil)
     }
