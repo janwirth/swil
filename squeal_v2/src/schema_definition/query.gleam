@@ -15,42 +15,22 @@
 //// `LtMissingFieldAsc` for `exclude_if_missing` + float threshold + ascending `order_by` on the same field).
 
 import glance
+import dsl/dsl as dsl
 import gleam/list
 import gleam/option.{type Option, None, Some, from_result, then}
 import gleam/result
 import gleam/string
 import schema_definition/parse_error.{type ParseError, UnsupportedSchema}
+import schema_definition/schema_definition as sd
 
-/// How (or whether) a schema [`QuerySpecDefinition`](#QuerySpecDefinition) maps to generated SQL in tooling.
-pub type QueryCodegen {
-  /// Shape/filter/order not recognized; skeleton and API may emit TODOs for this spec.
-  Unsupported
-  /// `exclude_if_missing(shape.{column}) <. threshold` with `order_by(shape.{column}, Asc)` on the same column.
-  /// `threshold_param` must be a `Float` function parameter; `shape_param` names the entity parameter.
-  LtMissingFieldAsc(
-    column: String,
-    threshold_param: String,
-    shape_param: String,
-  )
-  /// `exclude_if_missing(shape.{filter_column}) == match_param` with `order_by(shape.{order_column}, Asc|Desc)`.
-  EqMissingFieldOrder(
-    filter_column: String,
-    match_param: String,
-    shape_param: String,
-    order_column: String,
-    order_desc: Bool,
-  )
-}
-
-/// Extracted metadata for a public `query_*` function: its name, parameter list, and inferred codegen.
+/// Extracted metadata for a public `query_*` function: its name, parameter list, and parsed query.
 pub type QuerySpecDefinition {
   QuerySpecDefinition(
     /// Function name as declared in the schema module.
     name: String,
     /// Parameters in source order; every parameter must be type-annotated on public query functions.
     parameters: List(QueryParameter),
-    /// Structural match for SQL/API generation, or [`Unsupported`](#Unsupported) when the tail query expression does not match a known pattern.
-    codegen: QueryCodegen,
+    query: sd.Query,
   )
 }
 
@@ -157,7 +137,9 @@ fn query_spec_from_function_strict(
   |> result.try(fn(params) {
     let params = list.reverse(params)
     case validate_query_parameters_strict(f, params) {
-      Ok(Nil) -> Ok(QuerySpecDefinition(f.name, params, infer_query_codegen(f)))
+      Ok(Nil) ->
+        infer_query(f)
+        |> result.map(fn(q) { QuerySpecDefinition(f.name, params, q) })
       Error(e) -> Error(e)
     }
   })
@@ -200,76 +182,67 @@ fn validate_query_parameters_strict(
   }
 }
 
-/// Dispatches structural codegen inference when the function body ends in a query pipeline.
-fn infer_query_codegen(f: glance.Function) -> QueryCodegen {
+/// Dispatches structural query inference when the function body ends in a query pipeline.
+fn infer_query(f: glance.Function) -> Result(sd.Query, ParseError) {
   case function_tail_expression(f.body) {
-    None -> Unsupported
+    None ->
+      Error(UnsupportedSchema(
+        Some(f.location),
+        "query " <> f.name <> " must end with a query pipeline expression",
+      ))
     Some(tail) ->
       case query_tail_components(tail) {
-        None -> infer_lt_missing_field_asc_fallback(f)
+        None ->
+          Error(UnsupportedSchema(
+            Some(f.location),
+            "query " <> f.name <> " must match `query |> shape |> filter |> order`",
+          ))
         Some(#(shape_expr, filter_expr, order_expr)) ->
-          case infer_lt_missing_field_asc(f, shape_expr, filter_expr, order_expr) {
-            Unsupported ->
-              infer_eq_missing_field_order(f, shape_expr, filter_expr, order_expr)
-            codegen -> codegen
+          case lt_missing_field_asc_match(f, shape_expr, filter_expr, order_expr) {
+            Some(#(column, threshold_name, _shape_name)) ->
+              Ok(sd.Query(
+                shape: sd.NoneOrBase,
+                filter: Some(sd.BooleanFilter(
+                  left_operand_field_name: column,
+                  operator: sd.Lt,
+                  right_operand_parameter_name: threshold_name,
+                )),
+                order: sd.CustomOrder(column, dsl.Asc),
+              ))
+            None ->
+              case
+                eq_missing_field_order_match(f, shape_expr, filter_expr, order_expr)
+              {
+                Some(#(
+                  filter_column,
+                  match_param,
+                  _shape_name,
+                  order_column,
+                  order_desc,
+                )) ->
+                  Ok(sd.Query(
+                    shape: sd.NoneOrBase,
+                    filter: Some(sd.BooleanFilter(
+                      left_operand_field_name: filter_column,
+                      operator: sd.Eq,
+                      right_operand_parameter_name: match_param,
+                    )),
+                    order: sd.CustomOrder(
+                      order_column,
+                      case order_desc {
+                        True -> dsl.Desc
+                        False -> dsl.Asc
+                      },
+                    ),
+                  ))
+                None ->
+                  Error(UnsupportedSchema(
+                    Some(f.location),
+                    "unsupported query expression in " <> f.name,
+                  ))
+              }
           }
       }
-  }
-}
-
-fn infer_lt_missing_field_asc_fallback(f: glance.Function) -> QueryCodegen {
-  case f.parameters {
-    [shape_p, _, _] -> {
-      let shape_name = assignment_name_string(shape_p.name)
-      case
-        find_lt_missing_predicate_in_statements(f.body, shape_name),
-        find_order_by_column_in_statements(f.body, shape_name)
-      {
-        Some(#(column, threshold_name)), Some(order_col) ->
-          case column == order_col && param_is_float_named(f, threshold_name) {
-            True -> LtMissingFieldAsc(column, threshold_name, shape_name)
-            False -> Unsupported
-          }
-        _, _ -> Unsupported
-      }
-    }
-    _ -> Unsupported
-  }
-}
-
-/// Recognises [`LtMissingFieldAsc`](#LtMissingFieldAsc): optional filter with `exclude_if_missing` on a shape field,
-/// `<.` against a float parameter, and ascending `order_by` on that same field.
-fn infer_lt_missing_field_asc(
-  f: glance.Function,
-  shape_expr: glance.Expression,
-  filter_expr: glance.Expression,
-  order_expr: glance.Expression,
-) -> QueryCodegen {
-  case lt_missing_field_asc_match(f, shape_expr, filter_expr, order_expr) {
-    Some(#(column, threshold_name, shape_name)) ->
-      LtMissingFieldAsc(column, threshold_name, shape_name)
-    None -> Unsupported
-  }
-}
-
-/// Recognises [`EqMissingFieldOrder`](#EqMissingFieldOrder): optional filter with `exclude_if_missing` on a shape field,
-/// `==` against a simple/scalar parameter, and `order_by` on any shape field with either `Asc` or `Desc`.
-fn infer_eq_missing_field_order(
-  f: glance.Function,
-  shape_expr: glance.Expression,
-  filter_expr: glance.Expression,
-  order_expr: glance.Expression,
-) -> QueryCodegen {
-  case eq_missing_field_order_match(f, shape_expr, filter_expr, order_expr) {
-    Some(#(filter_column, match_param, shape_name, order_column, order_desc)) ->
-      EqMissingFieldOrder(
-        filter_column: filter_column,
-        match_param: match_param,
-        shape_param: shape_name,
-        order_column: order_column,
-        order_desc: order_desc,
-      )
-    None -> Unsupported
   }
 }
 
@@ -787,160 +760,6 @@ fn expression_callee_name(expr: glance.Expression) -> Result(String, Nil) {
     glance.Variable(_, name) -> Ok(name)
     glance.FieldAccess(_, _inner, label) -> Ok(label)
     _ -> Error(Nil)
-  }
-}
-
-fn find_lt_missing_predicate_in_statements(
-  body: List(glance.Statement),
-  shape_name: String,
-) -> Option(#(String, String)) {
-  case body {
-    [] -> None
-    [stmt, ..rest] ->
-      case find_lt_missing_predicate_in_statement(stmt, shape_name) {
-        Some(v) -> Some(v)
-        None -> find_lt_missing_predicate_in_statements(rest, shape_name)
-      }
-  }
-}
-
-fn find_lt_missing_predicate_in_statement(
-  stmt: glance.Statement,
-  shape_name: String,
-) -> Option(#(String, String)) {
-  case stmt {
-    glance.Expression(e) -> find_lt_missing_predicate_in_expr(e, shape_name)
-    _ -> None
-  }
-}
-
-fn find_lt_missing_predicate_in_expr(
-  expr: glance.Expression,
-  shape_name: String,
-) -> Option(#(String, String)) {
-  case normalize_expr(expr) {
-    glance.BinaryOperator(
-      _,
-      glance.LtFloat,
-      left,
-      glance.Variable(_, threshold_name),
-    ) ->
-      case exclude_if_missing_column_on_shape(left, shape_name) {
-        Some(column) -> Some(#(column, threshold_name))
-        None -> None
-      }
-    glance.BinaryOperator(_, _, left, right) ->
-      case find_lt_missing_predicate_in_expr(left, shape_name) {
-        Some(v) -> Some(v)
-        None -> find_lt_missing_predicate_in_expr(right, shape_name)
-      }
-    glance.Call(_, _callee, args) ->
-      find_lt_missing_predicate_in_fields(args, shape_name)
-    glance.FieldAccess(_, inner, _) ->
-      find_lt_missing_predicate_in_expr(inner, shape_name)
-    glance.Block(_, stmts) ->
-      find_lt_missing_predicate_in_statements(stmts, shape_name)
-    _ -> None
-  }
-}
-
-fn find_lt_missing_predicate_in_fields(
-  fields: List(glance.Field(glance.Expression)),
-  shape_name: String,
-) -> Option(#(String, String)) {
-  case fields {
-    [] -> None
-    [field, ..rest] ->
-      case field {
-        glance.UnlabelledField(e) ->
-          case find_lt_missing_predicate_in_expr(e, shape_name) {
-            Some(v) -> Some(v)
-            None -> find_lt_missing_predicate_in_fields(rest, shape_name)
-          }
-        glance.LabelledField(_, _, e) ->
-          case find_lt_missing_predicate_in_expr(e, shape_name) {
-            Some(v) -> Some(v)
-            None -> find_lt_missing_predicate_in_fields(rest, shape_name)
-          }
-        glance.ShorthandField(_, _) ->
-          find_lt_missing_predicate_in_fields(rest, shape_name)
-      }
-  }
-}
-
-fn find_order_by_column_in_statements(
-  body: List(glance.Statement),
-  shape_name: String,
-) -> Option(String) {
-  case body {
-    [] -> None
-    [stmt, ..rest] ->
-      case find_order_by_column_in_statement(stmt, shape_name) {
-        Some(v) -> Some(v)
-        None -> find_order_by_column_in_statements(rest, shape_name)
-      }
-  }
-}
-
-fn find_order_by_column_in_statement(
-  stmt: glance.Statement,
-  shape_name: String,
-) -> Option(String) {
-  case stmt {
-    glance.Expression(e) -> find_order_by_column_in_expr(e, shape_name)
-    _ -> None
-  }
-}
-
-fn find_order_by_column_in_expr(
-  expr: glance.Expression,
-  shape_name: String,
-) -> Option(String) {
-  case normalize_expr(expr) {
-    glance.Call(_, _callee, _) ->
-      case from_result(query_order_column(expr, shape_name)) {
-        Some(col) -> Some(col)
-        None ->
-          case normalize_expr(expr) {
-            glance.Call(_, _c, args) ->
-              find_order_by_column_in_fields(args, shape_name)
-            _ -> None
-          }
-      }
-    glance.BinaryOperator(_, _, left, right) ->
-      case find_order_by_column_in_expr(left, shape_name) {
-        Some(v) -> Some(v)
-        None -> find_order_by_column_in_expr(right, shape_name)
-      }
-    glance.FieldAccess(_, inner, _) ->
-      find_order_by_column_in_expr(inner, shape_name)
-    glance.Block(_, stmts) ->
-      find_order_by_column_in_statements(stmts, shape_name)
-    _ -> None
-  }
-}
-
-fn find_order_by_column_in_fields(
-  fields: List(glance.Field(glance.Expression)),
-  shape_name: String,
-) -> Option(String) {
-  case fields {
-    [] -> None
-    [field, ..rest] ->
-      case field {
-        glance.UnlabelledField(e) ->
-          case find_order_by_column_in_expr(e, shape_name) {
-            Some(v) -> Some(v)
-            None -> find_order_by_column_in_fields(rest, shape_name)
-          }
-        glance.LabelledField(_, _, e) ->
-          case find_order_by_column_in_expr(e, shape_name) {
-            Some(v) -> Some(v)
-            None -> find_order_by_column_in_fields(rest, shape_name)
-          }
-        glance.ShorthandField(_, _) ->
-          find_order_by_column_in_fields(rest, shape_name)
-      }
   }
 }
 

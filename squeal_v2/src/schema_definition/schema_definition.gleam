@@ -201,7 +201,12 @@ pub type SelectionPath {
 
 pub type Filter {
   NoFilter
-  BooleanFilter(left_operand_field_name: String, operator: Operator, right_operand_parameter_name: String)
+  BooleanFilter(left_operand_field_name: String, operator: Operator, right_operand_parameter_name: String, missing_behavior: MissingBehavior)
+}
+
+pub type MissingBehavior {
+  ExcludeIfMissing
+  Nullable
 }
 
 pub type Operator {

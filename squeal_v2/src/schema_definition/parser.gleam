@@ -163,9 +163,13 @@ fn from_query_spec(query_spec) -> schema_definition.QuerySpecDefinition {
   let query_mod.QuerySpecDefinition(
     name: name,
     parameters: parameters,
-    codegen: codegen,
+    query: query,
   ) = query_spec
-  todo
+  schema_definition.QuerySpecDefinition(
+    name: name,
+    parameters: list.map(parameters, from_query_parameter),
+    query: query,
+  )
 }
 
 fn from_query_parameter(parameter) -> schema_definition.QueryParameter {

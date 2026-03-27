@@ -1,7 +1,6 @@
 import generators/api/api_params
 import generators/api/api_query
 import generators/gleamgen_emit
-import glance
 import gleam/list
 import gleam/string
 import gleamgen/expression as gexpr
@@ -9,9 +8,8 @@ import gleamgen/function as gfun
 import gleamgen/parameter as gparam
 import gleamgen/types as gtypes
 import schema_definition/schema_definition.{
-  type EntityDefinition, type IdentityVariantDefinition, type QueryParameter,
-  type QuerySpecDefinition, type SchemaDefinition, EqMissingFieldOrder,
-  LtMissingFieldAsc,
+  type EntityDefinition, type IdentityVariantDefinition, type QuerySpecDefinition,
+  type SchemaDefinition,
 }
 
 import generators/api/api_decoders as dec
@@ -103,41 +101,21 @@ fn query_spec_forward_chunk(
   sql_err: gtypes.GeneratedType(e),
   ctx: dec.TypeCtx,
 ) {
-  let shape_param = case spec.codegen {
-    LtMissingFieldAsc(column: _, threshold_param: _, shape_param: p) -> p
-    EqMissingFieldOrder(
-      filter_column: _,
-      match_param: _,
-      shape_param: p,
-      order_column: _,
-      order_desc: _,
-    ) -> p
-    _ -> panic as "api_facade.query_spec_forward_chunk: unsupported query codegen"
-  }
   let fn_params =
     list.append(
       [api_params.conn_param()],
-      list.map(
-        list.filter(spec.parameters, fn(p) {
-          p.name != shape_param && !param_is_magic_fields(p)
-        }),
-        fn(p) {
-          gparam.new(
-            api_query.schema_query_param_name(p),
-            gtypes.raw(dec.render_type(p.type_, ctx)),
-          )
-          |> gparam.to_dynamic
-        },
-      ),
+      list.map(case spec.parameters {
+        [_, _, simple] -> [simple]
+        _ -> []
+      }, fn(p) {
+        gparam.new(
+          api_query.schema_query_param_name(p),
+          gtypes.raw(dec.render_type(p.type_, ctx)),
+        )
+        |> gparam.to_dynamic
+      }),
     )
   forward_fn("query", spec.name, fn_params, gtypes.list(row_t), sql_err)
-}
-
-fn param_is_magic_fields(p: QueryParameter) -> Bool {
-  case p.type_ {
-    glance.NamedType(_, "MagicFields", _, []) -> True
-    _ -> False
-  }
 }
 
 pub fn facade_fn_chunks(

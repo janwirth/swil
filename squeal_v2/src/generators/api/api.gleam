@@ -8,6 +8,7 @@ import generators/api/api_query
 import generators/api/api_sql
 import generators/api/api_update_delete as ud
 import generators/api/schema_context
+import dsl/dsl as dsl
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
@@ -18,7 +19,7 @@ import gleamgen/module/definition as gdef
 import gleamgen/render as grender
 import gleamgen/types as gtypes
 import schema_definition/schema_definition.{
-  type SchemaDefinition, EqMissingFieldOrder, LtMissingFieldAsc,
+  type SchemaDefinition, BooleanFilter, CustomOrder, Eq, Lt, Query,
 }
 
 pub type ApiDbOutputs {
@@ -318,30 +319,36 @@ pub fn generate_api_db_outputs(
         )
       }),
       list.map(generated_query_specs, fn(spec) {
-        case spec.codegen {
-          LtMissingFieldAsc(column: column, threshold_param: _, shape_param: _) ->
-            #(
-              api_query.query_sql_const_name(spec.name),
-              Some(api_sql.lt_column_asc_sql(table, returning, column)),
-            )
-          EqMissingFieldOrder(
-            filter_column: filter_column,
-            match_param: _,
-            shape_param: _,
-            order_column: order_column,
-            order_desc: order_desc,
+        case spec.query {
+          Query(
+            shape: _,
+            filter: Some(BooleanFilter(
+              left_operand_field_name: filter_column,
+              operator: operator,
+              right_operand_parameter_name: _,
+            )),
+            order: CustomOrder(field: order_column, direction: direction),
           ) ->
-            #(
-              api_query.query_sql_const_name(spec.name),
-              Some(api_sql.eq_column_order_sql(
-                table,
-                returning,
-                filter_column,
-                order_column,
-                order_desc,
-              )),
-            )
-          _ -> panic as "api.generate_api_db_outputs: unsupported query codegen"
+            case operator {
+              Eq ->
+                #(
+                  api_query.query_sql_const_name(spec.name),
+                  Some(api_sql.eq_column_order_sql(
+                    table,
+                    returning,
+                    filter_column,
+                    order_column,
+                    direction == dsl.Desc,
+                  )),
+                )
+              Lt ->
+                #(
+                  api_query.query_sql_const_name(spec.name),
+                  Some(api_sql.lt_column_asc_sql(table, returning, filter_column)),
+                )
+              _ -> panic as "api.generate_api_db_outputs: unsupported operator"
+            }
+          _ -> panic as "api.generate_api_db_outputs: unsupported query model"
         }
       }),
     )
