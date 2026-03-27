@@ -1,6 +1,6 @@
 import glance
 import gleam/option.{type Option}
-
+import dsl/dsl as dsl
 /// Parsed from a full schema module that may contain entities, identities, relationships,
 /// edge attributes, scalar types, and public query functions.
 ///
@@ -167,9 +167,28 @@ pub type QuerySpecDefinition {
   QuerySpecDefinition(
     name: String,
     parameters: List(QueryParameter),
-    codegen: QueryCodegen,
+    query: Query,
   )
 }
+
+pub type Query {
+  Query(shape: Shape, filter: Option(Filter), order: Order)
+}
+
+pub type Order {
+  UpdatedAtDesc
+  CustomOrder(field: String, direction: dsl.Direction)
+}
+
+pub type Shape {
+  NoneOrBase
+  Subset(selection: List(String))
+}
+
+pub type Filter {
+  NoFilter
+}
+
 
 /// Parsed from the recognized tail shape of a public query function.
 ///
@@ -180,21 +199,21 @@ pub type QuerySpecDefinition {
 /// |> dsl.filter(dsl.exclude_if_missing(fruit.price) <. max_price)
 /// |> dsl.order(dsl.order_by(fruit.price, dsl.Asc))
 /// ```
-pub type QueryCodegen {
-  Unsupported
-  LtMissingFieldAsc(
-    column: String,
-    threshold_param: String,
-    shape_param: String,
-  )
-  EqMissingFieldOrder(
-    filter_column: String,
-    match_param: String,
-    shape_param: String,
-    order_column: String,
-    order_desc: Bool,
-  )
-}
+// pub type QueryCodegen {
+//   Unsupported
+//   LtMissingFieldAsc(
+//     column: String,
+//     threshold_param: String,
+//     shape_param: String,
+//   )
+//   EqMissingFieldOrder(
+//     filter_column: String,
+//     match_param: String,
+//     shape_param: String,
+//     order_column: String,
+//     order_desc: Bool,
+//   )
+// }
 
 /// Parsed from one typed parameter in a public query function signature.
 ///
