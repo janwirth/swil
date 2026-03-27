@@ -87,7 +87,6 @@ pub type TabIdentities {
 pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields, _limit: Int) {
   dsl.query(tab)
   |> dsl.shape(option.None)
-  |> dsl.filter(option.None)
   |> dsl.order(dsl.order_by(tab_meta.updated_at, dsl.Desc))
 }
 

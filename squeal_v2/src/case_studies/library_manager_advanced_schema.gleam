@@ -76,39 +76,29 @@ pub type ViewConfigScalar {
   )
 }
 
-// I haven't figured out tags yet
 
 pub type TabIdentities {
   ByTabLabel(label: String)
 }
 
-/// Join naming for [`dsl.boolean_filter_tag_join_sql`](dsl.boolean_filter_tag_join_sql) on `trackbucket_tag`.
 
 pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields, _limit: Int) {
   dsl.query(tab)
   |> dsl.shape(option.None)
-  |> dsl.filter(option.None)
   |> dsl.order(dsl.order_by(tab_meta.updated_at, dsl.Desc))
 }
 
-pub fn query_tracks_by_view_config(track_bucket: TrackBucket, magic_fields: dsl.MagicFields, filter_config: FilterConfigScalar) {
+pub fn query_tracks_by_view_config(track_bucket: TrackBucket, magic_fields: dsl.MagicFields, complex_tag_filter_expression: FilterExpressionScalar) {
   dsl.query(track_bucket)
   |> dsl.shape(option.None)
-  |> dsl.filter(
-    dsl.complex_filter(track_bucket, filter_config, predicate_fn: predicate_complex_tags_filter),
-  )
+  // |> dsl.filter_bool(dsl.exclude_if_missing(track_bucket.title) == "hi")
+  |> dsl.filter_complex(complex_tag_filter_expression, predicate_complex_tags_filter)
   |> dsl.order(dsl.order_by(dsl.MagicFields, dsl.Desc))  
 }
 
-// scalar is a single value, like a string, a number, a boolean, etc, not another object type in the db
-// custom scalars could also be vectors
-// scalars have their own implementaiton - to / from sql I guess
 
-// AND [OR[], AND[]]
-// 
-import gleam/list
-
-pub type FilterConfigScalar = dsl.RecursiveFilterSpec(TagExpressionScalar)
+// encodable type
+pub type FilterExpressionScalar = dsl.RecursiveFilterSpec(TagExpressionScalar)
 
 
 pub fn predicate_complex_tags_filter(
@@ -116,7 +106,6 @@ pub fn predicate_complex_tags_filter(
   tag_expression: TagExpressionScalar,
 ) -> dsl.BooleanFilter(BelongsTo(Tag, TrackBucketRelationshipAttributes)) {
       case tag_expression {
-
         Has(tag_id: tag_id) ->
           dsl.any(track_bucket.relationships.tags, fn(tag, magic_fields, edge_attribs) {
             magic_fields.id == tag_id
@@ -135,7 +124,7 @@ pub fn predicate_complex_tags_filter(
           })
 
       }
-}
+  }
 
 
 

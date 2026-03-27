@@ -274,6 +274,33 @@ fn parse_filter_expr(
   }
 }
 
+/// Source span for diagnostics (underlines the expression, not the whole `query_*` function).
+fn expression_span(e: glance.Expression) -> glance.Span {
+  case e {
+    glance.Int(location: s, ..) -> s
+    glance.Float(location: s, ..) -> s
+    glance.String(location: s, ..) -> s
+    glance.Variable(location: s, ..) -> s
+    glance.NegateInt(location: s, ..) -> s
+    glance.NegateBool(location: s, ..) -> s
+    glance.Block(location: s, ..) -> s
+    glance.Panic(location: s, ..) -> s
+    glance.Todo(location: s, ..) -> s
+    glance.Tuple(location: s, ..) -> s
+    glance.List(location: s, ..) -> s
+    glance.Fn(location: s, ..) -> s
+    glance.RecordUpdate(location: s, ..) -> s
+    glance.FieldAccess(location: s, ..) -> s
+    glance.Call(location: s, ..) -> s
+    glance.TupleIndex(location: s, ..) -> s
+    glance.FnCapture(location: s, ..) -> s
+    glance.BitString(location: s, ..) -> s
+    glance.Case(location: s, ..) -> s
+    glance.BinaryOperator(location: s, ..) -> s
+    glance.Echo(location: s, ..) -> s
+  }
+}
+
 fn parse_pred(f: glance.Function, expr: glance.Expression) -> Result(sd.Pred, ParseError) {
   case normalize_expr(expr) {
     glance.BinaryOperator(_, glance.And, left, right) -> {
@@ -302,11 +329,18 @@ fn parse_pred(f: glance.Function, expr: glance.Expression) -> Result(sd.Pred, Pa
         missing_behavior: missing_behavior,
       ))
     }
-    _ ->
+    _ -> {
+      let at = expression_span(normalize_expr(expr))
       Error(UnsupportedSchema(
-        Some(f.location),
-        "query " <> f.name <> " filter must be a supported predicate expression",
+        Some(at),
+        "in `"
+          <> f.name
+          <> "`, the expression passed to `dsl.filter(...)` (see span above) is not a structured predicate "
+          <> "this parser understands yet — it expects comparisons such as "
+          <> "`dsl.exclude_if_missing(entity.field) <. param`. "
+          <> "A call like `dsl.complex_filter(...)` is valid Gleam but is not yet extracted into the query AST.",
       ))
+    }
   }
 }
 

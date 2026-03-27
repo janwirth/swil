@@ -22,6 +22,6 @@ pub fn query_cheap_fruit(
 ) {
   dsl.query(fruit)
   |> dsl.shape(fruit)
-  |> dsl.filter(dsl.exclude_if_missing(fruit.price) <. max_price)
+  |> dsl.filter_bool(dsl.exclude_if_missing(fruit.price) <. max_price)
   |> dsl.order(dsl.order_by(fruit.price, dsl.Asc))
 }

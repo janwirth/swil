@@ -48,12 +48,6 @@ pub fn order_by(field: field, direction: Direction) -> #(field, Direction) {
   #(field, direction)
 }
 
-/// Carries either a boolean predicate (resolved per-row in codegen) or a pre-built SQL clause with bind parameters.
-pub type CompiledFilter {
-  Predicate(value: Bool)
-  SqlWhere(filter: SqlFilter)
-}
-
 /// SQLite `WHERE` fragment using `?` placeholders; bind `int_params` in order (left-to-right).
 pub type SqlFilter {
   SqlFilter(where_sql: String, int_params: List(Int))
@@ -195,10 +189,14 @@ pub fn shape(q: Query(t), _shape: some) -> Query(t) {
   q
 }
 
-pub fn filter(q: Query(t), _filter: some) -> Query(t) {
+pub fn order(q: Query(t), _order: #(some, Direction)) -> Query(t) {
   q
 }
 
-pub fn order(q: Query(t), _order: #(some, Direction)) -> Query(t) {
-  q
+pub fn filter_bool(q:Query(t), expr: Bool) -> Query(t) {
+  panic as "this is DSL - should never be called"
+}
+
+pub fn filter_complex(q:Query(t), filter: RecursiveFilterSpec(f), predicate_fn: fn(t, f) -> BooleanFilter(a)) -> Query(t) {
+  panic as "this is DSL - should never be called"
 }
