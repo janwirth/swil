@@ -23,6 +23,13 @@ pub fn gender_scalar_from_db_string(s: String) -> Option(GenderScalar) {
   row.gender_scalar_from_db_string(s)
 }
 
+pub fn last_100_edited_human(conn: sqlight.Connection) -> Result(
+  List(#(Human, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  query.last_100_edited_human(conn)
+}
+
 pub fn last_100_edited_hippo(conn: sqlight.Connection) -> Result(
   List(#(Hippo, dsl.MagicFields)),
   sqlight.Error,

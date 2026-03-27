@@ -156,7 +156,6 @@ pub fn generate_api_db_outputs(
       id_cols,
       api_sql.soft_delete_returning(id_cols),
     )
-  let last_s = api_sql.last_100_sql(table, returning)
 
   let generated_query_specs =
     list.filter(def.queries, fn(q) {
@@ -307,7 +306,17 @@ pub fn generate_api_db_outputs(
 
   let query_const_entries =
     list.append(
-      [#("last_100_sql", Some(last_s))],
+      list.map(def.entities, fn(e) {
+        let table_e = string.lowercase(e.type_name)
+        let data_cols_e =
+          api_sql.entity_data_fields(e)
+          |> list.map(fn(f) { f.label })
+        let returning_e = api_sql.full_row_columns(data_cols_e)
+        #(
+          "last_100_" <> table_e <> "_sql",
+          Some(api_sql.last_100_sql(table_e, returning_e)),
+        )
+      }),
       list.map(generated_query_specs, fn(spec) {
         let assert LtMissingFieldAsc(
           column: column,
@@ -321,12 +330,26 @@ pub fn generate_api_db_outputs(
       }),
     )
   let query_fn_chunks =
-    api_chunks.query_module_fn_chunks(
-      entity_snake,
-      row_t,
-      sql_err,
-      ctx,
-      generated_query_specs,
+    list.append(
+      list.flat_map(def.entities, fn(e) {
+        let entity_snake_e = string.lowercase(e.type_name)
+        let row_t_e = gtypes.raw(dec.entity_row_tuple_type(e.type_name))
+        api_chunks.query_module_fn_chunks(
+          entity_snake_e,
+          "last_100_" <> entity_snake_e <> "_sql",
+          row_t_e,
+          sql_err,
+          ctx,
+          [],
+        )
+      }),
+      api_query.generated_query_fn_chunks(
+        entity_snake,
+        row_t,
+        sql_err,
+        ctx,
+        generated_query_specs,
+      ),
     )
   let query_mod =
     api_imports.with_query_module_imports(

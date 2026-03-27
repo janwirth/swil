@@ -41,8 +41,14 @@ pub fn get_fn_body(
   <> "_with_magic_row_decoder(),\n  ))\n  case rows {\n    [] -> Ok(None)\n    [r, ..] -> Ok(Some(r))\n  }"
 }
 
-pub fn last_fn_body(entity_snake: String, decoder_qualifier: String) -> String {
-  "sqlight.query(\n    last_100_sql,\n    on: conn,\n    with: [],\n    expecting: "
+pub fn last_fn_body(
+  entity_snake: String,
+  sql_const_name: String,
+  decoder_qualifier: String,
+) -> String {
+  "sqlight.query(\n    "
+  <> sql_const_name
+  <> ",\n    on: conn,\n    with: [],\n    expecting: "
   <> decoder_qualifier
   <> "."
   <> entity_snake
