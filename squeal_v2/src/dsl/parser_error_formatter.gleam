@@ -61,13 +61,15 @@ pub fn entity_error_suggests_constructor_hint(
 
 fn print_query_spec_help() -> Nil {
   io.println(
-    "  • Public query specs must return `Query(...)` (or use a `-> Query` return annotation) and type every parameter.",
+    "  • Public query specs must end as `query(...) |> shape(...) |> filter(...) |> order(...)` and type every parameter.",
   )
   io.println("  • For example:")
   io.println("")
-  io.println("    pub fn rows_matching_status(row: Row, want: StatusScalar) {")
   io.println(
-    "      Query(shape: option.None, filter: option.None, order: option.None)",
+    "    pub fn query_rows_matching_status(row: Row, magic: dsl.MagicFields, want: StatusScalar) {",
+  )
+  io.println(
+    "      query(row) |> shape(row) |> filter(row.status == want) |> order(dsl.order_by(row.id, dsl.Asc))",
   )
   io.println("    }")
   io.println("")

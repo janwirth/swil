@@ -16,7 +16,12 @@ import gleam/option.{type Option}
 ///   fruit: Fruit,
 ///   magic: dsl.MagicFields,
 ///   max_price: Float,
-/// ) -> dsl.Query(Fruit) { ... }
+/// ) {
+///   dsl.query(fruit)
+///   |> dsl.shape(fruit)
+///   |> dsl.filter(dsl.exclude_if_missing(fruit.price) <. max_price)
+///   |> dsl.order(dsl.order_by(fruit.price, dsl.Asc))
+/// }
 /// ```
 pub type SchemaDefinition {
   SchemaDefinition(
@@ -156,7 +161,7 @@ pub type ScalarTypeDefinition {
 ///   fruit: Fruit,
 ///   magic: dsl.MagicFields,
 ///   max_price: Float,
-/// ) -> dsl.Query(Fruit) { ... }
+/// ) { ... }
 /// ```
 pub type QuerySpecDefinition {
   QuerySpecDefinition(
@@ -170,15 +175,10 @@ pub type QuerySpecDefinition {
 ///
 /// Example source pattern:
 /// ```gleam
-/// dsl.Query(
-///   shape: fruit,
-///   filter: Some(
-///     dsl.Predicate(
-///       value: dsl.exclude_if_missing(fruit.price) <. max_price,
-///     ),
-///   ),
-///   order: dsl.order_by(fruit.price, dsl.Asc),
-/// )
+/// dsl.query(fruit)
+/// |> dsl.shape(fruit)
+/// |> dsl.filter(dsl.exclude_if_missing(fruit.price) <. max_price)
+/// |> dsl.order(dsl.order_by(fruit.price, dsl.Asc))
 /// ```
 pub type QueryCodegen {
   Unsupported
@@ -208,7 +208,7 @@ pub type QueryParameter {
 ///   fruit: Fruit,
 ///   magic: dsl.MagicFields,
 ///   max_price: Float,
-/// ) -> dsl.Query(Fruit) { ... }
+/// ) { ... }
 /// ```
 pub type QueryFunctionParameters {
   QueryFunctionParameters(

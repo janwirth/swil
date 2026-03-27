@@ -1,7 +1,8 @@
 /// This file contains functions that help consumers describe their schemas
 /// and queries
+/// NO actual implementation here, just a DSL for describing queries
 import gleam/list
-import gleam/option.{type Option, Some}
+import gleam/option.{type Option}
 import gleam/time/calendar.{type Date}
 import gleam/time/timestamp.{type Timestamp}
 
@@ -27,15 +28,6 @@ pub fn exclude_if_missing(some_val: option.Option(some_type)) -> some_type {
 
 pub fn nullable(some_val: option.Option(some_type)) -> some_type {
   todo
-}
-
-// composing queries
-pub type Query(type_, shape, order_field) {
-  Query(
-    shape: shape,
-    filter: Option(CompiledFilter),
-    order: #(order_field, Direction),
-  )
 }
 
 pub type MagicFields {
@@ -74,11 +66,7 @@ pub type BooleanFilter {
   /// Tag association leaf: `assoc` is ignored for SQL (EXISTS uses join table only); kept for optional in-memory eval.
   TagAssocHas(assoc: List(#(Int, Int)), tag_id: Int)
   TagAssocNotHas(assoc: List(#(Int, Int)), tag_id: Int)
-  TagAssocCompare(
-    assoc: List(#(Int, Int)),
-    tag_id: Int,
-    pred: WithPredicate,
-  )
+  TagAssocCompare(assoc: List(#(Int, Int)), tag_id: Int, pred: WithPredicate)
 }
 
 pub fn has(field: List(#(Int, Int)), tag_id: Int) -> BooleanFilter {
@@ -135,103 +123,6 @@ pub type TagJoinSqlNaming {
   )
 }
 
-/// Supported leaves: `And`, `Or`, `Not`, `TagAssoc*`. `assoc` lists are ignored for SQL.
-pub fn boolean_filter_tag_join_sql(
-  filter: BooleanFilter,
-  naming: TagJoinSqlNaming,
-) -> SqlFilter {
-  let TagJoinSqlNaming(
-    join_table:,
-    parent_alias:,
-    parent_pk_column:,
-    fk_column:,
-    tag_id_column:,
-    weight_column:,
-  ) = naming
-  let j = "j"
-  let exists_base =
-    "exists (select 1 from "
-    <> join_table
-    <> " "
-    <> j
-    <> " where "
-    <> j
-    <> "."
-    <> fk_column
-    <> " = "
-    <> parent_alias
-    <> "."
-    <> parent_pk_column
-    <> " and "
-    <> j
-    <> "."
-    <> tag_id_column
-    <> " = ?"
-  case filter {
-    And(exprs) ->
-      case exprs {
-        [] -> SqlFilter(where_sql: "1", int_params: [])
-        _ -> {
-          let #(parts, params) =
-            list.fold(exprs, #([], []), fn(acc, sub) {
-              let #(pp, ps) = acc
-              let SqlFilter(where_sql: w, int_params: ip) =
-                boolean_filter_tag_join_sql(sub, naming)
-              #([w, ..pp], list.append(ps, ip))
-            })
-          let body =
-            list.reverse(parts)
-            |> list.intersperse(" and ")
-            |> list.fold("", fn(a, s) { a <> s })
-          SqlFilter(where_sql: "(" <> body <> ")", int_params: params)
-        }
-      }
-    Or(exprs) ->
-      case exprs {
-        [] -> SqlFilter(where_sql: "0", int_params: [])
-        _ -> {
-          let #(parts, params) =
-            list.fold(exprs, #([], []), fn(acc, sub) {
-              let #(pp, ps) = acc
-              let SqlFilter(where_sql: w, int_params: ip) =
-                boolean_filter_tag_join_sql(sub, naming)
-              #([w, ..pp], list.append(ps, ip))
-            })
-          let body =
-            list.reverse(parts)
-            |> list.intersperse(" or ")
-            |> list.fold("", fn(a, s) { a <> s })
-          SqlFilter(where_sql: "(" <> body <> ")", int_params: params)
-        }
-      }
-    Not(expr) -> {
-      let SqlFilter(where_sql: w, int_params: p) =
-        boolean_filter_tag_join_sql(expr, naming)
-      SqlFilter(where_sql: "not (" <> w <> ")", int_params: p)
-    }
-    TagAssocHas(_assoc, tag_id) ->
-      SqlFilter(where_sql: exists_base <> ")", int_params: [tag_id])
-    TagAssocNotHas(_assoc, tag_id) ->
-      SqlFilter(
-        where_sql: "not (" <> exists_base <> "))",
-        int_params: [tag_id],
-      )
-    TagAssocCompare(_assoc, tag_id, pred) -> {
-      let #(op, n) = pred_sql_op(pred)
-      let clause =
-        exists_base
-        <> " and "
-        <> j
-        <> "."
-        <> weight_column
-        <> " "
-        <> op
-        <> " ?)"
-      SqlFilter(where_sql: clause, int_params: [tag_id, n])
-    }
-  }
-}
-
 fn pred_satisfied(weight: Int, pred: WithPredicate) -> Bool {
   case pred {
     AtLeast(n) -> weight >= n
@@ -286,4 +177,24 @@ pub type Backlink(kind) {
 
 pub type BacklinkWith(kind, attributes) {
   BacklinkWith(items: List(kind), attributes: Option(attributes))
+}
+
+pub type Query(t) {
+  Query(root: t)
+}
+
+pub fn query(t: t) -> Query(t) {
+  Query(root: t)
+}
+
+pub fn shape(q: Query(t), _shape: some) -> Query(t) {
+  q
+}
+
+pub fn filter(q: Query(t), _filter: some) -> Query(t) {
+  q
+}
+
+pub fn order(q: Query(t), _order: #(some, Direction)) -> Query(t) {
+  q
 }

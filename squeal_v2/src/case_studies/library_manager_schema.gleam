@@ -1,4 +1,4 @@
-import dsl/dsl as dsl
+import dsl/dsl
 import gleam/option
 
 // id / created_at / updated_at / deleted_at come from `dsl.MagicFields`, not the schema type.
@@ -73,7 +73,7 @@ pub type TabIdentities {
 }
 
 /// Join naming for [`dsl.boolean_filter_tag_join_sql`](dsl.boolean_filter_tag_join_sql) on `trackbucket_tag`.
-fn trackbucket_tag_join_sql_naming() -> dsl.TagJoinSqlNaming {
+pub fn trackbucket_tag_join_sql_naming() -> dsl.TagJoinSqlNaming {
   dsl.TagJoinSqlNaming(
     join_table: "trackbucket_tag",
     parent_alias: "tb",
@@ -84,24 +84,18 @@ fn trackbucket_tag_join_sql_naming() -> dsl.TagJoinSqlNaming {
   )
 }
 
-pub fn query_tabs_for_tab_bar(
-  tab: Tab,
-  tab_meta: dsl.MagicFields,
-  _limit: Int,
-) {
-  dsl.Query(
-    filter: option.None,
-    order: dsl.order_by(tab_meta.updated_at, dsl.Desc),
-    shape: option.None,
-  )
+pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields, _limit: Int) {
+  dsl.query(tab)
+  |> dsl.shape(option.None)
+  |> dsl.filter(option.None)
+  |> dsl.order(dsl.order_by(tab_meta.updated_at, dsl.Desc))
 }
 
 // pub fn query_tracks_by_view_config(track_bucket: TrackBucket, view_config: ViewConfigScalar) {
-//   dsl.Query(
-//     filter: option.None,
-//     order: dsl.order_by(view_config.updated_at, dsl.Desc),
-//     shape: option.None,
-//   )
+//   dsl.query(track_bucket)
+//   |> dsl.shape(option.None)
+//   |> dsl.filter(option.None)
+//   |> dsl.order(dsl.order_by(view_config.updated_at, dsl.Desc))
 // }
 
 // scalar is a single value, like a string, a number, a boolean, etc, not another object type in the db
@@ -111,14 +105,21 @@ pub fn query_tabs_for_tab_bar(
 // AND [OR[], AND[]]
 // 
 import gleam/list
-pub fn filter_by_tag(track_bucket: TrackBucket, filter: FilterScalar) -> dsl.BooleanFilter {
+
+pub fn filter_by_tag(
+  track_bucket: TrackBucket,
+  filter: FilterScalar,
+) -> dsl.BooleanFilter {
   case filter {
     And(exprs: exprs) ->
-      dsl.And(exprs: list.map(exprs, fn(expr) { filter_by_tag(track_bucket, expr) }))
+      dsl.And(
+        exprs: list.map(exprs, fn(expr) { filter_by_tag(track_bucket, expr) }),
+      )
     Or(exprs: exprs) ->
-      dsl.Or(exprs: list.map(exprs, fn(expr) { filter_by_tag(track_bucket, expr) }))
-    Not(expr: expr) ->
-      dsl.Not(expr: filter_by_tag(track_bucket, expr))
+      dsl.Or(
+        exprs: list.map(exprs, fn(expr) { filter_by_tag(track_bucket, expr) }),
+      )
+    Not(expr: expr) -> dsl.Not(expr: filter_by_tag(track_bucket, expr))
     TagExpression(tag_id: tag_id, operator: operator) ->
       case operator {
         Has -> dsl.has(track_bucket.tags, tag_id)
@@ -132,38 +133,30 @@ pub fn filter_by_tag(track_bucket: TrackBucket, filter: FilterScalar) -> dsl.Boo
       }
   }
 }
+
 // reverse filtering?
-pub fn query_tracks_by_filter(
-  track_bucket: TrackBucket,
-  magic_fields: dsl.MagicFields,
-  filter: FilterScalar,
-) {
-  let sql_filter =
-    dsl.boolean_filter_tag_join_sql(
-      filter_by_tag(track_bucket, filter),
-      trackbucket_tag_join_sql_naming(),
-    )
-  dsl.Query(
-    filter: option.Some(dsl.SqlWhere(sql_filter)),
-    order: dsl.order_by(magic_fields.updated_at, dsl.Desc),
-    shape: option.None,
-  )
-}
+// pub fn query_tracks_by_filter(
+//   track_bucket: TrackBucket,
+//   magic_fields: dsl.MagicFields,
+//   filter: FilterScalar,
+// ) {
+//   let sql_filter =
+//     dsl.boolean_filter_tag_join_sql(
+//       filter_by_tag(track_bucket, filter),
+//       trackbucket_tag_join_sql_naming(),
+//     )
+//   dsl.query(track_bucket)
+//   |> dsl.shape(option.None)
+//   |> dsl.filter(option.Some(dsl.SqlWhere(sql_filter)))
+//   |> dsl.order(dsl.order_by(magic_fields.updated_at, dsl.Desc))
+// }
 pub type FilterScalar {
-  And(
-    exprs: List(FilterScalar)
-  )
-  Or(
-    exprs: List(FilterScalar)
-  )
-  Not(
-    expr: FilterScalar
-  )
-  TagExpression(
-    tag_id: Int,
-    operator: TagExpressionScalar,
-  )
+  And(exprs: List(FilterScalar))
+  Or(exprs: List(FilterScalar))
+  Not(expr: FilterScalar)
+  TagExpression(tag_id: Int, operator: TagExpressionScalar)
 }
+
 pub type TagExpressionScalar {
   Has
   DoesNotHave
@@ -171,7 +164,6 @@ pub type TagExpressionScalar {
   IsAtMost(value: Int)
   IsEqualTo(value: Int)
 }
-
 // todo: boolean filter structure
 // list of sources
 // all tracks
@@ -180,17 +172,17 @@ pub type TagExpressionScalar {
 // Let's keep this powerful
 
 // parsed from URL or held in state, not persisted in db
-type Route {
-  Route(tab: Tab, mode: RouteModal)
-}
+// type Route {
+//   Route(tab: Tab, mode: RouteModal)
+// }
 
-type RouteModal {
-  None
-  Spotlight(query: String)
-  // spotlight can
-  // CRUD tabs
-  // find individual tracks
-}
+// type RouteModal {
+//   None
+//   Spotlight(query: String)
+//   // spotlight can
+//   // CRUD tabs
+//   // find individual tracks
+// }
 // tags grouping is done by UI code
 
 // let's think UI

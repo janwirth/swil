@@ -24,7 +24,7 @@
 ////   fruit: Fruit,
 ////   magic: dsl.MagicFields,
 ////   max_price: Float,
-//// ) -> dsl.Query(Fruit, Fruit, option.Option(Float)) {
+//// ) {
 ////   let dsl.MagicFields(id: _, created_at: _, updated_at: _, deleted_at: _) = magic
 ////   ...
 //// }
@@ -158,12 +158,42 @@ pub type RowIdentities {
 }
 
 pub fn by_key(k: Int) {
-  Query(shape: option.None, filter: option.None, order: option.None)
+  query(Row(identities: RowIdentities.ByKey(key: \"\")))
+  |> shape(option.None)
+  |> filter(option.None)
+  |> order(option.None)
 }
 "
   case schema_parser.parse_module(input) {
     Ok(_) ->
       panic as "expected query function without query_ prefix to be rejected"
+    Error(_) -> Nil
+  }
+}
+
+pub fn entity_object_query_function_with_let_statement_rejected_test() {
+  let input =
+    "import gleam/option
+
+pub type Row {
+  Row(identities: RowIdentities)
+}
+
+pub type RowIdentities {
+  ByKey(key: String)
+}
+
+pub fn query_by_key(row: Row, _magic: dsl.MagicFields, k: Int) {
+  let x = k
+  query(row)
+  |> shape(row)
+  |> filter(x > 0)
+  |> order(option.None)
+}
+"
+  case schema_parser.parse_module(input) {
+    Ok(_) ->
+      panic as "expected query function containing let statement to be rejected"
     Error(_) -> Nil
   }
 }

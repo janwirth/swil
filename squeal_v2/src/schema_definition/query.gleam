@@ -1,7 +1,7 @@
 //// Query spec extraction for schema tooling.
 ////
 //// Walks Glance function definitions and builds [`QuerySpecDefinition`](#QuerySpecDefinition) values for
-//// public functions that return `Query` (by return type or by a trailing `Query(...)` in the body). Each spec
+//// public functions that return a query pipeline. Each spec
 //// records the function name, typed parameters, and a [`QueryCodegen`](#QueryCodegen) tag when the tail call
 //// matches a pattern generators understand; otherwise codegen is [`Unsupported`](#Unsupported).
 ////
@@ -9,8 +9,9 @@
 //// nested filters must use the `filter_` prefix and an explicit `-> ... BooleanFilter` annotation; they are
 //// skipped here and are not emitted as specs.
 ////
-//// **Inference:** the body’s final expression must be a `Query` call with labelled `shape`, `filter`, and
-//// `order` arguments. Supported shapes are detected structurally (for example
+//// **Inference:** the body’s final expression must be a query pipeline
+//// (`query(...) |> shape(...) |> filter(...) |> order(...)`).
+//// Supported shapes are detected structurally (for example
 //// `LtMissingFieldAsc` for `exclude_if_missing` + float threshold + ascending `order_by` on the same field).
 
 import glance
@@ -40,7 +41,7 @@ pub type QuerySpecDefinition {
     name: String,
     /// Parameters in source order; every parameter must be type-annotated on public query functions.
     parameters: List(QueryParameter),
-    /// Structural match for SQL/API generation, or [`Unsupported`](#Unsupported) if the tail `Query(...)` does not match a known pattern.
+    /// Structural match for SQL/API generation, or [`Unsupported`](#Unsupported) when the tail query expression does not match a known pattern.
     codegen: QueryCodegen,
   )
 }
@@ -56,7 +57,7 @@ pub type QueryParameter {
 }
 
 /// Scans module functions and returns every public `query_*` spec, or `ParseError` when
-/// rules are violated (missing param types, wrong prefixes, or a public function that is neither Query nor
+/// rules are violated (missing param types, wrong prefixes, or a public function that is neither a query pipeline nor
 /// an annotated `filter_*` BooleanFilter helper). Private functions and valid `filter_*` helpers are ignored.
 pub fn extract_from_functions(
   functions: List(glance.Definition(glance.Function)),
@@ -67,49 +68,68 @@ pub fn extract_from_functions(
         case f.publicity {
           glance.Private -> Ok(acc)
           glance.Public ->
-            case function_is_query_spec(f) {
+            case function_has_let_statements(f) {
               True ->
-                case function_has_query_prefix(f.name) {
-                  False ->
-                    Error(UnsupportedSchema(
-                      Some(f.location),
-                      "public query function "
-                        <> f.name
-                        <> " must start with `query_`",
-                    ))
-                  True ->
-                    case query_spec_from_function_strict(f) {
-                      Ok(spec) -> Ok([spec, ..acc])
-                      Error(e) -> Error(e)
-                    }
-                }
+                Error(UnsupportedSchema(
+                  Some(f.location),
+                  "public function "
+                    <> f.name
+                    <> " must not contain `let` statements; use a single expression pipeline",
+                ))
               False ->
-                case function_is_boolean_filter_helper(f) {
+                case function_is_query_spec(f) {
                   True ->
-                    case function_has_filter_prefix(f.name) {
-                      True -> Ok(acc)
+                    case function_has_query_prefix(f.name) {
                       False ->
                         Error(UnsupportedSchema(
                           Some(f.location),
-                          "public BooleanFilter helper "
+                          "public query function "
                             <> f.name
-                            <> " must start with `filter_`",
+                            <> " must start with `query_`",
                         ))
+                      True ->
+                        case query_spec_from_function_strict(f) {
+                          Ok(spec) -> Ok([spec, ..acc])
+                          Error(e) -> Error(e)
+                        }
                     }
                   False ->
-                    Error(UnsupportedSchema(
-                      Some(f.location),
-                      "public function "
-                        <> f.name
-                        <> " must return a Query (annotation or trailing Query(...)) "
-                        <> "or BooleanFilter (annotation) for nested filter helpers",
-                    ))
+                    case function_is_boolean_filter_helper(f) {
+                      True ->
+                        case function_has_filter_prefix(f.name) {
+                          True -> Ok(acc)
+                          False ->
+                            Error(UnsupportedSchema(
+                              Some(f.location),
+                              "public BooleanFilter helper "
+                                <> f.name
+                                <> " must start with `filter_`",
+                            ))
+                        }
+                      False ->
+                        Error(UnsupportedSchema(
+                          Some(f.location),
+                          "public function "
+                            <> f.name
+                            <> " must build a query pipeline (`query |> shape |> filter |> order`) "
+                            <> "or return BooleanFilter (annotation) for nested filter helpers",
+                        ))
+                    }
                 }
             }
         }
     }
   })
   |> result.map(list.reverse)
+}
+
+fn function_has_let_statements(f: glance.Function) -> Bool {
+  list.any(f.body, fn(stmt) {
+    case stmt {
+      glance.Expression(_) -> False
+      _ -> True
+    }
+  })
 }
 
 fn query_spec_from_function_strict(
@@ -129,8 +149,7 @@ fn query_spec_from_function_strict(
   |> result.try(fn(params) {
     let params = list.reverse(params)
     case validate_query_parameters_strict(f, params) {
-      Ok(Nil) ->
-        Ok(QuerySpecDefinition(f.name, params, infer_query_codegen(f)))
+      Ok(Nil) -> Ok(QuerySpecDefinition(f.name, params, infer_query_codegen(f)))
       Error(e) -> Error(e)
     }
   })
@@ -173,23 +192,15 @@ fn validate_query_parameters_strict(
   }
 }
 
-/// Dispatches structural codegen inference when the function body ends in `Query(shape: …, filter: …, order: …)`.
+/// Dispatches structural codegen inference when the function body ends in a query pipeline.
 fn infer_query_codegen(f: glance.Function) -> QueryCodegen {
   case function_tail_expression(f.body) {
     None -> Unsupported
     Some(tail) ->
-      case query_call_arguments(tail) {
+      case query_tail_components(tail) {
         None -> Unsupported
-        Some(qargs) ->
-          case
-            lookup_labelled(qargs, "shape"),
-            lookup_labelled(qargs, "filter"),
-            lookup_labelled(qargs, "order")
-          {
-            Ok(shape_expr), Ok(filter_expr), Ok(order_expr) ->
-              infer_lt_missing_field_asc(f, shape_expr, filter_expr, order_expr)
-            _, _, _ -> Unsupported
-          }
+        Some(#(shape_expr, filter_expr, order_expr)) ->
+          infer_lt_missing_field_asc(f, shape_expr, filter_expr, order_expr)
       }
   }
 }
@@ -217,9 +228,15 @@ fn lt_missing_field_asc_match(
   order_expr: glance.Expression,
 ) -> Option(#(String, String, String)) {
   use shape_name <- then(expect_variable_name(shape_expr))
-  use wrapped <- then(unwrap_some_call(filter_expr))
-  use pred <- then(unwrap_predicate_filter_value(wrapped))
-  use #(threshold_name, column) <- then(lt_float_exclude_shape_field(pred, shape_name))
+  let raw_pred = case unwrap_some_call(filter_expr) {
+    Some(inner) -> inner
+    None -> filter_expr
+  }
+  use pred <- then(unwrap_predicate_filter_value(raw_pred))
+  use #(threshold_name, column) <- then(lt_float_exclude_shape_field(
+    pred,
+    shape_name,
+  ))
   use order_col <- then(from_result(query_order_column(order_expr, shape_name)))
   case column == order_col && param_is_float_named(f, threshold_name) {
     True -> Some(#(column, threshold_name, shape_name))
@@ -233,7 +250,12 @@ fn lt_float_exclude_shape_field(
   shape_name: String,
 ) -> Option(#(String, String)) {
   case pred {
-    glance.BinaryOperator(_, glance.LtFloat, left, glance.Variable(_, threshold_name)) ->
+    glance.BinaryOperator(
+      _,
+      glance.LtFloat,
+      left,
+      glance.Variable(_, threshold_name),
+    ) ->
       case exclude_if_missing_column_on_shape(left, shape_name) {
         Some(column) -> Some(#(threshold_name, column))
         None -> None
@@ -266,14 +288,16 @@ fn exclude_if_missing_column_on_shape(
 }
 
 /// Last statement of a body when it is a bare expression; used as the “tail” of a function or block.
-fn function_tail_expression(body: List(glance.Statement)) -> Option(glance.Expression) {
+fn function_tail_expression(
+  body: List(glance.Statement),
+) -> Option(glance.Expression) {
   case list.last(body) {
     Ok(glance.Expression(e)) -> Some(e)
     _ -> None
   }
 }
 
-/// Strips a trailing block down to its final expression so nested `Query` / field access match predictably.
+/// Strips a trailing block down to its final expression so nested calls / field access match predictably.
 fn normalize_expr(expr: glance.Expression) -> glance.Expression {
   case expr {
     glance.Block(_, stmts) ->
@@ -285,29 +309,78 @@ fn normalize_expr(expr: glance.Expression) -> glance.Expression {
   }
 }
 
-/// If `expr` is (after normalisation) a call to `Query`, returns its argument fields.
-fn query_call_arguments(expr: glance.Expression) -> Option(List(glance.Field(glance.Expression))) {
+/// Extracts canonical `shape`/`filter`/`order` expressions from
+/// a query pipeline (`query |> shape |> filter |> order`).
+fn query_tail_components(
+  expr: glance.Expression,
+) -> Option(#(glance.Expression, glance.Expression, glance.Expression)) {
+  query_pipeline_components(expr)
+}
+
+/// If `expr` is (after normalisation) `order(filter(shape(query(entity), shape), filter), order)`,
+/// returns synthetic labelled fields compatible with query inference.
+fn query_pipeline_components(
+  expr: glance.Expression,
+) -> Option(#(glance.Expression, glance.Expression, glance.Expression)) {
   case normalize_expr(expr) {
-    glance.Call(_, callee, args) ->
-      case expression_callee_name(callee) {
-        Ok("Query") -> Some(args)
+    glance.Call(_, order_callee, order_args) ->
+      case expression_callee_name(order_callee) {
+        Ok("order") ->
+          case two_unlabelled_args(order_args) {
+            Some(#(filter_expr, order_expr)) ->
+              case normalize_expr(filter_expr) {
+                glance.Call(_, filter_callee, filter_args) ->
+                  case expression_callee_name(filter_callee) {
+                    Ok("filter") ->
+                      case two_unlabelled_args(filter_args) {
+                        Some(#(shape_expr, filter_value_expr)) ->
+                          case normalize_expr(shape_expr) {
+                            glance.Call(_, shape_callee, shape_args) ->
+                              case expression_callee_name(shape_callee) {
+                                Ok("shape") ->
+                                  case two_unlabelled_args(shape_args) {
+                                    Some(#(query_expr, shape_value_expr)) ->
+                                      case normalize_expr(query_expr) {
+                                        glance.Call(_, query_callee, query_args) ->
+                                          case
+                                            expression_callee_name(query_callee)
+                                          {
+                                            Ok("query") ->
+                                              case
+                                                single_unlabelled_arg(
+                                                  query_args,
+                                                )
+                                              {
+                                                Some(_entity_expr) ->
+                                                  Some(#(
+                                                    shape_value_expr,
+                                                    filter_value_expr,
+                                                    order_expr,
+                                                  ))
+                                                None -> None
+                                              }
+                                            _ -> None
+                                          }
+                                        _ -> None
+                                      }
+                                    None -> None
+                                  }
+                                _ -> None
+                              }
+                            _ -> None
+                          }
+                        None -> None
+                      }
+                    _ -> None
+                  }
+                _ -> None
+              }
+            None -> None
+          }
         _ -> None
       }
     _ -> None
   }
-}
-
-/// Finds the first `LabelledField` whose label matches `want` in a `Query` argument list.
-fn lookup_labelled(
-  fields: List(glance.Field(glance.Expression)),
-  want: String,
-) -> Result(glance.Expression, Nil) {
-  list.find_map(fields, fn(field) {
-    case field {
-      glance.LabelledField(label, _, item) if label == want -> Ok(item)
-      _ -> Error(Nil)
-    }
-  })
 }
 
 /// Succeeds when the expression is (possibly inside a block) a simple variable — e.g. `shape` in `shape: hippo`.
@@ -337,7 +410,9 @@ fn unwrap_some_call(expr: glance.Expression) -> Option(glance.Expression) {
 
 /// Inside `filter: Some(…)`: unwraps `Predicate(value: …)` or unadorned `Predicate(…)`; otherwise returns the
 /// inner expression unchanged (legacy `Some(expr)` style).
-fn unwrap_predicate_filter_value(expr: glance.Expression) -> Option(glance.Expression) {
+fn unwrap_predicate_filter_value(
+  expr: glance.Expression,
+) -> Option(glance.Expression) {
   case normalize_expr(expr) {
     glance.Call(_, callee, args) ->
       case expression_callee_name(callee) {
@@ -360,6 +435,16 @@ fn single_unlabelled_arg(
 ) -> Option(glance.Expression) {
   case args {
     [glance.UnlabelledField(e)] -> Some(e)
+    _ -> None
+  }
+}
+
+/// Call must have exactly two unlabelled arguments.
+fn two_unlabelled_args(
+  args: List(glance.Field(glance.Expression)),
+) -> Option(#(glance.Expression, glance.Expression)) {
+  case args {
+    [glance.UnlabelledField(a), glance.UnlabelledField(b)] -> Some(#(a, b))
     _ -> None
   }
 }
@@ -469,10 +554,10 @@ fn type_is_entity_parameter(t: glance.Type) -> Bool {
   }
 }
 
-/// Query spec candidate: return type `Query` or body whose last expression builds `Query`.
+/// Query spec candidate: body whose last expression builds a query pipeline.
 fn function_is_query_spec(f: glance.Function) -> Bool {
   case f.return {
-    Some(t) -> type_is_query(t)
+    Some(_) -> False
     None -> statements_return_query(f.body)
   }
 }
@@ -486,14 +571,6 @@ fn function_is_boolean_filter_helper(f: glance.Function) -> Bool {
   }
 }
 
-/// Named type with constructor name `Query` (ignores type parameters).
-fn type_is_query(t: glance.Type) -> Bool {
-  case t {
-    glance.NamedType(_, "Query", _, _) -> True
-    _ -> False
-  }
-}
-
 /// Named type with constructor name `BooleanFilter`.
 fn type_is_boolean_filter(t: glance.Type) -> Bool {
   case t {
@@ -502,7 +579,7 @@ fn type_is_boolean_filter(t: glance.Type) -> Bool {
   }
 }
 
-/// Last statement is an expression whose tail calls `Query` (possibly inside nested blocks).
+/// Last statement is an expression whose tail calls `order(...)` in a query pipeline.
 fn statements_return_query(body: List(glance.Statement)) -> Bool {
   case list.last(body) {
     Error(Nil) -> False
@@ -514,19 +591,18 @@ fn statements_return_query(body: List(glance.Statement)) -> Bool {
   }
 }
 
-/// Used when there is no return annotation: last expr is `Query(…)` or a block ending in one.
+/// Used when there is no return annotation: last expr is query pipeline tail.
 fn expression_is_query_in_tail(expr: glance.Expression) -> Bool {
   case expr {
-    glance.Call(_, callee, _) -> callee_is_query(callee)
+    glance.Call(_, callee, _) -> callee_is_order(callee)
     glance.Block(_, stmts) -> statements_return_query(stmts)
     _ -> False
   }
 }
 
-/// Callee resolves to the name `Query` (variable or field access such as `dsl.Query`).
-fn callee_is_query(expr: glance.Expression) -> Bool {
+fn callee_is_order(expr: glance.Expression) -> Bool {
   case expression_callee_name(expr) {
-    Ok("Query") -> True
+    Ok("order") -> True
     _ -> False
   }
 }

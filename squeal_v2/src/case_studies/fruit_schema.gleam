@@ -1,5 +1,5 @@
-import dsl/dsl as dsl
-import gleam/option.{type Option, None, Some}
+import dsl/dsl
+import gleam/option
 
 pub type Fruit {
   Fruit(
@@ -19,12 +19,9 @@ pub fn query_cheap_fruit(
   fruit: Fruit,
   _magic_fields: dsl.MagicFields,
   max_price: Float,
-) -> dsl.Query(Fruit, Fruit, Option(Float)) {
-  dsl.Query(
-    shape: fruit,
-    filter: Some(dsl.Predicate(
-      dsl.exclude_if_missing(fruit.price) <. max_price,
-    )),
-    order: dsl.order_by(fruit.price, dsl.Asc),
-  )
+) {
+  dsl.query(fruit)
+  |> dsl.shape(fruit)
+  |> dsl.filter(dsl.exclude_if_missing(fruit.price) <. max_price)
+  |> dsl.order(dsl.order_by(fruit.price, dsl.Asc))
 }

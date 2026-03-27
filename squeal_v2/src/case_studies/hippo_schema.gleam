@@ -1,6 +1,6 @@
 import dsl/dsl.{
-  type BacklinkWith, type BelongsTo, type Mutual, Desc, Predicate, Query, age,
-  exclude_if_missing, nullable,
+  type BacklinkWith, type BelongsTo, type Mutual, age, exclude_if_missing,
+  nullable,
 }
 import gleam/option
 import gleam/time/calendar.{type Date}
@@ -66,15 +66,16 @@ pub fn query_old_hippos_owner_emails(
   _magic_fields: dsl.MagicFields,
   min_age: Int,
 ) {
-  let shape = #(
+  dsl.query(hippo)
+  |> dsl.shape(#(
     #("age", age(exclude_if_missing(hippo.date_of_birth))),
     nullable(hippo.relationships.owner).item.email,
-  )
-  let filter = age(exclude_if_missing(hippo.date_of_birth)) > min_age
-  let order =
-    dsl.order_by(age(exclude_if_missing(hippo.date_of_birth)), dsl.Desc)
-
-  Query(shape: shape, filter: option.Some(Predicate(filter)), order: order)
+  ))
+  |> dsl.filter(age(exclude_if_missing(hippo.date_of_birth)) > min_age)
+  |> dsl.order(dsl.order_by(
+    age(exclude_if_missing(hippo.date_of_birth)),
+    dsl.Desc,
+  ))
 }
 
 /// Query input spec for "old hippos owner emails".
@@ -83,15 +84,16 @@ pub fn query_old_hippos_owner_names(
   _magic_fields: dsl.MagicFields,
   min_age: Int,
 ) {
-  let shape = #(
+  dsl.query(hippo)
+  |> dsl.shape(#(
     #("age", age(exclude_if_missing(hippo.date_of_birth))),
     nullable(hippo.relationships.owner).item.email,
-  )
-  let filter = age(exclude_if_missing(hippo.date_of_birth)) > min_age
-  let order =
-    dsl.order_by(age(exclude_if_missing(hippo.date_of_birth)), dsl.Desc)
-
-  Query(shape: shape, filter: option.Some(Predicate(filter)), order: order)
+  ))
+  |> dsl.filter(age(exclude_if_missing(hippo.date_of_birth)) > min_age)
+  |> dsl.order(dsl.order_by(
+    age(exclude_if_missing(hippo.date_of_birth)),
+    dsl.Desc,
+  ))
 }
 
 /// Query input spec for "hippos by gender".
@@ -100,9 +102,8 @@ pub fn query_hippos_by_gender(
   _magic_fields: dsl.MagicFields,
   gender_to_match: GenderScalar,
 ) {
-  let filter = exclude_if_missing(hippo.gender) == gender_to_match
-  dsl.Query(shape: hippo, filter: option.Some(Predicate(filter)), order: #(
-    hippo.name,
-    dsl.Desc,
-  ))
+  dsl.query(hippo)
+  |> dsl.shape(hippo)
+  |> dsl.filter(exclude_if_missing(hippo.gender) == gender_to_match)
+  |> dsl.order(dsl.order_by(hippo.name, dsl.Desc))
 }

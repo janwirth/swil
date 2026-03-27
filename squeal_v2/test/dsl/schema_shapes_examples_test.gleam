@@ -15,8 +15,8 @@
 ///    See `entity_object_schema_test` for entity / identities edge cases.
 /// 4. **`*Relationships`** — one variant named like the type; labelled fields only.
 /// 5. **`*Attributes`** — one variant named like the type; labelled fields only.
-/// 6. **Public `pub fn` query specs** — every public function must return `Query` (annotated or tail
-///    `Query(...)`); parameters must have type annotations.
+/// 6. **Public `pub fn` query specs** — every public query function must end in
+///    `query(...) |> shape(...) |> filter(...) |> order(...)`; parameters must have type annotations.
 /// 7. **No type parameters** on public custom types in schema modules.
 /// 8. **No zero-variant public types** (add variants or use `private`).
 /// 9. **Private** `type` definitions are not validated as schema shapes.
@@ -178,9 +178,11 @@ pub type RowIdentities {
   ByKey(key: String)
 }
 
-pub fn query_by_key(row: Row, _magic: dsl.MagicFields, k: Int) {
-  let _ = k
-  Query(shape: row, filter: option.None, order: option.None)
+pub fn query_by_key(row: Row, _magic: dsl.MagicFields, _k: Int) {
+  query(row)
+  |> shape(row)
+  |> filter(option.None)
+  |> order(option.None)
 }
 "
   let assert Ok(def) = schema_parser.parse_module(input)
@@ -201,9 +203,11 @@ pub type RowIdentities {
   ByKey(key: String)
 }
 
-pub fn query_by_key(row: Row, _magic: dsl.MagicFields, k: Int) -> Query {
-  let _ = k
-  Query(shape: row, filter: option.None, order: option.None)
+pub fn query_by_key(row: Row, _magic: dsl.MagicFields, _k: Int) {
+  query(row)
+  |> shape(row)
+  |> filter(option.None)
+  |> order(option.None)
 }
 "
   let assert Ok(def) = schema_parser.parse_module(input)
