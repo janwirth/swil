@@ -223,6 +223,8 @@ pub type SelectionPath {
 pub type Filter {
   NoFilter
   Predicate(pred: Pred)
+  /// From `dsl.filter_complex(filter_param, predicate_fn)`; names tie to the query parameters / module helpers.
+  ComplexRecursive(filter_param_name: String, predicate_fn_name: String)
 }
 
 pub type Pred {
