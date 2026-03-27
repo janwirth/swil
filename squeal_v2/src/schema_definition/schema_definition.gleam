@@ -175,9 +175,30 @@ pub type Query {
   Query(shape: Shape, filter: Option(Filter), order: Order)
 }
 
+/// Expression AST for query shape/filter/order.
+///
+/// This is introduced incrementally and will replace stringly field references in
+/// `Shape`, `Filter`, and `Order` once parser/codegen migration is complete.
+pub type Expr {
+  Field(path: List(String))
+  Param(name: String)
+  Call(func: ExprFn, args: List(Expr))
+}
+
+pub type ExprFn {
+  ExcludeIfMissingFn
+  NullableFn
+  AgeFn
+}
+
 pub type Order {
   UpdatedAtDesc
   CustomOrder(field: String, direction: dsl.Direction)
+}
+
+pub type ExprOrder {
+  UpdatedAtDescExpr
+  CustomExprOrder(expr: Expr, direction: dsl.Direction)
 }
 
 /// Shape of the query result.
@@ -194,6 +215,15 @@ pub type Shape {
   Subset(selection: List(SelectionPath))
 }
 
+pub type ExprShape {
+  ExprNoneOrBase
+  ExprSubset(items: List(ShapeItem))
+}
+
+pub type ShapeItem {
+  ShapeField(alias: Option(String), expr: Expr)
+}
+
 pub type SelectionPath {
   // can be a path on the root type or its relationships
   SelectionPath(fields: List(String))
@@ -202,6 +232,18 @@ pub type SelectionPath {
 pub type Filter {
   NoFilter
   BooleanFilter(left_operand_field_name: String, operator: Operator, right_operand_parameter_name: String, missing_behavior: MissingBehavior)
+}
+
+pub type ExprFilter {
+  ExprNoFilter
+  Predicate(pred: Pred)
+}
+
+pub type Pred {
+  Compare(left: Expr, operator: Operator, right: Expr, missing_behavior: MissingBehavior)
+  And(items: List(Pred))
+  Or(items: List(Pred))
+  Not(item: Pred)
 }
 
 pub type MissingBehavior {

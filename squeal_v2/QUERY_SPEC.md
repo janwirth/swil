@@ -184,6 +184,9 @@ pub type ShapeItem {
   ShapeField(alias: Option(String), expr: Expr)
 }
 
+// alias optional; auto-derive output name from expr when unambiguous
+// explicit alias required only when derivation is ambiguous
+
 pub type Filter {
   NoFilter
   Predicate(pred: Pred)
@@ -204,7 +207,7 @@ pub type Order {
 pub type Expr {
   Field(path: List(String))
   Param(name: String)
-  Call(fn: ExprFn, args: List(Expr))
+  Call(func: ExprFn, args: List(Expr))
 }
 
 pub type ExprFn {
