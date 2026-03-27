@@ -32,6 +32,14 @@ pub type QueryCodegen {
     threshold_param: String,
     shape_param: String,
   )
+  /// `exclude_if_missing(shape.{filter_column}) == match_param` with `order_by(shape.{order_column}, Asc|Desc)`.
+  EqMissingFieldOrder(
+    filter_column: String,
+    match_param: String,
+    shape_param: String,
+    order_column: String,
+    order_desc: Bool,
+  )
 }
 
 /// Extracted metadata for a public `query_*` function: its name, parameter list, and inferred codegen.
@@ -200,7 +208,11 @@ fn infer_query_codegen(f: glance.Function) -> QueryCodegen {
       case query_tail_components(tail) {
         None -> infer_lt_missing_field_asc_fallback(f)
         Some(#(shape_expr, filter_expr, order_expr)) ->
-          infer_lt_missing_field_asc(f, shape_expr, filter_expr, order_expr)
+          case infer_lt_missing_field_asc(f, shape_expr, filter_expr, order_expr) {
+            Unsupported ->
+              infer_eq_missing_field_order(f, shape_expr, filter_expr, order_expr)
+            codegen -> codegen
+          }
       }
   }
 }
@@ -237,6 +249,71 @@ fn infer_lt_missing_field_asc(
     Some(#(column, threshold_name, shape_name)) ->
       LtMissingFieldAsc(column, threshold_name, shape_name)
     None -> Unsupported
+  }
+}
+
+/// Recognises [`EqMissingFieldOrder`](#EqMissingFieldOrder): optional filter with `exclude_if_missing` on a shape field,
+/// `==` against a simple/scalar parameter, and `order_by` on any shape field with either `Asc` or `Desc`.
+fn infer_eq_missing_field_order(
+  f: glance.Function,
+  shape_expr: glance.Expression,
+  filter_expr: glance.Expression,
+  order_expr: glance.Expression,
+) -> QueryCodegen {
+  case eq_missing_field_order_match(f, shape_expr, filter_expr, order_expr) {
+    Some(#(filter_column, match_param, shape_name, order_column, order_desc)) ->
+      EqMissingFieldOrder(
+        filter_column: filter_column,
+        match_param: match_param,
+        shape_param: shape_name,
+        order_column: order_column,
+        order_desc: order_desc,
+      )
+    None -> Unsupported
+  }
+}
+
+fn eq_missing_field_order_match(
+  f: glance.Function,
+  shape_expr: glance.Expression,
+  filter_expr: glance.Expression,
+  order_expr: glance.Expression,
+) -> Option(#(String, String, String, String, Bool)) {
+  use shape_name <- then(expect_variable_name(shape_expr))
+  let raw_pred = case unwrap_some_call(filter_expr) {
+    Some(inner) -> inner
+    None -> filter_expr
+  }
+  use pred <- then(unwrap_predicate_filter_value(raw_pred))
+  use #(match_param, filter_column) <- then(eq_exclude_shape_field(pred, shape_name))
+  use #(order_column, order_desc) <- then(from_result(query_order_spec(
+    order_expr,
+    shape_name,
+  )))
+  case param_exists_named(f, match_param) {
+    True -> Some(#(
+      filter_column,
+      match_param,
+      shape_name,
+      order_column,
+      order_desc,
+    ))
+    False -> None
+  }
+}
+
+/// `left == match_var` where `left` is `exclude_if_missing(shape_field)` for this `shape_name`.
+fn eq_exclude_shape_field(
+  pred: glance.Expression,
+  shape_name: String,
+) -> Option(#(String, String)) {
+  case pred {
+    glance.BinaryOperator(_, _op, left, glance.Variable(_, match_name)) ->
+      case exclude_if_missing_column_on_shape(left, shape_name) {
+        Some(column) -> Some(#(match_name, column))
+        None -> None
+      }
+    _ -> None
   }
 }
 
@@ -547,19 +624,31 @@ fn query_order_column(
   order_expr: glance.Expression,
   shape_name: String,
 ) -> Result(String, Nil) {
+  case query_order_spec(order_expr, shape_name) {
+    Ok(#(col, False)) -> Ok(col)
+    _ -> Error(Nil)
+  }
+}
+
+/// Parses `order_by(shape.field, Asc|Desc)` and returns the field + whether direction is descending.
+fn query_order_spec(
+  order_expr: glance.Expression,
+  shape_name: String,
+) -> Result(#(String, Bool), Nil) {
   case normalize_expr(order_expr) {
     glance.Call(_, callee, oargs) ->
       case expression_callee_name(callee) {
         Ok("order_by") ->
           case oargs {
             [glance.UnlabelledField(field_ex), glance.UnlabelledField(dir_ex)] ->
-              case is_asc_direction(dir_ex) {
-                True ->
+              case order_direction_desc(dir_ex) {
+                Ok(order_desc) ->
                   case field_access_root_and_leaf(field_ex) {
-                    Some(#(root, col)) if root == shape_name -> Ok(col)
+                    Some(#(root, col)) if root == shape_name ->
+                      Ok(#(col, order_desc))
                     _ -> Error(Nil)
                   }
-                False -> Error(Nil)
+                Error(Nil) -> Error(Nil)
               }
             _ -> Error(Nil)
           }
@@ -569,12 +658,14 @@ fn query_order_column(
   }
 }
 
-/// Accepts `Asc` as a variable or qualified access (e.g. module-qualified).
-fn is_asc_direction(expr: glance.Expression) -> Bool {
+/// Accepts `Asc` / `Desc` as a variable or qualified access; returns whether direction is descending.
+fn order_direction_desc(expr: glance.Expression) -> Result(Bool, Nil) {
   case normalize_expr(expr) {
-    glance.FieldAccess(_, _, "Asc") -> True
-    glance.Variable(_, "Asc") -> True
-    _ -> False
+    glance.FieldAccess(_, _, "Asc") -> Ok(False)
+    glance.Variable(_, "Asc") -> Ok(False)
+    glance.FieldAccess(_, _, "Desc") -> Ok(True)
+    glance.Variable(_, "Desc") -> Ok(True)
+    _ -> Error(Nil)
   }
 }
 
@@ -587,6 +678,10 @@ fn param_is_float_named(f: glance.Function, name: String) -> Bool {
       _ -> False
     }
   })
+}
+
+fn param_exists_named(f: glance.Function, name: String) -> Bool {
+  list.any(f.parameters, fn(p) { assignment_name_string(p.name) == name })
 }
 
 /// Builtin simple bind types accepted in the third slot.

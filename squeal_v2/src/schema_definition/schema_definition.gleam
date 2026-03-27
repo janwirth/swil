@@ -187,6 +187,13 @@ pub type QueryCodegen {
     threshold_param: String,
     shape_param: String,
   )
+  EqMissingFieldOrder(
+    filter_column: String,
+    match_param: String,
+    shape_param: String,
+    order_column: String,
+    order_desc: Bool,
+  )
 }
 
 /// Parsed from one typed parameter in a public query function signature.

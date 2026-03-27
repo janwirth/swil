@@ -193,6 +193,20 @@ fn from_query_codegen(
         threshold_param: threshold_param,
         shape_param: shape_param,
       )
+    query_mod.EqMissingFieldOrder(
+      filter_column: filter_column,
+      match_param: match_param,
+      shape_param: shape_param,
+      order_column: order_column,
+      order_desc: order_desc,
+    ) ->
+      schema_definition.EqMissingFieldOrder(
+        filter_column: filter_column,
+        match_param: match_param,
+        shape_param: shape_param,
+        order_column: order_column,
+        order_desc: order_desc,
+      )
   }
 }
 

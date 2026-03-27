@@ -18,7 +18,7 @@ import gleamgen/module/definition as gdef
 import gleamgen/render as grender
 import gleamgen/types as gtypes
 import schema_definition/schema_definition.{
-  type SchemaDefinition, LtMissingFieldAsc,
+  type SchemaDefinition, EqMissingFieldOrder, LtMissingFieldAsc,
 }
 
 pub type ApiDbOutputs {
@@ -72,9 +72,9 @@ fn ensure_dsl_import(text: String) -> String {
 
 /// gleamgen may omit `gleam/option` when signatures use `Option(...)` only via raw types.
 fn ensure_option_import(text: String) -> String {
+  let needs_option = string.contains(text, "Option(") || string.contains(text, "Some(")
   case
-    string.contains(text, "Option(")
-    && !string.contains(text, "import gleam/option")
+    needs_option && !string.contains(text, "import gleam/option")
   {
     False -> text
     True -> {
@@ -318,15 +318,31 @@ pub fn generate_api_db_outputs(
         )
       }),
       list.map(generated_query_specs, fn(spec) {
-        let assert LtMissingFieldAsc(
-          column: column,
-          threshold_param: _,
-          shape_param: _,
-        ) = spec.codegen
-        #(
-          api_query.query_sql_const_name(spec.name),
-          Some(api_sql.lt_column_asc_sql(table, returning, column)),
-        )
+        case spec.codegen {
+          LtMissingFieldAsc(column: column, threshold_param: _, shape_param: _) ->
+            #(
+              api_query.query_sql_const_name(spec.name),
+              Some(api_sql.lt_column_asc_sql(table, returning, column)),
+            )
+          EqMissingFieldOrder(
+            filter_column: filter_column,
+            match_param: _,
+            shape_param: _,
+            order_column: order_column,
+            order_desc: order_desc,
+          ) ->
+            #(
+              api_query.query_sql_const_name(spec.name),
+              Some(api_sql.eq_column_order_sql(
+                table,
+                returning,
+                filter_column,
+                order_column,
+                order_desc,
+              )),
+            )
+          _ -> panic as "api.generate_api_db_outputs: unsupported query codegen"
+        }
       }),
     )
   let query_fn_chunks =
@@ -392,7 +408,9 @@ pub fn generate_api_db_outputs(
     get: ensure_dsl_import(render_module(get_mod)),
     upsert: ensure_dsl_import(render_module(upsert_mod)),
     delete: ensure_api_help_import(render_module(delete_mod)),
-    query: ensure_dsl_import(render_module(query_mod)),
+    query: render_module(query_mod)
+      |> ensure_option_import
+      |> ensure_dsl_import,
     api: render_module(api_mod)
       |> ensure_option_import
       |> ensure_dsl_import,

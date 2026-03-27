@@ -10,7 +10,8 @@ import gleamgen/parameter as gparam
 import gleamgen/types as gtypes
 import schema_definition/schema_definition.{
   type EntityDefinition, type IdentityVariantDefinition, type QueryParameter,
-  type QuerySpecDefinition, type SchemaDefinition, LtMissingFieldAsc,
+  type QuerySpecDefinition, type SchemaDefinition, EqMissingFieldOrder,
+  LtMissingFieldAsc,
 }
 
 import generators/api/api_decoders as dec
@@ -102,11 +103,17 @@ fn query_spec_forward_chunk(
   sql_err: gtypes.GeneratedType(e),
   ctx: dec.TypeCtx,
 ) {
-  let assert LtMissingFieldAsc(
-    column: _,
-    threshold_param: _,
-    shape_param: shape_param,
-  ) = spec.codegen
+  let shape_param = case spec.codegen {
+    LtMissingFieldAsc(column: _, threshold_param: _, shape_param: p) -> p
+    EqMissingFieldOrder(
+      filter_column: _,
+      match_param: _,
+      shape_param: p,
+      order_column: _,
+      order_desc: _,
+    ) -> p
+    _ -> panic as "api_facade.query_spec_forward_chunk: unsupported query codegen"
+  }
   let fn_params =
     list.append(
       [api_params.conn_param()],

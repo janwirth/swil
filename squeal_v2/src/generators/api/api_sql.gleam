@@ -176,6 +176,31 @@ pub fn lt_column_asc_sql(
   <> " asc;"
 }
 
+pub fn eq_column_order_sql(
+  table: String,
+  returning_cols: List(String),
+  filter_column: String,
+  order_column: String,
+  order_desc: Bool,
+) -> String {
+  let order_dir = case order_desc {
+    True -> " desc"
+    False -> " asc"
+  }
+  "select "
+  <> comma_join_q(returning_cols)
+  <> " from "
+  <> q(table)
+  <> " where "
+  <> q("deleted_at")
+  <> " is null and "
+  <> q(filter_column)
+  <> " = ? order by "
+  <> q(order_column)
+  <> order_dir
+  <> ";"
+}
+
 pub fn full_row_columns(data_cols: List(String)) -> List(String) {
   list.flatten([
     data_cols,
