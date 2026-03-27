@@ -23,7 +23,7 @@ pub type HippoRelationships {
   HippoRelationships(
     friends: option.Option(Mutual(List(Hippo), FriendshipAttributes)),
     best_friend: option.Option(Mutual(Hippo, FriendshipAttributes)),
-    owner: option.Option(BelongsTo(Human)),
+    owner: option.Option(BelongsTo(Human, Nil)),
   )
 }
 

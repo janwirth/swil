@@ -78,10 +78,11 @@ pub fn not_has(field: List(a), related_item: Int) -> BooleanFilter(a) {
 }
 
 pub fn has_with(
-  field: List(a),
+  field: List(BelongsTo(related, attribs)),
   related_id: Int,
   predicate: WithPredicate,
-) -> BooleanFilter(a)  {
+  select: fn(related,attribs) -> a
+) -> BooleanFilter(BelongsTo(related, attribs))  {
   OneToManyAssocCompare(field, related_id, predicate)
 }
 
@@ -130,13 +131,11 @@ fn pred_satisfied(weight: Int, pred: WithPredicate) -> Bool {
     EqualTo(n) -> weight == n
   }
 }
-pub type BelongsTo(a) {
+pub type BelongsTo(a, attributes) {
   BelongsTo(item: a)
-}
-
-pub type BelongsToWith(a, attributes) {
   BelongsToWith(item: a, attributes: Option(attributes))
 }
+
 
 pub type Backlink(kind) {
   Backlink(items: List(kind))
