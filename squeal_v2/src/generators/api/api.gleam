@@ -173,14 +173,7 @@ pub fn generate_api_db_outputs(
     |> list.map(fn(s) { s.type_name })
 
   let row_chunks =
-    api_chunks.row_module_fn_chunks(
-      schema_path,
-      def,
-      entity_snake,
-      entity,
-      variant,
-      ctx,
-    )
+    api_chunks.row_module_fn_chunks(def, entity_snake, entity, variant, ctx)
 
   let row_mod =
     api_imports.with_row_module_imports(
@@ -299,7 +292,7 @@ pub fn generate_api_db_outputs(
     )
 
   ApiDbOutputs(
-    row: render_module(row_mod),
+    row: render_module(row_mod) |> ensure_dsl_import,
     upsert: ensure_dsl_import(render_module(upsert_mod)),
     delete: ensure_api_help_import(render_module(delete_mod)),
     query: ensure_dsl_import(render_module(query_mod)),

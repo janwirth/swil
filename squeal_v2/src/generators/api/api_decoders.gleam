@@ -205,7 +205,7 @@ fn rich_decode_lets(data_fields: List(FieldDefinition), ctx: TypeCtx) -> String 
             <> f.label
             <> " = case "
             <> raw(f)
-            <> " {\n    \"\" -> None\n    s -> Some(date_from_db_string(s))\n  }"
+            <> " {\n    \"\" -> None\n    s -> Some(api_help.date_from_db_string(s))\n  }"
           glance.NamedType(_, n, _, []) ->
             case list.contains(ctx.enum_scalar_names, n) {
               True ->
@@ -315,7 +315,7 @@ fn entity_rich_row_decoder_fn(
   <> rel
   <> "\n    )\n  decode.success(#(\n    "
   <> row_local
-  <> ",\n    magic_from_db_row(id, created_at, updated_at, deleted_at_raw),\n  ))"
+  <> ",\n    api_help.magic_from_db_row(id, created_at, updated_at, deleted_at_raw),\n  ))"
 }
 
 pub fn entity_row_tuple_type(entity_name: String) -> String {
@@ -468,7 +468,7 @@ fn entity_simple_magic_decoder_fn(
   <> ident
   <> "\n    )\n  decode.success(#(\n    "
   <> row_local
-  <> ",\n    magic_from_db_row(id, created_at, updated_at, deleted_at_raw),\n  ))"
+  <> ",\n    api_help.magic_from_db_row(id, created_at, updated_at, deleted_at_raw),\n  ))"
 }
 
 fn entity_with_magic_decoder_fn(
@@ -500,25 +500,6 @@ pub fn row_decode_helpers_fn_chunks(
         ),
         fn(_) {
           gexpr.raw(entity_with_magic_decoder_fn(schema, entity, variant, ctx))
-        },
-      )
-        |> gfun.to_dynamic,
-    ),
-    #(
-      gdef.new("magic_from_db_row") |> gdef.with_publicity(False),
-      gfun.new_raw(
-        [
-          gparam.new("id", gtypes.int) |> gparam.to_dynamic,
-          gparam.new("created_s", gtypes.int) |> gparam.to_dynamic,
-          gparam.new("updated_s", gtypes.int) |> gparam.to_dynamic,
-          gparam.new("deleted_raw", gtypes.raw("Option(Int)"))
-            |> gparam.to_dynamic,
-        ],
-        gtypes.raw("dsl.MagicFields"),
-        fn(_) {
-          gexpr.raw(
-            "dsl.MagicFields(\n    id:,\n    created_at: timestamp.from_unix_seconds(created_s),\n    updated_at: timestamp.from_unix_seconds(updated_s),\n    deleted_at: case deleted_raw {\n      Some(s) -> Some(timestamp.from_unix_seconds(s))\n      None -> None\n    },\n  )",
-          )
         },
       )
         |> gfun.to_dynamic,

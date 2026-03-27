@@ -36,7 +36,7 @@ pub fn update_hippo_by_name_and_date_of_birth(
       sqlight.text(row.gender_scalar_to_db_string(gender)),
       sqlight.int(now),
       sqlight.text(name),
-      sqlight.text(row.date_to_db_string(date_of_birth)),
+      sqlight.text(api_help.date_to_db_string(date_of_birth)),
     ],
     expecting: row.hippo_with_magic_row_decoder(),
   ))
@@ -57,7 +57,7 @@ pub fn get_hippo_by_name_and_date_of_birth(
     on: conn,
     with: [
       sqlight.text(name),
-      sqlight.text(row.date_to_db_string(date_of_birth)),
+      sqlight.text(api_help.date_to_db_string(date_of_birth)),
     ],
     expecting: row.hippo_with_magic_row_decoder(),
   ))
@@ -81,7 +81,7 @@ pub fn upsert_hippo_by_name_and_date_of_birth(
     with: [
       sqlight.text(name),
       sqlight.text(row.gender_scalar_to_db_string(gender)),
-      sqlight.text(row.date_to_db_string(date_of_birth)),
+      sqlight.text(api_help.date_to_db_string(date_of_birth)),
       sqlight.int(now),
       sqlight.int(now),
     ],

@@ -1,8 +1,5 @@
 import api_help
-import case_studies/fruit_db/row
-import case_studies/fruit_schema.{type Fruit, ByName, Fruit}
 import gleam/dynamic/decode
-import gleam/option.{type Option, None, Some}
 import gleam/result
 import sqlight
 

@@ -5,12 +5,9 @@ import case_studies/hippo_schema.{
 }
 import dsl/dsl as dsl
 import gleam/dynamic/decode
-import gleam/int
 import gleam/option.{type Option, None, Some}
 import gleam/result
-import gleam/string
-import gleam/time/calendar.{type Date, Date as CalDate, month_from_int, month_to_int}
-import gleam/time/timestamp
+import gleam/time/calendar.{type Date}
 import sqlight
 
 /// One row for [`hippo_schema.old_hippos_owner_emails`](src/case_studies/hippo_schema.gleam).
@@ -56,53 +53,6 @@ returning name, email, id, created_at, updated_at, deleted_at;"
 const set_hippo_owner_sql = "update hippo set owner_human_id = ?, updated_at = ?
 where name = ? and date_of_birth = ? and deleted_at is null returning id;"
 
-fn pad2(n: Int) -> String {
-  let s = int.to_string(n)
-  case string.length(s) {
-    1 -> "0" <> s
-    _ -> s
-  }
-}
-
-fn date_to_db_string(d: Date) -> String {
-  let CalDate(year:, month:, day:) = d
-  int.to_string(year)
-  <> "-"
-  <> pad2(month_to_int(month))
-  <> "-"
-  <> pad2(day)
-}
-
-fn date_from_db_string(s: String) -> Date {
-  case string.split(s, "-") {
-    [ys, ms, ds] -> {
-      let assert Ok(y) = int.parse(ys)
-      let assert Ok(mi) = int.parse(ms)
-      let assert Ok(d) = int.parse(ds)
-      let assert Ok(month) = month_from_int(mi)
-      CalDate(y, month, d)
-    }
-    _ -> panic as "relationship_queries: expected YYYY-MM-DD date string"
-  }
-}
-
-fn magic_from_db_row(
-  id: Int,
-  created_s: Int,
-  updated_s: Int,
-  deleted_raw: Option(Int),
-) -> dsl.MagicFields {
-  dsl.MagicFields(
-    id:,
-    created_at: timestamp.from_unix_seconds(created_s),
-    updated_at: timestamp.from_unix_seconds(updated_s),
-    deleted_at: case deleted_raw {
-      Some(s) -> Some(timestamp.from_unix_seconds(s))
-      None -> None
-    },
-  )
-}
-
 fn human_with_magic_row_decoder() -> decode.Decoder(#(Human, dsl.MagicFields)) {
   use name_raw <- decode.field(0, decode.string)
   use email_raw <- decode.field(1, decode.string)
@@ -120,7 +70,7 @@ fn human_with_magic_row_decoder() -> decode.Decoder(#(Human, dsl.MagicFields)) {
     )
   decode.success(#(
     human,
-    magic_from_db_row(id, created_at, updated_at, deleted_at_raw),
+    api_help.magic_from_db_row(id, created_at, updated_at, deleted_at_raw),
   ))
 }
 
@@ -143,7 +93,7 @@ fn hippos_by_gender_row_decoder() -> decode.Decoder(HipposByGenderRow) {
   let _hippo_gender = hippo_api.gender_scalar_from_db_string(h_gender)
   let hippo_dob = case h_dob {
     "" -> None
-    s -> Some(date_from_db_string(s))
+    s -> Some(api_help.date_from_db_string(s))
   }
   let assert Some(_dob_identity) = hippo_dob
   let owner = case hu_id, hu_name_raw, hu_email_raw, hu_created, hu_updated {
@@ -157,11 +107,11 @@ fn hippos_by_gender_row_decoder() -> decode.Decoder(HipposByGenderRow) {
           identities: ByEmail(email: eraw),
           relationships: HumanRelationships(hippos: dsl.BacklinkWith([], None)),
         )
-      Some(#(human, magic_from_db_row(hid, hc, hu, hu_del)))
+      Some(#(human, api_help.magic_from_db_row(hid, hc, hu, hu_del)))
     }
     _, _, _, _, _ -> None
   }
-  let hippo_magic = magic_from_db_row(h_id, h_created, h_updated, h_deleted)
+  let hippo_magic = api_help.magic_from_db_row(h_id, h_created, h_updated, h_deleted)
   decode.success(HipposByGenderRow(
     magic_fields: hippo_magic,
     name: hippo_name,
@@ -218,7 +168,7 @@ pub fn set_hippo_owner_human_id(
       sqlight.int(owner_human_id),
       sqlight.int(now),
       sqlight.text(hippo_name),
-      sqlight.text(date_to_db_string(hippo_date_of_birth)),
+      sqlight.text(api_help.date_to_db_string(hippo_date_of_birth)),
     ],
     expecting: {
       use _id <- decode.field(0, decode.int)

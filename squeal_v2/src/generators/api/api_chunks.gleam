@@ -69,56 +69,6 @@ pub fn scalar_enum_db_fn_chunks(def: SchemaDefinition, entity: EntityDefinition)
   })
 }
 
-pub fn calendar_date_fn_chunks(path: String, def: SchemaDefinition) {
-  let row_date_panic = schema_context.api_row_panic_label(path)
-  case schema_context.schema_uses_calendar_date(def) {
-    True -> [
-      #(
-        gdef.new("date_from_db_string") |> gdef.with_publicity(False),
-        gfun.new_raw(
-          [gparam.new("s", gtypes.string) |> gparam.to_dynamic],
-          gtypes.raw("Date"),
-          fn(_) {
-            gexpr.raw(
-              "case string.split(s, \"-\") {\n    [ys, ms, ds] -> {\n      let assert Ok(y) = int.parse(ys)\n      let assert Ok(mi) = int.parse(ms)\n      let assert Ok(d) = int.parse(ds)\n      let assert Ok(month) = month_from_int(mi)\n      CalDate(y, month, d)\n    }\n    _ -> panic as \""
-              <> row_date_panic
-              <> "\"\n  }",
-            )
-          },
-        )
-          |> gfun.to_dynamic,
-      ),
-      #(
-        gleamgen_emit.pub_def("date_to_db_string"),
-        gfun.new_raw(
-          [gparam.new("d", gtypes.raw("Date")) |> gparam.to_dynamic],
-          gtypes.string,
-          fn(_) {
-            gexpr.raw(
-              "let CalDate(year:, month:, day:) = d\n  int.to_string(year)\n  <> \"-\"\n  <> pad2(month_to_int(month))\n  <> \"-\"\n  <> pad2(day)",
-            )
-          },
-        )
-          |> gfun.to_dynamic,
-      ),
-      #(
-        gdef.new("pad2") |> gdef.with_publicity(False),
-        gfun.new_raw(
-          [gparam.new("n", gtypes.int) |> gparam.to_dynamic],
-          gtypes.string,
-          fn(_) {
-            gexpr.raw(
-              "let s = int.to_string(n)\n  case string.length(s) {\n    1 -> \"0\" <> s\n    _ -> s\n  }",
-            )
-          },
-        )
-          |> gfun.to_dynamic,
-      ),
-    ]
-    False -> []
-  }
-}
-
 pub fn not_found_private_chunk(entity_snake: String) {
   #(
     gdef.new("not_found_error") |> gdef.with_publicity(False),
@@ -138,7 +88,6 @@ pub fn not_found_private_chunk(entity_snake: String) {
 }
 
 pub fn row_module_fn_chunks(
-  schema_path: String,
   def: SchemaDefinition,
   entity_snake: String,
   entity: EntityDefinition,
@@ -154,7 +103,6 @@ pub fn row_module_fn_chunks(
   list.flatten([
     decode_ordered,
     scalar_enum_db_fn_chunks(def, entity),
-    calendar_date_fn_chunks(schema_path, def),
   ])
 }
 

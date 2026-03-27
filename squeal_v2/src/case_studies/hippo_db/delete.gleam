@@ -1,8 +1,5 @@
 import api_help
-import case_studies/hippo_db/row
-import case_studies/hippo_schema.{type GenderScalar, type Hippo, type HippoRelationships, ByNameAndDateOfBirth, Female, Hippo, HippoRelationships, Male}
 import gleam/dynamic/decode
-import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/time/calendar.{type Date}
 import sqlight
@@ -24,7 +21,7 @@ pub fn delete_hippo_by_name_and_date_of_birth(
         sqlight.int(now),
         sqlight.int(now),
         sqlight.text(name),
-        sqlight.text(row.date_to_db_string(date_of_birth)),
+        sqlight.text(api_help.date_to_db_string(date_of_birth)),
       ],
       expecting: {
         use _n <- decode.field(0, decode.string)

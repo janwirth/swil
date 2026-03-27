@@ -26,11 +26,7 @@ pub fn sql_bind_expr(
     _ ->
       case dec.field_is_calendar_date(f) {
         True ->
-          "sqlight.text("
-          <> row_qualifier
-          <> ".date_to_db_string("
-          <> value
-          <> "))"
+          "sqlight.text(api_help.date_to_db_string(" <> value <> "))"
         False -> "sqlight.text(" <> value <> ")"
       }
   }

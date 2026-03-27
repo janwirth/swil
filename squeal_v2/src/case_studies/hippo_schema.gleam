@@ -61,7 +61,20 @@ pub type HumanIdentities {
 }
 
 /// Query input spec for "old hippos owner emails".
-pub fn old_hippos_owner_emails(hippo: Hippo, min_age: Int) {
+pub fn query_old_hippos_owner_emails(hippo: Hippo, min_age: Int) {
+  let shape = #(
+    #("age", age(exclude_if_missing(hippo.date_of_birth))),
+    nullable(hippo.relationships.owner).item.email,
+  )
+  let filter = age(exclude_if_missing(hippo.date_of_birth)) > min_age
+  let order =
+    dsl.order_by(age(exclude_if_missing(hippo.date_of_birth)), dsl.Desc)
+
+  Query(shape: shape, filter: option.Some(Predicate(filter)), order: order)
+}
+
+/// Query input spec for "old hippos owner emails".
+pub fn query_old_hippos_owner_names(hippo: Hippo, min_age: Int) {
   let shape = #(
     #("age", age(exclude_if_missing(hippo.date_of_birth))),
     nullable(hippo.relationships.owner).item.email,
@@ -74,7 +87,7 @@ pub fn old_hippos_owner_emails(hippo: Hippo, min_age: Int) {
 }
 
 /// Query input spec for "hippos by gender".
-pub fn hippos_by_gender(hippo: Hippo, gender_to_match: GenderScalar) {
+pub fn query_hippos_by_gender(hippo: Hippo, gender_to_match: GenderScalar) {
   let filter = exclude_if_missing(hippo.gender) == gender_to_match
   dsl.Query(shape: hippo, filter: option.Some(Predicate(filter)), order: #(
     hippo.name,

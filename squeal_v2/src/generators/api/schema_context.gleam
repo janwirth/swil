@@ -135,13 +135,6 @@ pub fn api_schema_exposing(
   string.join(list.append(type_exports, value_exports), ", ")
 }
 
-pub fn import_alias(path: String) -> String {
-  case string.split(path, "/") |> list.reverse() {
-    [a, ..] -> a
-    [] -> path
-  }
-}
-
 pub fn find_identity(
   def: SchemaDefinition,
   entity: EntityDefinition,
@@ -161,16 +154,6 @@ pub fn schema_uses_calendar_date(def: SchemaDefinition) -> Bool {
       })
     }
   })
-}
-
-pub fn api_date_panic_label(schema_path: String) -> String {
-  string.replace(import_alias(schema_path), "_schema", "_db/api")
-  <> ": expected YYYY-MM-DD date string"
-}
-
-pub fn api_row_panic_label(schema_path: String) -> String {
-  string.replace(import_alias(schema_path), "_schema", "_db/row")
-  <> ": expected YYYY-MM-DD date string"
 }
 
 pub fn entity_used_enum_scalars(
