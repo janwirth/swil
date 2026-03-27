@@ -63,18 +63,18 @@ pub type BooleanFilter {
   And(exprs: List(BooleanFilter))
   Or(exprs: List(BooleanFilter))
   Not(expr: BooleanFilter)
-  /// Tag association leaf: `assoc` is ignored for SQL (EXISTS uses join table only); kept for optional in-memory eval.
-  TagAssocHas(assoc: List(#(Int, Int)), tag_id: Int)
-  TagAssocNotHas(assoc: List(#(Int, Int)), tag_id: Int)
-  TagAssocCompare(assoc: List(#(Int, Int)), tag_id: Int, pred: WithPredicate)
+  /// OneToMany association leaf: `assoc` is ignored for SQL (EXISTS uses join table only); kept for optional in-memory eval.
+  OneToManyAssocHas(assoc: List(#(Int, Int)), related_item: Int)
+  OneToManyAssocNotHas(assoc: List(#(Int, Int)), related_item: Int)
+  OneToManyAssocCompare(assoc: List(#(Int, Int)), related_item: Int, pred: WithPredicate)
 }
 
-pub fn has(field: List(#(Int, Int)), tag_id: Int) -> BooleanFilter {
-  TagAssocHas(field, tag_id)
+pub fn has(field: List(#(Int, Int)), related_item: Int) -> BooleanFilter {
+  OneToManyAssocHas(field, related_item)
 }
 
-pub fn not_has(field: List(#(Int, Int)), tag_id: Int) -> BooleanFilter {
-  TagAssocNotHas(field, tag_id)
+pub fn not_has(field: List(#(Int, Int)), related_item: Int) -> BooleanFilter {
+  OneToManyAssocNotHas(field, related_item)
 }
 
 pub fn has_with(
@@ -82,7 +82,7 @@ pub fn has_with(
   related_id: Int,
   predicate: WithPredicate,
 ) -> BooleanFilter {
-  TagAssocCompare(field, related_id, predicate)
+  OneToManyAssocCompare(field, related_id, predicate)
 }
 
 pub type WithPredicate {
@@ -112,13 +112,13 @@ fn pred_sql_op(pred: WithPredicate) -> #(String, Int) {
 }
 
 /// Naming for `EXISTS (select 1 from join_table j where j.fk = alias.pk and …)`.
-pub type TagJoinSqlNaming {
-  TagJoinSqlNaming(
+pub type OneToManyJoinSqlNaming {
+  OneToManyJoinSqlNaming(
     join_table: String,
     parent_alias: String,
     parent_pk_column: String,
     fk_column: String,
-    tag_id_column: String,
+    related_item_column: String,
     weight_column: String,
   )
 }
@@ -145,18 +145,18 @@ pub fn eval_boolean_filter(filter: BooleanFilter) -> Bool {
         _ -> list.any(exprs, eval_boolean_filter)
       }
     Not(expr) -> !eval_boolean_filter(expr)
-    TagAssocHas(assoc, tag_id) ->
+    OneToManyAssocHas(assoc, related_item) ->
       list.any(assoc, fn(p) {
         let #(id, _) = p
-        id == tag_id
+        id == related_item
       })
-    TagAssocNotHas(assoc, tag_id) ->
+    OneToManyAssocNotHas(assoc, related_item) ->
       !list.any(assoc, fn(p) {
         let #(id, _) = p
-        id == tag_id
+        id == related_item
       })
-    TagAssocCompare(assoc, tag_id, pred) ->
-      case list.find(assoc, fn(p) { p.0 == tag_id }) {
+    OneToManyAssocCompare(assoc, related_item, pred) ->
+      case list.find(assoc, fn(p) { p.0 == related_item }) {
         Ok(#(_, w)) -> pred_satisfied(w, pred)
         Error(Nil) -> False
       }

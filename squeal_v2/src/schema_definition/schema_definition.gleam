@@ -180,13 +180,37 @@ pub type Order {
   CustomOrder(field: String, direction: dsl.Direction)
 }
 
+/// Shape of the query result.
+///
+/// Example source:
+/// ```gleam
+/// query_cheap_fruit(fruit, magic, max_price)
+/// dsl.query(fruit)
+/// |> dsl.shape([fruit.price, fruit.weight])
+/// gives back CheapFruit({price: Float, weight: Float})
+/// ```
 pub type Shape {
   NoneOrBase
-  Subset(selection: List(String))
+  Subset(selection: List(SelectionPath))
+}
+
+pub type SelectionPath {
+  // can be a path on the root type or its relationships
+  SelectionPath(fields: List(String))
 }
 
 pub type Filter {
   NoFilter
+  BooleanFilter(left_operand_field_name: String, operator: Operator, right_operand_parameter_name: String)
+}
+
+pub type Operator {
+  Lt
+  Eq
+  Gt
+  Ne
+  Le
+  Ge
 }
 
 

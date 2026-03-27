@@ -315,9 +315,5 @@ pub fn fruit_schema_query_infers_lt_missing_field_asc_test() {
   let assert Ok(def) = schema_parser.parse_module(src)
   let assert [q] = def.queries
   assert q.name == "query_cheap_fruit"
-  let assert schema_definition.LtMissingFieldAsc(
-    column: "price",
-    threshold_param: "max_price",
-    shape_param: "fruit",
-  ) = q.codegen
+  todo
 }

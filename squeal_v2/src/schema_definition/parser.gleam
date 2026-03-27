@@ -165,11 +165,7 @@ fn from_query_spec(query_spec) -> schema_definition.QuerySpecDefinition {
     parameters: parameters,
     codegen: codegen,
   ) = query_spec
-  schema_definition.QuerySpecDefinition(
-    name: name,
-    parameters: list.map(parameters, from_query_parameter),
-    codegen: from_query_codegen(codegen),
-  )
+  todo
 }
 
 fn from_query_parameter(parameter) -> schema_definition.QueryParameter {
@@ -178,37 +174,6 @@ fn from_query_parameter(parameter) -> schema_definition.QueryParameter {
   schema_definition.QueryParameter(label:, name:, type_:)
 }
 
-fn from_query_codegen(
-  codegen: query_mod.QueryCodegen,
-) -> schema_definition.QueryCodegen {
-  case codegen {
-    query_mod.Unsupported -> schema_definition.Unsupported
-    query_mod.LtMissingFieldAsc(
-      column: column,
-      threshold_param: threshold_param,
-      shape_param: shape_param,
-    ) ->
-      schema_definition.LtMissingFieldAsc(
-        column: column,
-        threshold_param: threshold_param,
-        shape_param: shape_param,
-      )
-    query_mod.EqMissingFieldOrder(
-      filter_column: filter_column,
-      match_param: match_param,
-      shape_param: shape_param,
-      order_column: order_column,
-      order_desc: order_desc,
-    ) ->
-      schema_definition.EqMissingFieldOrder(
-        filter_column: filter_column,
-        match_param: match_param,
-        shape_param: shape_param,
-        order_column: order_column,
-        order_desc: order_desc,
-      )
-  }
-}
 
 fn from_parse_error_mod(
   error: parse_error_mod.ParseError,
