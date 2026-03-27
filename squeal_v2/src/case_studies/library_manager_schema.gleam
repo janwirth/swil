@@ -106,33 +106,33 @@ pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields, _limit: Int) 
 // 
 import gleam/list
 
-// pub fn filter_by_tag(
-//   track_bucket: TrackBucket,
-//   filter: FilterScalar,
-// ) -> dsl.BooleanFilter {
-//   case filter {
-//     And(exprs: exprs) ->
-//       dsl.And(
-//         exprs: list.map(exprs, fn(expr) { filter_by_tag(track_bucket, expr) }),
-//       )
-//     Or(exprs: exprs) ->
-//       dsl.Or(
-//         exprs: list.map(exprs, fn(expr) { filter_by_tag(track_bucket, expr) }),
-//       )
-//     Not(expr: expr) -> dsl.Not(expr: filter_by_tag(track_bucket, expr))
-//     TagExpression(tag_id: tag_id, operator: operator) ->
-//       case operator {
-//         Has -> dsl.has(track_bucket.tags, tag_id)
-//         DoesNotHave -> dsl.not_has(track_bucket.tags, tag_id)
-//         IsAtLeast(value: value) ->
-//           dsl.has_with(track_bucket.tags, tag_id, dsl.is_at_least(value))
-//         IsAtMost(value: value) ->
-//           dsl.has_with(track_bucket.tags, tag_id, dsl.is_at_most(value))
-//         IsEqualTo(value: value) ->
-//           dsl.has_with(track_bucket.tags, tag_id, dsl.is_equal_to(value))
-//       }
-//   }
-// }
+pub fn filter_by_tag(
+  track_bucket: TrackBucket,
+  filter: FilterScalar,
+) -> dsl.BooleanFilter(BelongsToWith(Tag, TrackBucketRelationshipAttributes)) {
+  case filter {
+    And(exprs: exprs) ->
+      dsl.And(
+        exprs: list.map(exprs, fn(expr) { filter_by_tag(track_bucket, expr) }),
+      )
+    Or(exprs: exprs) ->
+      dsl.Or(
+        exprs: list.map(exprs, fn(expr) { filter_by_tag(track_bucket, expr) }),
+      )
+    Not(expr: expr) -> dsl.Not(expr: filter_by_tag(track_bucket, expr))
+    TagExpression(tag_id: tag_id, operator: operator) ->
+      case operator {
+        Has -> dsl.has(track_bucket.relationships.tags, tag_id)
+        DoesNotHave -> dsl.not_has(track_bucket.relationships.tags, tag_id)
+        IsAtLeast(value: value) ->
+          dsl.has_with(track_bucket.relationships.tags, tag_id, dsl.is_at_least(value))
+        IsAtMost(value: value) ->
+          dsl.has_with(track_bucket.relationships.tags, tag_id, dsl.is_at_most(value))
+        IsEqualTo(value: value) ->
+          dsl.has_with(track_bucket.relationships.tags, tag_id, dsl.is_equal_to(value))
+      }
+  }
+}
 
 pub type FilterScalar {
   And(exprs: List(FilterScalar))
