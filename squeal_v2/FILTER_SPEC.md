@@ -129,6 +129,32 @@ pub type SchemaDefinition {
 
 ### 2) Add filter-specific definitions
 
+**Why no separate `terminal_type_name` / `recursive_filter_type_name` on the model**
+
+The second parameter’s type already carries everything:
+
+- It must be (or alias to) `dsl.RecursiveFilterSpec(T)`.
+- **`T` (the terminal)** is whatever you put in `Terminal(item: t)` in JSON and in code — e.g. `TagExpressionScalar` with variants `Has`, `IsAtLeast`, …
+
+So the parser **resolves** `T` from parameter 2 (unwrap the type/alias to `RecursiveFilterSpec(T)`). Codegen and encoders use that `T` to know leaf variant names and fields. Duplicating `terminal_type_name` and `recursive_filter_type_name` strings on `FilterSpecDefinition` would rot out of sync with the real signature.
+
+**Example (usage)**
+
+```gleam
+// Schema: terminal type is yours; wrapper is dsl’s.
+pub type TagExpressionScalar { Has(tag_id: Int) /* ... */ }
+pub type FilterConfigScalar = dsl.RecursiveFilterSpec(TagExpressionScalar)
+
+pub fn filter_track_bucket_by_tag(
+  track_bucket: TrackBucket,
+  filter: FilterConfigScalar,
+) -> dsl.BooleanFilter(BelongsTo(Tag, TrackBucketRelationshipAttributes)) {
+  dsl.complex_filter(filter, terminal_fn: fn(term, magic, edge) { ... })
+}
+```
+
+Extracted metadata: `filter_track_bucket_by_tag`, parameter 1 = `TrackBucket`, parameter 2 type resolves to `dsl.RecursiveFilterSpec(TagExpressionScalar)` → terminal = `TagExpressionScalar`. No extra string fields required.
+
 Add these model types:
 
 ```gleam
@@ -137,8 +163,6 @@ pub type FilterSpecDefinition {
     name: String,
     parameters: List(FilterParameter),
     target_type_name: String,
-    terminal_type_name: String,
-    recursive_filter_type_name: String,
     tree: FilterTree,
   )
 }
@@ -179,7 +203,7 @@ Design notes:
 
 In the schema parsing pipeline:
 
-- resolve aliases and detect parameter 2 as `dsl.RecursiveFilterSpec(TerminalType)`,
+- resolve aliases until parameter 2 is `dsl.RecursiveFilterSpec(T)`; **record `T`** from the type arguments (no separate `terminal_type_name` field on the definition),
 - parse recursive shape (`And`/`Or`/`Not`) into `FilterTree`,
 - parse `Terminal` branch and capture leaf operations as `FilterLeaf` (or keep `FilterTerminal` then lower later),
 - store result in `SchemaDefinition.filters`.
@@ -194,10 +218,10 @@ No breaking change required for `QuerySpecDefinition` initially.
 
 ## Migration Plan
 
-1. Add `dsl.RecursiveFilterSpec(terminal)` and switch `library_manager_schema` alias to it.
-2. Remove local `RecursiveFilterSpec` declarations from schema modules.
+1. **Factor DSL into `src/dsl/dsl.gleam`**: add `RecursiveFilterSpec(terminal)`, `complex_filter(...)`, and any other shared filter scaffolding so schema modules only import `dsl` — no local copies of the recursive wrapper in case studies.
+2. Switch schema aliases (e.g. `FilterConfigScalar = dsl.RecursiveFilterSpec(...)`) and delete duplicate `RecursiveFilterSpec` definitions from schema modules.
 3. Extend `schema_definition.gleam` with `filters` + filter model nodes.
-4. Implement parser extraction and populate `SchemaDefinition.filters`.
+4. Implement parser extraction and populate `SchemaDefinition.filters` (unwrap param 2 to obtain terminal type `T`).
 5. Add tests:
    - parser snapshot for extracted `filter_track_bucket_by_tag`,
    - encoding/decoding round-trip for recursive filter scalar payload,
