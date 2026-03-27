@@ -10,7 +10,7 @@ import sqlight
 /// Table of contents:
 /// - `migrate/1`
 /// - Entity ops: ImportedTrack, Tab, Tag, TrackBucket
-/// - Query specs: `query_tabs_for_tab_bar`, `query_tracks_by_filter`
+/// - Query specs: `query_tabs_for_tab_bar`
 pub fn migrate(
   conn: sqlight.Connection,
 ) -> Result(Nil, sqlight.Error) {
@@ -198,17 +198,5 @@ pub fn query_tabs_for_tab_bar(
   conn: sqlight.Connection,
   limit: Int,
 ) -> Result(List(QueryTabsForTabBarRow), sqlight.Error) {
-  todo as "TODO: generated select SQL, parameters, and decoder"
-}
-
-pub type QueryTracksByFilterRow {
-  QueryTracksByFilterRow
-}
-
-/// Execute generated query for the `query_tracks_by_filter` spec.
-pub fn query_tracks_by_filter(
-  conn: sqlight.Connection,
-  filter: library_manager_schema.FilterScalar,
-) -> Result(List(QueryTracksByFilterRow), sqlight.Error) {
   todo as "TODO: generated select SQL, parameters, and decoder"
 }

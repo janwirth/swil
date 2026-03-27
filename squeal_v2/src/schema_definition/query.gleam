@@ -198,10 +198,30 @@ fn infer_query_codegen(f: glance.Function) -> QueryCodegen {
     None -> Unsupported
     Some(tail) ->
       case query_tail_components(tail) {
-        None -> Unsupported
+        None -> infer_lt_missing_field_asc_fallback(f)
         Some(#(shape_expr, filter_expr, order_expr)) ->
           infer_lt_missing_field_asc(f, shape_expr, filter_expr, order_expr)
       }
+  }
+}
+
+fn infer_lt_missing_field_asc_fallback(f: glance.Function) -> QueryCodegen {
+  case f.parameters {
+    [shape_p, _, _] -> {
+      let shape_name = assignment_name_string(shape_p.name)
+      case
+        find_lt_missing_predicate_in_statements(f.body, shape_name),
+        find_order_by_column_in_statements(f.body, shape_name)
+      {
+        Some(#(column, threshold_name)), Some(order_col) ->
+          case column == order_col && param_is_float_named(f, threshold_name) {
+            True -> LtMissingFieldAsc(column, threshold_name, shape_name)
+            False -> Unsupported
+          }
+        _, _ -> Unsupported
+      }
+    }
+    _ -> Unsupported
   }
 }
 
@@ -405,7 +425,8 @@ fn query_pipeline_components_pipe(
                   case expression_callee_name(query_callee) {
                     Ok("query") ->
                       case single_unlabelled_arg(query_args) {
-                        Some(_entity_expr) -> Some(#(shape_expr, filter_expr, order_expr))
+                        Some(_entity_expr) ->
+                          Some(#(shape_expr, filter_expr, order_expr))
                         None -> None
                       }
                     _ -> None
@@ -610,9 +631,13 @@ fn type_is_entity_parameter(t: glance.Type) -> Bool {
 
 /// Query spec candidate: body whose last expression builds a query pipeline.
 fn function_is_query_spec(f: glance.Function) -> Bool {
-  case f.return {
-    Some(_) -> False
-    None -> statements_return_query(f.body)
+  case function_has_query_prefix(f.name) {
+    True -> True
+    False ->
+      case f.return {
+        Some(_) -> False
+        None -> statements_return_query(f.body)
+      }
   }
 }
 
@@ -667,6 +692,160 @@ fn expression_callee_name(expr: glance.Expression) -> Result(String, Nil) {
     glance.Variable(_, name) -> Ok(name)
     glance.FieldAccess(_, _inner, label) -> Ok(label)
     _ -> Error(Nil)
+  }
+}
+
+fn find_lt_missing_predicate_in_statements(
+  body: List(glance.Statement),
+  shape_name: String,
+) -> Option(#(String, String)) {
+  case body {
+    [] -> None
+    [stmt, ..rest] ->
+      case find_lt_missing_predicate_in_statement(stmt, shape_name) {
+        Some(v) -> Some(v)
+        None -> find_lt_missing_predicate_in_statements(rest, shape_name)
+      }
+  }
+}
+
+fn find_lt_missing_predicate_in_statement(
+  stmt: glance.Statement,
+  shape_name: String,
+) -> Option(#(String, String)) {
+  case stmt {
+    glance.Expression(e) -> find_lt_missing_predicate_in_expr(e, shape_name)
+    _ -> None
+  }
+}
+
+fn find_lt_missing_predicate_in_expr(
+  expr: glance.Expression,
+  shape_name: String,
+) -> Option(#(String, String)) {
+  case normalize_expr(expr) {
+    glance.BinaryOperator(
+      _,
+      glance.LtFloat,
+      left,
+      glance.Variable(_, threshold_name),
+    ) ->
+      case exclude_if_missing_column_on_shape(left, shape_name) {
+        Some(column) -> Some(#(column, threshold_name))
+        None -> None
+      }
+    glance.BinaryOperator(_, _, left, right) ->
+      case find_lt_missing_predicate_in_expr(left, shape_name) {
+        Some(v) -> Some(v)
+        None -> find_lt_missing_predicate_in_expr(right, shape_name)
+      }
+    glance.Call(_, _callee, args) ->
+      find_lt_missing_predicate_in_fields(args, shape_name)
+    glance.FieldAccess(_, inner, _) ->
+      find_lt_missing_predicate_in_expr(inner, shape_name)
+    glance.Block(_, stmts) ->
+      find_lt_missing_predicate_in_statements(stmts, shape_name)
+    _ -> None
+  }
+}
+
+fn find_lt_missing_predicate_in_fields(
+  fields: List(glance.Field(glance.Expression)),
+  shape_name: String,
+) -> Option(#(String, String)) {
+  case fields {
+    [] -> None
+    [field, ..rest] ->
+      case field {
+        glance.UnlabelledField(e) ->
+          case find_lt_missing_predicate_in_expr(e, shape_name) {
+            Some(v) -> Some(v)
+            None -> find_lt_missing_predicate_in_fields(rest, shape_name)
+          }
+        glance.LabelledField(_, _, e) ->
+          case find_lt_missing_predicate_in_expr(e, shape_name) {
+            Some(v) -> Some(v)
+            None -> find_lt_missing_predicate_in_fields(rest, shape_name)
+          }
+        glance.ShorthandField(_, _) ->
+          find_lt_missing_predicate_in_fields(rest, shape_name)
+      }
+  }
+}
+
+fn find_order_by_column_in_statements(
+  body: List(glance.Statement),
+  shape_name: String,
+) -> Option(String) {
+  case body {
+    [] -> None
+    [stmt, ..rest] ->
+      case find_order_by_column_in_statement(stmt, shape_name) {
+        Some(v) -> Some(v)
+        None -> find_order_by_column_in_statements(rest, shape_name)
+      }
+  }
+}
+
+fn find_order_by_column_in_statement(
+  stmt: glance.Statement,
+  shape_name: String,
+) -> Option(String) {
+  case stmt {
+    glance.Expression(e) -> find_order_by_column_in_expr(e, shape_name)
+    _ -> None
+  }
+}
+
+fn find_order_by_column_in_expr(
+  expr: glance.Expression,
+  shape_name: String,
+) -> Option(String) {
+  case normalize_expr(expr) {
+    glance.Call(_, _callee, _) ->
+      case from_result(query_order_column(expr, shape_name)) {
+        Some(col) -> Some(col)
+        None ->
+          case normalize_expr(expr) {
+            glance.Call(_, _c, args) ->
+              find_order_by_column_in_fields(args, shape_name)
+            _ -> None
+          }
+      }
+    glance.BinaryOperator(_, _, left, right) ->
+      case find_order_by_column_in_expr(left, shape_name) {
+        Some(v) -> Some(v)
+        None -> find_order_by_column_in_expr(right, shape_name)
+      }
+    glance.FieldAccess(_, inner, _) ->
+      find_order_by_column_in_expr(inner, shape_name)
+    glance.Block(_, stmts) ->
+      find_order_by_column_in_statements(stmts, shape_name)
+    _ -> None
+  }
+}
+
+fn find_order_by_column_in_fields(
+  fields: List(glance.Field(glance.Expression)),
+  shape_name: String,
+) -> Option(String) {
+  case fields {
+    [] -> None
+    [field, ..rest] ->
+      case field {
+        glance.UnlabelledField(e) ->
+          case find_order_by_column_in_expr(e, shape_name) {
+            Some(v) -> Some(v)
+            None -> find_order_by_column_in_fields(rest, shape_name)
+          }
+        glance.LabelledField(_, _, e) ->
+          case find_order_by_column_in_expr(e, shape_name) {
+            Some(v) -> Some(v)
+            None -> find_order_by_column_in_fields(rest, shape_name)
+          }
+        glance.ShorthandField(_, _) ->
+          find_order_by_column_in_fields(rest, shape_name)
+      }
   }
 }
 

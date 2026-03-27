@@ -83,7 +83,7 @@ pub fn entity_without_relationships_parses_test() {
 }
 
 pub fn library_manager_schema_test() {
-  let path = "src/case_studies/library_manager_schema.gleam"
+  let path = "old/library_manager_schema.gleam"
   let assert Ok(src) = simplifile.read(path)
 
   let assert Ok(_) = schema_parser.parse_module(src)

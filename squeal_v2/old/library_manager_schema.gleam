@@ -73,7 +73,7 @@ pub type TabIdentities {
 }
 
 /// Join naming for [`dsl.boolean_filter_tag_join_sql`](dsl.boolean_filter_tag_join_sql) on `trackbucket_tag`.
-pub fn trackbucket_tag_join_sql_naming() -> dsl.TagJoinSqlNaming {
+fn trackbucket_tag_join_sql_naming() -> dsl.TagJoinSqlNaming {
   dsl.TagJoinSqlNaming(
     join_table: "trackbucket_tag",
     parent_alias: "tb",
