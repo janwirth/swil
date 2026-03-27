@@ -53,6 +53,10 @@ Schema usage then becomes:
 
 ```gleam
 pub type FilterConfigScalar = dsl.RecursiveFilterSpec(TagExpressionScalar)
+
+pub fn filter_tag_complex(track_bucket, tag_expression_scalar){
+  ...
+}
 ```
 
 ### 2) Encodable data type requirement

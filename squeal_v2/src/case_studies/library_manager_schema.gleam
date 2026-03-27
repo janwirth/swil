@@ -45,7 +45,7 @@ pub type TrackBucket {
 }
 pub type TrackBucketRelationships {
   TrackBucketRelationships(
-    tags: List(BelongsTo(Tag, TrackBucketRelationshipAttributes))
+    tags: List(dsl.BelongsTo(Tag, TrackBucketRelationshipAttributes))
   )
 }
 
@@ -91,12 +91,12 @@ pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields, _limit: Int) 
   |> dsl.order(dsl.order_by(tab_meta.updated_at, dsl.Desc))
 }
 
-pub fn query_tracks_by_view_config(track_bucket: TrackBucket, magic_fields: dsl.MagicFields, filter_config: FilterConfigScalar) {
-  dsl.query(track_bucket)
-  |> dsl.shape(option.None)
-  |> dsl.filter(filter_track_bucket_by_tag(track_bucket, filter_config))
-  |> dsl.order(dsl.order_by(dsl.MagicFields, dsl.Desc))  
-}
+// pub fn query_tracks_by_view_config(track_bucket: TrackBucket, view_config: ViewConfigScalar) {
+//   dsl.query(track_bucket)
+//   |> dsl.shape(option.None)
+//   |> dsl.filter(option.None)
+//   |> dsl.order(dsl.order_by(view_config.updated_at, dsl.Desc))
+// }
 
 // scalar is a single value, like a string, a number, a boolean, etc, not another object type in the db
 // custom scalars could also be vectors
@@ -106,91 +106,139 @@ pub fn query_tracks_by_view_config(track_bucket: TrackBucket, magic_fields: dsl.
 // 
 import gleam/list
 
-pub fn any(relationship: List(BelongsTo(related, attribs)), select: fn(related, dsl.MagicFields, attribs) -> Bool)
-  -> dsl.BooleanFilter(BelongsTo(related, attribs)) {
-  panic("this is DSL")
-}
 
-pub type FilterConfigScalar  = RecursiveFilterSpec(TagExpressionScalar)
-
-// this doesn't even need to be here - it can be a shared function, no generation
-// execution is offloaded to engine
-pub fn filter_track_bucket_by_tag(
-  track_bucket: TrackBucket,
-  filter: RecursiveFilterSpec(TagExpressionScalar),
-) -> dsl.BooleanFilter(BelongsTo(Tag, TrackBucketRelationshipAttributes)) {
-  case filter {
-    And(items: items) ->
-      dsl.And(
-        exprs: list.map(items, fn(item) { filter_track_bucket_by_tag(track_bucket, item) }),
-      )
-    Or(items: items) ->
-      dsl.Or(
-        exprs: list.map(items, fn(item) { filter_track_bucket_by_tag(track_bucket, item) }),
-      )
-    Not(item: item) -> dsl.Not(expr: filter_track_bucket_by_tag(track_bucket, item))
-    Terminal(item: tag_expression) ->
-    // on any tag that is connected and matches
-      case tag_expression {
-
-        Has(tag_id: tag_id) ->
-          any(track_bucket.relationships.tags, fn(tag, magic_fields, edge_attribs) {
-            magic_fields.id == tag_id
-          })
-        IsAtLeast(tag_id: tag_id, value: value) ->
-          any(track_bucket.relationships.tags, fn(tag, magic_fields, edge_attribs) {
-            dsl.exclude_if_missing(edge_attribs.value) >= value
-          })
-        IsAtMost(tag_id: tag_id, value: value) ->
-          any(track_bucket.relationships.tags, fn(tag, magic_fields, edge_attribs) {
-            dsl.exclude_if_missing(edge_attribs.value) <= value
-          })
-        IsEqualTo(tag_id: tag_id, value: value) ->
-          any(track_bucket.relationships.tags, fn(tag, magic_fields, edge_attribs) {
-            dsl.exclude_if_missing(edge_attribs.value) == value
-          })
-
-      }
-  }
-}
-pub fn terminal(track_bucket: TrackBucket, tag_expression: TagExpressionScalar) -> dsl.BooleanFilter(BelongsTo(Tag, TrackBucketRelationshipAttributes)) {
-    // Terminal(item: tag_expression) ->
-    // on any tag that is connected and matches
-      case tag_expression {
-
-        Has(tag_id: tag_id) ->
-          any(track_bucket.relationships.tags, fn(tag, magic_fields, edge_attribs) {
-            magic_fields.id == tag_id
-          })
-        IsAtLeast(tag_id: tag_id, value: value) ->
-          any(track_bucket.relationships.tags, fn(tag, magic_fields, edge_attribs) {
-            dsl.exclude_if_missing(edge_attribs.value) >= value
-          })
-        IsAtMost(tag_id: tag_id, value: value) ->
-          any(track_bucket.relationships.tags, fn(tag, magic_fields, edge_attribs) {
-            dsl.exclude_if_missing(edge_attribs.value) <= value
-          })
-        IsEqualTo(tag_id: tag_id, value: value) ->
-          any(track_bucket.relationships.tags, fn(tag, magic_fields, edge_attribs) {
-            dsl.exclude_if_missing(edge_attribs.value) == value
-          })
-
-      }
-}
-
-
-
-pub type RecursiveFilterSpec(terminal) {
-  And(items: List(RecursiveFilterSpec(terminal)))
-  Or(items: List(RecursiveFilterSpec(terminal)))
-  Not(item: RecursiveFilterSpec(terminal))
-  Terminal(item: terminal)
+pub type FilterScalar {
+  And(exprs: List(FilterScalar))
+  Or(exprs: List(FilterScalar))
+  Not(expr: FilterScalar)
+  TagExpression(tag_id: Int, operator: TagExpressionScalar)
 }
 
 pub type TagExpressionScalar {
-  Has(tag_id: Int)
-  IsAtLeast(tag_id: Int, value: Int)
-  IsAtMost(tag_id: Int, value: Int)
-  IsEqualTo(tag_id: Int, value: Int)
+  Has
+  DoesNotHave
+  IsAtLeast(value: Int)
+  IsAtMost(value: Int)
+  IsEqualTo(value: Int)
 }
+// todo: boolean filter structure
+// list of sources
+// all tracks
+// list of tags (sidebar filter config - a la notion?)
+// should tags even go into sidebar or should they be above?
+// Let's keep this powerful
 
+// parsed from URL or held in state, not persisted in db
+// type Route {
+//   Route(tab: Tab, mode: RouteModal)
+// }
+
+// type RouteModal {
+//   None
+//   Spotlight(query: String)
+//   // spotlight can
+//   // CRUD tabs
+//   // find individual tracks
+// }
+// tags grouping is done by UI code
+
+// let's think UI
+// first think I see is
+// pub fn all_tabs() -> List(Tab) {
+//   // select * from tabs
+//   // 
+
+//   // this comes from DB and is reactive
+//   // how do I describe it?
+//   // execute sqlite query
+//   todo
+// }
+
+// pub fn all_tabs_for_header() -> List(Tab) {
+//   // select {label, order} from tabs
+//   // order by order
+//   todo
+// }
+
+// pub fn select(a, b) -> b {
+//   b
+// }
+
+// pub type Field {
+//     Field
+// }
+// pub type TabGenerated {
+//     TabGenerated(
+//         label: Field,
+//         order: Field,
+//         filter_config: Field,
+//         source_selector: Field,
+//     )
+// }
+// // placeholder
+// type Infer {
+//     Infer(Never)
+// }
+
+// pub fn never_example() -> Never {   
+//    JustOneMore(JustOneMore(JustOneMore(...))) // doesn't compile
+// }
+
+// pub fn select_tabs_for_header(tab: Tab) -> OrderBy(c) {
+//   order_by(tab.order, Asc)
+// }
+
+// // query spec - also never executed
+// pub fn select_active_tab(tab: Tab) -> OrderBy(c) {
+//   NoOrderBy
+//   |> filter_single(fn(tab: Tab) -> Bool { tab.label == Exclusive("Active") })
+// }
+
+// // INTERNALS
+// // code-generation helpers - never executed
+// // query builder
+// pub fn filter_single(
+//   ord: OrderBy(field),
+//   predicate: fn(object_type) -> Bool,
+// ) -> OrderBy(field) {
+//   todo
+// }
+
+// pub fn query(select: fn(object_type) -> OrderBy(field)) -> List(object_type) {
+//   // this is query implementation - fetching the 
+//   // generated per chema
+//   todo
+// }
+
+// pub fn query_single(
+//   select: fn(object_type) -> OrderBy(field),
+// ) -> option.Option(object_type) {
+//   // this is query implementation - fetching the 
+//   // actual usage -> generated per schema
+//   todo
+// }
+
+// // EXAMPLE
+// pub fn in_render_example() -> List(Tab) {
+//   // can I sync exec this?
+//   // yes against sqlite inmem
+//   // sync exec this in runtime
+//   let tabs = query(select_tabs_for_header)
+//   let active_tab = query_single(select_active_tab)
+//   // final parsed results
+//   todo
+// }
+// server components
+// sync query against db connection
+// why? distirbution easier
+// let's kill this, work with just a desktop app.
+// this saves a lot of trouble
+// destkop app with embedded sqlite and lustre server components
+// mobile app can re-use some things
+
+// APPLICATION
+
+// pub fn active_tab_renderer(scroll_offset: Int, filter_config: FilterConfig) -> List(Element) {
+//     // let filter_editor
+//     todo
+// }
