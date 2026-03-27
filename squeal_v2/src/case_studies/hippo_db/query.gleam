@@ -11,7 +11,6 @@ const last_100_human_sql = "select \"name\", \"email\", \"id\", \"created_at\", 
 
 const last_100_hippo_sql = "select \"name\", \"gender\", \"date_of_birth\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"hippo\" where \"deleted_at\" is null order by \"updated_at\" desc limit 100;"
 
-/// `gender == gender_to_match`, ordered descending by `name` (from `query_hippos_by_gender` query spec).
 pub fn query_hippos_by_gender(
   conn: sqlight.Connection,
   gender_to_match: GenderScalar,

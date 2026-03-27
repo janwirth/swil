@@ -10,7 +10,7 @@ import gleamgen/function as gfun
 import gleamgen/parameter as gparam
 import gleamgen/types as gtypes
 import schema_definition/schema_definition.{
-  type EntityDefinition, type QueryParameter, type QuerySpecDefinition,
+  type EntityDefinition, type Query, type QueryParameter, type QuerySpecDefinition,
   Query, QueryParameter,
   BooleanFilter, CustomOrder, ExcludeIfMissing, NoneOrBase,
 }
