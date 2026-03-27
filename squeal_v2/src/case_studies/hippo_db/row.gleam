@@ -54,4 +54,3 @@ pub fn hippo_with_magic_row_decoder() -> decode.Decoder(#(Hippo, dsl.MagicFields
     api_help.magic_from_db_row(id, created_at, updated_at, deleted_at_raw),
   ))
 }
-

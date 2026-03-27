@@ -176,14 +176,14 @@ pub type RowIdentities {
   ByKey(key: String)
 }
 
-pub fn by_key(k: Int) {
+pub fn query_by_key(k: Int) {
   Query(shape: option.None, filter: option.None, order: option.None)
 }
 "
   let assert Ok(def) = schema_definition.parse_module(input)
   assert list.length(def.queries) == 1
   let assert [q] = def.queries
-  assert q.name == "by_key"
+  assert q.name == "query_by_key"
 }
 
 pub fn documented_shape_query_return_annotation_parses_test() {
@@ -198,14 +198,14 @@ pub type RowIdentities {
   ByKey(key: String)
 }
 
-pub fn by_key(k: Int) -> Query {
+pub fn query_by_key(k: Int) -> Query {
   Query(shape: option.None, filter: option.None, order: option.None)
 }
 "
   let assert Ok(def) = schema_definition.parse_module(input)
   assert list.length(def.queries) == 1
   let assert [q] = def.queries
-  assert q.name == "by_key"
+  assert q.name == "query_by_key"
 }
 
 pub fn generic_custom_type_rejected_test() {

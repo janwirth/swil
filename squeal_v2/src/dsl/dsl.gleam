@@ -1,3 +1,5 @@
+/// This file contains functions that help consumers describe their schemas
+/// and queries
 import gleam/list
 import gleam/option.{type Option, Some}
 import gleam/time/calendar.{type Date}

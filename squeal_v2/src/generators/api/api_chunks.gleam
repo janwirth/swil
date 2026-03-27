@@ -6,33 +6,60 @@ import generators/api/api_update_delete as ud
 import generators/api/schema_context
 import generators/gleamgen_emit
 import gleam/list
-import gleam/string
 import gleamgen/expression as gexpr
+import gleamgen/expression/case_ as gcase
 import gleamgen/function as gfun
 import gleamgen/module/definition as gdef
 import gleamgen/parameter as gparam
+import gleamgen/pattern as gpat
+import gleamgen/render/config as grender_cfg
 import gleamgen/types as gtypes
 import schema_definition/query.{type QuerySpecDefinition}
 import schema_definition/schema_definition.{
   type EntityDefinition, type IdentityVariantDefinition, type SchemaDefinition,
 }
 
-fn scalar_enum_from_db_raw(variants: List(String)) -> String {
-  let arms =
-    list.map(variants, fn(v) {
-      "    \"" <> v <> "\" -> Some(" <> v <> ")"
-    })
-    |> string.join("\n")
-  "case s {\n    \"\" -> None\n" <> arms <> "\n    _ -> None\n  }"
+fn without_combined_case_branches(e: gexpr.Expression(t)) -> gexpr.Expression(t) {
+  gexpr.with_render_config(
+    e,
+    grender_cfg.Config(
+      ..grender_cfg.default_config,
+      combine_equivalent_branches: False,
+    ),
+  )
 }
 
-fn scalar_enum_to_db_raw(variants: List(String)) -> String {
-  let some_arms =
-    list.map(variants, fn(v) {
-      "    Some(" <> v <> ") -> \"" <> v <> "\""
+fn scalar_enum_from_db_expr(
+  s: gexpr.Expression(String),
+  variants: List(String),
+) -> gexpr.Expression(a) {
+  let c = gcase.new(s)
+  let c = gcase.with_pattern(c, gpat.string_literal(""), fn(_) { gexpr.raw("None") })
+  let c =
+    list.fold(variants, c, fn(acc, v) {
+      gcase.with_pattern(acc, gpat.string_literal(v), fn(_) {
+        gexpr.call1(gexpr.raw("Some"), gexpr.raw(v))
+      })
     })
-    |> string.join("\n")
-  "case o {\n    None -> \"\"\n" <> some_arms <> "\n  }"
+  let c = gcase.with_pattern(c, gpat.discard(), fn(_) { gexpr.raw("None") })
+  gcase.build_expression(c) |> without_combined_case_branches
+}
+
+fn scalar_enum_to_db_expr(
+  o: gexpr.Expression(gtypes.Dynamic),
+  variants: List(String),
+) -> gexpr.Expression(String) {
+  let c = gcase.new(o)
+  let c = gcase.with_pattern(c, gpat.option_none(), fn(_) { gexpr.string("") })
+  let c =
+    list.fold(variants, c, fn(acc, v) {
+      gcase.with_pattern(
+        acc,
+        gpat.option_some(gpat.foreign_variant(v, [])),
+        fn(_args) { gexpr.string(v) },
+      )
+    })
+  gcase.build_expression(c) |> without_combined_case_branches
 }
 
 pub fn scalar_enum_db_fn_chunks(def: SchemaDefinition, entity: EntityDefinition) {
@@ -41,27 +68,25 @@ pub fn scalar_enum_db_fn_chunks(def: SchemaDefinition, entity: EntityDefinition)
     let base = dec.scalar_type_snake_case(scalar.type_name)
     let from_fn = base <> "_from_db_string"
     let to_fn = base <> "_to_db_string"
-    let from_body = scalar_enum_from_db_raw(scalar.variant_names)
-    let to_body = scalar_enum_to_db_raw(scalar.variant_names)
+    let opt_scalar = gtypes.raw("Option(" <> scalar.type_name <> ")")
     [
       #(
         gleamgen_emit.pub_def(from_fn),
-        gfun.new_raw(
-          [gparam.new("s", gtypes.string) |> gparam.to_dynamic],
-          gtypes.raw("Option(" <> scalar.type_name <> ")"),
-          fn(_) { gexpr.raw(from_body) },
+        gfun.new1(
+          param1: gparam.new("s", gtypes.string),
+          returns: opt_scalar,
+          handler: fn(s) { scalar_enum_from_db_expr(s, scalar.variant_names) },
         )
           |> gfun.to_dynamic,
       ),
       #(
         gleamgen_emit.pub_def(to_fn),
-        gfun.new_raw(
-          [
-            gparam.new("o", gtypes.raw("Option(" <> scalar.type_name <> ")"))
-            |> gparam.to_dynamic,
-          ],
-          gtypes.string,
-          fn(_) { gexpr.raw(to_body) },
+        gfun.new1(
+          param1: gparam.new("o", opt_scalar),
+          returns: gtypes.string,
+          handler: fn(o) {
+            scalar_enum_to_db_expr(gexpr.to_dynamic(o), scalar.variant_names)
+          },
         )
           |> gfun.to_dynamic,
       ),
@@ -72,14 +97,18 @@ pub fn scalar_enum_db_fn_chunks(def: SchemaDefinition, entity: EntityDefinition)
 pub fn not_found_private_chunk(entity_snake: String) {
   #(
     gdef.new("not_found_error") |> gdef.with_publicity(False),
-    gfun.new_raw(
-      [gparam.new("op", gtypes.string) |> gparam.to_dynamic],
-      gtypes.raw("sqlight.Error"),
-      fn(_) {
-        gexpr.raw(
-          "sqlight.SqlightError(sqlight.GenericError, \""
-          <> entity_snake
-          <> " not found: \" <> op, -1)",
+    gfun.new1(
+      param1: gparam.new("op", gtypes.string),
+      returns: gtypes.raw("sqlight.Error"),
+      handler: fn(op) {
+        gexpr.call3(
+          gexpr.raw("sqlight.SqlightError"),
+          gexpr.raw("sqlight.GenericError"),
+          gexpr.concat_string(
+            gexpr.concat_string(gexpr.string(entity_snake), gexpr.string(" not found: ")),
+            op,
+          ),
+          gexpr.int(-1),
         )
       },
     )

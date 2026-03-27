@@ -99,5 +99,13 @@ pub fn upsert_hippo_by_name_and_date_of_birth(
 }
 
 fn not_found_error(op: String) -> sqlight.Error {
-  sqlight.SqlightError(sqlight.GenericError, "hippo not found: " <> op, -1)
+  sqlight.SqlightError(
+    sqlight.GenericError,
+    "hippo"
+    <>
+    " not found: "
+    <>
+    op,
+    -1,
+  )
 }

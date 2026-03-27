@@ -95,3 +95,49 @@ pub type RowIdentities {
     Error(_) -> Nil
   }
 }
+
+pub fn entity_object_query_function_must_start_with_query_prefix_rejected_test() {
+  let input =
+    "import gleam/option
+
+pub type Row {
+  Row(identities: RowIdentities)
+}
+
+pub type RowIdentities {
+  ByKey(key: String)
+}
+
+pub fn by_key(k: Int) {
+  Query(shape: option.None, filter: option.None, order: option.None)
+}
+"
+  case schema_definition.parse_module(input) {
+    Ok(_) ->
+      panic as "expected query function without query_ prefix to be rejected"
+    Error(_) -> Nil
+  }
+}
+
+pub fn entity_object_filter_function_must_start_with_filter_prefix_rejected_test() {
+  let input =
+    "import gleam/option
+
+pub type Row {
+  Row(identities: RowIdentities)
+}
+
+pub type RowIdentities {
+  ByKey(key: String)
+}
+
+pub fn helper_filter(row: Row) -> BooleanFilter {
+  Predicate(value: True)
+}
+"
+  case schema_definition.parse_module(input) {
+    Ok(_) ->
+      panic as "expected BooleanFilter helper without filter_ prefix to be rejected"
+    Error(_) -> Nil
+  }
+}

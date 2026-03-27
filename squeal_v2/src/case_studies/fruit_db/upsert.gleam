@@ -106,5 +106,13 @@ pub fn upsert_fruit_by_name(
 }
 
 fn not_found_error(op: String) -> sqlight.Error {
-  sqlight.SqlightError(sqlight.GenericError, "fruit not found: " <> op, -1)
+  sqlight.SqlightError(
+    sqlight.GenericError,
+    "fruit"
+    <>
+    " not found: "
+    <>
+    op,
+    -1,
+  )
 }

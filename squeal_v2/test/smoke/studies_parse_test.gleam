@@ -33,7 +33,11 @@ pub fn hippo_schema_parses_test() {
   assert scalar.type_name == "GenderScalar"
   assert scalar.variant_names == ["Male", "Female"]
 
-  assert query_names == ["hippos_by_gender", "old_hippos_owner_emails"]
+  assert query_names == [
+    "query_hippos_by_gender",
+    "query_old_hippos_owner_emails",
+    "query_old_hippos_owner_names",
+  ]
 
   let rel_container_names =
     list.map(def.relationship_containers, fn(r) { r.type_name })

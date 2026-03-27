@@ -2,6 +2,7 @@ import glance
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
+import gleam/string
 import schema_definition/parse_error.{type ParseError, UnsupportedSchema}
 
 /// How (or whether) a schema [`QuerySpecDefinition`](#QuerySpecDefinition) maps to generated SQL in tooling.
@@ -42,13 +43,33 @@ pub fn extract_from_functions(
           glance.Public ->
             case function_is_query_spec(f) {
               True ->
-                case query_spec_from_function_strict(f) {
-                  Ok(spec) -> Ok([spec, ..acc])
-                  Error(e) -> Error(e)
+                case function_has_query_prefix(f.name) {
+                  False ->
+                    Error(UnsupportedSchema(
+                      Some(f.location),
+                      "public query function "
+                        <> f.name
+                        <> " must start with `query_`",
+                    ))
+                  True ->
+                    case query_spec_from_function_strict(f) {
+                      Ok(spec) -> Ok([spec, ..acc])
+                      Error(e) -> Error(e)
+                    }
                 }
               False ->
                 case function_is_boolean_filter_helper(f) {
-                  True -> Ok(acc)
+                  True ->
+                    case function_has_filter_prefix(f.name) {
+                      True -> Ok(acc)
+                      False ->
+                        Error(UnsupportedSchema(
+                          Some(f.location),
+                          "public BooleanFilter helper "
+                            <> f.name
+                            <> " must start with `filter_`",
+                        ))
+                    }
                   False ->
                     Error(UnsupportedSchema(
                       Some(f.location),
@@ -393,4 +414,12 @@ fn assignment_name_string(name: glance.AssignmentName) -> String {
     glance.Named(s) -> s
     glance.Discarded(s) -> s
   }
+}
+
+fn function_has_query_prefix(name: String) -> Bool {
+  string.starts_with(name, "query_")
+}
+
+fn function_has_filter_prefix(name: String) -> Bool {
+  string.starts_with(name, "filter_")
 }

@@ -9,7 +9,7 @@ import sqlight
 /// Table of contents:
 /// - `migrate/1`
 /// - Entity ops: Hippo, Human
-/// - Query specs: `query_old_hippos_owner_emails`, `query_hippos_by_gender`
+/// - Query specs: `query_old_hippos_owner_emails`, `query_old_hippos_owner_names`, `query_hippos_by_gender`
 pub fn migrate(
   conn: sqlight.Connection,
 ) -> Result(Nil, sqlight.Error) {
@@ -106,7 +106,7 @@ pub type QueryOldHipposOwnerEmailsRow {
   QueryOldHipposOwnerEmailsRow
 }
 
-/// Execute generated query for the `old_hippos_owner_emails` spec.
+/// Execute generated query for the `query_old_hippos_owner_emails` spec.
 pub fn query_old_hippos_owner_emails(
   conn: sqlight.Connection,
   min_age: Int,
@@ -114,19 +114,26 @@ pub fn query_old_hippos_owner_emails(
   todo as "TODO: generated select SQL, parameters, and decoder"
 }
 
-pub type HipposByGenderResult {
-  HipposByGenderResult(
-    magic_fields: dsl.MagicFields,
-    name: option.Option(String),
-    date_of_birth: option.Option(Date),
-    owner: option.Option(#(Human, dsl.MagicFields)),
-  )
+pub type QueryOldHipposOwnerNamesRow {
+  QueryOldHipposOwnerNamesRow
 }
 
-/// Execute generated query for the `hippos_by_gender` spec.
+/// Execute generated query for the `query_old_hippos_owner_names` spec.
+pub fn query_old_hippos_owner_names(
+  conn: sqlight.Connection,
+  min_age: Int,
+) -> Result(List(QueryOldHipposOwnerNamesRow), sqlight.Error) {
+  todo as "TODO: generated select SQL, parameters, and decoder"
+}
+
+pub type QueryHipposByGenderRow {
+  QueryHipposByGenderRow
+}
+
+/// Execute generated query for the `query_hippos_by_gender` spec.
 pub fn query_hippos_by_gender(
   conn: sqlight.Connection,
   gender_to_match: hippo_schema.GenderScalar,
-) -> Result(List(HipposByGenderResult), sqlight.Error) {
+) -> Result(List(QueryHipposByGenderRow), sqlight.Error) {
   todo as "TODO: generated select SQL, parameters, and decoder"
 }
