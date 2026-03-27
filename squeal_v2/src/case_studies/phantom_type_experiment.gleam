@@ -30,5 +30,6 @@ fn my_query() {
     |> filter(x == 2)
     // |> filter(x == 3)
     |> order(x == 2)
+    |> shape(x == 2)
     // |> shape(x == 2)
 }
