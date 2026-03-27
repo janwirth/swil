@@ -68,7 +68,7 @@ Define a strict, parse-time validated query model for schema query functions and
 - [ ] Keep unsupported query constructs as hard parser errors.
 - [ ] Keep default `Shape.NoneOrBase` as full base entity row.
 - [ ] Emit generated hippo query helpers in `src/case_studies/hippo_db/query.gleam`.
-- [ ] Remove/retire `src/case_studies/hippo_db/relationship_queries.gleam` usage paths.
+- [ ] Remove `src/case_studies/hippo_db/relationship_queries.gleam` usage paths.
 - [ ] Keep `src/case_studies/fruit_db/query.gleam` output unchanged in behavior.
 - [ ] Update tests/snapshots and remove stale query-codegen expectations.
 
