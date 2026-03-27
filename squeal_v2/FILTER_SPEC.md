@@ -1,49 +1,97 @@
-# Dynamic `filter_*` Helper Spec (v1)
+# Recursive Filter Spec (v2)
 
 ## Goal
 
-Enable schema authors to define public `filter_*` functions (like `filter_by_tag`) that:
+Make recursive filters a first-class, reusable capability:
 
-- remain generic (no case-study hard-coding),
-- preserve the full boolean expression tree in schema metadata,
-- and compile to SQL at runtime with type-safe operator/value handling for the targeted relationship/entity.
+- the recursive wrapper type is owned by `dsl`,
+- schema modules only define terminal/filter-leaf types,
+- and the schema parser stores recursive filter specs as structured metadata.
 
-This extends the existing query model in `src/schema_definition/query.gleam` and `src/schema_definition/schema_definition.gleam` without introducing consumer-written custom SQL.
+This keeps `filter_*` definitions generic and makes them available to generation/runtime code without case-study-specific parsing.
 
-## Motivation
+## Problem Statement
 
-`library_manager_schema.filter_by_tag` already shows the desired expressiveness:
+Today `library_manager_schema` defines:
 
-- recursive `And` / `Or` / `Not`
-- domain scalar leaves (`TagExpression`)
-- relationship-aware leaves (`dsl.has`, `dsl.not_has`, `dsl.has_with`)
+- a local `RecursiveFilterSpec(terminal)` type,
+- plus `filter_track_bucket_by_tag` that interprets recursive nodes and terminal tag expressions.
 
-Today this shape is effectively hard-coded in the schema module. The target is to make this pattern first-class and generic in schema parsing + generation.
+That works for one schema, but the recursive shape itself is not shared or encoded as a platform-level contract. We want the application to understand this pattern globally.
 
-## Non-Negotiable Constraints
+## Scope
 
-- No module-specific codegen logic.
-- No fallback to manual SQL for schema-declared filters.
-- Fail with explicit parser/codegen errors for unsupported helper shapes.
-- Keep helper expression structure in AST/model (do not flatten to string SQL fragments).
+In scope:
 
-## Proposed Contract
+- shared recursive filter type in `src/dsl/dsl.gleam`,
+- encodable recursive filter payloads,
+- parser/model updates in `src/schema_definition/schema_definition.gleam`,
+- extraction contract for `filter_*` functions.
 
-### 1) Public helper recognition
+Out of scope (v2):
 
-In `src/schema_definition/query.gleam`, treat public `filter_*` functions as extractable specs (not just permissive side helpers).
+- full SQL runtime implementation details for every leaf operation,
+- cross-function inlining/optimization,
+- backwards-compat for arbitrary ad-hoc helper shapes.
 
-Required shape:
+## DSL Contract
 
-- function name starts with `filter_`
-- explicit return annotation `-> dsl.BooleanFilter(...)`
-- exactly 2 parameters:
-  - first: target entity/root (for path resolution)
-  - second: scalar/filter input type (for runtime value typing)
+### 1) Move recursive wrapper to `dsl`
 
-### 2) New schema model nodes
+Add this shared type to `src/dsl/dsl.gleam`:
 
-Extend `src/schema_definition/schema_definition.gleam`:
+```gleam
+pub type RecursiveFilterSpec(terminal) {
+  And(items: List(RecursiveFilterSpec(terminal)))
+  Or(items: List(RecursiveFilterSpec(terminal)))
+  Not(item: RecursiveFilterSpec(terminal))
+  Terminal(item: terminal)
+}
+```
+
+Schema usage then becomes:
+
+```gleam
+pub type FilterConfigScalar = dsl.RecursiveFilterSpec(TagExpressionScalar)
+```
+
+### 2) Encodable data type requirement
+
+`dsl.RecursiveFilterSpec(terminal)` is considered encodable iff `terminal` is encodable.
+
+Encoding shape (logical contract, not wire-format locked):
+
+- `And` / `Or`: object with tag + `items`
+- `Not`: object with tag + `item`
+- `Terminal`: object with tag + terminal payload
+
+Example JSON-like representation:
+
+```text
+{ "type": "And", "items": [ ... ] }
+{ "type": "Not", "item": { ... } }
+{ "type": "Terminal", "item": { "type": "Has", "tag_id": 3 } }
+```
+
+Implementation detail (derive/manual encoder) is decided by the scalar/codegen layer; this spec only fixes semantic shape.
+
+## `filter_*` Authoring Contract
+
+A public `filter_*` function is extractable if:
+
+- name starts with `filter_`,
+- return type is explicitly `dsl.BooleanFilter(...)`,
+- parameter 1 is root entity/context,
+- parameter 2 is `dsl.RecursiveFilterSpec(<TerminalType>)` OR an alias that resolves to that type,
+- implementation structurally matches recursion on the second parameter (`And`/`Or`/`Not`/`Terminal`).
+
+Inside `Terminal`, schema authors map `<TerminalType>` to DSL leaves (`dsl.has`, `dsl.not_has`, `dsl.has_with`, or equivalent supported leaves).
+
+## Applying This To `schema_definition.gleam`
+
+### 1) Extend root model
+
+Add extracted filter specs to `SchemaDefinition`:
 
 ```gleam
 pub type SchemaDefinition {
@@ -57,13 +105,20 @@ pub type SchemaDefinition {
     filters: List(FilterSpecDefinition),
   )
 }
+```
 
+### 2) Add filter-specific definitions
+
+Add these model types:
+
+```gleam
 pub type FilterSpecDefinition {
   FilterSpecDefinition(
     name: String,
     parameters: List(FilterParameter),
-    input_type_name: String,
     target_type_name: String,
+    terminal_type_name: String,
+    recursive_filter_type_name: String,
     tree: FilterTree,
   )
 }
@@ -76,6 +131,7 @@ pub type FilterTree {
   FilterAnd(items: List(FilterTree))
   FilterOr(items: List(FilterTree))
   FilterNot(item: FilterTree)
+  FilterTerminal(terminal_expr: Expr)
   FilterLeaf(operation: FilterOperation, path: List(String), payload: FilterPayload)
 }
 
@@ -83,85 +139,53 @@ pub type FilterOperation {
   Has
   NotHas
   HasWith
+  Any
 }
 
 pub type FilterPayload {
   NoPayload
-  ScalarValue(value_expr: Expr)
+  RelatedId(value_expr: Expr)
   Comparison(operator: Operator, value_expr: Expr)
 }
 ```
 
-Notes:
+Design notes:
 
-- `path` is relationship path from parameter 1 root, not SQL table/column names.
-- leaf payload uses existing `Expr`/`Operator` primitives where possible.
-- scalar AST literals can be added later if needed; initial scope can remain parameter/field/call-based.
+- `FilterTerminal` preserves terminal expression identity before lowering.
+- `FilterLeaf` is lowered/canonical form for generation/runtime.
+- `path` remains relationship-path semantics, never raw SQL naming.
 
-### 3) Parser extraction rules (`query.gleam`)
+### 3) Parser responsibilities (where it hooks)
 
-Add extraction pipeline for `filter_*` helpers:
+In the schema parsing pipeline:
 
-- Detect structural recursion over the second parameter type:
-  - `And(exprs)` -> `FilterAnd(list.map(...))`
-  - `Or(exprs)` -> `FilterOr(...)`
-  - `Not(expr)` -> `FilterNot(...)`
-- Detect supported DSL leaves:
-  - `dsl.has(<relationship_path>, <value>)`
-  - `dsl.not_has(<relationship_path>, <value>)`
-  - `dsl.has_with(<relationship_path>, <value>, <predicate>)`
-- Predicate mapping for `has_with`:
-  - `dsl.is_at_least(v)` -> `Comparison(Ge, parse_expr(v))`
-  - `dsl.is_at_most(v)` -> `Comparison(Le, parse_expr(v))`
-  - `dsl.is_equal_to(v)` -> `Comparison(Eq, parse_expr(v))`
+- resolve aliases and detect parameter 2 as `dsl.RecursiveFilterSpec(TerminalType)`,
+- parse recursive shape (`And`/`Or`/`Not`) into `FilterTree`,
+- parse `Terminal` branch and capture leaf operations as `FilterLeaf` (or keep `FilterTerminal` then lower later),
+- store result in `SchemaDefinition.filters`.
 
-Unsupported forms are explicit parse errors with function name and span.
+Unsupported forms must emit `UnsupportedSchema` with function span and reason.
 
-### 4) Runtime + codegen behavior
+### 4) Query integration
 
-Generated API layer should expose helper execution through generic functions:
+No breaking change required for `QuerySpecDefinition` initially.
 
-- parse scalar input (`FilterScalar`-like) into the preserved `FilterTree` form
-- compile `FilterTree` to SQL via existing boolean filter SQL pipeline
-- bind values according to inferred scalar type (`Int`, `Float`, `String`, custom `*Scalar` unwrap rules)
+`query_*` functions keep accepting filter arguments as today; generator resolves whether the filter type maps to a known `FilterSpecDefinition` via type name and uses that metadata.
 
-Compilation requirements:
+## Migration Plan
 
-- Preserve boolean grouping (`And`/`Or`/`Not`) exactly.
-- Resolve relationship `path` using schema relationship metadata, not hard-coded table names.
-- Use operator/type-specific SQL fragments generated from AST (`Eq`, `Ge`, `Le`, etc.).
+1. Add `dsl.RecursiveFilterSpec(terminal)` and switch `library_manager_schema` alias to it.
+2. Remove local `RecursiveFilterSpec` declarations from schema modules.
+3. Extend `schema_definition.gleam` with `filters` + filter model nodes.
+4. Implement parser extraction and populate `SchemaDefinition.filters`.
+5. Add tests:
+   - parser snapshot for extracted `filter_track_bucket_by_tag`,
+   - encoding/decoding round-trip for recursive filter scalar payload,
+   - e2e query using recursive filter input.
 
-### 5) Integration with query specs
+## Acceptance Criteria
 
-`query_*` specs can stay unchanged and consume filter helpers as opaque inputs initially.
-
-Optional next step:
-
-- Allow `query_*` filter argument to reference extracted `FilterSpecDefinition` directly, so query specs can declare helper coupling explicitly.
-
-## Validation Strategy
-
-- Parser unit tests:
-  - successful extraction of `library_manager_schema.filter_by_tag`
-  - error cases for non-prefixed names, missing return annotation, unsupported leaf calls
-- Model snapshots:
-  - assert `SchemaDefinition.filters` includes expected AST
-- SQL generation tests:
-  - golden SQL for nested `And/Or/Not`
-  - parameter binding order/type tests for `has_with` comparison values
-
-## Incremental Rollout
-
-1. Add `FilterSpecDefinition` model and schema container field.
-2. Implement parser extraction + strict validation for `filter_*`.
-3. Wire generic SQL compilation from `FilterTree`.
-4. Migrate `library_manager` to use generated/runtime filter compilation path.
-5. Add end-to-end test in `test/evolution/e2e/library_manager.gleam`.
-
-## Open Questions
-
-1. Should `filter_*` helpers be allowed to call other `filter_*` helpers, or only self-recursive in one function?
-2. Do you want leaf support limited to `has` / `not_has` / `has_with` first, or should we include scalar field comparisons (`entity.field == x`) in v1?
-3. For custom scalars in filter leaves, should we require explicit conversion hooks now, or defer until first concrete need?
-4. Should `filter_*` remain a separate spec track (`SchemaDefinition.filters`) or be embedded as a variant under query/filter AST in one unified tree?
-5. Do you want `query_*` extraction to validate helper compatibility at parse time (strict coupling), or at generation time (looser coupling)?
+- At least one case study (`library_manager`) uses `dsl.RecursiveFilterSpec(Terminal)`.
+- `SchemaDefinition` contains extracted `FilterSpecDefinition` entries.
+- Recursive filter payload can be encoded/decoded without losing tree structure.
+- Removing local recursive type declarations does not reduce expressiveness.
