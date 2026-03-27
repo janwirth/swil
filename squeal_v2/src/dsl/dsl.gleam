@@ -136,14 +136,6 @@ pub fn is_equal_to(value: Int) -> WithPredicate {
   EqualTo(value)
 }
 
-fn pred_sql_op(pred: WithPredicate) -> #(String, Int) {
-  case pred {
-    AtLeast(n) -> #(">=", n)
-    AtMost(n) -> #("<=", n)
-    EqualTo(n) -> #("=", n)
-  }
-}
-
 /// Naming for `EXISTS (select 1 from join_table j where j.fk = alias.pk and …)`.
 pub type OneToManyJoinSqlNaming {
   OneToManyJoinSqlNaming(
