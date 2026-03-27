@@ -3,7 +3,7 @@ import gleam/dynamic/decode
 import gleam/result
 import sqlight
 
-const soft_delete_by_name_sql = "update \"fruit\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"name\" = ? and \"deleted_at\" is null returning \"name\";"
+const soft_delete_fruit_by_name_sql = "update \"fruit\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"name\" = ? and \"deleted_at\" is null returning \"name\";"
 
 /// Delete a fruit by the `ByName` identity.
 pub fn delete_fruit_by_name(
@@ -13,7 +13,7 @@ pub fn delete_fruit_by_name(
   let now = api_help.unix_seconds_now()
   use rows <- result.try(
     sqlight.query(
-      soft_delete_by_name_sql,
+      soft_delete_fruit_by_name_sql,
       on: conn,
       with: [sqlight.int(now), sqlight.int(now), sqlight.text(name)],
       expecting: {
@@ -24,11 +24,11 @@ pub fn delete_fruit_by_name(
   )
   case rows {
     [Nil, ..] -> Ok(Nil)
-    [] -> Error(not_found_error("delete_fruit_by_name"))
+    [] -> Error(not_found_fruit_name_error("delete_fruit_by_name"))
   }
 }
 
-fn not_found_error(op: String) -> sqlight.Error {
+fn not_found_fruit_name_error(op: String) -> sqlight.Error {
   sqlight.SqlightError(
     sqlight.GenericError,
     "fruit"

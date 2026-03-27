@@ -4,7 +4,44 @@ import gleam/result
 import gleam/time/calendar.{type Date}
 import sqlight
 
-const soft_delete_by_name_and_date_of_birth_sql = "update \"hippo\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"name\" = ? and \"date_of_birth\" = ? and \"deleted_at\" is null returning \"name\", \"date_of_birth\";"
+const soft_delete_human_by_email_sql = "update \"human\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"email\" = ? and \"deleted_at\" is null returning \"email\";"
+
+const soft_delete_hippo_by_name_and_date_of_birth_sql = "update \"hippo\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"name\" = ? and \"date_of_birth\" = ? and \"deleted_at\" is null returning \"name\", \"date_of_birth\";"
+
+/// Delete a human by the `ByEmail` identity.
+pub fn delete_human_by_email(
+  conn: sqlight.Connection,
+  email: String,
+) -> Result(Nil, sqlight.Error) {
+  let now = api_help.unix_seconds_now()
+  use rows <- result.try(
+    sqlight.query(
+      soft_delete_human_by_email_sql,
+      on: conn,
+      with: [sqlight.int(now), sqlight.int(now), sqlight.text(email)],
+      expecting: {
+        use _n <- decode.field(0, decode.string)
+        decode.success(Nil)
+      },
+    ),
+  )
+  case rows {
+    [Nil, ..] -> Ok(Nil)
+    [] -> Error(not_found_human_email_error("delete_human_by_email"))
+  }
+}
+
+fn not_found_human_email_error(op: String) -> sqlight.Error {
+  sqlight.SqlightError(
+    sqlight.GenericError,
+    "human"
+    <>
+    " not found: "
+    <>
+    op,
+    -1,
+  )
+}
 
 /// Delete a hippo by the `ByNameAndDateOfBirth` identity.
 pub fn delete_hippo_by_name_and_date_of_birth(
@@ -15,7 +52,7 @@ pub fn delete_hippo_by_name_and_date_of_birth(
   let now = api_help.unix_seconds_now()
   use rows <- result.try(
     sqlight.query(
-      soft_delete_by_name_and_date_of_birth_sql,
+      soft_delete_hippo_by_name_and_date_of_birth_sql,
       on: conn,
       with: [
         sqlight.int(now),
@@ -31,11 +68,11 @@ pub fn delete_hippo_by_name_and_date_of_birth(
   )
   case rows {
     [Nil, ..] -> Ok(Nil)
-    [] -> Error(not_found_error("delete_hippo_by_name_and_date_of_birth"))
+    [] -> Error(not_found_hippo_name_and_date_of_birth_error("delete_hippo_by_name_and_date_of_birth"))
   }
 }
 
-fn not_found_error(op: String) -> sqlight.Error {
+fn not_found_hippo_name_and_date_of_birth_error(op: String) -> sqlight.Error {
   sqlight.SqlightError(
     sqlight.GenericError,
     "hippo"

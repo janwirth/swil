@@ -58,6 +58,50 @@ pub fn last_100_edited_hippo(conn: sqlight.Connection) -> Result(
   query.last_100_edited_hippo(conn)
 }
 
+pub fn get_human_by_id(conn: sqlight.Connection, id: Int) -> Result(
+  Option(#(Human, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  get.get_human_by_id(conn, id)
+}
+
+pub fn get_hippo_by_id(conn: sqlight.Connection, id: Int) -> Result(
+  Option(#(Hippo, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  get.get_hippo_by_id(conn, id)
+}
+
+pub fn delete_human_by_email(conn: sqlight.Connection, email: String) -> Result(
+  Nil,
+  sqlight.Error,
+) {
+  delete.delete_human_by_email(conn, email)
+}
+
+pub fn update_human_by_email(
+  conn: sqlight.Connection,
+  email: String,
+  name: Option(String),
+) -> Result(#(Human, dsl.MagicFields), sqlight.Error) {
+  upsert.update_human_by_email(conn, email, name)
+}
+
+pub fn get_human_by_email(conn: sqlight.Connection, email: String) -> Result(
+  Option(#(Human, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  get.get_human_by_email(conn, email)
+}
+
+pub fn upsert_human_by_email(
+  conn: sqlight.Connection,
+  email: String,
+  name: Option(String),
+) -> Result(#(Human, dsl.MagicFields), sqlight.Error) {
+  upsert.upsert_human_by_email(conn, email, name)
+}
+
 pub fn delete_hippo_by_name_and_date_of_birth(
   conn: sqlight.Connection,
   name: String,
@@ -73,20 +117,6 @@ pub fn update_hippo_by_name_and_date_of_birth(
   gender: Option(GenderScalar),
 ) -> Result(#(Hippo, dsl.MagicFields), sqlight.Error) {
   upsert.update_hippo_by_name_and_date_of_birth(conn, name, date_of_birth, gender)
-}
-
-pub fn get_human_by_id(conn: sqlight.Connection, id: Int) -> Result(
-  Option(#(Human, dsl.MagicFields)),
-  sqlight.Error,
-) {
-  get.get_human_by_id(conn, id)
-}
-
-pub fn get_hippo_by_id(conn: sqlight.Connection, id: Int) -> Result(
-  Option(#(Hippo, dsl.MagicFields)),
-  sqlight.Error,
-) {
-  get.get_hippo_by_id(conn, id)
 }
 
 pub fn get_hippo_by_name_and_date_of_birth(

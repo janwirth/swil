@@ -5,17 +5,17 @@ import gleam/dynamic/decode
 import gleam/json
 import gleam/option.{type Option, None, Some}
 
-fn view_config_scalar_from_db_string(s: String) -> Result(Option(ViewConfigScalar), String) {
+pub fn view_config_scalar_from_db_string(s: String) -> Result(Option(ViewConfigScalar), String) {
   case json.parse(from: s, using: decode.optional(view_config_scalar_json_decoder())) {
   Ok(v) -> Ok(v)
   Error(_e) -> Error("Failed decoding ViewConfigScalar from JSON: " <> s)
 }
 }
 
-fn view_config_scalar_to_db_string(o: Option(ViewConfigScalar)) -> String {
+pub fn view_config_scalar_to_db_string(o: Option(ViewConfigScalar)) -> String {
   case o {
   None -> "null"
-    Some(ViewConfigScalar(filter_config:, source_selector:)) -> json.to_string(json.object([#("tag", json.string("ViewConfigScalar"), #("filter_config", json.nullable(filter_config, of: fn(x) { json.string(x) })), #("source_selector", json.nullable(source_selector, of: fn(x) { json.string(x) }))]))
+    Some(ViewConfigScalar(filter_config:, source_selector:)) -> json.to_string(json.object([#("tag", json.string("ViewConfigScalar")), #("filter_config", json.nullable(filter_config, of: fn(x) { json.string(x) })), #("source_selector", json.nullable(source_selector, of: fn(x) { json.string(x) }))]))
 }
 }
 

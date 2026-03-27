@@ -258,48 +258,24 @@ pub fn generate_api_db_outputs(
   schema_path: String,
   def: SchemaDefinition,
 ) -> ApiDbOutputs {
-  let assert [entity, ..] = def.entities
+  let assert [first_entity, ..] = def.entities
   let ctx = dec.type_ctx(schema_path, def)
   let exposing = schema_context.api_schema_exposing_all(def)
   let migration_path = schema_context.migration_import_path(schema_path)
   let db_path = schema_context.db_module_path_from_schema(schema_path)
-  let id = schema_context.find_identity(def, entity)
-  let assert Ok(variant) = list.first(id.variants)
-  let table = string.lowercase(entity.type_name)
-  let data_fields = api_sql.entity_data_fields(entity)
+  let table = string.lowercase(first_entity.type_name)
+  let data_fields = api_sql.entity_data_fields(first_entity)
   let data_col_labels = list.map(data_fields, fn(f) { f.label })
-  let id_cols = list.map(variant.fields, fn(f) { f.label })
   let returning = api_sql.full_row_columns(data_col_labels)
-  let entity_snake = string.lowercase(entity.type_name)
-  let id_snake = case string.starts_with(variant.variant_name, "By") {
-    True ->
-      api_naming.pascal_to_snake(string.drop_start(variant.variant_name, 2))
-    False -> api_naming.pascal_to_snake(variant.variant_name)
-  }
-  let upsert_s = api_sql.upsert_sql(table, data_col_labels, id_cols, returning)
-  let update_s =
-    api_sql.update_by_identity_sql(table, data_col_labels, id_cols, returning)
-  let soft_s =
-    api_sql.soft_delete_by_identity_sql(
-      table,
-      id_cols,
-      api_sql.soft_delete_returning(id_cols),
-    )
+  let entity_snake = string.lowercase(first_entity.type_name)
 
   let generated_query_specs =
     list.filter(def.queries, fn(q) {
-      api_query.query_spec_targets_entity(q, entity)
+      api_query.query_spec_targets_entity(q, first_entity)
     })
 
-  let row_t = gtypes.raw(dec.entity_row_tuple_type(entity.type_name))
+  let row_t = gtypes.raw(dec.entity_row_tuple_type(first_entity.type_name))
   let sql_err = gtypes.raw("sqlight.Error")
-  let upsert_params =
-    list.append(
-      [api_params.conn_param()],
-      api_params.upsert_gparams(entity, variant, ctx),
-    )
-  let get_params =
-    list.append([api_params.conn_param()], api_params.identity_gparams(variant))
 
   let scalar_names = list.map(def.scalars, fn(s) { s.type_name })
 
@@ -325,21 +301,69 @@ pub fn generate_api_db_outputs(
       fn() { fold_fn_chunks(row_chunks, gmod.eof()) },
     )
 
-  let upsert_const_entries = [
-    #("update_by_" <> id_snake <> "_sql", Some(update_s)),
-    #("upsert_sql", Some(upsert_s)),
-  ]
+  let upsert_const_entries =
+    list.flat_map(def.entities, fn(e) {
+      let id_e = schema_context.find_identity(def, e)
+      let table_e = string.lowercase(e.type_name)
+      let entity_snake_e = string.lowercase(e.type_name)
+      let data_cols_e =
+        api_sql.entity_data_fields(e)
+        |> list.map(fn(f) { f.label })
+      let returning_e = api_sql.full_row_columns(data_cols_e)
+      list.map(id_e.variants, fn(variant_e) {
+        let id_snake_e = case string.starts_with(variant_e.variant_name, "By") {
+          True ->
+            api_naming.pascal_to_snake(string.drop_start(variant_e.variant_name, 2))
+          False -> api_naming.pascal_to_snake(variant_e.variant_name)
+        }
+        let id_cols_e = list.map(variant_e.fields, fn(f) { f.label })
+        [
+          #(
+            "upsert_" <> entity_snake_e <> "_by_" <> id_snake_e <> "_sql",
+            Some(api_sql.upsert_sql(table_e, data_cols_e, id_cols_e, returning_e)),
+          ),
+          #(
+            "update_" <> entity_snake_e <> "_by_" <> id_snake_e <> "_sql",
+            Some(api_sql.update_by_identity_sql(
+              table_e,
+              data_cols_e,
+              id_cols_e,
+              returning_e,
+            )),
+          ),
+        ]
+      })
+      |> list.flatten
+    })
   let upsert_fn_chunks =
-    api_chunks.upsert_module_fn_chunks(
-      entity,
-      variant,
-      entity_snake,
-      id_snake,
-      upsert_params,
-      row_t,
-      sql_err,
-      scalar_names,
-    )
+    list.flat_map(def.entities, fn(e) {
+      let id_e = schema_context.find_identity(def, e)
+      let entity_snake_e = string.lowercase(e.type_name)
+      let row_t_e = gtypes.raw(dec.entity_row_tuple_type(e.type_name))
+      list.map(id_e.variants, fn(variant_e) {
+        let id_snake_e = case string.starts_with(variant_e.variant_name, "By") {
+          True ->
+            api_naming.pascal_to_snake(string.drop_start(variant_e.variant_name, 2))
+          False -> api_naming.pascal_to_snake(variant_e.variant_name)
+        }
+        let upsert_params_e =
+          list.append(
+            [api_params.conn_param()],
+            api_params.upsert_gparams(e, variant_e, ctx),
+          )
+        api_chunks.upsert_module_fn_chunks(
+          e,
+          variant_e,
+          entity_snake_e,
+          id_snake_e,
+          upsert_params_e,
+          row_t_e,
+          sql_err,
+          scalar_names,
+        )
+      })
+      |> list.flatten
+    })
   let upsert_mod =
     api_imports.with_upsert_module_imports(
       db_path,
@@ -356,48 +380,56 @@ pub fn generate_api_db_outputs(
     list.flat_map(def.entities, fn(e) {
       let table_e = string.lowercase(e.type_name)
       let id_e = schema_context.find_identity(def, e)
-      let assert Ok(variant_e) = list.first(id_e.variants)
-      let id_snake_e = case string.starts_with(variant_e.variant_name, "By") {
-        True ->
-          api_naming.pascal_to_snake(string.drop_start(variant_e.variant_name, 2))
-        False -> api_naming.pascal_to_snake(variant_e.variant_name)
-      }
       let data_cols_e =
         api_sql.entity_data_fields(e)
         |> list.map(fn(f) { f.label })
       let returning_e = api_sql.full_row_columns(data_cols_e)
-      let id_cols_e = list.map(variant_e.fields, fn(f) { f.label })
-      let select_by_identity_e =
-        api_sql.select_by_identity_sql(table_e, returning_e, id_cols_e)
       let select_by_id_e = api_sql.select_by_identity_sql(table_e, returning_e, ["id"])
-      [
-        #("select_" <> table_e <> "_by_" <> id_snake_e <> "_sql", Some(select_by_identity_e)),
-        #("select_" <> table_e <> "_by_id_sql", Some(select_by_id_e)),
-      ]
+      list.append(
+        list.map(id_e.variants, fn(variant_e) {
+          let id_snake_e = case string.starts_with(variant_e.variant_name, "By") {
+            True ->
+              api_naming.pascal_to_snake(string.drop_start(variant_e.variant_name, 2))
+            False -> api_naming.pascal_to_snake(variant_e.variant_name)
+          }
+          let id_cols_e = list.map(variant_e.fields, fn(f) { f.label })
+          let select_by_identity_e =
+            api_sql.select_by_identity_sql(table_e, returning_e, id_cols_e)
+          #(
+            "select_" <> table_e <> "_by_" <> id_snake_e <> "_sql",
+            Some(select_by_identity_e),
+          )
+        }),
+        [#("select_" <> table_e <> "_by_id_sql", Some(select_by_id_e))],
+      )
     })
   let get_fn_chunks =
     list.flat_map(def.entities, fn(e) {
       let id_e = schema_context.find_identity(def, e)
-      let assert Ok(variant_e) = list.first(id_e.variants)
-      let id_snake_e = case string.starts_with(variant_e.variant_name, "By") {
-        True ->
-          api_naming.pascal_to_snake(string.drop_start(variant_e.variant_name, 2))
-        False -> api_naming.pascal_to_snake(variant_e.variant_name)
-      }
-      let get_params_e =
-        list.append(
-          [api_params.conn_param()],
-          api_params.identity_gparams(variant_e),
+      let assert Ok(first_variant_e) = list.first(id_e.variants)
+      list.map(id_e.variants, fn(variant_e) {
+        let id_snake_e = case string.starts_with(variant_e.variant_name, "By") {
+          True ->
+            api_naming.pascal_to_snake(string.drop_start(variant_e.variant_name, 2))
+          False -> api_naming.pascal_to_snake(variant_e.variant_name)
+        }
+        let get_params_e =
+          list.append(
+            [api_params.conn_param()],
+            api_params.identity_gparams(variant_e),
+          )
+        api_chunks.get_module_fn_chunks(
+          e,
+          variant_e,
+          string.lowercase(e.type_name),
+          id_snake_e,
+          get_params_e,
+          variant_e.variant_name == first_variant_e.variant_name,
+          row_t,
+          sql_err,
         )
-      api_chunks.get_module_fn_chunks(
-        e,
-        variant_e,
-        string.lowercase(e.type_name),
-        id_snake_e,
-        get_params_e,
-        row_t,
-        sql_err,
-      )
+      })
+      |> list.flatten
     })
   let get_mod =
     api_imports.with_get_module_imports(
@@ -411,13 +443,59 @@ pub fn generate_api_db_outputs(
       },
     )
 
-  let delete_const_entries = [
-    #("soft_delete_by_" <> id_snake <> "_sql", Some(soft_s)),
-  ]
-  let delete_fn_chunks = [
-    api_chunks.not_found_private_chunk(entity_snake),
-    ud.delete_fn_chunk(entity_snake, id_snake, variant, get_params, sql_err),
-  ]
+  let delete_const_entries =
+    list.flat_map(def.entities, fn(e) {
+      let table_e = string.lowercase(e.type_name)
+      let id_e = schema_context.find_identity(def, e)
+      list.map(id_e.variants, fn(variant_e) {
+        let id_snake_e = case string.starts_with(variant_e.variant_name, "By") {
+          True ->
+            api_naming.pascal_to_snake(string.drop_start(variant_e.variant_name, 2))
+          False -> api_naming.pascal_to_snake(variant_e.variant_name)
+        }
+        let id_cols_e = list.map(variant_e.fields, fn(f) { f.label })
+        #(
+          "soft_delete_" <> table_e <> "_by_" <> id_snake_e <> "_sql",
+          Some(api_sql.soft_delete_by_identity_sql(
+            table_e,
+            id_cols_e,
+            api_sql.soft_delete_returning(id_cols_e),
+          )),
+        )
+      })
+    })
+  let delete_fn_chunks =
+    list.flat_map(def.entities, fn(e) {
+      let id_e = schema_context.find_identity(def, e)
+      let entity_snake_e = string.lowercase(e.type_name)
+      list.map(id_e.variants, fn(variant_e) {
+        let id_snake_e = case string.starts_with(variant_e.variant_name, "By") {
+          True ->
+            api_naming.pascal_to_snake(string.drop_start(variant_e.variant_name, 2))
+          False -> api_naming.pascal_to_snake(variant_e.variant_name)
+        }
+        let get_params_e =
+          list.append(
+            [api_params.conn_param()],
+            api_params.identity_gparams(variant_e),
+          )
+        let not_found_fn_name =
+          "not_found_" <> entity_snake_e <> "_" <> id_snake_e <> "_error"
+        [
+          api_chunks.not_found_private_chunk(entity_snake_e, not_found_fn_name),
+          ud.delete_fn_chunk(
+            entity_snake_e,
+            id_snake_e,
+            variant_e,
+            get_params_e,
+            sql_err,
+            "soft_delete_" <> entity_snake_e <> "_by_" <> id_snake_e <> "_sql",
+            not_found_fn_name,
+          ),
+        ]
+      })
+      |> list.flatten
+    })
   let delete_mod =
     api_imports.with_delete_module_imports(
       db_path,
@@ -487,13 +565,6 @@ pub fn generate_api_db_outputs(
   let facade_chunks =
     facade.facade_fn_chunks(
       def,
-      entity,
-      variant,
-      entity_snake,
-      id_snake,
-      upsert_params,
-      get_params,
-      row_t,
       sql_err,
       ctx,
       generated_query_specs,

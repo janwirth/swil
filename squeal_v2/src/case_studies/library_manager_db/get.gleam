@@ -20,6 +20,8 @@ const select_tag_by_tag_label_sql = "select \"label\", \"emoji\", \"id\", \"crea
 
 const select_importedtrack_by_id_sql = "select \"title\", \"artist\", \"file_path\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"importedtrack\" where \"id\" = ? and \"deleted_at\" is null;"
 
+const select_importedtrack_by_file_path_sql = "select \"title\", \"artist\", \"file_path\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"importedtrack\" where \"file_path\" = ? and \"deleted_at\" is null;"
+
 const select_importedtrack_by_title_and_artist_sql = "select \"title\", \"artist\", \"file_path\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"importedtrack\" where \"title\" = ? and \"artist\" = ? and \"deleted_at\" is null;"
 
 /// Get a tab by row id.
@@ -121,6 +123,23 @@ pub fn get_tag_by_tag_label(
     on: conn,
     with: [sqlight.text(label)],
     expecting: row.tag_with_magic_row_decoder(),
+  ))
+  case rows {
+    [] -> Ok(None)
+    [r, ..] -> Ok(Some(r))
+  }
+}
+
+/// Get a importedtrack by the `ByFilePath` identity.
+pub fn get_importedtrack_by_file_path(
+  conn: sqlight.Connection,
+  file_path: String,
+) -> Result(Option(#(ImportedTrack, dsl.MagicFields)), sqlight.Error) {
+  use rows <- result.try(sqlight.query(
+    select_importedtrack_by_file_path_sql,
+    on: conn,
+    with: [sqlight.text(file_path)],
+    expecting: row.importedtrack_with_magic_row_decoder(),
   ))
   case rows {
     [] -> Ok(None)

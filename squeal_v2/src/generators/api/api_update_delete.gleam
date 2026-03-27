@@ -18,7 +18,7 @@ import schema_definition/schema_definition.{
 pub fn sql_bind_expr(
   f: FieldDefinition,
   value: String,
-  row_qualifier: String,
+  _row_qualifier: String,
 ) -> String {
   case sql_types.sql_type(f.type_) {
     "int" -> "sqlight.int(" <> value <> ")"
@@ -90,16 +90,13 @@ pub fn upsert_fn_body(
   op_prefix: String,
   scalar_names: List(String),
   row_qualifier: String,
+  sql_const_name: String,
+  not_found_fn_name: String,
 ) -> String {
   let labels = dec.id_labels_list(variant)
   let data_fields = api_sql.entity_data_fields(entity)
   let non_id =
     list.filter(data_fields, fn(f) { !list.contains(labels, f.label) })
-  let sql_const = case op_prefix {
-    "upsert" -> "upsert_sql"
-    "update" -> "update_by_" <> id_snake <> "_sql"
-    _ -> "upsert_sql"
-  }
   let let_lines =
     list.map(non_id, fn(f) {
       case is_option_scalar(f, scalar_names) {
@@ -175,7 +172,9 @@ pub fn upsert_fn_body(
     "upsert" ->
       "  case rows {\n    [r, ..] -> Ok(r)\n    [] ->\n      Error(sqlight.SqlightError(\n        sqlight.GenericError,\n        \"upsert returned no row\",\n        -1,\n      ))\n  }"
     _ ->
-      "  case rows {\n    [r, ..] -> Ok(r)\n    [] -> Error(not_found_error(\"update_"
+      "  case rows {\n    [r, ..] -> Ok(r)\n    [] -> Error("
+      <> not_found_fn_name
+      <> "(\"update_"
       <> entity_snake
       <> "_by_"
       <> id_snake
@@ -188,7 +187,7 @@ pub fn upsert_fn_body(
   "let now = api_help.unix_seconds_now()\n"
   <> let_block
   <> "  use rows <- result.try(sqlight.query(\n    "
-  <> sql_const
+  <> sql_const_name
   <> ",\n    on: conn,\n    with: [\n"
   <> with_list
   <> "\n    ],\n    expecting: "
@@ -204,6 +203,8 @@ pub fn delete_fn_body(
   entity_snake: String,
   id_snake: String,
   row_qualifier: String,
+  sql_const_name: String,
+  not_found_fn_name: String,
 ) -> String {
   let id_binds =
     list.map(variant.fields, fn(f) { sql_bind_expr(f, f.label, row_qualifier) })
@@ -218,11 +219,13 @@ pub fn delete_fn_body(
     }
     False -> "[" <> string.join(with_elems, ", ") <> "]"
   }
-  "let now = api_help.unix_seconds_now()\n  use rows <- result.try(\n    sqlight.query(\n      soft_delete_by_"
-  <> id_snake
-  <> "_sql,\n      on: conn,\n      with: "
+  "let now = api_help.unix_seconds_now()\n  use rows <- result.try(\n    sqlight.query(\n      "
+  <> sql_const_name
+  <> ",\n      on: conn,\n      with: "
   <> with_part
-  <> ",\n      expecting: {\n        use _n <- decode.field(0, decode.string)\n        decode.success(Nil)\n      },\n    ),\n  )\n  case rows {\n    [Nil, ..] -> Ok(Nil)\n    [] -> Error(not_found_error(\"delete_"
+  <> ",\n      expecting: {\n        use _n <- decode.field(0, decode.string)\n        decode.success(Nil)\n      },\n    ),\n  )\n  case rows {\n    [Nil, ..] -> Ok(Nil)\n    [] -> Error("
+  <> not_found_fn_name
+  <> "(\"delete_"
   <> entity_snake
   <> "_by_"
   <> id_snake
@@ -235,6 +238,8 @@ pub fn delete_fn_chunk(
   variant: IdentityVariantDefinition,
   get_params: List(gparam.Parameter(gtypes.Dynamic)),
   sql_err: gtypes.GeneratedType(e),
+  sql_const_name: String,
+  not_found_fn_name: String,
 ) -> #(gdef.Definition, gfun.Function(gtypes.Dynamic, gtypes.Dynamic)) {
   #(
     gleamgen_emit.pub_def("delete_" <> entity_snake <> "_by_" <> id_snake)
@@ -246,7 +251,14 @@ pub fn delete_fn_chunk(
         <> "` identity.\n",
       ),
     gfun.new_raw(get_params, gtypes.result(gtypes.nil, sql_err), fn(_) {
-      gexpr.raw(delete_fn_body(variant, entity_snake, id_snake, "row"))
+      gexpr.raw(delete_fn_body(
+        variant,
+        entity_snake,
+        id_snake,
+        "row",
+        sql_const_name,
+        not_found_fn_name,
+      ))
     })
       |> gfun.to_dynamic,
   )
@@ -261,6 +273,7 @@ pub fn update_fn_chunk(
   row_t: gtypes.GeneratedType(r),
   sql_err: gtypes.GeneratedType(e),
   scalar_names: List(String),
+  not_found_fn_name: String,
 ) -> #(gdef.Definition, gfun.Function(gtypes.Dynamic, gtypes.Dynamic)) {
   #(
     gleamgen_emit.pub_def("update_" <> entity_snake <> "_by_" <> id_snake)
@@ -280,6 +293,8 @@ pub fn update_fn_chunk(
         "update",
         scalar_names,
         "row",
+        "update_" <> entity_snake <> "_by_" <> id_snake <> "_sql",
+        not_found_fn_name,
       ))
     })
       |> gfun.to_dynamic,

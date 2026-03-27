@@ -8,7 +8,9 @@ import gleam/result
 import gleam/time/timestamp
 import sqlight
 
-const upsert_sql = "insert into \"fruit\" (\"name\", \"color\", \"price\", \"quantity\", \"created_at\", \"updated_at\", \"deleted_at\")
+const update_fruit_by_name_sql = "update \"fruit\" set \"color\" = ?, \"price\" = ?, \"quantity\" = ?, \"updated_at\" = ? where \"name\" = ? and \"deleted_at\" is null returning \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
+
+const upsert_fruit_by_name_sql = "insert into \"fruit\" (\"name\", \"color\", \"price\", \"quantity\", \"created_at\", \"updated_at\", \"deleted_at\")
 values (?, ?, ?, ?, ?, ?, null)
 on conflict(\"name\") do update set
   \"color\" = excluded.\"color\",
@@ -17,8 +19,6 @@ on conflict(\"name\") do update set
   \"updated_at\" = excluded.\"updated_at\",
   \"deleted_at\" = null
 returning \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
-
-const update_by_name_sql = "update \"fruit\" set \"color\" = ?, \"price\" = ?, \"quantity\" = ?, \"updated_at\" = ? where \"name\" = ? and \"deleted_at\" is null returning \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
 
 /// Update a fruit by the `ByName` identity.
 pub fn update_fruit_by_name(
@@ -33,7 +33,7 @@ pub fn update_fruit_by_name(
   let p = api_help.opt_float_for_db(price)
   let q = api_help.opt_int_for_db(quantity)
   use rows <- result.try(sqlight.query(
-    update_by_name_sql,
+    update_fruit_by_name_sql,
     on: conn,
     with: [
       sqlight.text(c),
@@ -46,7 +46,7 @@ pub fn update_fruit_by_name(
   ))
   case rows {
     [r, ..] -> Ok(r)
-    [] -> Error(not_found_error("update_fruit_by_name"))
+    [] -> Error(not_found_fruit_name_error("update_fruit_by_name"))
   }
 }
 
@@ -63,7 +63,7 @@ pub fn upsert_fruit_by_name(
   let p = api_help.opt_float_for_db(price)
   let q = api_help.opt_int_for_db(quantity)
   use rows <- result.try(sqlight.query(
-    upsert_sql,
+    upsert_fruit_by_name_sql,
     on: conn,
     with: [
       sqlight.text(name),
@@ -86,7 +86,7 @@ pub fn upsert_fruit_by_name(
   }
 }
 
-fn not_found_error(op: String) -> sqlight.Error {
+fn not_found_fruit_name_error(op: String) -> sqlight.Error {
   sqlight.SqlightError(
     sqlight.GenericError,
     "fruit"

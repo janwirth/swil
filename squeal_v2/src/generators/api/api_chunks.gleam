@@ -16,9 +16,9 @@ import schema_definition/schema_definition.{
   type QuerySpecDefinition, type SchemaDefinition,
 }
 
-pub fn not_found_private_chunk(entity_snake: String) {
+pub fn not_found_private_chunk(entity_snake: String, not_found_fn: String) {
   #(
-    gdef.new("not_found_error") |> gdef.with_publicity(False),
+    gdef.new(not_found_fn) |> gdef.with_publicity(False),
     gfun.new1(
       param1: gparam.new("op", gtypes.string),
       returns: gtypes.raw("sqlight.Error"),
@@ -70,8 +70,9 @@ pub fn upsert_module_fn_chunks(
   sql_err,
   scalar_names: List(String),
 ) {
+  let not_found_fn = "not_found_" <> entity_snake <> "_" <> id_snake <> "_error"
   [
-    not_found_private_chunk(entity_snake),
+    not_found_private_chunk(entity_snake, not_found_fn),
     #(
       gleamgen_emit.pub_def("upsert_" <> entity_snake <> "_by_" <> id_snake)
         |> gdef.with_text_before(
@@ -90,6 +91,8 @@ pub fn upsert_module_fn_chunks(
           "upsert",
           scalar_names,
           "row",
+          "upsert_" <> entity_snake <> "_by_" <> id_snake <> "_sql",
+          not_found_fn,
         ))
       })
         |> gfun.to_dynamic,
@@ -103,6 +106,7 @@ pub fn upsert_module_fn_chunks(
       row_t,
       sql_err,
       scalar_names,
+      not_found_fn,
     ),
   ]
 }
@@ -113,68 +117,77 @@ pub fn get_module_fn_chunks(
   entity_snake: String,
   id_snake: String,
   get_params: List(gparam.Parameter(gtypes.Dynamic)),
+  include_by_id: Bool,
   _row_t,
   sql_err,
 ) {
-  [
-    #(
-      gleamgen_emit.pub_def("get_" <> entity_snake <> "_by_" <> id_snake)
-        |> gdef.with_text_before(
-          "/// Get a "
-          <> entity_snake
-          <> " by the `"
-          <> variant.variant_name
-          <> "` identity.\n",
-        ),
-      gfun.new_raw(
-        get_params,
-        gtypes.result(
-          gtypes.raw(
-            "Option(" <> dec.entity_row_tuple_type(entity.type_name) <> ")",
+  list.append(
+    [
+      #(
+        gleamgen_emit.pub_def("get_" <> entity_snake <> "_by_" <> id_snake)
+          |> gdef.with_text_before(
+            "/// Get a "
+            <> entity_snake
+            <> " by the `"
+            <> variant.variant_name
+            <> "` identity.\n",
           ),
-          sql_err,
-        ),
-        fn(_) {
-          gexpr.raw(crud_bodies.get_fn_body(
-            variant,
-            entity_snake,
-            id_snake,
-            "row",
-            "row",
-          ))
-        },
-      )
-        |> gfun.to_dynamic,
-    ),
-    #(
-      gleamgen_emit.pub_def("get_" <> entity_snake <> "_by_id")
-        |> gdef.with_text_before(
-          "/// Get a "
-          <> entity_snake
-          <> " by row id.\n",
-        ),
-      gfun.new_raw(
+        gfun.new_raw(
+          get_params,
+          gtypes.result(
+            gtypes.raw(
+              "Option(" <> dec.entity_row_tuple_type(entity.type_name) <> ")",
+            ),
+            sql_err,
+          ),
+          fn(_) {
+            gexpr.raw(crud_bodies.get_fn_body(
+              variant,
+              entity_snake,
+              id_snake,
+              "row",
+              "row",
+            ))
+          },
+        )
+          |> gfun.to_dynamic,
+      ),
+    ],
+    case include_by_id {
+      True ->
         [
-          api_params.conn_param(),
-          gparam.new("id", gtypes.int) |> gparam.to_dynamic,
-        ],
-        gtypes.result(
-          gtypes.raw("Option(" <> dec.entity_row_tuple_type(entity.type_name) <> ")"),
-          sql_err,
-        ),
-        fn(_) {
-          gexpr.raw(
-            "use rows <- result.try(sqlight.query(\n    select_"
-            <> entity_snake
-            <> "_by_id_sql,\n    on: conn,\n    with: [sqlight.int(id)],\n    expecting: row."
-            <> entity_snake
-            <> "_with_magic_row_decoder(),\n  ))\n  case rows {\n    [] -> Ok(None)\n    [r, ..] -> Ok(Some(r))\n  }",
-          )
-        },
-      )
-        |> gfun.to_dynamic,
-    ),
-  ]
+          #(
+            gleamgen_emit.pub_def("get_" <> entity_snake <> "_by_id")
+              |> gdef.with_text_before(
+                "/// Get a "
+                <> entity_snake
+                <> " by row id.\n",
+              ),
+            gfun.new_raw(
+              [
+                api_params.conn_param(),
+                gparam.new("id", gtypes.int) |> gparam.to_dynamic,
+              ],
+              gtypes.result(
+                gtypes.raw("Option(" <> dec.entity_row_tuple_type(entity.type_name) <> ")"),
+                sql_err,
+              ),
+              fn(_) {
+                gexpr.raw(
+                  "use rows <- result.try(sqlight.query(\n    select_"
+                  <> entity_snake
+                  <> "_by_id_sql,\n    on: conn,\n    with: [sqlight.int(id)],\n    expecting: row."
+                  <> entity_snake
+                  <> "_with_magic_row_decoder(),\n  ))\n  case rows {\n    [] -> Ok(None)\n    [r, ..] -> Ok(Some(r))\n  }",
+                )
+              },
+            )
+              |> gfun.to_dynamic,
+          ),
+        ]
+      False -> []
+    },
+  )
 }
 
 pub fn query_module_fn_chunks(

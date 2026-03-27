@@ -1,5 +1,6 @@
 import generators/api/api_params
 import generators/api/api_query
+import generators/api/api_naming
 import generators/gleamgen_emit
 import gleam/list
 import gleam/string
@@ -8,8 +9,7 @@ import gleamgen/function as gfun
 import gleamgen/parameter as gparam
 import gleamgen/types as gtypes
 import schema_definition/schema_definition.{
-  type EntityDefinition, type IdentityVariantDefinition, type QuerySpecDefinition,
-  type SchemaDefinition,
+  type EntityDefinition, type QuerySpecDefinition, type SchemaDefinition,
 }
 
 import generators/api/api_decoders as dec
@@ -120,26 +120,46 @@ fn query_spec_forward_chunk(
 
 pub fn facade_fn_chunks(
   def: SchemaDefinition,
-  entity: EntityDefinition,
-  _variant: IdentityVariantDefinition,
-  entity_snake: String,
-  id_snake: String,
-  upsert_params: List(gparam.Parameter(gtypes.Dynamic)),
-  get_params: List(gparam.Parameter(gtypes.Dynamic)),
-  row_t,
   sql_err,
   ctx: dec.TypeCtx,
   generated_query_specs: List(QuerySpecDefinition),
 ) {
-  let upsert_name = "upsert_" <> entity_snake <> "_by_" <> id_snake
-  let get_name = "get_" <> entity_snake <> "_by_" <> id_snake
-  let update_name = "update_" <> entity_snake <> "_by_" <> id_snake
-  let delete_name = "delete_" <> entity_snake <> "_by_" <> id_snake
-  let row_opt =
-    gtypes.raw("Option(" <> dec.entity_row_tuple_type(entity.type_name) <> ")")
+  let assert [first_entity, ..] = def.entities
+  let first_row_t = gtypes.raw(dec.entity_row_tuple_type(first_entity.type_name))
+  let entity_operation_forwards =
+    list.flat_map(def.entities, fn(e) {
+      let e_snake = string.lowercase(e.type_name)
+      let id = schema_context.find_identity(def, e)
+      list.map(id.variants, fn(variant) {
+        let id_snake = case string.starts_with(variant.variant_name, "By") {
+          True ->
+            api_naming.pascal_to_snake(string.drop_start(variant.variant_name, 2))
+          False -> api_naming.pascal_to_snake(variant.variant_name)
+        }
+        let upsert_name = "upsert_" <> e_snake <> "_by_" <> id_snake
+        let get_name = "get_" <> e_snake <> "_by_" <> id_snake
+        let update_name = "update_" <> e_snake <> "_by_" <> id_snake
+        let delete_name = "delete_" <> e_snake <> "_by_" <> id_snake
+        let upsert_params =
+          list.append(
+            [api_params.conn_param()],
+            api_params.upsert_gparams(e, variant, ctx),
+          )
+        let get_params =
+          list.append([api_params.conn_param()], api_params.identity_gparams(variant))
+        let row_t = gtypes.raw(dec.entity_row_tuple_type(e.type_name))
+        let row_opt = gtypes.raw("Option(" <> dec.entity_row_tuple_type(e.type_name) <> ")")
+        [
+          forward_fn("upsert", upsert_name, upsert_params, row_t, sql_err),
+          forward_fn("get", get_name, get_params, row_opt, sql_err),
+          forward_fn("upsert", update_name, upsert_params, row_t, sql_err),
+          forward_fn_nil_result("delete", delete_name, get_params, sql_err),
+        ]
+      })
+      |> list.flatten
+    })
   list.flatten([
-    [forward_fn("upsert", upsert_name, upsert_params, row_t, sql_err)],
-    [forward_fn("get", get_name, get_params, row_opt, sql_err)],
+    entity_operation_forwards,
     list.map(def.entities, fn(e) {
       let e_snake = string.lowercase(e.type_name)
       forward_fn(
@@ -153,8 +173,6 @@ pub fn facade_fn_chunks(
         sql_err,
       )
     }),
-    [forward_fn("upsert", update_name, upsert_params, row_t, sql_err)],
-    [forward_fn_nil_result("delete", delete_name, get_params, sql_err)],
     list.map(def.entities, fn(e) {
       let e_snake = string.lowercase(e.type_name)
       forward_fn(
@@ -166,9 +184,9 @@ pub fn facade_fn_chunks(
       )
     }),
     list.map(generated_query_specs, fn(s) {
-      query_spec_forward_chunk(s, row_t, sql_err, ctx)
+      query_spec_forward_chunk(s, first_row_t, sql_err, ctx)
     }),
-    scalar_forward_chunks(def, entity),
+    list.flat_map(def.entities, fn(e) { scalar_forward_chunks(def, e) }),
     [migrate_chunk(sql_err)],
   ])
 }

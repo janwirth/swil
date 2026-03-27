@@ -173,7 +173,7 @@ fn non_enum_scalar_to_db_fn_body(scalar: ScalarTypeDefinition) -> String {
           <> string.join(list.map(fields, fn(f) { f.label <> ":" }), ", ")
           <> ")) -> json.to_string(json.object([#(\"tag\", json.string(\""
           <> v.variant_name
-          <> "\"), "
+          <> "\")), "
           <> kvs
           <> "]))"
         }
@@ -209,14 +209,14 @@ fn non_enum_scalar_fn_chunks(scalar: ScalarTypeDefinition) {
         |> gfun.to_dynamic,
     ),
     #(
-      gdef.new(to_fn) |> gdef.with_publicity(False),
+      gleamgen_emit.pub_def(to_fn),
       gfun.new_raw([gparam.new("o", opt_scalar_t) |> gparam.to_dynamic], gtypes.string, fn(_) {
         gexpr.raw(non_enum_scalar_to_db_fn_body(scalar))
       })
         |> gfun.to_dynamic,
     ),
     #(
-      gdef.new(from_fn) |> gdef.with_publicity(False),
+      gleamgen_emit.pub_def(from_fn),
       gfun.new_raw(
         [gparam.new("s", gtypes.string) |> gparam.to_dynamic],
         gtypes.raw("Result(Option(" <> scalar.type_name <> "), String)"),

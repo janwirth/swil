@@ -28,6 +28,13 @@ pub fn last_100_edited_fruit(conn: sqlight.Connection) -> Result(
   query.last_100_edited_fruit(conn)
 }
 
+pub fn get_fruit_by_id(conn: sqlight.Connection, id: Int) -> Result(
+  Option(#(Fruit, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  get.get_fruit_by_id(conn, id)
+}
+
 pub fn delete_fruit_by_name(conn: sqlight.Connection, name: String) -> Result(
   Nil,
   sqlight.Error,
@@ -43,13 +50,6 @@ pub fn update_fruit_by_name(
   quantity: Option(Int),
 ) -> Result(#(Fruit, dsl.MagicFields), sqlight.Error) {
   upsert.update_fruit_by_name(conn, name, color, price, quantity)
-}
-
-pub fn get_fruit_by_id(conn: sqlight.Connection, id: Int) -> Result(
-  Option(#(Fruit, dsl.MagicFields)),
-  sqlight.Error,
-) {
-  get.get_fruit_by_id(conn, id)
 }
 
 pub fn get_fruit_by_name(conn: sqlight.Connection, name: String) -> Result(

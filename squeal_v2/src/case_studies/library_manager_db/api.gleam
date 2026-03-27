@@ -42,23 +42,6 @@ pub fn last_100_edited_importedtrack(conn: sqlight.Connection) -> Result(
   query.last_100_edited_importedtrack(conn)
 }
 
-pub fn delete_importedtrack_by_title_and_artist(
-  conn: sqlight.Connection,
-  title: String,
-  artist: String,
-) -> Result(Nil, sqlight.Error) {
-  delete.delete_importedtrack_by_title_and_artist(conn, title, artist)
-}
-
-pub fn update_importedtrack_by_title_and_artist(
-  conn: sqlight.Connection,
-  title: String,
-  artist: String,
-  file_path: Option(String),
-) -> Result(#(ImportedTrack, dsl.MagicFields), sqlight.Error) {
-  upsert.update_importedtrack_by_title_and_artist(conn, title, artist, file_path)
-}
-
 pub fn get_tab_by_id(conn: sqlight.Connection, id: Int) -> Result(
   Option(#(Tab, dsl.MagicFields)),
   sqlight.Error,
@@ -85,6 +68,149 @@ pub fn get_importedtrack_by_id(conn: sqlight.Connection, id: Int) -> Result(
   sqlight.Error,
 ) {
   get.get_importedtrack_by_id(conn, id)
+}
+
+pub fn delete_tab_by_tab_label(conn: sqlight.Connection, label: String) -> Result(
+  Nil,
+  sqlight.Error,
+) {
+  delete.delete_tab_by_tab_label(conn, label)
+}
+
+pub fn update_tab_by_tab_label(
+  conn: sqlight.Connection,
+  label: String,
+  order: Option(Float),
+  view_config: Option(ViewConfigScalar),
+) -> Result(#(Tab, dsl.MagicFields), sqlight.Error) {
+  upsert.update_tab_by_tab_label(conn, label, order, view_config)
+}
+
+pub fn get_tab_by_tab_label(conn: sqlight.Connection, label: String) -> Result(
+  Option(#(Tab, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  get.get_tab_by_tab_label(conn, label)
+}
+
+pub fn upsert_tab_by_tab_label(
+  conn: sqlight.Connection,
+  label: String,
+  order: Option(Float),
+  view_config: Option(ViewConfigScalar),
+) -> Result(#(Tab, dsl.MagicFields), sqlight.Error) {
+  upsert.upsert_tab_by_tab_label(conn, label, order, view_config)
+}
+
+pub fn delete_trackbucket_by_bucket_title_and_artist(
+  conn: sqlight.Connection,
+  title: String,
+  artist: String,
+) -> Result(Nil, sqlight.Error) {
+  delete.delete_trackbucket_by_bucket_title_and_artist(conn, title, artist)
+}
+
+pub fn update_trackbucket_by_bucket_title_and_artist(
+  conn: sqlight.Connection,
+  title: String,
+  artist: String,
+) -> Result(#(TrackBucket, dsl.MagicFields), sqlight.Error) {
+  upsert.update_trackbucket_by_bucket_title_and_artist(conn, title, artist)
+}
+
+pub fn get_trackbucket_by_bucket_title_and_artist(
+  conn: sqlight.Connection,
+  title: String,
+  artist: String,
+) -> Result(Option(#(TrackBucket, dsl.MagicFields)), sqlight.Error) {
+  get.get_trackbucket_by_bucket_title_and_artist(conn, title, artist)
+}
+
+pub fn upsert_trackbucket_by_bucket_title_and_artist(
+  conn: sqlight.Connection,
+  title: String,
+  artist: String,
+) -> Result(#(TrackBucket, dsl.MagicFields), sqlight.Error) {
+  upsert.upsert_trackbucket_by_bucket_title_and_artist(conn, title, artist)
+}
+
+pub fn delete_tag_by_tag_label(conn: sqlight.Connection, label: String) -> Result(
+  Nil,
+  sqlight.Error,
+) {
+  delete.delete_tag_by_tag_label(conn, label)
+}
+
+pub fn update_tag_by_tag_label(
+  conn: sqlight.Connection,
+  label: String,
+  emoji: Option(String),
+) -> Result(#(Tag, dsl.MagicFields), sqlight.Error) {
+  upsert.update_tag_by_tag_label(conn, label, emoji)
+}
+
+pub fn get_tag_by_tag_label(conn: sqlight.Connection, label: String) -> Result(
+  Option(#(Tag, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  get.get_tag_by_tag_label(conn, label)
+}
+
+pub fn upsert_tag_by_tag_label(
+  conn: sqlight.Connection,
+  label: String,
+  emoji: Option(String),
+) -> Result(#(Tag, dsl.MagicFields), sqlight.Error) {
+  upsert.upsert_tag_by_tag_label(conn, label, emoji)
+}
+
+pub fn delete_importedtrack_by_file_path(
+  conn: sqlight.Connection,
+  file_path: String,
+) -> Result(Nil, sqlight.Error) {
+  delete.delete_importedtrack_by_file_path(conn, file_path)
+}
+
+pub fn update_importedtrack_by_file_path(
+  conn: sqlight.Connection,
+  file_path: String,
+  title: Option(String),
+  artist: Option(String),
+) -> Result(#(ImportedTrack, dsl.MagicFields), sqlight.Error) {
+  upsert.update_importedtrack_by_file_path(conn, file_path, title, artist)
+}
+
+pub fn get_importedtrack_by_file_path(
+  conn: sqlight.Connection,
+  file_path: String,
+) -> Result(Option(#(ImportedTrack, dsl.MagicFields)), sqlight.Error) {
+  get.get_importedtrack_by_file_path(conn, file_path)
+}
+
+pub fn upsert_importedtrack_by_file_path(
+  conn: sqlight.Connection,
+  file_path: String,
+  title: Option(String),
+  artist: Option(String),
+) -> Result(#(ImportedTrack, dsl.MagicFields), sqlight.Error) {
+  upsert.upsert_importedtrack_by_file_path(conn, file_path, title, artist)
+}
+
+pub fn delete_importedtrack_by_title_and_artist(
+  conn: sqlight.Connection,
+  title: String,
+  artist: String,
+) -> Result(Nil, sqlight.Error) {
+  delete.delete_importedtrack_by_title_and_artist(conn, title, artist)
+}
+
+pub fn update_importedtrack_by_title_and_artist(
+  conn: sqlight.Connection,
+  title: String,
+  artist: String,
+  file_path: Option(String),
+) -> Result(#(ImportedTrack, dsl.MagicFields), sqlight.Error) {
+  upsert.update_importedtrack_by_title_and_artist(conn, title, artist, file_path)
 }
 
 pub fn get_importedtrack_by_title_and_artist(
