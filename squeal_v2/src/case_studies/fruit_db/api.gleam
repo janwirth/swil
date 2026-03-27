@@ -5,7 +5,7 @@ import case_studies/fruit_db/migration
 import case_studies/fruit_db/query
 import case_studies/fruit_db/row
 import case_studies/fruit_db/upsert
-import case_studies/fruit_schema.{type Fruit, ByName, Fruit}
+import case_studies/fruit_schema.{type Fruit, Fruit, ByName}
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import sqlight
@@ -45,11 +45,11 @@ pub fn update_fruit_by_name(
   upsert.update_fruit_by_name(conn, name, color, price, quantity)
 }
 
-pub fn by_id(conn: sqlight.Connection, id: Int) -> Result(
+pub fn get_fruit_by_id(conn: sqlight.Connection, id: Int) -> Result(
   Option(#(Fruit, dsl.MagicFields)),
   sqlight.Error,
 ) {
-  get.by_id(conn, id)
+  get.get_fruit_by_id(conn, id)
 }
 
 pub fn get_fruit_by_name(conn: sqlight.Connection, name: String) -> Result(

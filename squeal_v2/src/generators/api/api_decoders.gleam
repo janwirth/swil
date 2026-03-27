@@ -168,9 +168,20 @@ fn default_relationships_record(
     list.find(schema.relationship_containers, fn(r) { r.type_name == rel_type })
   let assert Ok(v) = list.first(rc.variants)
   let parts =
-    list.map(v.fields, fn(f) { f.label <> ": None" })
+    list.map(v.fields, fn(f) {
+      f.label <> ": " <> relationship_default_expr(f.type_)
+    })
     |> string.join(",\n        ")
   rel_type <> "(\n        " <> parts <> ",\n      )"
+}
+
+fn relationship_default_expr(t: glance.Type) -> String {
+  case t {
+    glance.NamedType(_, "Option", _, _) -> "None"
+    glance.NamedType(_, "BacklinkWith", _, _) -> "dsl.BacklinkWith([], None)"
+    glance.NamedType(_, "List", _, _) -> "[]"
+    _ -> "None"
+  }
 }
 
 fn rich_identity_construct_call(v: IdentityVariantDefinition) -> String {

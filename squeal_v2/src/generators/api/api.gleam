@@ -131,7 +131,7 @@ pub fn generate_api_db_outputs(
 ) -> ApiDbOutputs {
   let assert [entity, ..] = def.entities
   let ctx = dec.type_ctx(schema_path, def)
-  let exposing = schema_context.api_schema_exposing(def, entity)
+  let exposing = schema_context.api_schema_exposing_all(def)
   let migration_path = schema_context.migration_import_path(schema_path)
   let db_path = schema_context.db_module_path_from_schema(schema_path)
   let id = schema_context.find_identity(def, entity)
@@ -148,7 +148,6 @@ pub fn generate_api_db_outputs(
     False -> api_naming.pascal_to_snake(variant.variant_name)
   }
   let upsert_s = api_sql.upsert_sql(table, data_col_labels, id_cols, returning)
-  let select_s = api_sql.select_by_identity_sql(table, returning, id_cols)
   let update_s =
     api_sql.update_by_identity_sql(table, data_col_labels, id_cols, returning)
   let soft_s =
@@ -158,7 +157,6 @@ pub fn generate_api_db_outputs(
       api_sql.soft_delete_returning(id_cols),
     )
   let last_s = api_sql.last_100_sql(table, returning)
-  let select_by_id_s = api_sql.select_by_identity_sql(table, returning, ["id"])
 
   let generated_query_specs =
     list.filter(def.queries, fn(q) {
@@ -181,7 +179,17 @@ pub fn generate_api_db_outputs(
     |> list.map(fn(s) { s.type_name })
 
   let row_chunks =
-    api_chunks.row_module_fn_chunks(def, entity_snake, entity, variant, ctx)
+    list.flat_map(def.entities, fn(e) {
+      let id_e = schema_context.find_identity(def, e)
+      let assert Ok(variant_e) = list.first(id_e.variants)
+      api_chunks.row_module_fn_chunks(
+        def,
+        string.lowercase(e.type_name),
+        e,
+        variant_e,
+        ctx,
+      )
+    })
 
   let row_mod =
     api_imports.with_row_module_imports(
@@ -219,20 +227,53 @@ pub fn generate_api_db_outputs(
       },
     )
 
-  let get_const_entries = [
-    #("select_by_" <> id_snake <> "_sql", Some(select_s)),
-    #("select_by_id_sql", Some(select_by_id_s)),
-  ]
+  let get_const_entries =
+    list.flat_map(def.entities, fn(e) {
+      let table_e = string.lowercase(e.type_name)
+      let id_e = schema_context.find_identity(def, e)
+      let assert Ok(variant_e) = list.first(id_e.variants)
+      let id_snake_e = case string.starts_with(variant_e.variant_name, "By") {
+        True ->
+          api_naming.pascal_to_snake(string.drop_start(variant_e.variant_name, 2))
+        False -> api_naming.pascal_to_snake(variant_e.variant_name)
+      }
+      let data_cols_e =
+        api_sql.entity_data_fields(e)
+        |> list.map(fn(f) { f.label })
+      let returning_e = api_sql.full_row_columns(data_cols_e)
+      let id_cols_e = list.map(variant_e.fields, fn(f) { f.label })
+      let select_by_identity_e =
+        api_sql.select_by_identity_sql(table_e, returning_e, id_cols_e)
+      let select_by_id_e = api_sql.select_by_identity_sql(table_e, returning_e, ["id"])
+      [
+        #("select_" <> table_e <> "_by_" <> id_snake_e <> "_sql", Some(select_by_identity_e)),
+        #("select_" <> table_e <> "_by_id_sql", Some(select_by_id_e)),
+      ]
+    })
   let get_fn_chunks =
-    api_chunks.get_module_fn_chunks(
-      entity,
-      variant,
-      entity_snake,
-      id_snake,
-      get_params,
-      row_t,
-      sql_err,
-    )
+    list.flat_map(def.entities, fn(e) {
+      let id_e = schema_context.find_identity(def, e)
+      let assert Ok(variant_e) = list.first(id_e.variants)
+      let id_snake_e = case string.starts_with(variant_e.variant_name, "By") {
+        True ->
+          api_naming.pascal_to_snake(string.drop_start(variant_e.variant_name, 2))
+        False -> api_naming.pascal_to_snake(variant_e.variant_name)
+      }
+      let get_params_e =
+        list.append(
+          [api_params.conn_param()],
+          api_params.identity_gparams(variant_e),
+        )
+      api_chunks.get_module_fn_chunks(
+        e,
+        variant_e,
+        string.lowercase(e.type_name),
+        id_snake_e,
+        get_params_e,
+        row_t,
+        sql_err,
+      )
+    })
   let get_mod =
     api_imports.with_get_module_imports(
       db_path,

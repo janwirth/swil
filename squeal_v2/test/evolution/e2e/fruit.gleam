@@ -32,7 +32,7 @@ pub fn fruit_e2e_test() {
 
   let assert Ok(Some(#(_apple, magic))) = api.get_fruit_by_name(conn, "apple")
   let assert True = magic.id > 0
-  let assert Ok(Some(#(_apple_by_id, magic_by_id))) = api.by_id(conn, magic.id)
+  let assert Ok(Some(#(_apple_by_id, magic_by_id))) = api.get_fruit_by_id(conn, magic.id)
   let assert True = magic_by_id.id == magic.id
   let assert Ok(Nil) = api.migrate(conn)
 

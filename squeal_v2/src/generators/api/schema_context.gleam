@@ -135,6 +135,46 @@ pub fn api_schema_exposing(
   string.join(list.append(type_exports, value_exports), ", ")
 }
 
+/// Exposing list that includes all schema entities/identities/scalars.
+pub fn api_schema_exposing_all(def: SchemaDefinition) -> String {
+  let entity_names =
+    def.entities
+    |> list.map(fn(e) { e.type_name })
+    |> uniq_sorted_strings
+  let rel_names =
+    def.entities
+    |> list.flat_map(entity_relationship_container_names)
+    |> uniq_sorted_strings
+  let scalar_names =
+    def.scalars
+    |> list.map(fn(s) { s.type_name })
+    |> uniq_sorted_strings
+  let type_exports =
+    list.flatten([
+      list.map(scalar_names, fn(s) { "type " <> s }),
+      list.map(entity_names, fn(e) { "type " <> e }),
+      list.map(rel_names, fn(r) { "type " <> r }),
+    ])
+    |> uniq_sorted_strings
+  let id_variant_names =
+    def.identities
+    |> list.flat_map(fn(i) { list.map(i.variants, fn(v) { v.variant_name }) })
+    |> uniq_sorted_strings
+  let scalar_variants =
+    def.scalars
+    |> list.flat_map(fn(s) { s.variant_names })
+    |> uniq_sorted_strings
+  let value_exports =
+    list.flatten([
+      id_variant_names,
+      scalar_variants,
+      entity_names,
+      rel_names,
+    ])
+    |> uniq_sorted_strings
+  string.join(list.append(type_exports, value_exports), ", ")
+}
+
 pub fn find_identity(
   def: SchemaDefinition,
   entity: EntityDefinition,

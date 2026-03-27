@@ -145,6 +145,25 @@ pub type RowIdentities {
   }
 }
 
+pub fn entity_object_identity_variant_by_id_reserved_rejected_test() {
+  let input =
+    "import gleam/option
+
+pub type Row {
+  Row(identities: RowIdentities)
+}
+
+pub type RowIdentities {
+  ById(id: Int)
+}
+"
+  case schema_parser.parse_module(input) {
+    Ok(_) ->
+      panic as "expected identity variant ById to be rejected as reserved internal"
+    Error(_) -> Nil
+  }
+}
+
 pub fn entity_object_query_function_must_start_with_query_prefix_rejected_test() {
   let input =
     "import gleam/option

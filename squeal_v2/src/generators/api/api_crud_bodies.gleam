@@ -28,7 +28,9 @@ pub fn get_fn_body(
       "[" <> binds <> "]"
     }
   }
-  "use rows <- result.try(sqlight.query(\n    select_by_"
+  "use rows <- result.try(sqlight.query(\n    select_"
+  <> entity_snake
+  <> "_by_"
   <> id_snake
   <> "_sql,\n    on: conn,\n    with: "
   <> with_part

@@ -5,7 +5,7 @@ import case_studies/hippo_db/migration
 import case_studies/hippo_db/query
 import case_studies/hippo_db/row
 import case_studies/hippo_db/upsert
-import case_studies/hippo_schema.{type GenderScalar, type Hippo, type HippoRelationships, ByNameAndDateOfBirth, Female, Hippo, HippoRelationships, Male}
+import case_studies/hippo_schema.{type HumanRelationships, type Human, type HippoRelationships, type Hippo, type GenderScalar, Male, HumanRelationships, Human, HippoRelationships, Hippo, Female, ByNameAndDateOfBirth, ByEmail}
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/time/calendar.{type Date, Date as CalDate, month_from_int, month_to_int}
@@ -47,11 +47,18 @@ pub fn update_hippo_by_name_and_date_of_birth(
   upsert.update_hippo_by_name_and_date_of_birth(conn, name, date_of_birth, gender)
 }
 
-pub fn by_id(conn: sqlight.Connection, id: Int) -> Result(
+pub fn get_human_by_id(conn: sqlight.Connection, id: Int) -> Result(
+  Option(#(Human, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  get.get_human_by_id(conn, id)
+}
+
+pub fn get_hippo_by_id(conn: sqlight.Connection, id: Int) -> Result(
   Option(#(Hippo, dsl.MagicFields)),
   sqlight.Error,
 ) {
-  get.by_id(conn, id)
+  get.get_hippo_by_id(conn, id)
 }
 
 pub fn get_hippo_by_name_and_date_of_birth(

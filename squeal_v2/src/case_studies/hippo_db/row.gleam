@@ -1,9 +1,34 @@
 import api_help
 import dsl/dsl as dsl
-import case_studies/hippo_schema.{type GenderScalar, type Hippo, type HippoRelationships, ByNameAndDateOfBirth, Female, Hippo, HippoRelationships, Male}
+import case_studies/hippo_schema.{type HumanRelationships, type Human, type HippoRelationships, type Hippo, type GenderScalar, Male, HumanRelationships, Human, HippoRelationships, Hippo, Female, ByNameAndDateOfBirth, ByEmail}
 import gleam/dynamic/decode
 import gleam/option.{type Option, None, Some}
 import gleam/time/calendar.{type Date}
+
+pub fn human_with_magic_row_decoder() -> decode.Decoder(#(Human, dsl.MagicFields)) {
+  use name_raw <- decode.field(0, decode.string)
+  use email_raw <- decode.field(1, decode.string)
+  use id <- decode.field(2, decode.int)
+  use created_at <- decode.field(3, decode.int)
+  use updated_at <- decode.field(4, decode.int)
+  use deleted_at_raw <- decode.field(5, decode.optional(decode.int))
+  let name = api_help.opt_string_from_db(name_raw)
+  let email = api_help.opt_string_from_db(email_raw)
+  let human =
+    Human(
+      name:,
+      email:,
+      hippos: [],
+      identities: ByEmail(email: email_raw),
+      relationships: HumanRelationships(
+        hippos: dsl.BacklinkWith([], None),
+      ),
+    )
+  decode.success(#(
+    human,
+    api_help.magic_from_db_row(id, created_at, updated_at, deleted_at_raw),
+  ))
+}
 
 pub fn gender_scalar_to_db_string(o: Option(GenderScalar)) -> String {
   case o {

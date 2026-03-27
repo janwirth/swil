@@ -148,7 +148,6 @@ pub fn facade_fn_chunks(
 ) {
   let upsert_name = "upsert_" <> entity_snake <> "_by_" <> id_snake
   let get_name = "get_" <> entity_snake <> "_by_" <> id_snake
-  let by_id_name = "by_id"
   let update_name = "update_" <> entity_snake <> "_by_" <> id_snake
   let delete_name = "delete_" <> entity_snake <> "_by_" <> id_snake
   let last_name = "last_100_edited_" <> entity_snake
@@ -157,18 +156,19 @@ pub fn facade_fn_chunks(
   list.flatten([
     [forward_fn("upsert", upsert_name, upsert_params, row_t, sql_err)],
     [forward_fn("get", get_name, get_params, row_opt, sql_err)],
-    [
+    list.map(def.entities, fn(e) {
+      let e_snake = string.lowercase(e.type_name)
       forward_fn(
         "get",
-        by_id_name,
+        "get_" <> e_snake <> "_by_id",
         [
           api_params.conn_param(),
           gparam.new("id", gtypes.int) |> gparam.to_dynamic,
         ],
-        row_opt,
+        gtypes.raw("Option(" <> dec.entity_row_tuple_type(e.type_name) <> ")"),
         sql_err,
-      ),
-    ],
+      )
+    }),
     [forward_fn("upsert", update_name, upsert_params, row_t, sql_err)],
     [forward_fn_nil_result("delete", delete_name, get_params, sql_err)],
     [

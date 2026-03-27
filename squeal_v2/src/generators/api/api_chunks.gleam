@@ -226,7 +226,7 @@ pub fn get_module_fn_chunks(
         |> gfun.to_dynamic,
     ),
     #(
-      gleamgen_emit.pub_def("by_id")
+      gleamgen_emit.pub_def("get_" <> entity_snake <> "_by_id")
         |> gdef.with_text_before(
           "/// Get a "
           <> entity_snake
@@ -243,7 +243,9 @@ pub fn get_module_fn_chunks(
         ),
         fn(_) {
           gexpr.raw(
-            "use rows <- result.try(sqlight.query(\n    select_by_id_sql,\n    on: conn,\n    with: [sqlight.int(id)],\n    expecting: row."
+            "use rows <- result.try(sqlight.query(\n    select_"
+            <> entity_snake
+            <> "_by_id_sql,\n    on: conn,\n    with: [sqlight.int(id)],\n    expecting: row."
             <> entity_snake
             <> "_with_magic_row_decoder(),\n  ))\n  case rows {\n    [] -> Ok(None)\n    [r, ..] -> Ok(Some(r))\n  }",
           )

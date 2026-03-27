@@ -37,26 +37,36 @@ pub fn parse(
     variants -> {
       use _ <- result.try(
         list.try_fold(variants, Nil, fn(_, v) {
-          case string.starts_with(v.name, "By") {
-            False ->
+          case v.name == "ById" {
+            True ->
               Error(UnsupportedSchema(
                 Some(ct.location),
-                "identity variant "
-                  <> v.name
-                  <> " in "
+                "identity variant ById in "
                   <> ct.name
-                  <> " must start with `By`",
+                  <> " is reserved for internal row id lookup; choose a different identity name",
               ))
-            True ->
-              case variant_fields_all_labelled(v.fields) {
+            False ->
+              case string.starts_with(v.name, "By") {
                 False ->
                   Error(UnsupportedSchema(
                     Some(ct.location),
                     "identity variant "
                       <> v.name
-                      <> " must use only labelled fields",
+                      <> " in "
+                      <> ct.name
+                      <> " must start with `By`",
                   ))
-                True -> Ok(Nil)
+                True ->
+                  case variant_fields_all_labelled(v.fields) {
+                    False ->
+                      Error(UnsupportedSchema(
+                        Some(ct.location),
+                        "identity variant "
+                          <> v.name
+                          <> " must use only labelled fields",
+                      ))
+                    True -> Ok(Nil)
+                  }
               }
           }
         }),
