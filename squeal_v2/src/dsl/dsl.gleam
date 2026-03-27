@@ -101,10 +101,27 @@ pub fn any(
 }
 
 pub fn complex_filter(
+  root: root,
   filter: RecursiveFilterSpec(t),
-  terminal_fn: fn(t, MagicFields, attribs) -> Bool,
-) -> BooleanFilter(BelongsTo(related, attribs)) {
-  panic as "this is DSL"
+  terminal_fn: fn(root, t) -> BooleanFilter(a),
+) -> BooleanFilter(a) {
+  case filter {
+    RecursiveAnd(items: items) ->
+      And(
+        exprs: list.map(items, fn(item) {
+          complex_filter(root, item, terminal_fn)
+        }),
+      )
+    RecursiveOr(items: items) ->
+      Or(
+        exprs: list.map(items, fn(item) {
+          complex_filter(root, item, terminal_fn)
+        }),
+      )
+    RecursiveNot(item: item) ->
+      Not(expr: complex_filter(root, item, terminal_fn))
+    RecursiveTerminal(item: item) -> terminal_fn(root, item)
+  }
 }
 
 pub type WithPredicate {

@@ -94,7 +94,7 @@ pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields, _limit: Int) 
 pub fn query_tracks_by_view_config(track_bucket: TrackBucket, magic_fields: dsl.MagicFields, filter_config: FilterConfigScalar) {
   dsl.query(track_bucket)
   |> dsl.shape(option.None)
-  |> dsl.filter(filter_track_bucket_by_tag(track_bucket, filter_config))
+  |> dsl.filter(dsl.complex_filter(track_bucket, filter_config, terminal))
   |> dsl.order(dsl.order_by(dsl.MagicFields, dsl.Desc))  
 }
 
@@ -108,46 +108,6 @@ import gleam/list
 
 pub type FilterConfigScalar = dsl.RecursiveFilterSpec(TagExpressionScalar)
 
-// this doesn't even need to be here - it can be a shared function, no generation
-// execution is offloaded to engine
-pub fn filter_track_bucket_by_tag(
-  track_bucket: TrackBucket,
-  filter: dsl.RecursiveFilterSpec(TagExpressionScalar),
-) -> dsl.BooleanFilter(BelongsTo(Tag, TrackBucketRelationshipAttributes)) {
-  case filter {
-    dsl.RecursiveAnd(items: items) ->
-      dsl.And(
-        exprs: list.map(items, fn(item) { filter_track_bucket_by_tag(track_bucket, item) }),
-      )
-    dsl.RecursiveOr(items: items) ->
-      dsl.Or(
-        exprs: list.map(items, fn(item) { filter_track_bucket_by_tag(track_bucket, item) }),
-      )
-    dsl.RecursiveNot(item: item) -> dsl.Not(expr: filter_track_bucket_by_tag(track_bucket, item))
-    dsl.RecursiveTerminal(item: tag_expression) ->
-    // on any tag that is connected and matches
-      case tag_expression {
-
-        Has(tag_id: tag_id) ->
-          dsl.any(track_bucket.relationships.tags, fn(tag, magic_fields, edge_attribs) {
-            magic_fields.id == tag_id
-          })
-        IsAtLeast(tag_id: tag_id, value: value) ->
-          dsl.any(track_bucket.relationships.tags, fn(tag, magic_fields, edge_attribs) {
-            dsl.exclude_if_missing(edge_attribs.value) >= value
-          })
-        IsAtMost(tag_id: tag_id, value: value) ->
-          dsl.any(track_bucket.relationships.tags, fn(tag, magic_fields, edge_attribs) {
-            dsl.exclude_if_missing(edge_attribs.value) <= value
-          })
-        IsEqualTo(tag_id: tag_id, value: value) ->
-          dsl.any(track_bucket.relationships.tags, fn(tag, magic_fields, edge_attribs) {
-            dsl.exclude_if_missing(edge_attribs.value) == value
-          })
-
-      }
-  }
-}
 
 pub fn terminal(track_bucket: TrackBucket, tag_expression: TagExpressionScalar) -> dsl.BooleanFilter(BelongsTo(Tag, TrackBucketRelationshipAttributes)) {
     // Terminal(item: tag_expression) ->

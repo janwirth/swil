@@ -42,12 +42,14 @@ Add this shared type to `src/dsl/dsl.gleam`:
 
 ```gleam
 pub type RecursiveFilterSpec(terminal) {
-  And(items: List(RecursiveFilterSpec(terminal)))
-  Or(items: List(RecursiveFilterSpec(terminal)))
-  Not(item: RecursiveFilterSpec(terminal))
-  Terminal(item: terminal)
+  RecursiveAnd(items: List(RecursiveFilterSpec(terminal)))
+  RecursiveOr(items: List(RecursiveFilterSpec(terminal)))
+  RecursiveNot(item: RecursiveFilterSpec(terminal))
+  RecursiveTerminal(item: terminal)
 }
 ```
+
+Constructor names avoid clashing with `BooleanFilter`’s `And` / `Or` / `Not` in the same module.
 
 Schema usage then becomes:
 
@@ -58,22 +60,11 @@ pub fn filter_tag_complex(
   track_bucket: TrackBucket,
   filter: dsl.RecursiveFilterSpec(TagExpressionScalar),
 ) -> dsl.BooleanFilter(BelongsTo(Tag, TrackBucketRelationshipAttributes)) {
-  dsl.complex_filter(
-    filter,
-    terminal_fn: fn(tag_expression, magic_fields, edge_attribs) {
-      case tag_expression {
-        Has(tag_id: tag_id) -> magic_fields.id == tag_id
-        IsAtLeast(tag_id: _, value: value) ->
-          dsl.exclude_if_missing(edge_attribs.value) >= value
-        IsAtMost(tag_id: _, value: value) ->
-          dsl.exclude_if_missing(edge_attribs.value) <= value
-        IsEqualTo(tag_id: _, value: value) ->
-          dsl.exclude_if_missing(edge_attribs.value) == value
-      }
-    },
-  )
+  dsl.complex_filter(track_bucket, filter, terminal)
 }
 ```
+
+(`terminal` is a `pub fn terminal(track_bucket, <TerminalType>) -> dsl.BooleanFilter(...)` in the schema module, or an equivalent anonymous function.)
 
 ### 2) Encodable data type requirement
 
@@ -103,9 +94,9 @@ A public `filter_*` function is extractable if:
 - return type is explicitly `dsl.BooleanFilter(...)`,
 - parameter 1 is root entity/context,
 - parameter 2 is `dsl.RecursiveFilterSpec(<TerminalType>)` OR an alias that resolves to that type,
-- implementation is a single return expression based on `dsl.complex_filter(...)` with a terminal callback.
+- implementation is a single return expression: `dsl.complex_filter(root, filter, terminal_fn)` where `terminal_fn` has type `fn(root, <TerminalType>) -> dsl.BooleanFilter(a)`.
 
-Inside the terminal callback, schema authors map `<TerminalType>` to a boolean predicate over `(related, dsl.MagicFields, edge_attribs)`.
+Inside `terminal_fn`, schema authors map the terminal variant to `dsl.BooleanFilter` leaves (for example via `dsl.any(...)` over a relationship).
 
 ## Applying This To `schema_definition.gleam`
 
@@ -149,7 +140,7 @@ pub fn filter_track_bucket_by_tag(
   track_bucket: TrackBucket,
   filter: FilterConfigScalar,
 ) -> dsl.BooleanFilter(BelongsTo(Tag, TrackBucketRelationshipAttributes)) {
-  dsl.complex_filter(filter, terminal_fn: fn(term, magic, edge) { ... })
+  dsl.complex_filter(track_bucket, filter, terminal)
 }
 ```
 
