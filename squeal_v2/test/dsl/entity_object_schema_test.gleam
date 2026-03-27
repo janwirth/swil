@@ -1,11 +1,60 @@
-/// **Entity** (basic object / aggregate) rules: constructor name matches type, labelled fields,
-/// required `identities: *Identities`, and that *Identities type must exist with `By…` variants.
+//// **Entity** (basic object / aggregate) rules: constructor name matches type, labelled fields,
+//// required `identities: *Identities`, and that *Identities type must exist with `By…` variants.
+////
+//// ## Public `query_*` parameter contract (target for simpler query generation)
+////
+//// Every `query_*` function will declare **exactly three** user-facing parameters, in this order:
+////
+//// 1. **Entity** — A parameter typed as a **public entity** from the same schema module (e.g. `fruit: Fruit`).
+////    That type must be one of the module’s parsed entities (constructor matches `pub type` name).
+////
+//// 2. **`dsl.MagicFields`** — Second parameter is typed as `dsl.MagicFields` (generated row metadata:
+////    `id`, timestamps, soft delete). If the query body does not use those fields, satisfy the contract with
+////    **discards** when you match on `magic` — e.g.
+////    `let dsl.MagicFields(id: _, created_at: _, updated_at: _, deleted_at: _) = magic` — or equivalent
+////    patterns so each magic slot is explicitly unused.
+////
+//// 3. **One simple parameter** — Exactly one more argument whose type is a `QuerySimpleType` (`Int`,
+////    `Float`, `Bool`, `String` for now). Used for thresholds, limits, and SQL bind parameters.
+////
+//// Example target signature:
+////
+//// ```gleam
+//// pub fn query_cheap_fruit(
+////   fruit: Fruit,
+////   magic: dsl.MagicFields,
+////   max_price: Float,
+//// ) -> dsl.Query(Fruit, Fruit, option.Option(Float)) {
+////   let dsl.MagicFields(id: _, created_at: _, updated_at: _, deleted_at: _) = magic
+////   ...
+//// }
+//// ```
+////
+//// The structured form of these three slots is `schema_definition.QueryFunctionParameters` (re-exported types
+//// from `schema_definition/query_params.gleam`).
+
 import gleam/list
 import gleeunit
+import schema_definition/query_params as qp
 import schema_definition/schema_definition as schema_definition
 
 pub fn main() -> Nil {
   gleeunit.main()
+}
+
+/// Golden structural encoding for a fruit “cheap price” query once params are reordered (entity → magic → float).
+pub fn query_function_parameters_fruit_example_test() {
+  let contract =
+    qp.QueryFunctionParameters(
+      entity: qp.QueryEntityParameter("fruit", "Fruit"),
+      magic_fields: qp.QueryMagicFieldsParameter(
+        // Binding name in source; discards apply to fields inside MagicFields, not this name.
+        "magic",
+      ),
+      simple: qp.QuerySimpleParameter("max_price", qp.QuerySimpleFloat),
+    )
+  assert contract.entity.type_name == "Fruit"
+  assert contract.simple.type_ == qp.QuerySimpleFloat
 }
 
 pub fn entity_object_must_have_identities_field_good_parses_test() {

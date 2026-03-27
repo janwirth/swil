@@ -326,7 +326,9 @@ fn generic_query_module(
   let row_name = "Query" <> snake_to_pascal(row_base) <> "Row"
   let pub_name = query_public_fn_name(spec.name)
   let params =
-    list.filter(spec.parameters, fn(p) { !is_entity_param(p.type_, ctx) })
+    list.filter(spec.parameters, fn(p) {
+      !is_entity_param(p.type_, ctx) && !is_magic_fields_param(p.type_)
+    })
     |> list.map(fn(p) {
       gparam.new(
         query_param_label(p),
@@ -361,6 +363,13 @@ fn generic_query_module(
       fn(_n) { acc },
     )
   })
+}
+
+fn is_magic_fields_param(t: glance.Type) -> Bool {
+  case t {
+    glance.NamedType(_, "MagicFields", _, []) -> True
+    _ -> False
+  }
 }
 
 fn hippos_by_gender_module(schema_alias: String, acc: gmod.Module) -> gmod.Module {

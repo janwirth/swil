@@ -16,8 +16,9 @@ pub type FruitIdentities {
 }
 
 pub fn query_cheap_fruit(
-  max_price: Float,
   fruit: Fruit,
+  _magic_fields: dsl.MagicFields,
+  max_price: Float,
 ) -> dsl.Query(Fruit, Fruit, Option(Float)) {
   dsl.Query(
     shape: fruit,

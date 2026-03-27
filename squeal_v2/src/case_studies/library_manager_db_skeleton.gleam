@@ -196,7 +196,7 @@ pub type QueryTabsForTabBarRow {
 /// Execute generated query for the `query_tabs_for_tab_bar` spec.
 pub fn query_tabs_for_tab_bar(
   conn: sqlight.Connection,
-  tab_meta: dsl.MagicFields,
+  limit: Int,
 ) -> Result(List(QueryTabsForTabBarRow), sqlight.Error) {
   todo as "TODO: generated select SQL, parameters, and decoder"
 }
@@ -209,7 +209,6 @@ pub type QueryTracksByFilterRow {
 pub fn query_tracks_by_filter(
   conn: sqlight.Connection,
   filter: library_manager_schema.FilterScalar,
-  magic_fields: dsl.MagicFields,
 ) -> Result(List(QueryTracksByFilterRow), sqlight.Error) {
   todo as "TODO: generated select SQL, parameters, and decoder"
 }

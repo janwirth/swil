@@ -56,7 +56,8 @@ pub fn documented_shape_scalar_enum_parses_test() {
 
 pub fn documented_shape_scalar_record_variant_parses_test() {
   let input =
-    "import gleam/option
+    "import dsl/dsl as dsl
+import gleam/option
 
 pub type ViewConfigScalar {
   ViewConfigScalar(
@@ -91,7 +92,8 @@ pub fn standalone_identities_without_entity_rejected_test() {
 
 pub fn documented_shape_entity_with_relationships_parses_test() {
   let input =
-    "import gleam/option
+    "import dsl/dsl as dsl
+import gleam/option
 
 pub type Row {
   Row(
@@ -176,8 +178,9 @@ pub type RowIdentities {
   ByKey(key: String)
 }
 
-pub fn query_by_key(k: Int) {
-  Query(shape: option.None, filter: option.None, order: option.None)
+pub fn query_by_key(row: Row, _magic: dsl.MagicFields, k: Int) {
+  let _ = k
+  Query(shape: row, filter: option.None, order: option.None)
 }
 "
   let assert Ok(def) = schema_definition.parse_module(input)
@@ -198,8 +201,9 @@ pub type RowIdentities {
   ByKey(key: String)
 }
 
-pub fn query_by_key(k: Int) -> Query {
-  Query(shape: option.None, filter: option.None, order: option.None)
+pub fn query_by_key(row: Row, _magic: dsl.MagicFields, k: Int) -> Query {
+  let _ = k
+  Query(shape: row, filter: option.None, order: option.None)
 }
 "
   let assert Ok(def) = schema_definition.parse_module(input)

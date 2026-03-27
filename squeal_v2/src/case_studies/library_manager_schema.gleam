@@ -84,7 +84,11 @@ fn trackbucket_tag_join_sql_naming() -> dsl.TagJoinSqlNaming {
   )
 }
 
-pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields) {
+pub fn query_tabs_for_tab_bar(
+  tab: Tab,
+  tab_meta: dsl.MagicFields,
+  _limit: Int,
+) {
   dsl.Query(
     filter: option.None,
     order: dsl.order_by(tab_meta.updated_at, dsl.Desc),
@@ -129,7 +133,11 @@ pub fn filter_by_tag(track_bucket: TrackBucket, filter: FilterScalar) -> dsl.Boo
   }
 }
 // reverse filtering?
-pub fn query_tracks_by_filter(track_bucket: TrackBucket, filter: FilterScalar, magic_fields: dsl.MagicFields) {
+pub fn query_tracks_by_filter(
+  track_bucket: TrackBucket,
+  magic_fields: dsl.MagicFields,
+  filter: FilterScalar,
+) {
   let sql_filter =
     dsl.boolean_filter_tag_join_sql(
       filter_by_tag(track_bucket, filter),

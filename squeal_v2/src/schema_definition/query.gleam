@@ -126,9 +126,51 @@ fn query_spec_from_function_strict(
         Ok([QueryParameter(p.label, assignment_name_string(p.name), t), ..acc])
     }
   })
-  |> result.map(fn(params) {
-    QuerySpecDefinition(f.name, list.reverse(params), infer_query_codegen(f))
+  |> result.try(fn(params) {
+    let params = list.reverse(params)
+    case validate_query_parameters_strict(f, params) {
+      Ok(Nil) ->
+        Ok(QuerySpecDefinition(f.name, params, infer_query_codegen(f)))
+      Error(e) -> Error(e)
+    }
   })
+}
+
+/// Query parameter contract for simplified generation:
+/// 1) entity object, 2) `dsl.MagicFields`, 3) one simple bind (`Int`/`Float`/`Bool`/`String` or `*Scalar`).
+fn validate_query_parameters_strict(
+  f: glance.Function,
+  params: List(QueryParameter),
+) -> Result(Nil, ParseError) {
+  case params {
+    [
+      QueryParameter(_, _entity_name, entity_t),
+      QueryParameter(_, _magic_name, magic_t),
+      QueryParameter(_, _simple_name, simple_t),
+    ] ->
+      case
+        type_is_entity_parameter(entity_t),
+        type_is_magic_fields_parameter(magic_t),
+        type_is_simple_parameter(simple_t)
+      {
+        True, True, True -> Ok(Nil)
+        _, _, _ ->
+          Error(UnsupportedSchema(
+            Some(f.location),
+            "public query "
+              <> f.name
+              <> " parameters must be `(entity, dsl.MagicFields, simple)` where simple is "
+              <> "Int/Float/Bool/String or a `*Scalar` type",
+          ))
+      }
+    _ ->
+      Error(UnsupportedSchema(
+        Some(f.location),
+        "public query "
+          <> f.name
+          <> " must have exactly 3 parameters: `(entity, dsl.MagicFields, simple)`",
+      ))
+  }
 }
 
 /// Dispatches structural codegen inference when the function body ends in `Query(shape: …, filter: …, order: …)`.
@@ -385,6 +427,46 @@ fn param_is_float_named(f: glance.Function, name: String) -> Bool {
       _ -> False
     }
   })
+}
+
+/// Builtin simple bind types accepted in the third slot.
+fn type_is_builtin_simple(t: glance.Type) -> Bool {
+  case t {
+    glance.NamedType(_, "Int", None, []) -> True
+    glance.NamedType(_, "Float", None, []) -> True
+    glance.NamedType(_, "Bool", None, []) -> True
+    glance.NamedType(_, "String", None, []) -> True
+    _ -> False
+  }
+}
+
+/// Third-slot simple type: primitive or schema scalar (`*Scalar`).
+fn type_is_simple_parameter(t: glance.Type) -> Bool {
+  case type_is_builtin_simple(t) {
+    True -> True
+    False ->
+      case t {
+        glance.NamedType(_, name, _, []) -> string.ends_with(name, "Scalar")
+        _ -> False
+      }
+  }
+}
+
+/// Second slot must be `dsl.MagicFields` (qualified or unqualified).
+fn type_is_magic_fields_parameter(t: glance.Type) -> Bool {
+  case t {
+    glance.NamedType(_, "MagicFields", _, []) -> True
+    _ -> False
+  }
+}
+
+/// First slot is a user entity type (not simple, not `MagicFields`).
+fn type_is_entity_parameter(t: glance.Type) -> Bool {
+  case t {
+    glance.NamedType(_, name, _, []) ->
+      name != "MagicFields" && !type_is_simple_parameter(t)
+    _ -> False
+  }
 }
 
 /// Query spec candidate: return type `Query` or body whose last expression builds `Query`.

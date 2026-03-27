@@ -7,6 +7,7 @@ import schema_definition/identity as identity_mod
 import schema_definition/module_builder
 import schema_definition/parse_error as parse_error_mod
 import schema_definition/query as query_mod
+import schema_definition/query_params as query_params_mod
 import schema_definition/relationship_container as relationship_container_mod
 import schema_definition/scalar as scalar_mod
 import schema_definition/schema_aggregate as schema_aggregate_mod
@@ -53,6 +54,23 @@ pub type QueryCodegen =
 
 pub type QueryParameter =
   query_mod.QueryParameter
+
+/// Target parameter layout for `query_*` functions (entity → magic fields → one simple bind).
+/// Variant constructors live on `schema_definition/query_params`; import that module to build values.
+pub type QueryFunctionParameters =
+  query_params_mod.QueryFunctionParameters
+
+pub type QueryEntityParameter =
+  query_params_mod.QueryEntityParameter
+
+pub type QueryMagicFieldsParameter =
+  query_params_mod.QueryMagicFieldsParameter
+
+pub type QuerySimpleParameter =
+  query_params_mod.QuerySimpleParameter
+
+pub type QuerySimpleType =
+  query_params_mod.QuerySimpleType
 
 /// Render with [`format_parse_error`](#format_parse_error) / [`schema_diagnostics`](schema_diagnostics.html).
 pub type ParseError =

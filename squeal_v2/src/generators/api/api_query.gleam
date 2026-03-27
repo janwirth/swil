@@ -30,6 +30,13 @@ fn type_named_entity(t: glance.Type, entity_name: String) -> Bool {
   }
 }
 
+fn type_is_magic_fields(t: glance.Type) -> Bool {
+  case t {
+    glance.NamedType(_, "MagicFields", _, []) -> True
+    _ -> False
+  }
+}
+
 pub fn query_spec_targets_entity(
   spec: QuerySpecDefinition,
   entity: EntityDefinition,
@@ -96,7 +103,9 @@ pub fn generated_query_fn_chunks(
       list.append(
         [api_params.conn_param()],
         list.map(
-          list.filter(spec.parameters, fn(p) { p.name != shape_param }),
+          list.filter(spec.parameters, fn(p) {
+            p.name != shape_param && !type_is_magic_fields(p.type_)
+          }),
           fn(p) {
             gparam.new(
               schema_query_param_name(p),

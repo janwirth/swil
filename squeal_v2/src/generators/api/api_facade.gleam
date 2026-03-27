@@ -1,14 +1,16 @@
 import generators/api/api_params
 import generators/api/api_query
 import generators/gleamgen_emit
+import glance
 import gleam/list
 import gleam/string
 import gleamgen/expression as gexpr
 import gleamgen/function as gfun
-import gleamgen/module/definition as gdef
 import gleamgen/parameter as gparam
 import gleamgen/types as gtypes
-import schema_definition/query.{LtMissingFieldAsc, type QuerySpecDefinition}
+import schema_definition/query.{
+  LtMissingFieldAsc, type QueryParameter, type QuerySpecDefinition,
+}
 import schema_definition/schema_definition.{
   type EntityDefinition, type IdentityVariantDefinition, type SchemaDefinition,
 }
@@ -108,14 +110,16 @@ fn query_spec_forward_chunk(
 ) {
   let assert LtMissingFieldAsc(
     column: _,
-    threshold_param: threshold_param,
+    threshold_param: _,
     shape_param: shape_param,
   ) = spec.codegen
   let fn_params =
     list.append(
       [api_params.conn_param()],
       list.map(
-        list.filter(spec.parameters, fn(p) { p.name != shape_param }),
+        list.filter(spec.parameters, fn(p) {
+          p.name != shape_param && !param_is_magic_fields(p)
+        }),
         fn(p) {
           gparam.new(
             api_query.schema_query_param_name(p),
@@ -128,10 +132,17 @@ fn query_spec_forward_chunk(
   forward_fn("query", spec.name, fn_params, gtypes.list(row_t), sql_err)
 }
 
+fn param_is_magic_fields(p: QueryParameter) -> Bool {
+  case p.type_ {
+    glance.NamedType(_, "MagicFields", _, []) -> True
+    _ -> False
+  }
+}
+
 pub fn facade_fn_chunks(
   def: SchemaDefinition,
   entity: EntityDefinition,
-  variant: IdentityVariantDefinition,
+  _variant: IdentityVariantDefinition,
   entity_snake: String,
   id_snake: String,
   upsert_params: List(gparam.Parameter(gtypes.Dynamic)),
