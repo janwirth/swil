@@ -54,3 +54,16 @@ pub fn last_fn_body(
   <> entity_snake
   <> "_with_magic_row_decoder(),\n  )"
 }
+
+pub fn get_by_id_fn_body(
+  entity_snake: String,
+  decoder_qualifier: String,
+) -> String {
+  "use rows <- result.try(sqlight.query(\n    select_"
+  <> entity_snake
+  <> "_by_id_sql,\n    on: conn,\n    with: [sqlight.int(id)],\n    expecting: "
+  <> decoder_qualifier
+  <> "."
+  <> entity_snake
+  <> "_with_magic_row_decoder(),\n  ))\n  case rows {\n    [] -> Ok(None)\n    [r, ..] -> Ok(Some(r))\n  }"
+}
