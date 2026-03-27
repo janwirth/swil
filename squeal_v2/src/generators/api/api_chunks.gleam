@@ -145,7 +145,6 @@ pub fn upsert_module_fn_chunks(
   entity_snake: String,
   id_snake: String,
   upsert_params: List(gparam.Parameter(gtypes.Dynamic)),
-  get_params: List(gparam.Parameter(gtypes.Dynamic)),
   row_t,
   sql_err,
   enum_scalar_names: List(String),
@@ -174,6 +173,29 @@ pub fn upsert_module_fn_chunks(
       })
         |> gfun.to_dynamic,
     ),
+    ud.update_fn_chunk(
+      entity,
+      variant,
+      entity_snake,
+      id_snake,
+      upsert_params,
+      row_t,
+      sql_err,
+      enum_scalar_names,
+    ),
+  ]
+}
+
+pub fn get_module_fn_chunks(
+  entity: EntityDefinition,
+  variant: IdentityVariantDefinition,
+  entity_snake: String,
+  id_snake: String,
+  get_params: List(gparam.Parameter(gtypes.Dynamic)),
+  _row_t,
+  sql_err,
+) {
+  [
     #(
       gleamgen_emit.pub_def("get_" <> entity_snake <> "_by_" <> id_snake)
         |> gdef.with_text_before(
@@ -203,15 +225,31 @@ pub fn upsert_module_fn_chunks(
       )
         |> gfun.to_dynamic,
     ),
-    ud.update_fn_chunk(
-      entity,
-      variant,
-      entity_snake,
-      id_snake,
-      upsert_params,
-      row_t,
-      sql_err,
-      enum_scalar_names,
+    #(
+      gleamgen_emit.pub_def("by_id")
+        |> gdef.with_text_before(
+          "/// Get a "
+          <> entity_snake
+          <> " by row id.\n",
+        ),
+      gfun.new_raw(
+        [
+          api_params.conn_param(),
+          gparam.new("id", gtypes.int) |> gparam.to_dynamic,
+        ],
+        gtypes.result(
+          gtypes.raw("Option(" <> dec.entity_row_tuple_type(entity.type_name) <> ")"),
+          sql_err,
+        ),
+        fn(_) {
+          gexpr.raw(
+            "use rows <- result.try(sqlight.query(\n    select_by_id_sql,\n    on: conn,\n    with: [sqlight.int(id)],\n    expecting: row."
+            <> entity_snake
+            <> "_with_magic_row_decoder(),\n  ))\n  case rows {\n    [] -> Ok(None)\n    [r, ..] -> Ok(Some(r))\n  }",
+          )
+        },
+      )
+        |> gfun.to_dynamic,
     ),
   ]
 }

@@ -1,0 +1,50 @@
+import api_help
+import dsl/dsl as dsl
+import case_studies/hippo_db/row
+import case_studies/hippo_schema.{type GenderScalar, type Hippo, type HippoRelationships, ByNameAndDateOfBirth, Female, Hippo, HippoRelationships, Male}
+import gleam/option.{type Option, None, Some}
+import gleam/result
+import gleam/time/calendar.{type Date}
+import sqlight
+
+const select_by_id_sql = "select \"name\", \"gender\", \"date_of_birth\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"hippo\" where \"id\" = ? and \"deleted_at\" is null;"
+
+const select_by_name_and_date_of_birth_sql = "select \"name\", \"gender\", \"date_of_birth\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"hippo\" where \"name\" = ? and \"date_of_birth\" = ? and \"deleted_at\" is null;"
+
+/// Get a hippo by row id.
+pub fn by_id(conn: sqlight.Connection, id: Int) -> Result(
+  Option(#(Hippo, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  use rows <- result.try(sqlight.query(
+    select_by_id_sql,
+    on: conn,
+    with: [sqlight.int(id)],
+    expecting: row.hippo_with_magic_row_decoder(),
+  ))
+  case rows {
+    [] -> Ok(None)
+    [r, ..] -> Ok(Some(r))
+  }
+}
+
+/// Get a hippo by the `ByNameAndDateOfBirth` identity.
+pub fn get_hippo_by_name_and_date_of_birth(
+  conn: sqlight.Connection,
+  name: String,
+  date_of_birth: Date,
+) -> Result(Option(#(Hippo, dsl.MagicFields)), sqlight.Error) {
+  use rows <- result.try(sqlight.query(
+    select_by_name_and_date_of_birth_sql,
+    on: conn,
+    with: [
+      sqlight.text(name),
+      sqlight.text(api_help.date_to_db_string(date_of_birth)),
+    ],
+    expecting: row.hippo_with_magic_row_decoder(),
+  ))
+  case rows {
+    [] -> Ok(None)
+    [r, ..] -> Ok(Some(r))
+  }
+}

@@ -24,6 +24,7 @@ import schema_definition/schema_definition.{
 pub type ApiDbOutputs {
   ApiDbOutputs(
     row: String,
+    get: String,
     upsert: String,
     delete: String,
     query: String,
@@ -123,7 +124,7 @@ fn fold_constants(
   })
 }
 
-/// Emits `row`, `upsert`, `delete`, `query`, and `api` (facade) modules under `*_db/`.
+/// Emits `row`, `get`, `upsert`, `delete`, `query`, and `api` (facade) modules under `*_db/`.
 pub fn generate_api_db_outputs(
   schema_path: String,
   def: SchemaDefinition,
@@ -157,6 +158,7 @@ pub fn generate_api_db_outputs(
       api_sql.soft_delete_returning(id_cols),
     )
   let last_s = api_sql.last_100_sql(table, returning)
+  let select_by_id_s = api_sql.select_by_identity_sql(table, returning, ["id"])
 
   let generated_query_specs =
     list.filter(def.queries, fn(q) {
@@ -192,7 +194,6 @@ pub fn generate_api_db_outputs(
 
   let upsert_const_entries = [
     #("update_by_" <> id_snake <> "_sql", Some(update_s)),
-    #("select_by_" <> id_snake <> "_sql", Some(select_s)),
     #("upsert_sql", Some(upsert_s)),
   ]
   let upsert_fn_chunks =
@@ -202,7 +203,6 @@ pub fn generate_api_db_outputs(
       entity_snake,
       id_snake,
       upsert_params,
-      get_params,
       row_t,
       sql_err,
       enum_scalar_names,
@@ -216,6 +216,32 @@ pub fn generate_api_db_outputs(
       fn() {
         upsert_const_entries
         |> fold_constants(fold_fn_chunks(upsert_fn_chunks, gmod.eof()))
+      },
+    )
+
+  let get_const_entries = [
+    #("select_by_" <> id_snake <> "_sql", Some(select_s)),
+    #("select_by_id_sql", Some(select_by_id_s)),
+  ]
+  let get_fn_chunks =
+    api_chunks.get_module_fn_chunks(
+      entity,
+      variant,
+      entity_snake,
+      id_snake,
+      get_params,
+      row_t,
+      sql_err,
+    )
+  let get_mod =
+    api_imports.with_get_module_imports(
+      db_path,
+      schema_path,
+      def,
+      exposing,
+      fn() {
+        get_const_entries
+        |> fold_constants(fold_fn_chunks(get_fn_chunks, gmod.eof()))
       },
     )
 
@@ -299,6 +325,7 @@ pub fn generate_api_db_outputs(
 
   ApiDbOutputs(
     row: render_module(row_mod) |> ensure_dsl_import,
+    get: ensure_dsl_import(render_module(get_mod)),
     upsert: ensure_dsl_import(render_module(upsert_mod)),
     delete: ensure_api_help_import(render_module(delete_mod)),
     query: ensure_dsl_import(render_module(query_mod)),

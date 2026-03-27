@@ -24,8 +24,8 @@ pub fn main_as_skeleton_module() -> Nil {
   }
 }
 
-/// Read [schema_path], emit `skeleton.gleam`, `migration.gleam`, `row.gleam`, `upsert.gleam`,
-/// `delete.gleam`, `query.gleam`, and `api.gleam` under the sibling `*_db` directory.
+/// Read [schema_path], emit `skeleton.gleam`, `migration.gleam`, `row.gleam`, `get.gleam`,
+/// `upsert.gleam`, `delete.gleam`, `query.gleam`, and `api.gleam` under the sibling `*_db` directory.
 pub fn run_generate(schema_path: String) -> Nil {
   case generate_from_schema_path(schema_path) {
     Ok(_) -> Nil
@@ -60,6 +60,7 @@ fn generate_from_schema_path(user_path: String) -> Result(Nil, String) {
   let skeleton_out = out_dir <> "/skeleton.gleam"
   let migration_out = out_dir <> "/migration.gleam"
   let row_out = out_dir <> "/row.gleam"
+  let get_out = out_dir <> "/get.gleam"
   let upsert_out = out_dir <> "/upsert.gleam"
   let delete_out = out_dir <> "/delete.gleam"
   let query_out = out_dir <> "/query.gleam"
@@ -68,6 +69,7 @@ fn generate_from_schema_path(user_path: String) -> Result(Nil, String) {
   let api_outputs = api_generator.generate_api_db_outputs(schema_import, def)
   use _ <- result.try(write_file(skeleton_out, skeleton_text))
   use _ <- result.try(write_file(row_out, api_outputs.row))
+  use _ <- result.try(write_file(get_out, api_outputs.get))
   use _ <- result.try(write_file(upsert_out, api_outputs.upsert))
   use _ <- result.try(write_file(delete_out, api_outputs.delete))
   use _ <- result.try(write_file(query_out, api_outputs.query))
@@ -77,6 +79,7 @@ fn generate_from_schema_path(user_path: String) -> Result(Nil, String) {
   use _ <- result.try(write_file(migration_out, migration_text))
   io.println("wrote " <> skeleton_out)
   io.println("wrote " <> row_out)
+  io.println("wrote " <> get_out)
   io.println("wrote " <> upsert_out)
   io.println("wrote " <> delete_out)
   io.println("wrote " <> query_out)
@@ -175,7 +178,7 @@ fn output_db_directory(schema_file: String) -> String {
 
 fn root_command() -> glint.Command(Nil) {
   use <- glint.command_help(
-    "Emit skeleton, migration, row, upsert, delete, query, and api modules under the sibling *_db directory.",
+    "Emit skeleton, migration, row, get, upsert, delete, query, and api modules under the sibling *_db directory.",
   )
   use <- glint.unnamed_args(glint.EqArgs(1))
   use _n, unnamed, _f <- glint.command()

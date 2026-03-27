@@ -1,5 +1,6 @@
 import case_studies/fruit_db/delete
 import dsl/dsl as dsl
+import case_studies/fruit_db/get
 import case_studies/fruit_db/migration
 import case_studies/fruit_db/query
 import case_studies/fruit_db/row
@@ -44,11 +45,18 @@ pub fn update_fruit_by_name(
   upsert.update_fruit_by_name(conn, name, color, price, quantity)
 }
 
+pub fn by_id(conn: sqlight.Connection, id: Int) -> Result(
+  Option(#(Fruit, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  get.by_id(conn, id)
+}
+
 pub fn get_fruit_by_name(conn: sqlight.Connection, name: String) -> Result(
   Option(#(Fruit, dsl.MagicFields)),
   sqlight.Error,
 ) {
-  upsert.get_fruit_by_name(conn, name)
+  get.get_fruit_by_name(conn, name)
 }
 
 pub fn upsert_fruit_by_name(

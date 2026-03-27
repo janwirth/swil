@@ -1,5 +1,6 @@
 import case_studies/hippo_db/delete
 import dsl/dsl as dsl
+import case_studies/hippo_db/get
 import case_studies/hippo_db/migration
 import case_studies/hippo_db/query
 import case_studies/hippo_db/row
@@ -46,12 +47,19 @@ pub fn update_hippo_by_name_and_date_of_birth(
   upsert.update_hippo_by_name_and_date_of_birth(conn, name, date_of_birth, gender)
 }
 
+pub fn by_id(conn: sqlight.Connection, id: Int) -> Result(
+  Option(#(Hippo, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  get.by_id(conn, id)
+}
+
 pub fn get_hippo_by_name_and_date_of_birth(
   conn: sqlight.Connection,
   name: String,
   date_of_birth: Date,
 ) -> Result(Option(#(Hippo, dsl.MagicFields)), sqlight.Error) {
-  upsert.get_hippo_by_name_and_date_of_birth(conn, name, date_of_birth)
+  get.get_hippo_by_name_and_date_of_birth(conn, name, date_of_birth)
 }
 
 pub fn upsert_hippo_by_name_and_date_of_birth(

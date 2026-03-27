@@ -16,6 +16,7 @@ pub fn fruit_api_generation_test() {
   }
   assert_diff(read("src/case_studies/fruit_db/api.gleam"), norm(out.api))
   assert_diff(read("src/case_studies/fruit_db/row.gleam"), norm(out.row))
+  assert_diff(read("src/case_studies/fruit_db/get.gleam"), norm(out.get))
   assert_diff(read("src/case_studies/fruit_db/upsert.gleam"), norm(out.upsert))
   assert_diff(read("src/case_studies/fruit_db/delete.gleam"), norm(out.delete))
   assert_diff(read("src/case_studies/fruit_db/query.gleam"), norm(out.query))

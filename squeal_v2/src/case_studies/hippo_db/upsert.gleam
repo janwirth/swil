@@ -17,8 +17,6 @@ on conflict(\"name\", \"date_of_birth\") do update set
   \"deleted_at\" = null
 returning \"name\", \"gender\", \"date_of_birth\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
 
-const select_by_name_and_date_of_birth_sql = "select \"name\", \"gender\", \"date_of_birth\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"hippo\" where \"name\" = ? and \"date_of_birth\" = ? and \"deleted_at\" is null;"
-
 const update_by_name_and_date_of_birth_sql = "update \"hippo\" set \"gender\" = ?, \"updated_at\" = ? where \"name\" = ? and \"date_of_birth\" = ? and \"deleted_at\" is null returning \"name\", \"gender\", \"date_of_birth\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
 
 /// Update a hippo by the `ByNameAndDateOfBirth` identity.
@@ -43,27 +41,6 @@ pub fn update_hippo_by_name_and_date_of_birth(
   case rows {
     [r, ..] -> Ok(r)
     [] -> Error(not_found_error("update_hippo_by_name_and_date_of_birth"))
-  }
-}
-
-/// Get a hippo by the `ByNameAndDateOfBirth` identity.
-pub fn get_hippo_by_name_and_date_of_birth(
-  conn: sqlight.Connection,
-  name: String,
-  date_of_birth: Date,
-) -> Result(Option(#(Hippo, dsl.MagicFields)), sqlight.Error) {
-  use rows <- result.try(sqlight.query(
-    select_by_name_and_date_of_birth_sql,
-    on: conn,
-    with: [
-      sqlight.text(name),
-      sqlight.text(api_help.date_to_db_string(date_of_birth)),
-    ],
-    expecting: row.hippo_with_magic_row_decoder(),
-  ))
-  case rows {
-    [] -> Ok(None)
-    [r, ..] -> Ok(Some(r))
   }
 }
 

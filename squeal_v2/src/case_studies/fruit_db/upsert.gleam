@@ -18,8 +18,6 @@ on conflict(\"name\") do update set
   \"deleted_at\" = null
 returning \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
 
-const select_by_name_sql = "select \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"fruit\" where \"name\" = ? and \"deleted_at\" is null;"
-
 const update_by_name_sql = "update \"fruit\" set \"color\" = ?, \"price\" = ?, \"quantity\" = ?, \"updated_at\" = ? where \"name\" = ? and \"deleted_at\" is null returning \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
 
 /// Update a fruit by the `ByName` identity.
@@ -49,23 +47,6 @@ pub fn update_fruit_by_name(
   case rows {
     [r, ..] -> Ok(r)
     [] -> Error(not_found_error("update_fruit_by_name"))
-  }
-}
-
-/// Get a fruit by the `ByName` identity.
-pub fn get_fruit_by_name(
-  conn: sqlight.Connection,
-  name: String,
-) -> Result(Option(#(Fruit, dsl.MagicFields)), sqlight.Error) {
-  use rows <- result.try(sqlight.query(
-    select_by_name_sql,
-    on: conn,
-    with: [sqlight.text(name)],
-    expecting: row.fruit_with_magic_row_decoder(),
-  ))
-  case rows {
-    [] -> Ok(None)
-    [r, ..] -> Ok(Some(r))
   }
 }
 
