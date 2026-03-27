@@ -69,11 +69,11 @@ pub type BooleanFilter(a) {
   OneToManyAssocCompare(assoc: List(a), related_item: Int, pred: WithPredicate)
 }
 
-pub type RecursiveFilterSpec(terminal) {
-  RecursiveAnd(items: List(RecursiveFilterSpec(terminal)))
-  RecursiveOr(items: List(RecursiveFilterSpec(terminal)))
-  RecursiveNot(item: RecursiveFilterSpec(terminal))
-  RecursiveTerminal(item: terminal)
+pub type RecursiveFilterSpec(payload) {
+  RecursiveAnd(items: List(RecursiveFilterSpec(payload)))
+  RecursiveOr(items: List(RecursiveFilterSpec(payload)))
+  RecursiveNot(item: RecursiveFilterSpec(payload))
+  RecursivePredicate(item: payload)
 }
 
 pub fn has(field: List(a), related_item: Int) -> BooleanFilter(a) {
@@ -103,24 +103,24 @@ pub fn any(
 pub fn complex_filter(
   root: root,
   filter: RecursiveFilterSpec(t),
-  terminal_fn: fn(root, t) -> BooleanFilter(a),
+  predicate_fn predicate_fn: fn(root, t) -> BooleanFilter(a),
 ) -> BooleanFilter(a) {
   case filter {
     RecursiveAnd(items: items) ->
       And(
         exprs: list.map(items, fn(item) {
-          complex_filter(root, item, terminal_fn)
+          complex_filter(root, item, predicate_fn)
         }),
       )
     RecursiveOr(items: items) ->
       Or(
         exprs: list.map(items, fn(item) {
-          complex_filter(root, item, terminal_fn)
+          complex_filter(root, item, predicate_fn)
         }),
       )
     RecursiveNot(item: item) ->
-      Not(expr: complex_filter(root, item, terminal_fn))
-    RecursiveTerminal(item: item) -> terminal_fn(root, item)
+      Not(expr: complex_filter(root, item, predicate_fn))
+    RecursivePredicate(item: item) -> predicate_fn(root, item)
   }
 }
 

@@ -94,7 +94,9 @@ pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields, _limit: Int) 
 pub fn query_tracks_by_view_config(track_bucket: TrackBucket, magic_fields: dsl.MagicFields, filter_config: FilterConfigScalar) {
   dsl.query(track_bucket)
   |> dsl.shape(option.None)
-  |> dsl.filter(dsl.complex_filter(track_bucket, filter_config, terminal))
+  |> dsl.filter(
+    dsl.complex_filter(track_bucket, filter_config, predicate_fn: predicate_complex_tags_filter),
+  )
   |> dsl.order(dsl.order_by(dsl.MagicFields, dsl.Desc))  
 }
 
@@ -109,9 +111,10 @@ import gleam/list
 pub type FilterConfigScalar = dsl.RecursiveFilterSpec(TagExpressionScalar)
 
 
-pub fn terminal(track_bucket: TrackBucket, tag_expression: TagExpressionScalar) -> dsl.BooleanFilter(BelongsTo(Tag, TrackBucketRelationshipAttributes)) {
-    // Terminal(item: tag_expression) ->
-    // on any tag that is connected and matches
+pub fn predicate_complex_tags_filter(
+  track_bucket: TrackBucket,
+  tag_expression: TagExpressionScalar,
+) -> dsl.BooleanFilter(BelongsTo(Tag, TrackBucketRelationshipAttributes)) {
       case tag_expression {
 
         Has(tag_id: tag_id) ->

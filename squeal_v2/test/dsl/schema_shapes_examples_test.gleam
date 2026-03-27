@@ -26,6 +26,10 @@
 ///     with `option.Option(...)`.
 /// 12. **Magic row fields** — entity fields must not use the labels `id`, `created_at`, `updated_at`, or
 ///     `deleted_at` (see `dsl.MagicFields`); generated code supplies those.
+/// 13. **Recursive filter predicate fn** — the function passed as `predicate_fn` to `dsl.complex_filter`
+///     must be a public `pub fn` whose name starts with `predicate_`. Canonical example:
+///     `predicate_complex_tags_filter` (`FILTER_SPEC.md` naming table; enforced by
+///     `library_manager_schema_advanced_predicate_fn_prefix_test`).
 ///
 import gleam/list
 import gleam/string
@@ -310,6 +314,13 @@ pub type RowIdentities {
       panic as "expected entity fields reserved for dsl.MagicFields to be rejected"
     Error(_) -> Nil
   }
+}
+
+pub fn library_manager_schema_advanced_predicate_fn_prefix_test() {
+  let assert Ok(src) =
+    simplifile.read("src/case_studies/library_manager_schema_advanced.gleam")
+  assert string.contains(src, "pub fn predicate_complex_tags_filter")
+  assert string.contains(src, "predicate_fn: predicate_complex_tags_filter")
 }
 
 pub fn fruit_schema_query_infers_lt_missing_field_asc_test() {
