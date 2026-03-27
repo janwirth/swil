@@ -144,6 +144,9 @@ The following are currently **not** represented and fail at parse time with acti
 - [x] Add explicit representation for computed selections/filters (`age(...)`, nested relationship projections) instead of fallback.
 - [x] Replace compatibility fallback with explicit support or explicit actionable failure.
 - [ ] Migrate/retire `relationship_queries.gleam` only when query-model supports its complex shapes.
+
+Out of scope
+
 - [ ] Enforce and test that no module-specific special-casing exists in query generation.
 - [ ] Enforce and test that schema-declared queries never require consumer-authored custom SQL.
 
