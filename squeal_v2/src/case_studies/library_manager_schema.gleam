@@ -1,4 +1,4 @@
-import dsl/dsl
+import dsl/dsl.{type BelongsToWith}
 import gleam/option
 
 // id / created_at / updated_at / deleted_at come from `dsl.MagicFields`, not the schema type.
@@ -44,15 +44,14 @@ pub type TrackBucket {
   )
 }
 pub type TrackBucketRelationships {
-  TrackBucketRelationship(
-    tag: Tag,
-    attributes: TrackBucketRelationshipAttributes,
+  TrackBucketRelationships(
+    tags: List(BelongsToWith(Tag, TrackBucketRelationshipAttributes))
   )
 }
 
 pub type TrackBucketRelationshipAttributes {
   TrackBucketRelationshipAttributes(
-    value: Int,
+    value: option.Option(Int),
   )
 }
 pub type TrackBucketIdentities {

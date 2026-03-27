@@ -116,36 +116,53 @@ pub fn try_parse(
                                         Some(ct.location),
                                         "entity "
                                           <> ct.name
-                                          <> " relationships field must reference a *Relationships type",
+                                          <> " relationships field must reference a *Relationships type. "
+                                          <> "Use `relationships: "
+                                          <> ct.name
+                                          <> "Relationships`. "
+                                          <> "The Relationships type name must match the entity name.",
                                       ))
-                                    True -> {
-                                      let fields =
-                                        variant_fields_to_defs(vfields)
-                                      use _ <- result.try(
-                                        require_no_magic_field_labels(
-                                          fields,
-                                          ["identities", "relationships"],
-                                          ct.name,
-                                          ct.location,
-                                        ),
-                                      )
-                                      use _ <- result.try(
-                                        require_no_unwrapped_primitive_fields(
-                                          fields,
-                                          ["identities", "relationships"],
-                                          ct.name,
-                                          ct.location,
-                                        ),
-                                      )
-                                      Ok(
-                                        Some(EntityDefinition(
-                                          ct.name,
-                                          vname,
-                                          fields,
-                                          id_name,
-                                        )),
-                                      )
-                                    }
+                                    True ->
+                                      case rel_name == ct.name <> "Relationships" {
+                                        False ->
+                                          Error(UnsupportedSchema(
+                                            Some(ct.location),
+                                            "entity "
+                                              <> ct.name
+                                              <> " relationships field must be exactly `relationships: "
+                                              <> ct.name
+                                              <> "Relationships`. "
+                                              <> "The Relationships type name must match the entity name.",
+                                          ))
+                                        True -> {
+                                          let fields =
+                                            variant_fields_to_defs(vfields)
+                                          use _ <- result.try(
+                                            require_no_magic_field_labels(
+                                              fields,
+                                              ["identities", "relationships"],
+                                              ct.name,
+                                              ct.location,
+                                            ),
+                                          )
+                                          use _ <- result.try(
+                                            require_no_unwrapped_primitive_fields(
+                                              fields,
+                                              ["identities", "relationships"],
+                                              ct.name,
+                                              ct.location,
+                                            ),
+                                          )
+                                          Ok(
+                                            Some(EntityDefinition(
+                                              ct.name,
+                                              vname,
+                                              fields,
+                                              id_name,
+                                            )),
+                                          )
+                                        }
+                                      }
                                   }
                               }
                           }
