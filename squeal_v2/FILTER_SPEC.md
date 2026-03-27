@@ -54,8 +54,24 @@ Schema usage then becomes:
 ```gleam
 pub type FilterConfigScalar = dsl.RecursiveFilterSpec(TagExpressionScalar)
 
-pub fn filter_tag_complex(track_bucket, tag_expression_scalar){
-  ...
+pub fn filter_tag_complex(
+  track_bucket: TrackBucket,
+  filter: dsl.RecursiveFilterSpec(TagExpressionScalar),
+) -> dsl.BooleanFilter(BelongsTo(Tag, TrackBucketRelationshipAttributes)) {
+  dsl.complex_filter(
+    filter,
+    terminal_fn: fn(tag_expression, magic_fields, edge_attribs) {
+      case tag_expression {
+        Has(tag_id: tag_id) -> magic_fields.id == tag_id
+        IsAtLeast(tag_id: _, value: value) ->
+          dsl.exclude_if_missing(edge_attribs.value) >= value
+        IsAtMost(tag_id: _, value: value) ->
+          dsl.exclude_if_missing(edge_attribs.value) <= value
+        IsEqualTo(tag_id: _, value: value) ->
+          dsl.exclude_if_missing(edge_attribs.value) == value
+      }
+    },
+  )
 }
 ```
 
@@ -87,9 +103,9 @@ A public `filter_*` function is extractable if:
 - return type is explicitly `dsl.BooleanFilter(...)`,
 - parameter 1 is root entity/context,
 - parameter 2 is `dsl.RecursiveFilterSpec(<TerminalType>)` OR an alias that resolves to that type,
-- implementation structurally matches recursion on the second parameter (`And`/`Or`/`Not`/`Terminal`).
+- implementation is a single return expression based on `dsl.complex_filter(...)` with a terminal callback.
 
-Inside `Terminal`, schema authors map `<TerminalType>` to DSL leaves (`dsl.has`, `dsl.not_has`, `dsl.has_with`, or equivalent supported leaves).
+Inside the terminal callback, schema authors map `<TerminalType>` to a boolean predicate over `(related, dsl.MagicFields, edge_attribs)`.
 
 ## Applying This To `schema_definition.gleam`
 

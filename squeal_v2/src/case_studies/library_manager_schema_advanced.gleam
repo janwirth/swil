@@ -153,6 +153,10 @@ pub fn filter_track_bucket_by_tag(
       }
   }
 }
+
+pub fn complex_filter(terminal_fn: fn(t, dsl.MagicFields, attribs) -> dsl.BooleanFilter(BelongsTo(related, attribs))) {
+  todo "this is DSL"
+}
 pub fn terminal(track_bucket: TrackBucket, tag_expression: TagExpressionScalar) -> dsl.BooleanFilter(BelongsTo(Tag, TrackBucketRelationshipAttributes)) {
     // Terminal(item: tag_expression) ->
     // on any tag that is connected and matches
