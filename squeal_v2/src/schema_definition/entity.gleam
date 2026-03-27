@@ -7,7 +7,11 @@ import schema_definition/fields.{
   require_no_unwrapped_primitive_fields, type_named_type_name,
   variant_fields_all_labelled, variant_fields_to_defs,
 }
-import schema_definition/parse_error.{type ParseError, UnsupportedSchema}
+import schema_definition/parse_error.{
+  type ParseError,
+  UnsupportedSchema,
+  hint_public_type_suffixes_or_entity,
+}
 
 /// Parses custom types into entity definitions used by schema generation.
 ///
@@ -128,7 +132,8 @@ fn parse_identities_type_name(
       Error(unsupported(
         ct,
         ct.name
-          <> " has a record variant named like the type but no `identities` field; add `identities` pointing at a `*Identities` type",
+          <> " has a record variant named like the type but no `identities` field; add `identities` pointing at a `*Identities` type. "
+          <> hint_public_type_suffixes_or_entity(),
       ))
     Some(#(_, id_type)) ->
       case type_named_type_name(id_type) {

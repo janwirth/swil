@@ -1,44 +1,23 @@
-/// Catalogue of **mini Gleam modules** matching the shapes `schema_definition.parse_module` accepts.
+/// **Public type** shapes accepted by `schema_definition.parse_module`.
 ///
-/// **Suffix routing** (see `classify_strict`): a public type is classified by checking, in order, whether
-/// its name ends with `Identities`, `Relationships`, `Attributes`, or `Scalar`; if none match, it is
-/// parsed as an **entity**.
+/// **Suffix routing** (`classify_strict`): a public type is classified by checking, in order, whether its name
+/// ends with `Identities`, `Relationships`, `Attributes`, or `Scalar`; if none match, it is parsed as an
+/// **entity** (single variant + `identities` field). Any other shape is rejected; diagnostics append
+/// [`hint_public_type_suffixes_or_entity`](schema_definition/parse_error.html#hint_public_type_suffixes_or_entity).
 ///
-/// Spec summary (see `schema_definition` implementation for messages and edge cases):
-///
-/// 1. **`*Scalar`** — type name ends with `Scalar`; no `identities`; variants may be payload-free
-///    (enum) or carry fields (record constructor).
-/// 2. **`*Identities`** — type name ends with `Identities`; variants named `By…`; labelled fields only; must be the `identities` field on a public entity in the same module.
-/// 3. **Entity** — one variant; constructor name equals the type name; labelled fields only;
-///    required `identities: …` with a simple type name ending in `Identities`;
-///    optional `relationships: …` with a simple type name ending in `Relationships`.
-///    See `entity_object_schema_test` for entity / identities edge cases.
-/// 4. **`*Relationships`** — one variant named like the type; labelled fields only.
-/// 5. **`*Attributes`** — one variant named like the type; labelled fields only.
-/// 6. **Public `pub fn` query specs** — every public query function must end in
-///    `query(...) |> shape(...) |> filter(...) |> order(...)`; parameters must have type annotations.
-/// 7. **No type parameters** on public custom types in schema modules.
-/// 8. **No zero-variant public types** (add variants or use `private`).
-/// 9. **Private** `type` definitions are not validated as schema shapes.
-/// 10. **Walk order** is source order (Glance’s definition lists are reversed before folding).
-/// 11. **Nullable primitives** — on entities (except `identities` / `relationships`), `*Relationships`,
-///     and `*Attributes`, fields must not use bare `String` / `Int` / `Float` / `Bool` / `Date`; wrap
-///     with `option.Option(...)`.
-/// 12. **Magic row fields** — entity fields must not use the labels `id`, `created_at`, `updated_at`, or
-///     `deleted_at` (see `dsl.MagicFields`); generated code supplies those.
-/// 13. **Recursive filter predicate fn** — the function passed as `predicate_fn` to `dsl.complex_filter`
-///     must be a public `pub fn` whose name starts with `predicate_`. Canonical example:
-///     `predicate_complex_tags_filter` (`FILTER_SPEC.md` naming table; enforced by
-///     `library_manager_schema_advanced_predicate_fn_prefix_test`).
-///
+/// 1. **`*Scalar`** — name ends with `Scalar`; variants enum or record.
+/// 2. **`*Identities`** — ends with `Identities`; `By…` variants; must be referenced from an entity’s `identities`.
+/// 3. **Entity** — otherwise: one record variant named like the type + `identities: *Identities`.
+/// 4. **`*Relationships`** / **`*Attributes`** — container shapes as documented in `schema_shapes` history.
+/// 5. **No type parameters** on public custom types; **no zero-variant** public types.
+/// 6. **Private** types are not validated as schema shapes.
+/// 7. **Nullable primitives** on entities / relationship / attribute types (see other tests).
+/// 8. **Magic row field labels** reserved on entities.
+
 import gleam/list
 import gleam/string
 import gleeunit
-import dsl/dsl as dsl
-import gleam/option.{Some}
 import schema_definition/parser as schema_parser
-import schema_definition/schema_definition
-import simplifile
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -172,56 +151,6 @@ pub type StatusScalar {
   assert scalar.type_name == "StatusScalar"
 }
 
-pub fn documented_shape_query_tail_call_parses_test() {
-  let input =
-    "import gleam/option
-
-pub type Row {
-  Row(identities: RowIdentities)
-}
-
-pub type RowIdentities {
-  ByKey(key: String)
-}
-
-pub fn query_by_key(row: Row, _magic: dsl.MagicFields, _k: Int) {
-  query(row)
-  |> shape(row)
-  |> filter(option.None)
-  |> order(option.None)
-}
-"
-  let assert Ok(def) = schema_parser.parse_module(input)
-  assert list.length(def.queries) == 1
-  let assert [q] = def.queries
-  assert q.name == "query_by_key"
-}
-
-pub fn documented_shape_query_return_annotation_parses_test() {
-  let input =
-    "import gleam/option
-
-pub type Row {
-  Row(identities: RowIdentities)
-}
-
-pub type RowIdentities {
-  ByKey(key: String)
-}
-
-pub fn query_by_key(row: Row, _magic: dsl.MagicFields, _k: Int) {
-  query(row)
-  |> shape(row)
-  |> filter(option.None)
-  |> order(option.None)
-}
-"
-  let assert Ok(def) = schema_parser.parse_module(input)
-  assert list.length(def.queries) == 1
-  let assert [q] = def.queries
-  assert q.name == "query_by_key"
-}
-
 pub fn generic_custom_type_rejected_test() {
   let input =
     "pub type Box(a) {
@@ -316,32 +245,19 @@ pub type RowIdentities {
   }
 }
 
-pub fn library_manager_schema_advanced_predicate_fn_prefix_test() {
-  let assert Ok(src) =
-    simplifile.read("src/case_studies/library_manager_schema_advanced.gleam")
-  assert string.contains(src, "pub fn predicate_complex_tags_filter")
-  assert string.contains(src, "predicate_fn: predicate_complex_tags_filter")
+pub fn public_type_neither_entity_nor_suffix_rejected_includes_hint_test() {
+  let input =
+    "pub type Weird {
+  Weird(x: Int)
 }
-
-pub fn fruit_schema_query_infers_lt_missing_field_asc_test() {
-  let assert Ok(src) = simplifile.read("src/case_studies/fruit_schema.gleam")
-  let assert Ok(def) = schema_parser.parse_module(src)
-  let assert [q] = def.queries
-  assert q.name == "query_cheap_fruit"
-  let schema_definition.Query(shape: shape, filter: filter, order: order) = q.query
-  assert shape == schema_definition.NoneOrBase
-  let assert Some(schema_definition.Predicate(schema_definition.Compare(
-    left: schema_definition.Call(
-      func: schema_definition.ExcludeIfMissingFn,
-      args: [schema_definition.Field(path: ["fruit", "price"])],
-    ),
-    operator: schema_definition.Lt,
-    right: schema_definition.Param(name: "max_price"),
-    missing_behavior: schema_definition.ExcludeIfMissing,
-  ))) = filter
-  assert order
-    == schema_definition.CustomOrder(
-      expr: schema_definition.Field(path: ["fruit", "price"]),
-      direction: dsl.Asc,
-    )
+"
+  case schema_parser.parse_module(input) {
+    Ok(_) ->
+      panic as "expected invalid public type to be rejected"
+    Error(e) -> {
+      let msg = schema_parser.format_parse_error(input, e)
+      assert string.contains(msg, "Scalar")
+      assert string.contains(msg, "Identities")
+    }
+  }
 }

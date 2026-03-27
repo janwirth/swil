@@ -34,6 +34,7 @@
 //// from `schema_definition/query_params.gleam`).
 
 import gleam/list
+import gleam/string
 import gleeunit
 import schema_definition/parser as schema_parser
 import schema_definition/query_params as qp
@@ -217,9 +218,10 @@ pub fn query_by_key(row: Row, _magic: dsl.MagicFields, k: Int) {
   }
 }
 
-pub fn entity_object_filter_function_must_start_with_filter_prefix_rejected_test() {
+pub fn entity_object_predicate_function_must_start_with_predicate_prefix_rejected_test() {
   let input =
-    "import gleam/option
+    "import dsl/dsl as dsl
+import gleam/option
 
 pub type Row {
   Row(identities: RowIdentities)
@@ -229,13 +231,17 @@ pub type RowIdentities {
   ByKey(key: String)
 }
 
-pub fn helper_filter(row: Row) -> BooleanFilter {
-  Predicate(value: True)
+pub fn filter_helper(row: Row) -> dsl.BooleanFilter(Int) {
+  panic as \"x\"
 }
 "
   case schema_parser.parse_module(input) {
     Ok(_) ->
-      panic as "expected BooleanFilter helper without filter_ prefix to be rejected"
-    Error(_) -> Nil
+      panic as "expected BooleanFilter helper without predicate_ prefix to be rejected"
+    Error(e) -> {
+      let msg = schema_parser.format_parse_error(input, e)
+      assert string.contains(msg, "predicate_")
+      assert string.contains(msg, "query_")
+    }
   }
 }

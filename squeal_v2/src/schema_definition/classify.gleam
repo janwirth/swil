@@ -5,7 +5,11 @@ import gleam/string
 import schema_definition/edge_attributes
 import schema_definition/entity
 import schema_definition/identity
-import schema_definition/parse_error.{type ParseError, UnsupportedSchema}
+import schema_definition/parse_error.{
+  type ParseError,
+  UnsupportedSchema,
+  hint_public_type_suffixes_or_entity,
+}
 import schema_definition/relationship_container
 import schema_definition/scalar
 
@@ -75,7 +79,8 @@ fn classify_entity_default(
         Some(ct.location),
         "public type "
           <> ct.name
-          <> " is not a squeal entity (expected a single record variant named like the type with a labelled `identities` field); for other shapes name the type with a `Scalar`, `Identities`, `Relationships`, or `Attributes` suffix",
+          <> " is not a squeal entity (expected a single record variant named like the type with a labelled `identities` field); for other shapes use a recognised type name suffix. "
+          <> hint_public_type_suffixes_or_entity(),
       ))
   }
 }

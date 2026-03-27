@@ -6,7 +6,11 @@ import schema_definition/buckets
 import schema_definition/classify
 import schema_definition/entity
 import schema_definition/identity
-import schema_definition/parse_error.{type ParseError, UnsupportedSchema}
+import schema_definition/parse_error.{
+  type ParseError,
+  UnsupportedSchema,
+  hint_public_type_suffixes_or_entity,
+}
 import schema_definition/query
 import schema_definition/schema_aggregate.{
   type SchemaDefinition, SchemaDefinition,
@@ -71,7 +75,8 @@ fn validate_identity_types_linked_to_entities(
             None,
             "*Identities type "
               <> id.type_name
-              <> " must be the `identities` field on a public entity in this module (or use a `*Scalar` enum for standalone sum types without an entity)",
+              <> " must be the `identities` field on a public entity in this module (or use a `*Scalar` enum for standalone sum types without an entity). "
+              <> hint_public_type_suffixes_or_entity(),
           ))
       }
     }),

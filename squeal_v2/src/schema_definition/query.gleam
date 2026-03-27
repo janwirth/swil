@@ -5,9 +5,9 @@
 //// records the function name, typed parameters, and a [`QueryCodegen`](#QueryCodegen) tag when the tail call
 //// matches a pattern generators understand; otherwise codegen is [`Unsupported`](#Unsupported).
 ////
-//// **Naming:** public query functions must be prefixed with `query_`. Public `BooleanFilter` helpers used in
-//// nested filters must use the `filter_` prefix and an explicit `-> ... BooleanFilter` annotation; they are
-//// skipped here and are not emitted as specs.
+//// **Naming:** public query functions must be prefixed with `query_`. Public `BooleanFilter` helpers must use
+//// the `predicate_` prefix and an explicit `-> ... BooleanFilter` annotation; they are skipped here and are
+//// not emitted as query specs.
 ////
 //// **Inference:** the body’s final expression must be a query pipeline
 //// (`query(...) |> shape(...) |> filter(...) |> order(...)`).
@@ -20,7 +20,11 @@ import gleam/list
 import gleam/option.{type Option, None, Some, from_result, then}
 import gleam/result
 import gleam/string
-import schema_definition/parse_error.{type ParseError, UnsupportedSchema}
+import schema_definition/parse_error.{
+  type ParseError,
+  UnsupportedSchema,
+  hint_public_function_prefixes,
+}
 import schema_definition/schema_definition as sd
 
 /// Extracted metadata for a public `query_*` function: its name, parameter list, and parsed query.
@@ -46,7 +50,7 @@ pub type QueryParameter {
 
 /// Scans module functions and returns every public `query_*` spec, or `ParseError` when
 /// rules are violated (missing param types, wrong prefixes, or a public function that is neither a query pipeline nor
-/// an annotated `filter_*` BooleanFilter helper). Private functions and valid `filter_*` helpers are ignored.
+/// an annotated `predicate_*` BooleanFilter helper). Private functions and valid `predicate_*` helpers are ignored.
 pub fn extract_from_functions(
   functions: List(glance.Definition(glance.Function)),
 ) -> Result(List(QuerySpecDefinition), ParseError) {
@@ -73,7 +77,8 @@ pub fn extract_from_functions(
                           Some(f.location),
                           "public query function "
                             <> f.name
-                            <> " must start with `query_`",
+                            <> " must start with `query_`. "
+                            <> hint_public_function_prefixes(),
                         ))
                       True ->
                         case query_spec_from_function_strict(f) {
@@ -84,14 +89,15 @@ pub fn extract_from_functions(
                   False ->
                     case function_is_boolean_filter_helper(f) {
                       True ->
-                        case function_has_filter_prefix(f.name) {
+                        case function_has_predicate_prefix(f.name) {
                           True -> Ok(acc)
                           False ->
                             Error(UnsupportedSchema(
                               Some(f.location),
                               "public BooleanFilter helper "
                                 <> f.name
-                                <> " must start with `filter_`",
+                                <> " must start with `predicate_`. "
+                                <> hint_public_function_prefixes(),
                             ))
                         }
                       False ->
@@ -99,8 +105,8 @@ pub fn extract_from_functions(
                           Some(f.location),
                           "public function "
                             <> f.name
-                            <> " must build a query pipeline (`query |> shape |> filter |> order`) "
-                            <> "or return BooleanFilter (annotation) for nested filter helpers",
+                            <> " is not allowed in a squeal schema module. "
+                            <> hint_public_function_prefixes(),
                         ))
                     }
                 }
@@ -742,7 +748,8 @@ fn function_is_query_spec(f: glance.Function) -> Bool {
 }
 
 /// Public helpers that build `dsl.BooleanFilter` trees are allowed alongside query specs.
-/// They are not emitted as `QuerySpecDefinition`; use an explicit `-> ... BooleanFilter` annotation.
+/// They are not emitted as `QuerySpecDefinition`; name them `predicate_*` with an explicit
+/// `-> ... BooleanFilter` return annotation.
 fn function_is_boolean_filter_helper(f: glance.Function) -> Bool {
   case f.return {
     Some(t) -> type_is_boolean_filter(t)
@@ -808,7 +815,7 @@ fn function_has_query_prefix(name: String) -> Bool {
   string.starts_with(name, "query_")
 }
 
-/// Public `BooleanFilter` helpers must start with `filter_`.
-fn function_has_filter_prefix(name: String) -> Bool {
-  string.starts_with(name, "filter_")
+/// Public `BooleanFilter` helpers must start with `predicate_`.
+fn function_has_predicate_prefix(name: String) -> Bool {
+  string.starts_with(name, "predicate_")
 }

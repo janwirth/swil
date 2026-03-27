@@ -8,7 +8,7 @@ Make recursive filters a first-class, reusable capability:
 - schema modules only define **predicate payload** types (the custom type carried in each `RecursivePredicate` leaf),
 - and the schema parser stores recursive filter specs as structured metadata.
 
-This keeps `filter_*` definitions generic and makes them available to generation/runtime code without case-study-specific parsing.
+Query specs use the `query_` prefix; BooleanFilter helpers use `predicate_` (enforced by `schema_definition` parsing).
 
 ## Naming (enforced convention)
 
@@ -33,7 +33,7 @@ In scope:
 - shared recursive filter type in `src/dsl/dsl.gleam`,
 - encodable recursive filter payloads,
 - parser/model updates in `src/schema_definition/schema_definition.gleam`,
-- extraction contract for `filter_*` functions.
+- extraction contract aligned with public function prefixes (`query_`, `predicate_`).
 
 Out of scope (v2):
 
@@ -95,17 +95,13 @@ Example JSON-like representation:
 
 Implementation detail (derive/manual encoder) is decided by the scalar/codegen layer; this spec only fixes semantic shape.
 
-## `filter_*` Authoring Contract
+## Query + predicate authoring (public functions)
 
-A public `filter_*` function is extractable if:
+Public functions in a schema module are restricted to **`query_*`** and **`predicate_*`** (see `parse_error.hint_public_function_prefixes`).
 
-- name starts with `filter_`,
-- return type is explicitly `dsl.BooleanFilter(...)`,
-- parameter 1 is root entity/context,
-- parameter 2 is `dsl.RecursiveFilterSpec(<PayloadType>)` OR an alias that resolves to that type,
-- implementation is a single return expression: `dsl.complex_filter(root, filter, predicate_fn: …)` where `predicate_fn` has type `fn(root, <PayloadType>) -> dsl.BooleanFilter(a)` and the function value **must** be named with prefix `predicate_` (see table above).
+A **`query_*`** spec uses the usual `(entity, dsl.MagicFields, simple)` parameters and ends in `dsl.query |> dsl.shape |> dsl.filter |> dsl.order`.
 
-Inside `predicate_fn`, map each payload variant to `dsl.BooleanFilter` leaves (for example via `dsl.any(...)` over a relationship).
+When the filter slot uses `dsl.complex_filter(...)`, pass a **`predicate_*`** function as `predicate_fn` (see naming table). That helper must be `pub fn predicate_…(root, payload) -> dsl.BooleanFilter(...)` (or equivalent) with an explicit BooleanFilter return annotation.
 
 ## Applying This To `schema_definition.gleam`
 
