@@ -314,12 +314,15 @@ fn normalize_expr(expr: glance.Expression) -> glance.Expression {
 fn query_tail_components(
   expr: glance.Expression,
 ) -> Option(#(glance.Expression, glance.Expression, glance.Expression)) {
-  query_pipeline_components(expr)
+  case query_pipeline_components_desugared(expr) {
+    Some(parts) -> Some(parts)
+    None -> query_pipeline_components_pipe(expr)
+  }
 }
 
 /// If `expr` is (after normalisation) `order(filter(shape(query(entity), shape), filter), order)`,
 /// returns synthetic labelled fields compatible with query inference.
-fn query_pipeline_components(
+fn query_pipeline_components_desugared(
   expr: glance.Expression,
 ) -> Option(#(glance.Expression, glance.Expression, glance.Expression)) {
   case normalize_expr(expr) {
@@ -377,6 +380,57 @@ fn query_pipeline_components(
               }
             None -> None
           }
+        _ -> None
+      }
+    _ -> None
+  }
+}
+
+/// If `expr` preserves `|>` in the AST, match:
+/// `query(entity) |> shape(shape) |> filter(filter) |> order(order)`.
+fn query_pipeline_components_pipe(
+  expr: glance.Expression,
+) -> Option(#(glance.Expression, glance.Expression, glance.Expression)) {
+  case normalize_expr(expr) {
+    glance.BinaryOperator(_, _op3, left2, order_step) -> {
+      use order_expr <- then(single_named_call_arg(order_step, "order"))
+      case normalize_expr(left2) {
+        glance.BinaryOperator(_, _op2, left1, filter_step) -> {
+          use filter_expr <- then(single_named_call_arg(filter_step, "filter"))
+          case normalize_expr(left1) {
+            glance.BinaryOperator(_, _op1, query_step, shape_step) -> {
+              use shape_expr <- then(single_named_call_arg(shape_step, "shape"))
+              case normalize_expr(query_step) {
+                glance.Call(_, query_callee, query_args) ->
+                  case expression_callee_name(query_callee) {
+                    Ok("query") ->
+                      case single_unlabelled_arg(query_args) {
+                        Some(_entity_expr) -> Some(#(shape_expr, filter_expr, order_expr))
+                        None -> None
+                      }
+                    _ -> None
+                  }
+                _ -> None
+              }
+            }
+            _ -> None
+          }
+        }
+        _ -> None
+      }
+    }
+    _ -> None
+  }
+}
+
+fn single_named_call_arg(
+  expr: glance.Expression,
+  name: String,
+) -> Option(glance.Expression) {
+  case normalize_expr(expr) {
+    glance.Call(_, callee, args) ->
+      case expression_callee_name(callee) {
+        Ok(n) if n == name -> single_unlabelled_arg(args)
         _ -> None
       }
     _ -> None
