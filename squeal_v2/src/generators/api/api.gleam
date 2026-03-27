@@ -1,13 +1,13 @@
-import generators/api/api_chunks as api_chunks
+import generators/api/api_chunks
 import generators/api/api_decoders as dec
 import generators/api/api_facade as facade
-import generators/api/api_imports as api_imports
-import generators/api/api_naming as api_naming
-import generators/api/api_params as api_params
-import generators/api/api_query as api_query
-import generators/api/api_sql as api_sql
+import generators/api/api_imports
+import generators/api/api_naming
+import generators/api/api_params
+import generators/api/api_query
+import generators/api/api_sql
 import generators/api/api_update_delete as ud
-import generators/api/schema_context as schema_context
+import generators/api/schema_context
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
@@ -17,8 +17,9 @@ import gleamgen/module as gmod
 import gleamgen/module/definition as gdef
 import gleamgen/render as grender
 import gleamgen/types as gtypes
-import schema_definition/query.{LtMissingFieldAsc}
-import schema_definition/schema_definition.{type SchemaDefinition}
+import schema_definition/schema_definition.{
+  type SchemaDefinition, LtMissingFieldAsc,
+}
 
 pub type ApiDbOutputs {
   ApiDbOutputs(
@@ -39,7 +40,10 @@ fn finalize_string(s: String) -> String {
 
 /// gleamgen drops `import api_help` when the module body only references `api_help` via raw strings.
 fn ensure_api_help_import(text: String) -> String {
-  case string.contains(text, "api_help.") && !string.contains(text, "import api_help") {
+  case
+    string.contains(text, "api_help.")
+    && !string.contains(text, "import api_help")
+  {
     False -> text
     True -> {
       case string.split(text, "\n") {
@@ -92,7 +96,9 @@ fn render_module(m: gmod.Module) -> String {
 }
 
 fn fold_fn_chunks(
-  chunks: List(#(gdef.Definition, gfun.Function(gtypes.Dynamic, gtypes.Dynamic))),
+  chunks: List(
+    #(gdef.Definition, gfun.Function(gtypes.Dynamic, gtypes.Dynamic)),
+  ),
   start: gmod.Module,
 ) -> gmod.Module {
   list.fold(chunks, start, fn(acc, chunk) {
@@ -136,7 +142,8 @@ pub fn generate_api_db_outputs(
   let returning = api_sql.full_row_columns(data_col_labels)
   let entity_snake = string.lowercase(entity.type_name)
   let id_snake = case string.starts_with(variant.variant_name, "By") {
-    True -> api_naming.pascal_to_snake(string.drop_start(variant.variant_name, 2))
+    True ->
+      api_naming.pascal_to_snake(string.drop_start(variant.variant_name, 2))
     False -> api_naming.pascal_to_snake(variant.variant_name)
   }
   let upsert_s = api_sql.upsert_sql(table, data_col_labels, id_cols, returning)
@@ -159,11 +166,10 @@ pub fn generate_api_db_outputs(
   let row_t = gtypes.raw(dec.entity_row_tuple_type(entity.type_name))
   let sql_err = gtypes.raw("sqlight.Error")
   let upsert_params =
-    list.append([api_params.conn_param()], api_params.upsert_gparams(
-      entity,
-      variant,
-      ctx,
-    ))
+    list.append(
+      [api_params.conn_param()],
+      api_params.upsert_gparams(entity, variant, ctx),
+    )
   let get_params =
     list.append([api_params.conn_param()], api_params.identity_gparams(variant))
 
@@ -296,8 +302,7 @@ pub fn generate_api_db_outputs(
     upsert: ensure_dsl_import(render_module(upsert_mod)),
     delete: ensure_api_help_import(render_module(delete_mod)),
     query: ensure_dsl_import(render_module(query_mod)),
-    api:
-      render_module(api_mod)
+    api: render_module(api_mod)
       |> ensure_option_import
       |> ensure_dsl_import,
   )

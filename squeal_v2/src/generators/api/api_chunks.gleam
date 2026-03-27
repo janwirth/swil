@@ -14,9 +14,9 @@ import gleamgen/parameter as gparam
 import gleamgen/pattern as gpat
 import gleamgen/render/config as grender_cfg
 import gleamgen/types as gtypes
-import schema_definition/query.{type QuerySpecDefinition}
 import schema_definition/schema_definition.{
-  type EntityDefinition, type IdentityVariantDefinition, type SchemaDefinition,
+  type EntityDefinition, type IdentityVariantDefinition,
+  type QuerySpecDefinition, type SchemaDefinition,
 }
 
 fn without_combined_case_branches(e: gexpr.Expression(t)) -> gexpr.Expression(t) {
@@ -34,7 +34,8 @@ fn scalar_enum_from_db_expr(
   variants: List(String),
 ) -> gexpr.Expression(a) {
   let c = gcase.new(s)
-  let c = gcase.with_pattern(c, gpat.string_literal(""), fn(_) { gexpr.raw("None") })
+  let c =
+    gcase.with_pattern(c, gpat.string_literal(""), fn(_) { gexpr.raw("None") })
   let c =
     list.fold(variants, c, fn(acc, v) {
       gcase.with_pattern(acc, gpat.string_literal(v), fn(_) {
@@ -105,7 +106,10 @@ pub fn not_found_private_chunk(entity_snake: String) {
           gexpr.raw("sqlight.SqlightError"),
           gexpr.raw("sqlight.GenericError"),
           gexpr.concat_string(
-            gexpr.concat_string(gexpr.string(entity_snake), gexpr.string(" not found: ")),
+            gexpr.concat_string(
+              gexpr.string(entity_snake),
+              gexpr.string(" not found: "),
+            ),
             op,
           ),
           gexpr.int(-1),
@@ -229,9 +233,7 @@ pub fn query_module_fn_chunks(
         gfun.new_raw(
           [api_params.conn_param()],
           gtypes.result(gtypes.list(row_t), sql_err),
-          fn(_) {
-            gexpr.raw(crud_bodies.last_fn_body(entity_snake, "row"))
-          },
+          fn(_) { gexpr.raw(crud_bodies.last_fn_body(entity_snake, "row")) },
         )
           |> gfun.to_dynamic,
       ),

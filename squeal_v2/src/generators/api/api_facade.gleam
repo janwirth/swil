@@ -8,11 +8,9 @@ import gleamgen/expression as gexpr
 import gleamgen/function as gfun
 import gleamgen/parameter as gparam
 import gleamgen/types as gtypes
-import schema_definition/query.{
-  LtMissingFieldAsc, type QueryParameter, type QuerySpecDefinition,
-}
 import schema_definition/schema_definition.{
-  type EntityDefinition, type IdentityVariantDefinition, type SchemaDefinition,
+  type EntityDefinition, type IdentityVariantDefinition, type QueryParameter,
+  type QuerySpecDefinition, type SchemaDefinition, LtMissingFieldAsc,
 }
 
 import generators/api/api_decoders as dec
@@ -33,13 +31,9 @@ fn forward_fn(
   let names = param_names_csv(params)
   #(
     gleamgen_emit.pub_def(fn_name),
-    gfun.new_raw(
-      params,
-      gtypes.result(ret, sql_err),
-      fn(_) {
-        gexpr.raw(submodule <> "." <> fn_name <> "(" <> names <> ")")
-      },
-    )
+    gfun.new_raw(params, gtypes.result(ret, sql_err), fn(_) {
+      gexpr.raw(submodule <> "." <> fn_name <> "(" <> names <> ")")
+    })
       |> gfun.to_dynamic,
   )
 }

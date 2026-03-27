@@ -1,90 +1,116 @@
 import glance
-import gleam/result
-import schema_definition/edge_attributes as edge_attributes_mod
-import schema_definition/entity as entity_mod
-import schema_definition/fields as fields_mod
-import schema_definition/identity as identity_mod
-import schema_definition/module_builder
-import schema_definition/parse_error as parse_error_mod
-import schema_definition/query as query_mod
-import schema_definition/query_params as query_params_mod
-import schema_definition/relationship_container as relationship_container_mod
-import schema_definition/scalar as scalar_mod
-import schema_definition/schema_aggregate as schema_aggregate_mod
+import gleam/option.{type Option}
 
-/// Parsed view of a squeal schema module in the **hippo shape** only (see parser rules).
-pub type SchemaDefinition =
-  schema_aggregate_mod.SchemaDefinition
-
-/// Aggregate root: single record variant named like the type, with required `identities` and optional `relationships`.
-pub type EntityDefinition =
-  entity_mod.EntityDefinition
-
-pub type FieldDefinition =
-  fields_mod.FieldDefinition
-
-/// `*Identities` type: each variant is `By…` with labelled fields only.
-pub type IdentityTypeDefinition =
-  identity_mod.IdentityTypeDefinition
-
-pub type IdentityVariantDefinition =
-  identity_mod.IdentityVariantDefinition
-
-pub type VariantWithFields =
-  fields_mod.VariantWithFields
-
-/// `*Relationships` type: single variant, same name as the type, labelled fields only.
-pub type RelationshipContainerDefinition =
-  relationship_container_mod.RelationshipContainerDefinition
-
-/// `*Attributes` edge payload: single variant, same name as the type, labelled fields only.
-pub type RelationshipEdgeAttributesDefinition =
-  edge_attributes_mod.RelationshipEdgeAttributesDefinition
-
-/// Name ends with `Scalar`: scalar (enum-like and/or record variant with fields); no `identities`.
-pub type ScalarTypeDefinition =
-  scalar_mod.ScalarTypeDefinition
-
-/// Public function that returns `Query` (annotation or trailing `Query(...)`); parameters must be typed.
-pub type QuerySpecDefinition =
-  query_mod.QuerySpecDefinition
-
-pub type QueryCodegen =
-  query_mod.QueryCodegen
-
-pub type QueryParameter =
-  query_mod.QueryParameter
-
-/// Target parameter layout for `query_*` functions (entity → magic fields → one simple bind).
-/// Variant constructors live on `schema_definition/query_params`; import that module to build values.
-pub type QueryFunctionParameters =
-  query_params_mod.QueryFunctionParameters
-
-pub type QueryEntityParameter =
-  query_params_mod.QueryEntityParameter
-
-pub type QueryMagicFieldsParameter =
-  query_params_mod.QueryMagicFieldsParameter
-
-pub type QuerySimpleParameter =
-  query_params_mod.QuerySimpleParameter
-
-pub type QuerySimpleType =
-  query_params_mod.QuerySimpleType
-
-/// Render with [`format_parse_error`](#format_parse_error) / [`schema_diagnostics`](schema_diagnostics.html).
-pub type ParseError =
-  parse_error_mod.ParseError
-
-/// Turn a [`ParseError`](#ParseError) into text using [`schema_diagnostics`](schema_diagnostics.html) (line + caret layout).
-pub fn format_parse_error(source: String, error: ParseError) -> String {
-  parse_error_mod.format_parse_error(source, error)
+pub type SchemaDefinition {
+  SchemaDefinition(
+    entities: List(EntityDefinition),
+    identities: List(IdentityTypeDefinition),
+    relationship_containers: List(RelationshipContainerDefinition),
+    relationship_edge_attributes: List(RelationshipEdgeAttributesDefinition),
+    scalars: List(ScalarTypeDefinition),
+    queries: List(QuerySpecDefinition),
+  )
 }
 
-/// Parse a module **only** if every public custom type and public function fits the hippo-style rules.
-pub fn parse_module(source: String) -> Result(SchemaDefinition, ParseError) {
-  case glance.module(source) {
-    Ok(parsed) -> module_builder.build_schema_strict(parsed)
-    Error(e) -> Error(parse_error_mod.GlanceError(e))
-  }
+pub type EntityDefinition {
+  EntityDefinition(
+    type_name: String,
+    variant_name: String,
+    fields: List(FieldDefinition),
+    identity_type_name: String,
+  )
+}
+
+pub type FieldDefinition {
+  FieldDefinition(label: String, type_: glance.Type)
+}
+
+pub type IdentityTypeDefinition {
+  IdentityTypeDefinition(
+    type_name: String,
+    variants: List(IdentityVariantDefinition),
+  )
+}
+
+pub type IdentityVariantDefinition {
+  IdentityVariantDefinition(variant_name: String, fields: List(FieldDefinition))
+}
+
+pub type VariantWithFields {
+  VariantWithFields(variant_name: String, fields: List(FieldDefinition))
+}
+
+pub type RelationshipContainerDefinition {
+  RelationshipContainerDefinition(
+    type_name: String,
+    variants: List(VariantWithFields),
+  )
+}
+
+pub type RelationshipEdgeAttributesDefinition {
+  RelationshipEdgeAttributesDefinition(
+    type_name: String,
+    variants: List(VariantWithFields),
+  )
+}
+
+pub type ScalarTypeDefinition {
+  ScalarTypeDefinition(
+    type_name: String,
+    variant_names: List(String),
+    enum_only: Bool,
+  )
+}
+
+pub type QuerySpecDefinition {
+  QuerySpecDefinition(
+    name: String,
+    parameters: List(QueryParameter),
+    codegen: QueryCodegen,
+  )
+}
+
+pub type QueryCodegen {
+  Unsupported
+  LtMissingFieldAsc(
+    column: String,
+    threshold_param: String,
+    shape_param: String,
+  )
+}
+
+pub type QueryParameter {
+  QueryParameter(label: Option(String), name: String, type_: glance.Type)
+}
+
+pub type QueryFunctionParameters {
+  QueryFunctionParameters(
+    entity: QueryEntityParameter,
+    magic_fields: QueryMagicFieldsParameter,
+    simple: QuerySimpleParameter,
+  )
+}
+
+pub type QueryEntityParameter {
+  QueryEntityParameter(name: String, type_name: String)
+}
+
+pub type QueryMagicFieldsParameter {
+  QueryMagicFieldsParameter(name: String)
+}
+
+pub type QuerySimpleParameter {
+  QuerySimpleParameter(name: String, type_: QuerySimpleType)
+}
+
+pub type QuerySimpleType {
+  QuerySimpleInt
+  QuerySimpleFloat
+  QuerySimpleBool
+  QuerySimpleString
+}
+
+pub type ParseError {
+  GlanceError(glance.Error)
+  UnsupportedSchema(span: Option(glance.Span), message: String)
 }

@@ -2,7 +2,7 @@
 import gleam/list
 import gleam/string
 import gleeunit
-import schema_definition/schema_definition as schema_definition
+import schema_definition/parser as schema_parser
 import simplifile
 
 pub fn main() -> Nil {
@@ -11,7 +11,7 @@ pub fn main() -> Nil {
 
 pub fn hippo_schema_parses_test() {
   let assert Ok(src) = simplifile.read("src/case_studies/hippo_schema.gleam")
-  let assert Ok(def) = schema_definition.parse_module(src)
+  let assert Ok(def) = schema_parser.parse_module(src)
 
   let entity_names =
     list.map(def.entities, fn(e) { e.type_name })
@@ -33,11 +33,12 @@ pub fn hippo_schema_parses_test() {
   assert scalar.type_name == "GenderScalar"
   assert scalar.variant_names == ["Male", "Female"]
 
-  assert query_names == [
-    "query_hippos_by_gender",
-    "query_old_hippos_owner_emails",
-    "query_old_hippos_owner_names",
-  ]
+  assert query_names
+    == [
+      "query_hippos_by_gender",
+      "query_old_hippos_owner_emails",
+      "query_old_hippos_owner_names",
+    ]
 
   let rel_container_names =
     list.map(def.relationship_containers, fn(r) { r.type_name })
@@ -75,7 +76,7 @@ pub fn entity_without_relationships_parses_test() {
     <> "}\n\npub type XIdentities {\n"
     <> "  ByName(name: String)\n"
     <> "}\n"
-  let assert Ok(def) = schema_definition.parse_module(src)
+  let assert Ok(def) = schema_parser.parse_module(src)
   let assert [e] = def.entities
   assert e.type_name == "X"
   assert e.identity_type_name == "XIdentities"
@@ -85,5 +86,5 @@ pub fn library_manager_schema_test() {
   let path = "src/case_studies/library_manager_schema.gleam"
   let assert Ok(src) = simplifile.read(path)
 
-  let assert Ok(_) = schema_definition.parse_module(src)
+  let assert Ok(_) = schema_parser.parse_module(src)
 }

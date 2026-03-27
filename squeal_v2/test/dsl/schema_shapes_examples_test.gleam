@@ -30,8 +30,8 @@
 import gleam/list
 import gleam/string
 import gleeunit
-import schema_definition/query.{LtMissingFieldAsc}
-import schema_definition/schema_definition as schema_definition
+import schema_definition/parser as schema_parser
+import schema_definition/schema_definition
 import simplifile
 
 pub fn main() -> Nil {
@@ -45,7 +45,7 @@ pub fn documented_shape_scalar_enum_parses_test() {
   Off
 }
 "
-  let assert Ok(def) = schema_definition.parse_module(input)
+  let assert Ok(def) = schema_parser.parse_module(input)
   assert def.entities == []
   assert def.identities == []
   assert list.length(def.scalars) == 1
@@ -66,7 +66,7 @@ pub type ViewConfigScalar {
   )
 }
 "
-  let assert Ok(def) = schema_definition.parse_module(input)
+  let assert Ok(def) = schema_parser.parse_module(input)
   assert def.entities == []
   assert def.identities == []
   assert def.relationship_edge_attributes == []
@@ -83,7 +83,7 @@ pub fn standalone_identities_without_entity_rejected_test() {
   ById(id: Int)
 }
 "
-  case schema_definition.parse_module(input) {
+  case schema_parser.parse_module(input) {
     Ok(_) ->
       panic as "expected *Identities type without a referencing entity to be rejected"
     Error(_) -> Nil
@@ -111,7 +111,7 @@ pub type RowRelationships {
   RowRelationships(peer: option.Option(String))
 }
 "
-  let assert Ok(def) = schema_definition.parse_module(input)
+  let assert Ok(def) = schema_parser.parse_module(input)
   assert list.length(def.entities) == 1
   assert list.length(def.identities) == 1
   assert list.length(def.relationship_containers) == 1
@@ -127,7 +127,7 @@ pub type RowRelationships {
   RowRelationships(peer: option.Option(String))
 }
 "
-  let assert Ok(def) = schema_definition.parse_module(input)
+  let assert Ok(def) = schema_parser.parse_module(input)
   assert def.entities == []
   assert list.length(def.relationship_containers) == 1
   let assert [rel] = def.relationship_containers
@@ -142,7 +142,7 @@ pub type LinkAttributes {
   LinkAttributes(weight: option.Option(Int))
 }
 "
-  let assert Ok(def) = schema_definition.parse_module(input)
+  let assert Ok(def) = schema_parser.parse_module(input)
   assert list.length(def.relationship_edge_attributes) == 1
   let assert [attrs] = def.relationship_edge_attributes
   assert attrs.type_name == "LinkAttributes"
@@ -158,7 +158,7 @@ pub type StatusScalar {
   On
 }
 "
-  let assert Ok(def) = schema_definition.parse_module(input)
+  let assert Ok(def) = schema_parser.parse_module(input)
   assert def.entities == []
   assert def.identities == []
   assert list.length(def.scalars) == 1
@@ -183,7 +183,7 @@ pub fn query_by_key(row: Row, _magic: dsl.MagicFields, k: Int) {
   Query(shape: row, filter: option.None, order: option.None)
 }
 "
-  let assert Ok(def) = schema_definition.parse_module(input)
+  let assert Ok(def) = schema_parser.parse_module(input)
   assert list.length(def.queries) == 1
   let assert [q] = def.queries
   assert q.name == "query_by_key"
@@ -206,7 +206,7 @@ pub fn query_by_key(row: Row, _magic: dsl.MagicFields, k: Int) -> Query {
   Query(shape: row, filter: option.None, order: option.None)
 }
 "
-  let assert Ok(def) = schema_definition.parse_module(input)
+  let assert Ok(def) = schema_parser.parse_module(input)
   assert list.length(def.queries) == 1
   let assert [q] = def.queries
   assert q.name == "query_by_key"
@@ -218,7 +218,7 @@ pub fn generic_custom_type_rejected_test() {
   Box(value: Int)
 }
 "
-  let output = schema_definition.parse_module(input)
+  let output = schema_parser.parse_module(input)
   case output {
     Ok(_) ->
       panic as "expected generic custom type module to be rejected by parse_module"
@@ -238,7 +238,7 @@ pub type RowIdentities {
   ByKey(key: String)
 }
 "
-  case schema_definition.parse_module(input) {
+  case schema_parser.parse_module(input) {
     Ok(_) -> panic as "expected entity field with bare String to be rejected"
     Error(_) -> Nil
   }
@@ -260,7 +260,7 @@ pub type RowRelationships {
   RowRelationships(peer: String)
 }
 "
-  case schema_definition.parse_module(input) {
+  case schema_parser.parse_module(input) {
     Ok(_) ->
       panic as "expected *Relationships field with bare String to be rejected"
     Error(_) -> Nil
@@ -275,7 +275,7 @@ pub type LinkAttributes {
   LinkAttributes(weight: Int)
 }
 "
-  case schema_definition.parse_module(input) {
+  case schema_parser.parse_module(input) {
     Ok(_) -> panic as "expected *Attributes field with bare Int to be rejected"
     Error(_) -> Nil
   }
@@ -299,7 +299,7 @@ pub type RowIdentities {
   ByKey(key: String)
 }
 "
-  case schema_definition.parse_module(input) {
+  case schema_parser.parse_module(input) {
     Ok(_) ->
       panic as "expected entity fields reserved for dsl.MagicFields to be rejected"
     Error(_) -> Nil
@@ -308,10 +308,10 @@ pub type RowIdentities {
 
 pub fn fruit_schema_query_infers_lt_missing_field_asc_test() {
   let assert Ok(src) = simplifile.read("src/case_studies/fruit_schema.gleam")
-  let assert Ok(def) = schema_definition.parse_module(src)
+  let assert Ok(def) = schema_parser.parse_module(src)
   let assert [q] = def.queries
   assert q.name == "query_cheap_fruit"
-  let assert LtMissingFieldAsc(
+  let assert schema_definition.LtMissingFieldAsc(
     column: "price",
     threshold_param: "max_price",
     shape_param: "fruit",

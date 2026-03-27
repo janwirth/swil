@@ -35,8 +35,8 @@
 
 import gleam/list
 import gleeunit
+import schema_definition/parser as schema_parser
 import schema_definition/query_params as qp
-import schema_definition/schema_definition as schema_definition
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -69,7 +69,7 @@ pub type RowIdentities {
   ByName(name: String)
 }
 "
-  let assert Ok(def) = schema_definition.parse_module(input)
+  let assert Ok(def) = schema_parser.parse_module(input)
   assert list.length(def.entities) == 1
   let assert [entity] = def.entities
   assert entity.identity_type_name == "RowIdentities"
@@ -84,7 +84,7 @@ pub type Row {
   Row(name: option.Option(String))
 }
 "
-  case schema_definition.parse_module(input) {
+  case schema_parser.parse_module(input) {
     Ok(_) -> panic as "expected entity without identities field to be rejected"
     Error(_) -> Nil
   }
@@ -98,7 +98,7 @@ pub type Row {
   Row(name: option.Option(String), identities: RowIdentities)
 }
 "
-  case schema_definition.parse_module(input) {
+  case schema_parser.parse_module(input) {
     Ok(_) ->
       panic as "expected entity referencing missing RowIdentities type to be rejected"
     Error(_) -> Nil
@@ -117,7 +117,7 @@ pub type RowIdentities {
   ByKey(key: String)
 }
 "
-  let assert Ok(def) = schema_definition.parse_module(input)
+  let assert Ok(def) = schema_parser.parse_module(input)
   assert list.length(def.entities) == 1
   assert list.length(def.identities) == 1
   let assert [id] = def.identities
@@ -138,7 +138,7 @@ pub type RowIdentities {
   WithKey(key: String)
 }
 "
-  case schema_definition.parse_module(input) {
+  case schema_parser.parse_module(input) {
     Ok(_) ->
       panic as "expected identity variant not starting with By to be rejected"
     Error(_) -> Nil
@@ -161,7 +161,7 @@ pub fn by_key(k: Int) {
   Query(shape: option.None, filter: option.None, order: option.None)
 }
 "
-  case schema_definition.parse_module(input) {
+  case schema_parser.parse_module(input) {
     Ok(_) ->
       panic as "expected query function without query_ prefix to be rejected"
     Error(_) -> Nil
@@ -184,7 +184,7 @@ pub fn helper_filter(row: Row) -> BooleanFilter {
   Predicate(value: True)
 }
 "
-  case schema_definition.parse_module(input) {
+  case schema_parser.parse_module(input) {
     Ok(_) ->
       panic as "expected BooleanFilter helper without filter_ prefix to be rejected"
     Error(_) -> Nil

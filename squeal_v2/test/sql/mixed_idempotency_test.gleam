@@ -1,12 +1,12 @@
 // Drives the hand-written example migration modules (blueprints for codegen): exclusive
 // fruit vs animal vs hippo (+ human) versions, idempotent replays, and switching.
 import assert_diff.{assert_diff}
+import case_studies/example_migration_animal
 import case_studies/fruit_db/migration as example_migration_fruit
 import case_studies/hippo_db/migration as example_migration_hippo
-import case_studies/example_migration_animal as example_migration_animal
 import generators/migration/migration
 import gleam/list
-import schema_definition/schema_definition as schema_definition
+import schema_definition/parser as schema_parser
 import simplifile
 import sqlight
 
@@ -31,7 +31,7 @@ pub fn fruit_pragma_test() {
     simplifile.read("src/case_studies/fruit_schema.gleam")
   let assert Ok(fruit_expected) =
     simplifile.read("src/case_studies/fruit_db/migration.gleam")
-  let assert Ok(fruit_def) = schema_definition.parse_module(schema1)
+  let assert Ok(fruit_def) = schema_parser.parse_module(schema1)
   let fruit_gleam =
     migration.generate_pragma_migration_module(
       fruit_def,
@@ -44,7 +44,7 @@ pub fn fruit_pragma_test() {
 pub fn animal_pragma_test() {
   let assert Ok(animal_expected) =
     simplifile.read("src/case_studies/example_migration_animal.gleam")
-  let assert Ok(animal_def) = schema_definition.parse_module(schema2)
+  let assert Ok(animal_def) = schema_parser.parse_module(schema2)
   let animal_gleam =
     migration.generate_pragma_migration_module(
       animal_def,
@@ -56,11 +56,10 @@ pub fn animal_pragma_test() {
 
 /// Multi-entity pragma migration matches the checked-in `hippo_db/migration.gleam`.
 pub fn hippo_pragma_codegen_matches_disk_test() {
-  let assert Ok(src) =
-    simplifile.read("src/case_studies/hippo_schema.gleam")
+  let assert Ok(src) = simplifile.read("src/case_studies/hippo_schema.gleam")
   let assert Ok(hippo_expected) =
     simplifile.read("src/case_studies/hippo_db/migration.gleam")
-  let assert Ok(def) = schema_definition.parse_module(src)
+  let assert Ok(def) = schema_parser.parse_module(src)
   let assert True = list.length(def.entities) == 2
   let hippo_gleam =
     migration.generate_pragma_migration_module(

@@ -3,17 +3,17 @@ import generators/api/api_params
 import generators/gleamgen_emit
 import glance
 import gleam/list
+import gleam/option.{None, Some}
 import gleam/string
 import gleamgen/expression as gexpr
 import gleamgen/function as gfun
 import gleamgen/module/definition as gdef
 import gleamgen/parameter as gparam
 import gleamgen/types as gtypes
-import schema_definition/query.{
-  type QueryParameter, type QuerySpecDefinition, LtMissingFieldAsc, Unsupported,
+import schema_definition/schema_definition.{
+  type EntityDefinition, type QueryParameter, type QuerySpecDefinition,
+  LtMissingFieldAsc, Unsupported,
 }
-import schema_definition/schema_definition.{type EntityDefinition}
-import gleam/option.{None, Some}
 
 pub fn query_sql_const_name(spec_name: String) -> String {
   case string.starts_with(spec_name, "query_") {
@@ -42,11 +42,7 @@ pub fn query_spec_targets_entity(
   entity: EntityDefinition,
 ) -> Bool {
   case spec.codegen {
-    LtMissingFieldAsc(
-      shape_param: shape_param,
-      column: _,
-      threshold_param: _,
-    ) ->
+    LtMissingFieldAsc(shape_param: shape_param, column: _, threshold_param: _) ->
       list.any(spec.parameters, fn(p) {
         p.name == shape_param && type_named_entity(p.type_, entity.type_name)
       })
@@ -128,11 +124,9 @@ pub fn generated_query_fn_chunks(
     #(
       gleamgen_emit.pub_def(spec.name)
         |> gdef.with_text_before(doc),
-      gfun.new_raw(
-        fn_params,
-        gtypes.result(gtypes.list(row_t), sql_err),
-        fn(_) { gexpr.raw(body) },
-      )
+      gfun.new_raw(fn_params, gtypes.result(gtypes.list(row_t), sql_err), fn(_) {
+        gexpr.raw(body)
+      })
         |> gfun.to_dynamic,
     )
   })

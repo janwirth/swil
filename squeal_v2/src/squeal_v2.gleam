@@ -1,13 +1,13 @@
 import argv
+import generators/api/api as api_generator
+import generators/migration/migration as migration_generator
+import generators/skeleton as skeleton_generator
 import gleam/io
 import gleam/list
 import gleam/result
 import gleam/string
 import glint
-import generators/api/api as api_generator
-import generators/migration/migration as migration_generator
-import generators/skeleton as skeleton_generator
-import schema_definition/schema_definition as schema_definition
+import schema_definition/parser as schema_parser
 import simplifile
 
 pub fn main() -> Nil {
@@ -45,8 +45,8 @@ fn generate_from_schema_path(user_path: String) -> Result(Nil, String) {
     }),
   )
   use def <- result.try(
-    schema_definition.parse_module(src)
-    |> result.map_error(schema_definition.format_parse_error(src, _)),
+    schema_parser.parse_module(src)
+    |> result.map_error(schema_parser.format_parse_error(src, _)),
   )
   let schema_import = gleam_import_path(schema_file)
   let out_dir = output_db_directory(schema_file)
@@ -104,7 +104,9 @@ fn app() -> glint.Glint(Nil) {
 fn resolve_schema_file(path: String) -> Result(String, String) {
   let trimmed = string.trim(path)
   let with_ext = ensure_gleam_extension(trimmed)
-  case string.starts_with(with_ext, "/") || string.starts_with(with_ext, "src/") {
+  case
+    string.starts_with(with_ext, "/") || string.starts_with(with_ext, "src/")
+  {
     True -> Ok(with_ext)
     False -> Ok("src/" <> with_ext)
   }
@@ -147,7 +149,8 @@ fn db_import_path(schema_import: String) -> String {
   let n = list.length(parts)
   case n <= 1 {
     True -> base
-    False -> string.join(list.append(list.take(parts, n - 1), [base]), with: "/")
+    False ->
+      string.join(list.append(list.take(parts, n - 1), [base]), with: "/")
   }
 }
 
@@ -165,7 +168,8 @@ fn output_db_directory(schema_file: String) -> String {
   let dir_len = list.length(parts) - 1
   case dir_len <= 0 {
     True -> dir_name
-    False -> string.join(list.append(list.take(parts, dir_len), [dir_name]), with: "/")
+    False ->
+      string.join(list.append(list.take(parts, dir_len), [dir_name]), with: "/")
   }
 }
 
