@@ -35,7 +35,13 @@ Use a single structured query model (`QuerySpecDefinition.query`) across parsing
 
 - Parser emits `QuerySpecDefinition(..., query: Query)` (no legacy `spec.codegen` in public model).
 - Generator consumes `spec.query` for query SQL/function generation.
-- `MissingBehavior.ExcludeIfMissing` is used for inferred comparison filters.
+- Parser now emits expression-based query nodes:
+  - `ShapeItem(alias, expr)` for tuple projections
+  - `Predicate(Compare(...))` / `And` / `Or` / `Not`
+  - `CustomOrder(expr, direction)` where `expr` can be computed
+- `MissingBehavior` is inferred from expression trees:
+  - `exclude_if_missing(...)` -> `ExcludeIfMissing`
+  - `nullable(...)` -> `Nullable`
 - `hippo_db/query.gleam` and `fruit_db/query.gleam` are generated from schema and match snapshot tests.
 - Full test suite currently passes in this branch.
 
@@ -43,33 +49,20 @@ Use a single structured query model (`QuerySpecDefinition.query`) across parsing
 
 - Public `query_*` functions still must conform to the 3-parameter contract:
   - `(entity, dsl.MagicFields, simple)`
-- Supported inferred pattern (today):
-  - `exclude_if_missing(entity.field) <. param` + matching `order_by(..., Asc)`
-  - `exclude_if_missing(entity.field) == param` + `order_by(..., Asc|Desc)`
-- For query bodies outside recognized patterns:
-  - parser currently falls back to:
-    - `shape: NoneOrBase`
-    - `filter: None`
-    - `order: UpdatedAtDesc`
-  - this is intentional for compatibility with existing schema fixtures and tests.
+- Supported parser forms now include:
+  - `shape(entity)` and tuple projection `shape(#(...))` with auto-derived aliases when unambiguous
+  - computed expressions in shape/filter/order for whitelisted functions (`exclude_if_missing`, `nullable`, `age`)
+  - `filter(option.None)` and `order(option.None)` as explicit no-filter/default-order forms
+- Query bodies outside the supported AST are explicit parser errors (no compatibility fallback).
 
-## Unsupported / Fallback Matrix (Current)
+## Unsupported Matrix (Strict Errors)
 
-The following are currently **not** represented precisely in `Query` inference and therefore hit fallback defaults (`NoneOrBase`, `None`, `UpdatedAtDesc`) unless separately supported:
+The following are currently **not** represented and fail at parse time with actionable errors:
 
-- Complex shape expressions
-  - tuple/object projections (for example labelled tuples in `dsl.shape(#(...))`)
-  - computed shape entries (for example `#("age", age(...))`)
-  - mixed relationship + computed projection lists
-- Complex filter expressions
-  - function-wrapped operands beyond the basic `exclude_if_missing(field)` comparison pattern
-  - comparisons using computed expressions (for example `age(exclude_if_missing(...)) > min_age`)
-  - boolean trees / composed predicates (`and` / `or` / `not`) in schema query pipelines
-  - `nullable(...)` driven comparisons (no `MissingBehavior.Nullable` inference yet)
-- Non-simple order expressions
-  - ordering by computed expressions
-  - ordering that does not resolve to `order_by(entity.field, Asc|Desc)` for supported inference paths
-- Query pipeline variants that parse but do not map to the currently supported comparison-order pattern pair
+- Non-whitelisted functions in query expressions.
+- Calls with unsupported arity/argument forms.
+- Field-access forms that cannot be represented in `Expr`.
+- Operators outside the supported comparison set.
 
 ### Where You Can See Each Unsupported Pattern
 
@@ -118,12 +111,14 @@ The following are currently **not** represented precisely in `Query` inference a
 
 - `exclude_if_missing(entity.field) <. simple_param` + `order_by(entity.field, Asc)`
 - `exclude_if_missing(entity.field) == simple_or_scalar_param` + `order_by(entity.field, Asc|Desc)`
+- computed comparisons/orders such as `age(exclude_if_missing(...)) > min_age` + `order_by(age(...), Desc)`
+- relationship access through `nullable(...).item.<field>` in expression parsing
 
-### Effect of Fallback Today
+### Effect of Strict Parsing
 
-- Parsing succeeds for compatibility.
-- Codegen only emits concrete query SQL/functions for specs that match the supported precise patterns.
-- Fallback-parsed specs are retained in schema metadata but are not emitted as fully modeled generated query functions until support is added.
+- Parsing fails fast for unsupported constructs.
+- Codegen only emits concrete query SQL/functions for specs that match the SQL-emittable subset.
+- Non-emittable but valid parsed specs remain represented in schema metadata without silent downgrade.
 
 ## Codegen Rules
 
@@ -145,9 +140,9 @@ The following are currently **not** represented precisely in `Query` inference a
 - [x] Remove `spec.codegen` branching in parser/generator paths used by production code.
 - [x] Add `MissingBehavior` to `Filter.BooleanFilter`.
 - [x] Keep fruit and hippo generated query snapshots green.
-- [ ] Extend parser to infer `MissingBehavior.Nullable` from `nullable(...)`.
-- [ ] Add explicit representation for computed selections/filters (`age(...)`, nested relationship projections) instead of fallback.
-- [ ] Replace compatibility fallback with explicit support or explicit actionable failure.
+- [x] Extend parser to infer `MissingBehavior.Nullable` from `nullable(...)`.
+- [x] Add explicit representation for computed selections/filters (`age(...)`, nested relationship projections) instead of fallback.
+- [x] Replace compatibility fallback with explicit support or explicit actionable failure.
 - [ ] Migrate/retire `relationship_queries.gleam` only when query-model supports its complex shapes.
 - [ ] Enforce and test that no module-specific special-casing exists in query generation.
 - [ ] Enforce and test that schema-declared queries never require consumer-authored custom SQL.
@@ -155,7 +150,7 @@ The following are currently **not** represented precisely in `Query` inference a
 ## Acceptance Criteria (Next Milestone)
 
 - Parser can represent all current `fruit_schema` and `hippo_schema` query specs without fallback defaults.
-- `Filter.BooleanFilter` includes correct `MissingBehavior` inference (`ExcludeIfMissing` vs `Nullable`).
+- `Predicate(Compare(...))` includes correct `MissingBehavior` inference (`ExcludeIfMissing` vs `Nullable`).
 - `hippo_db/query.gleam` contains all generated query functions intended by schema query specs.
 - Test suite passes after removing compatibility fallback behavior.
 - Query generator logic is fully generic (module-agnostic), with no hard-coded case-study rules.

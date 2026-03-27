@@ -12,7 +12,7 @@ import gleamgen/types as gtypes
 import schema_definition/schema_definition.{
   type EntityDefinition, type Query, type QueryParameter, type QuerySpecDefinition,
   Query, QueryParameter,
-  BooleanFilter, CustomOrder, ExcludeIfMissing, NoneOrBase,
+  Compare, CustomOrder, ExcludeIfMissing, NoneOrBase, Param, Predicate,
 }
 
 pub fn query_sql_const_name(spec_name: String) -> String {
@@ -45,15 +45,22 @@ fn query_is_generatable(query: Query) -> Bool {
   case query {
     Query(
       shape: NoneOrBase,
-      filter: Some(BooleanFilter(
-        left_operand_field_name: _,
+      filter: Some(Predicate(Compare(
+        left: _,
         operator: _,
-        right_operand_parameter_name: _,
+        right: _,
         missing_behavior: ExcludeIfMissing,
-      )),
-      order: CustomOrder(field: _, direction: _),
+      ))),
+      order: CustomOrder(expr: _, direction: _),
     ) -> True
     _ -> False
+  }
+}
+
+fn query_bind_param_name(expr) -> Result(String, Nil) {
+  case expr {
+    Param(name: n) -> Ok(n)
+    _ -> Error(Nil)
   }
 }
 
@@ -133,14 +140,16 @@ fn query_fn_chunk_for_spec(
   case query {
     Query(
       shape: NoneOrBase,
-      filter: Some(BooleanFilter(
-        left_operand_field_name: _,
+      filter: Some(Predicate(Compare(
+        left: _,
         operator: _,
-        right_operand_parameter_name: right_operand_parameter_name,
+        right: right_expr,
         missing_behavior: ExcludeIfMissing,
-      )),
-      order: CustomOrder(field: _, direction: _),
+      ))),
+      order: CustomOrder(expr: _, direction: _),
     ) -> {
+      let assert Ok(right_operand_parameter_name) =
+        query_bind_param_name(right_expr)
       let bind_param =
         list.find(non_shape_params, fn(p) {
           schema_query_param_name(p) == right_operand_parameter_name

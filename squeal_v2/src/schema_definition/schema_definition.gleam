@@ -193,12 +193,7 @@ pub type ExprFn {
 
 pub type Order {
   UpdatedAtDesc
-  CustomOrder(field: String, direction: dsl.Direction)
-}
-
-pub type ExprOrder {
-  UpdatedAtDescExpr
-  CustomExprOrder(expr: Expr, direction: dsl.Direction)
+  CustomOrder(expr: Expr, direction: dsl.Direction)
 }
 
 /// Shape of the query result.
@@ -212,12 +207,7 @@ pub type ExprOrder {
 /// ```
 pub type Shape {
   NoneOrBase
-  Subset(selection: List(SelectionPath))
-}
-
-pub type ExprShape {
-  ExprNoneOrBase
-  ExprSubset(items: List(ShapeItem))
+  Subset(selection: List(ShapeItem))
 }
 
 pub type ShapeItem {
@@ -231,11 +221,6 @@ pub type SelectionPath {
 
 pub type Filter {
   NoFilter
-  BooleanFilter(left_operand_field_name: String, operator: Operator, right_operand_parameter_name: String, missing_behavior: MissingBehavior)
-}
-
-pub type ExprFilter {
-  ExprNoFilter
   Predicate(pred: Pred)
 }
 
@@ -261,15 +246,15 @@ pub type Operator {
 }
 
 
-/// Parsed from the recognized tail shape of a public query function.
-///
-/// Example source pattern:
-/// ```gleam
-/// dsl.query(fruit)
-/// |> dsl.shape(fruit)
-/// |> dsl.filter(dsl.exclude_if_missing(fruit.price) <. max_price)
-/// |> dsl.order(dsl.order_by(fruit.price, dsl.Asc))
-/// ```
+// Parsed from the recognized tail shape of a public query function.
+//
+// Example source pattern:
+// ```gleam
+// dsl.query(fruit)
+// |> dsl.shape(fruit)
+// |> dsl.filter(dsl.exclude_if_missing(fruit.price) <. max_price)
+// |> dsl.order(dsl.order_by(fruit.price, dsl.Asc))
+// ```
 // pub type QueryCodegen {
 //   Unsupported
 //   LtMissingFieldAsc(

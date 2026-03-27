@@ -319,11 +319,18 @@ pub fn fruit_schema_query_infers_lt_missing_field_asc_test() {
   assert q.name == "query_cheap_fruit"
   let schema_definition.Query(shape: shape, filter: filter, order: order) = q.query
   assert shape == schema_definition.NoneOrBase
-  let assert Some(schema_definition.BooleanFilter(
-    left_operand_field_name: "price",
+  let assert Some(schema_definition.Predicate(schema_definition.Compare(
+    left: schema_definition.Call(
+      func: schema_definition.ExcludeIfMissingFn,
+      args: [schema_definition.Field(path: ["fruit", "price"])],
+    ),
     operator: schema_definition.Lt,
-    right_operand_parameter_name: "max_price",
+    right: schema_definition.Param(name: "max_price"),
     missing_behavior: schema_definition.ExcludeIfMissing,
-  )) = filter
-  assert order == schema_definition.CustomOrder("price", dsl.Asc)
+  ))) = filter
+  assert order
+    == schema_definition.CustomOrder(
+      expr: schema_definition.Field(path: ["fruit", "price"]),
+      direction: dsl.Asc,
+    )
 }

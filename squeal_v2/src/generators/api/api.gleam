@@ -19,7 +19,8 @@ import gleamgen/module/definition as gdef
 import gleamgen/render as grender
 import gleamgen/types as gtypes
 import schema_definition/schema_definition.{
-  type SchemaDefinition, BooleanFilter, CustomOrder, Eq, ExcludeIfMissing, Lt, Query,
+  type SchemaDefinition, Call, Compare, CustomOrder, Eq, ExcludeIfMissing, Field,
+  Lt, Predicate, Query,
 }
 
 pub type ApiDbOutputs {
@@ -322,14 +323,37 @@ pub fn generate_api_db_outputs(
         case spec.query {
           Query(
             shape: _,
-            filter: Some(BooleanFilter(
-              left_operand_field_name: filter_column,
+            filter: Some(Predicate(Compare(
+              left: left_expr,
               operator: operator,
-              right_operand_parameter_name: _,
+              right: _,
               missing_behavior: ExcludeIfMissing,
-            )),
-            order: CustomOrder(field: order_column, direction: direction),
-          ) ->
+            ))),
+            order: CustomOrder(expr: order_expr, direction: direction),
+          ) -> {
+            let filter_column = case left_expr {
+              Call(func: _, args: [Field(path: path)]) ->
+                case list.last(path) {
+                  Ok(col) -> col
+                  Error(Nil) ->
+                    panic as "api.generate_api_db_outputs: missing filter column"
+                }
+              Field(path: path) ->
+                case list.last(path) {
+                  Ok(col) -> col
+                  Error(Nil) ->
+                    panic as "api.generate_api_db_outputs: missing filter column"
+                }
+              _ -> panic as "api.generate_api_db_outputs: unsupported filter expression"
+            }
+            let order_column = case order_expr {
+              Field(path: path) ->
+                case list.last(path) {
+                  Ok(col) -> col
+                  Error(Nil) -> panic as "api.generate_api_db_outputs: missing order column"
+                }
+              _ -> panic as "api.generate_api_db_outputs: unsupported order expression"
+            }
             case operator {
               Eq ->
                 #(
@@ -349,6 +373,7 @@ pub fn generate_api_db_outputs(
                 )
               _ -> panic as "api.generate_api_db_outputs: unsupported operator"
             }
+          }
           _ -> panic as "api.generate_api_db_outputs: unsupported query model"
         }
       }),
