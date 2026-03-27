@@ -1,6 +1,5 @@
 import case_studies/hippo_db/api as hippo_api
-import case_studies/hippo_db/query as hippo_query
-import case_studies/hippo_db/upsert as hippo_upsert
+import case_studies/hippo_db/relationship_queries as rel
 import case_studies/hippo_schema.{ByEmail, Female, Male}
 import gleam/list
 import gleam/option.{None, Some}
@@ -8,6 +7,7 @@ import gleam/order
 import gleam/string
 import gleam/time/calendar.{Date, January}
 import sqlight
+import gleam/io
 
 /// End-to-end checks for [`hippo_schema.old_hippos_owner_emails`](src/case_studies/hippo_schema.gleam)
 /// and [`hippo_schema.hippos_by_gender`](src/case_studies/hippo_schema.gleam): owner `BelongsTo` join,
@@ -17,7 +17,7 @@ pub fn hippo_relationship_queries_e2e_test() {
   let assert Ok(Nil) = hippo_api.migrate(conn)
 
   let assert Ok(#(human_row, human_magic)) =
-    hippo_upsert.upsert_human_by_email(conn, "keeper@example.test", Some("Pat"))
+    rel.upsert_human_by_email(conn, "keeper@example.test", Some("Pat"))
   let keeper_email = case human_row.identities {
     ByEmail(email: e) -> e
   }
@@ -47,11 +47,11 @@ pub fn hippo_relationship_queries_e2e_test() {
     )
 
   let assert Ok(Nil) =
-    hippo_upsert.set_hippo_owner_human_id(conn, "Oldie", dob_old, human_magic.id)
+    rel.set_hippo_owner_human_id(conn, "Oldie", dob_old, human_magic.id)
   let assert Ok(Nil) =
-    hippo_upsert.set_hippo_owner_human_id(conn, "Youngin", dob_young, human_magic.id)
+    rel.set_hippo_owner_human_id(conn, "Youngin", dob_young, human_magic.id)
 
-  let assert Ok(old_rows) = hippo_query.query_old_hippos_owner_emails(conn, 30)
+  let assert Ok(old_rows) = rel.query_old_hippos_owner_emails(conn, 30)
   let old_with_email =
     list.filter(old_rows, fn(r) { r.owner_email == Some(keeper_email) })
   let assert True = list.length(old_with_email) == 1
@@ -61,7 +61,7 @@ pub fn hippo_relationship_queries_e2e_test() {
       Error(Nil) -> False
     }
 
-  let assert Ok(by_gender) = hippo_query.query_hippos_by_gender_with_owner(conn, Male)
+  let assert Ok(by_gender) = rel.query_hippos_by_gender(conn, Male)
   let male_names =
     list.map(by_gender, fn(row) {
       let assert Some(n) = row.name

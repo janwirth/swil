@@ -17,7 +17,7 @@ pub fn hippo_api_generation_test() {
   assert_diff(read("src/case_studies/hippo_db/api.gleam"), norm(out.api))
   assert_diff(read("src/case_studies/hippo_db/row.gleam"), norm(out.row))
   assert_diff(read("src/case_studies/hippo_db/get.gleam"), norm(out.get))
+  assert_diff(read("src/case_studies/hippo_db/upsert.gleam"), norm(out.upsert))
   assert_diff(read("src/case_studies/hippo_db/delete.gleam"), norm(out.delete))
-  // `upsert.gleam` and `query.gleam` intentionally include hand-written
-  // relationship helpers used by the hippo relationship e2e scenario.
+  assert_diff(read("src/case_studies/hippo_db/query.gleam"), norm(out.query))
 }
