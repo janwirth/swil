@@ -1,6 +1,21 @@
+//// Query spec extraction for schema tooling.
+////
+//// Walks Glance function definitions and builds [`QuerySpecDefinition`](#QuerySpecDefinition) values for
+//// public functions that return `Query` (by return type or by a trailing `Query(...)` in the body). Each spec
+//// records the function name, typed parameters, and a [`QueryCodegen`](#QueryCodegen) tag when the tail call
+//// matches a pattern generators understand; otherwise codegen is [`Unsupported`](#Unsupported).
+////
+//// **Naming:** public query functions must be prefixed with `query_`. Public `BooleanFilter` helpers used in
+//// nested filters must use the `filter_` prefix and an explicit `-> ... BooleanFilter` annotation; they are
+//// skipped here and are not emitted as specs.
+////
+//// **Inference:** the body’s final expression must be a `Query` call with labelled `shape`, `filter`, and
+//// `order` arguments. Supported shapes are detected structurally (for example
+//// `LtMissingFieldAsc` for `exclude_if_missing` + float threshold + ascending `order_by` on the same field).
+
 import glance
 import gleam/list
-import gleam/option.{type Option, None, Some}
+import gleam/option.{type Option, None, Some, from_result, then}
 import gleam/result
 import gleam/string
 import schema_definition/parse_error.{type ParseError, UnsupportedSchema}
@@ -18,20 +33,31 @@ pub type QueryCodegen {
   )
 }
 
-/// Public function that returns `Query` (annotation or trailing `Query(...)`); parameters must be typed.
+/// Extracted metadata for a public `query_*` function: its name, parameter list, and inferred codegen.
 pub type QuerySpecDefinition {
   QuerySpecDefinition(
+    /// Function name as declared in the schema module.
     name: String,
+    /// Parameters in source order; every parameter must be type-annotated on public query functions.
     parameters: List(QueryParameter),
+    /// Structural match for SQL/API generation, or [`Unsupported`](#Unsupported) if the tail `Query(...)` does not match a known pattern.
     codegen: QueryCodegen,
   )
 }
 
+/// One formal parameter of a query spec, including optional Gleam label and Glance type AST.
 pub type QueryParameter {
-  QueryParameter(label: Option(String), name: String, type_: glance.Type)
+  QueryParameter(
+    /// `Some(label)` when the parameter uses a labelled argument at the call site; `None` when unlabelled.
+    label: Option(String),
+    name: String,
+    type_: glance.Type,
+  )
 }
 
-/// Collects `Query` specs from public functions. Public `BooleanFilter` helpers (`-> … BooleanFilter`) are allowed and skipped.
+/// Scans module functions and returns every public `query_*` spec, or `ParseError` when
+/// rules are violated (missing param types, wrong prefixes, or a public function that is neither Query nor
+/// an annotated `filter_*` BooleanFilter helper). Private functions and valid `filter_*` helpers are ignored.
 pub fn extract_from_functions(
   functions: List(glance.Definition(glance.Function)),
 ) -> Result(List(QuerySpecDefinition), ParseError) {
@@ -105,6 +131,7 @@ fn query_spec_from_function_strict(
   })
 }
 
+/// Dispatches structural codegen inference when the function body ends in `Query(shape: …, filter: …, order: …)`.
 fn infer_query_codegen(f: glance.Function) -> QueryCodegen {
   case function_tail_expression(f.body) {
     None -> Unsupported
@@ -125,74 +152,78 @@ fn infer_query_codegen(f: glance.Function) -> QueryCodegen {
   }
 }
 
+/// Recognises [`LtMissingFieldAsc`](#LtMissingFieldAsc): optional filter with `exclude_if_missing` on a shape field,
+/// `<.` against a float parameter, and ascending `order_by` on that same field.
 fn infer_lt_missing_field_asc(
   f: glance.Function,
   shape_expr: glance.Expression,
   filter_expr: glance.Expression,
   order_expr: glance.Expression,
 ) -> QueryCodegen {
-  case expect_variable_name(shape_expr) {
+  case lt_missing_field_asc_match(f, shape_expr, filter_expr, order_expr) {
+    Some(#(column, threshold_name, shape_name)) ->
+      LtMissingFieldAsc(column, threshold_name, shape_name)
     None -> Unsupported
-    Some(shape_name) ->
-      case unwrap_some_call(filter_expr) {
-        None -> Unsupported
-        Some(wrapped) ->
-          case unwrap_predicate_filter_value(wrapped) {
-            None -> Unsupported
-            Some(pred) ->
-              case pred {
-                glance.BinaryOperator(_, glance.LtFloat, left, right) ->
-                  case right {
-                    glance.Variable(_, threshold_name) ->
-                      case left {
-                        glance.Call(_, l_callee, l_args) ->
-                          case expression_callee_name(l_callee) {
-                            Ok("exclude_if_missing") ->
-                              case single_unlabelled_arg(l_args) {
-                                None -> Unsupported
-                                Some(inner) ->
-                                  case field_access_root_and_leaf(inner) {
-                                    None -> Unsupported
-                                    Some(#(root, column)) ->
-                                      case root == shape_name {
-                                        False -> Unsupported
-                                        True ->
-                                          case query_order_column(order_expr, shape_name) {
-                                            Error(Nil) -> Unsupported
-                                            Ok(order_col) ->
-                                              case column == order_col {
-                                                False -> Unsupported
-                                                True ->
-                                                  case param_is_float_named(
-                                                    f,
-                                                    threshold_name,
-                                                  ) {
-                                                    False -> Unsupported
-                                                    True ->
-                                                      LtMissingFieldAsc(
-                                                        column,
-                                                        threshold_name,
-                                                        shape_name,
-                                                      )
-                                                  }
-                                              }
-                                          }
-                                      }
-                                  }
-                              }
-                            _ -> Unsupported
-                          }
-                        _ -> Unsupported
-                      }
-                    _ -> Unsupported
-                  }
-                _ -> Unsupported
-              }
-          }
-      }
   }
 }
 
+/// `filter` path → threshold param + column on `shape_name`, if it matches `exclude_if_missing(shape.col) <. threshold`.
+fn lt_missing_field_asc_match(
+  f: glance.Function,
+  shape_expr: glance.Expression,
+  filter_expr: glance.Expression,
+  order_expr: glance.Expression,
+) -> Option(#(String, String, String)) {
+  use shape_name <- then(expect_variable_name(shape_expr))
+  use wrapped <- then(unwrap_some_call(filter_expr))
+  use pred <- then(unwrap_predicate_filter_value(wrapped))
+  use #(threshold_name, column) <- then(lt_float_exclude_shape_field(pred, shape_name))
+  use order_col <- then(from_result(query_order_column(order_expr, shape_name)))
+  case column == order_col && param_is_float_named(f, threshold_name) {
+    True -> Some(#(column, threshold_name, shape_name))
+    False -> None
+  }
+}
+
+/// `left <. threshold_var` where `left` is `exclude_if_missing(shape_field)` for this `shape_name`.
+fn lt_float_exclude_shape_field(
+  pred: glance.Expression,
+  shape_name: String,
+) -> Option(#(String, String)) {
+  case pred {
+    glance.BinaryOperator(_, glance.LtFloat, left, glance.Variable(_, threshold_name)) ->
+      case exclude_if_missing_column_on_shape(left, shape_name) {
+        Some(column) -> Some(#(threshold_name, column))
+        None -> None
+      }
+    _ -> None
+  }
+}
+
+/// `exclude_if_missing(expr)` and `expr` is `shape_name.column`.
+fn exclude_if_missing_column_on_shape(
+  left: glance.Expression,
+  shape_name: String,
+) -> Option(String) {
+  case left {
+    glance.Call(_, l_callee, l_args) ->
+      case expression_callee_name(l_callee) {
+        Ok("exclude_if_missing") ->
+          case single_unlabelled_arg(l_args) {
+            Some(inner) ->
+              case field_access_root_and_leaf(inner) {
+                Some(#(root, column)) if root == shape_name -> Some(column)
+                _ -> None
+              }
+            None -> None
+          }
+        _ -> None
+      }
+    _ -> None
+  }
+}
+
+/// Last statement of a body when it is a bare expression; used as the “tail” of a function or block.
 fn function_tail_expression(body: List(glance.Statement)) -> Option(glance.Expression) {
   case list.last(body) {
     Ok(glance.Expression(e)) -> Some(e)
@@ -200,6 +231,7 @@ fn function_tail_expression(body: List(glance.Statement)) -> Option(glance.Expre
   }
 }
 
+/// Strips a trailing block down to its final expression so nested `Query` / field access match predictably.
 fn normalize_expr(expr: glance.Expression) -> glance.Expression {
   case expr {
     glance.Block(_, stmts) ->
@@ -211,6 +243,7 @@ fn normalize_expr(expr: glance.Expression) -> glance.Expression {
   }
 }
 
+/// If `expr` is (after normalisation) a call to `Query`, returns its argument fields.
 fn query_call_arguments(expr: glance.Expression) -> Option(List(glance.Field(glance.Expression))) {
   case normalize_expr(expr) {
     glance.Call(_, callee, args) ->
@@ -222,6 +255,7 @@ fn query_call_arguments(expr: glance.Expression) -> Option(List(glance.Field(gla
   }
 }
 
+/// Finds the first `LabelledField` whose label matches `want` in a `Query` argument list.
 fn lookup_labelled(
   fields: List(glance.Field(glance.Expression)),
   want: String,
@@ -234,6 +268,7 @@ fn lookup_labelled(
   })
 }
 
+/// Succeeds when the expression is (possibly inside a block) a simple variable — e.g. `shape` in `shape: hippo`.
 fn expect_variable_name(expr: glance.Expression) -> Option(String) {
   case normalize_expr(expr) {
     glance.Variable(_, name) -> Some(name)
@@ -241,6 +276,7 @@ fn expect_variable_name(expr: glance.Expression) -> Option(String) {
   }
 }
 
+/// If `expr` is `Some(x)` (one argument), returns `x`; matches optional filter payload shape.
 fn unwrap_some_call(expr: glance.Expression) -> Option(glance.Expression) {
   case normalize_expr(expr) {
     glance.Call(_, callee, args) ->
@@ -257,7 +293,8 @@ fn unwrap_some_call(expr: glance.Expression) -> Option(glance.Expression) {
   }
 }
 
-/// `filter: Some(Predicate(expr))` or legacy `Some(expr)` for bool inference.
+/// Inside `filter: Some(…)`: unwraps `Predicate(value: …)` or unadorned `Predicate(…)`; otherwise returns the
+/// inner expression unchanged (legacy `Some(expr)` style).
 fn unwrap_predicate_filter_value(expr: glance.Expression) -> Option(glance.Expression) {
   case normalize_expr(expr) {
     glance.Call(_, callee, args) ->
@@ -275,6 +312,7 @@ fn unwrap_predicate_filter_value(expr: glance.Expression) -> Option(glance.Expre
   }
 }
 
+/// Call must have exactly one unlabelled argument (e.g. `exclude_if_missing(shape.col)`).
 fn single_unlabelled_arg(
   args: List(glance.Field(glance.Expression)),
 ) -> Option(glance.Expression) {
@@ -284,6 +322,7 @@ fn single_unlabelled_arg(
   }
 }
 
+/// For `a.b.c`, returns `#(a, c)` when the root is a variable name; middle segments are ignored.
 fn field_access_root_and_leaf(
   expr: glance.Expression,
 ) -> Option(#(String, String)) {
@@ -301,6 +340,7 @@ fn field_access_root_and_leaf(
   }
 }
 
+/// Parses `order_by(shape.field, Asc)` and returns `field` when it belongs to `shape_name`.
 fn query_order_column(
   order_expr: glance.Expression,
   shape_name: String,
@@ -327,6 +367,7 @@ fn query_order_column(
   }
 }
 
+/// Accepts `Asc` as a variable or qualified access (e.g. module-qualified).
 fn is_asc_direction(expr: glance.Expression) -> Bool {
   case normalize_expr(expr) {
     glance.FieldAccess(_, _, "Asc") -> True
@@ -335,6 +376,7 @@ fn is_asc_direction(expr: glance.Expression) -> Bool {
   }
 }
 
+/// True when `f` declares a parameter named `name` annotated as plain `Float`.
 fn param_is_float_named(f: glance.Function, name: String) -> Bool {
   list.any(f.parameters, fn(p) {
     assignment_name_string(p.name) == name
@@ -345,6 +387,7 @@ fn param_is_float_named(f: glance.Function, name: String) -> Bool {
   })
 }
 
+/// Query spec candidate: return type `Query` or body whose last expression builds `Query`.
 fn function_is_query_spec(f: glance.Function) -> Bool {
   case f.return {
     Some(t) -> type_is_query(t)
@@ -361,6 +404,7 @@ fn function_is_boolean_filter_helper(f: glance.Function) -> Bool {
   }
 }
 
+/// Named type with constructor name `Query` (ignores type parameters).
 fn type_is_query(t: glance.Type) -> Bool {
   case t {
     glance.NamedType(_, "Query", _, _) -> True
@@ -368,6 +412,7 @@ fn type_is_query(t: glance.Type) -> Bool {
   }
 }
 
+/// Named type with constructor name `BooleanFilter`.
 fn type_is_boolean_filter(t: glance.Type) -> Bool {
   case t {
     glance.NamedType(_, "BooleanFilter", _, _) -> True
@@ -375,6 +420,7 @@ fn type_is_boolean_filter(t: glance.Type) -> Bool {
   }
 }
 
+/// Last statement is an expression whose tail calls `Query` (possibly inside nested blocks).
 fn statements_return_query(body: List(glance.Statement)) -> Bool {
   case list.last(body) {
     Error(Nil) -> False
@@ -386,6 +432,7 @@ fn statements_return_query(body: List(glance.Statement)) -> Bool {
   }
 }
 
+/// Used when there is no return annotation: last expr is `Query(…)` or a block ending in one.
 fn expression_is_query_in_tail(expr: glance.Expression) -> Bool {
   case expr {
     glance.Call(_, callee, _) -> callee_is_query(callee)
@@ -394,6 +441,7 @@ fn expression_is_query_in_tail(expr: glance.Expression) -> Bool {
   }
 }
 
+/// Callee resolves to the name `Query` (variable or field access such as `dsl.Query`).
 fn callee_is_query(expr: glance.Expression) -> Bool {
   case expression_callee_name(expr) {
     Ok("Query") -> True
@@ -401,6 +449,7 @@ fn callee_is_query(expr: glance.Expression) -> Bool {
   }
 }
 
+/// Best-effort callee label for `f()` / `mod.f()`: variable name or final segment of a field access.
 fn expression_callee_name(expr: glance.Expression) -> Result(String, Nil) {
   case expr {
     glance.Variable(_, name) -> Ok(name)
@@ -409,6 +458,7 @@ fn expression_callee_name(expr: glance.Expression) -> Result(String, Nil) {
   }
 }
 
+/// Gleam parameter or pattern name as a string, including discarded placeholders.
 fn assignment_name_string(name: glance.AssignmentName) -> String {
   case name {
     glance.Named(s) -> s
@@ -416,10 +466,12 @@ fn assignment_name_string(name: glance.AssignmentName) -> String {
   }
 }
 
+/// Public query spec functions must start with `query_`.
 fn function_has_query_prefix(name: String) -> Bool {
   string.starts_with(name, "query_")
 }
 
+/// Public `BooleanFilter` helpers must start with `filter_`.
 fn function_has_filter_prefix(name: String) -> Bool {
   string.starts_with(name, "filter_")
 }
