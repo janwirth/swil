@@ -1,6 +1,23 @@
 import glance
 import gleam/option.{type Option}
 
+/// Parsed from a full schema module that may contain entities, identities, relationships,
+/// edge attributes, scalar types, and public query functions.
+///
+/// Example source:
+/// ```gleam
+/// pub type Fruit {
+///   Fruit(name: Option(String), identities: FruitIdentities)
+/// }
+/// pub type FruitIdentities {
+///   ByName(name: String)
+/// }
+/// pub fn query_cheap_fruit(
+///   fruit: Fruit,
+///   magic: dsl.MagicFields,
+///   max_price: Float,
+/// ) -> dsl.Query(Fruit) { ... }
+/// ```
 pub type SchemaDefinition {
   SchemaDefinition(
     entities: List(EntityDefinition),
@@ -12,6 +29,19 @@ pub type SchemaDefinition {
   )
 }
 
+/// Parsed from a public entity custom type with one record variant whose constructor
+/// name equals the type name and which includes `identities: *Identities`.
+///
+/// Example source:
+/// ```gleam
+/// pub type Human {
+///   Human(
+///     name: Option(String),
+///     age: Option(Int),
+///     identities: HumanIdentities,
+///   )
+/// }
+/// ```
 pub type EntityDefinition {
   EntityDefinition(
     type_name: String,
@@ -21,10 +51,25 @@ pub type EntityDefinition {
   )
 }
 
+/// Parsed from one labelled field inside a variant.
+///
+/// Example source field:
+/// ```gleam
+/// age: Option(Int)
+/// ```
 pub type FieldDefinition {
   FieldDefinition(label: String, type_: glance.Type)
 }
 
+/// Parsed from a `*Identities` type whose variants start with `By`.
+///
+/// Example source:
+/// ```gleam
+/// pub type HumanIdentities {
+///   ByEmail(email: String)
+///   ByNameAndBirthDate(name: String, birth_date: Date)
+/// }
+/// ```
 pub type IdentityTypeDefinition {
   IdentityTypeDefinition(
     type_name: String,
@@ -32,14 +77,34 @@ pub type IdentityTypeDefinition {
   )
 }
 
+/// Parsed from one `By...` variant in an identities type.
+///
+/// Example source:
+/// ```gleam
+/// ByEmail(email: String)
+/// ```
 pub type IdentityVariantDefinition {
   IdentityVariantDefinition(variant_name: String, fields: List(FieldDefinition))
 }
 
+/// Parsed from the single variant inside `*Relationships` / `*Attributes` containers.
+///
+/// Example source:
+/// ```gleam
+/// HippoRelationships(owner: Option(Human))
+/// ```
 pub type VariantWithFields {
   VariantWithFields(variant_name: String, fields: List(FieldDefinition))
 }
 
+/// Parsed from a `*Relationships` type with exactly one variant of the same name.
+///
+/// Example source:
+/// ```gleam
+/// pub type HippoRelationships {
+///   HippoRelationships(owner: Option(Human))
+/// }
+/// ```
 pub type RelationshipContainerDefinition {
   RelationshipContainerDefinition(
     type_name: String,
@@ -47,6 +112,14 @@ pub type RelationshipContainerDefinition {
   )
 }
 
+/// Parsed from a `*Attributes` type with exactly one variant of the same name.
+///
+/// Example source:
+/// ```gleam
+/// pub type OwnershipAttributes {
+///   OwnershipAttributes(since: Option(Date), note: Option(String))
+/// }
+/// ```
 pub type RelationshipEdgeAttributesDefinition {
   RelationshipEdgeAttributesDefinition(
     type_name: String,
@@ -54,6 +127,19 @@ pub type RelationshipEdgeAttributesDefinition {
   )
 }
 
+/// Parsed from a type whose name ends with `Scalar`.
+///
+/// Example sources:
+/// ```gleam
+/// pub type GenderScalar {
+///   Male
+///   Female
+/// }
+///
+/// pub type MoneyScalar {
+///   MoneyScalar(amount: Float, currency: String)
+/// }
+/// ```
 pub type ScalarTypeDefinition {
   ScalarTypeDefinition(
     type_name: String,
@@ -62,6 +148,16 @@ pub type ScalarTypeDefinition {
   )
 }
 
+/// Parsed from one public `query_*` function.
+///
+/// Example source:
+/// ```gleam
+/// pub fn query_cheap_fruit(
+///   fruit: Fruit,
+///   magic: dsl.MagicFields,
+///   max_price: Float,
+/// ) -> dsl.Query(Fruit) { ... }
+/// ```
 pub type QuerySpecDefinition {
   QuerySpecDefinition(
     name: String,
@@ -70,6 +166,20 @@ pub type QuerySpecDefinition {
   )
 }
 
+/// Parsed from the recognized tail shape of a public query function.
+///
+/// Example source pattern:
+/// ```gleam
+/// dsl.Query(
+///   shape: fruit,
+///   filter: Some(
+///     dsl.Predicate(
+///       value: dsl.exclude_if_missing(fruit.price) <. max_price,
+///     ),
+///   ),
+///   order: dsl.order_by(fruit.price, dsl.Asc),
+/// )
+/// ```
 pub type QueryCodegen {
   Unsupported
   LtMissingFieldAsc(
@@ -79,10 +189,27 @@ pub type QueryCodegen {
   )
 }
 
+/// Parsed from one typed parameter in a public query function signature.
+///
+/// Example source:
+/// ```gleam
+/// max_price: Float
+/// ```
 pub type QueryParameter {
   QueryParameter(label: Option(String), name: String, type_: glance.Type)
 }
 
+/// Parsed/normalized target shape for public `query_*` parameters:
+/// `(entity, dsl.MagicFields, simple)`.
+///
+/// Example source:
+/// ```gleam
+/// pub fn query_cheap_fruit(
+///   fruit: Fruit,
+///   magic: dsl.MagicFields,
+///   max_price: Float,
+/// ) -> dsl.Query(Fruit) { ... }
+/// ```
 pub type QueryFunctionParameters {
   QueryFunctionParameters(
     entity: QueryEntityParameter,
@@ -91,18 +218,45 @@ pub type QueryFunctionParameters {
   )
 }
 
+/// Parsed from parameter 1 in the query contract.
+///
+/// Example source:
+/// ```gleam
+/// fruit: Fruit
+/// ```
 pub type QueryEntityParameter {
   QueryEntityParameter(name: String, type_name: String)
 }
 
+/// Parsed from parameter 2 in the query contract.
+///
+/// Example source:
+/// ```gleam
+/// magic: dsl.MagicFields
+/// ```
 pub type QueryMagicFieldsParameter {
   QueryMagicFieldsParameter(name: String)
 }
 
+/// Parsed from parameter 3 in the query contract.
+///
+/// Example source:
+/// ```gleam
+/// max_price: Float
+/// ```
 pub type QuerySimpleParameter {
   QuerySimpleParameter(name: String, type_: QuerySimpleType)
 }
 
+/// Parsed from the simple bind type in parameter 3.
+///
+/// Example source types:
+/// ```gleam
+/// Int
+/// Float
+/// Bool
+/// String
+/// ```
 pub type QuerySimpleType {
   QuerySimpleInt
   QuerySimpleFloat
@@ -110,6 +264,14 @@ pub type QuerySimpleType {
   QuerySimpleString
 }
 
+/// Parsed error emitted while validating schema source shape.
+///
+/// Example source that fails:
+/// ```gleam
+/// pub type Fruit {
+///   NotFruit(name: Option(String), identities: FruitIdentities)
+/// }
+/// ```
 pub type ParseError {
   GlanceError(glance.Error)
   UnsupportedSchema(span: Option(glance.Span), message: String)
