@@ -12,7 +12,7 @@ import gleamgen/types as gtypes
 import schema_definition/schema_definition.{
   type EntityDefinition, type Query, type QueryParameter, type QuerySpecDefinition,
   Query, QueryParameter,
-  Compare, CustomOrder, ExcludeIfMissing, NoneOrBase, Param, Predicate,
+  Compare, CustomOrder, ExcludeIfMissing, Param, Predicate,
 }
 
 pub fn query_sql_const_name(spec_name: String) -> String {
@@ -44,7 +44,7 @@ pub fn query_spec_targets_entity(
 fn query_is_generatable(query: Query) -> Bool {
   case query {
     Query(
-      shape: NoneOrBase,
+      shape: _,
       filter: Some(Predicate(Compare(
         left: _,
         operator: _,
@@ -139,7 +139,7 @@ fn query_fn_chunk_for_spec(
   }
   case query {
     Query(
-      shape: NoneOrBase,
+      shape: _,
       filter: Some(Predicate(Compare(
         left: _,
         operator: _,

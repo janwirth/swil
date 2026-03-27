@@ -30,6 +30,20 @@ pub fn query_hippos_by_gender(
   query.query_hippos_by_gender(conn, gender_to_match)
 }
 
+pub fn query_old_hippos_owner_names(conn: sqlight.Connection, min_age: Int) -> Result(
+  List(#(Hippo, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  query.query_old_hippos_owner_names(conn, min_age)
+}
+
+pub fn query_old_hippos_owner_emails(conn: sqlight.Connection, min_age: Int) -> Result(
+  List(#(Hippo, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  query.query_old_hippos_owner_emails(conn, min_age)
+}
+
 pub fn last_100_edited_human(conn: sqlight.Connection) -> Result(
   List(#(Human, dsl.MagicFields)),
   sqlight.Error,

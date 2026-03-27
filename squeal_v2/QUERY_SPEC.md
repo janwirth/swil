@@ -132,7 +132,7 @@ The following are currently **not** represented and fail at parse time with acti
 ## Relationship Query Module Policy
 
 - Keep generated API query functions in `src/case_studies/hippo_db/query.gleam`.
-- Keep `src/case_studies/hippo_db/relationship_queries.gleam` as manual/auxiliary relationship logic until explicitly migrated.
+- `relationship_queries.gleam` is retired; schema-declared queries are generated into `hippo_db/query.gleam`.
 - Do not force function-name collisions (`query_hippos_by_gender`) across modules.
 
 ## TODO List
@@ -143,7 +143,7 @@ The following are currently **not** represented and fail at parse time with acti
 - [x] Extend parser to infer `MissingBehavior.Nullable` from `nullable(...)`.
 - [x] Add explicit representation for computed selections/filters (`age(...)`, nested relationship projections) instead of fallback.
 - [x] Replace compatibility fallback with explicit support or explicit actionable failure.
-- [ ] Migrate/retire `relationship_queries.gleam` only when query-model supports its complex shapes.
+- [x] Migrate/retire `relationship_queries.gleam` only when query-model supports its complex shapes.
 
 Out of scope
 

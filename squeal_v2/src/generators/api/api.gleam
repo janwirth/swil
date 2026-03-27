@@ -19,8 +19,135 @@ import gleamgen/module/definition as gdef
 import gleamgen/render as grender
 import gleamgen/types as gtypes
 import schema_definition/schema_definition.{
+  type Query,
   type SchemaDefinition, Call, Compare, CustomOrder, Eq, ExcludeIfMissing, Field,
-  Lt, Predicate, Query,
+  Gt, Lt, Predicate, Query, Ge, Le, Ne, Param, ExcludeIfMissingFn, NullableFn, AgeFn,
+}
+
+fn quote_ident(s: String) -> String {
+  "\"" <> s <> "\""
+}
+
+fn expr_needs_owner_join(expr) -> Bool {
+  case expr {
+    Field(path: [_entity, "relationships", "owner", "item", _]) -> True
+    Call(func: _, args: args) -> list.any(args, expr_needs_owner_join)
+    _ -> False
+  }
+}
+
+fn expr_to_sql(expr, table_alias: String) -> Result(String, Nil) {
+  case expr {
+    Field(path: [_entity, col]) ->
+      case table_alias == "" {
+        True -> Ok(quote_ident(col))
+        False -> Ok(quote_ident(table_alias) <> "." <> quote_ident(col))
+      }
+    Field(path: [_entity, "relationships", "owner", "item", col]) ->
+      Ok("\"hu\"." <> quote_ident(col))
+    Call(func: ExcludeIfMissingFn, args: [inner]) -> expr_to_sql(inner, table_alias)
+    Call(func: NullableFn, args: [inner]) -> expr_to_sql(inner, table_alias)
+    Call(func: AgeFn, args: [inner]) ->
+      case expr_to_sql(inner, table_alias) {
+        Ok(inner_sql) ->
+          Ok(
+            "cast((julianday('now') - julianday("
+            <> inner_sql
+            <> ")) / 365.25 as int)",
+          )
+        Error(Nil) -> Error(Nil)
+      }
+    _ -> Error(Nil)
+  }
+}
+
+fn operator_sql(op) -> Result(String, Nil) {
+  case op {
+    Eq -> Ok("=")
+    Lt -> Ok("<")
+    Gt -> Ok(">")
+    Le -> Ok("<=")
+    Ge -> Ok(">=")
+    Ne -> Ok("!=")
+  }
+}
+
+fn custom_query_sql(
+  table: String,
+  returning_cols: List(String),
+  query: Query,
+) -> Option(String) {
+  case query {
+    Query(
+      shape: _,
+      filter: Some(Predicate(Compare(
+        left: left_expr,
+        operator: operator,
+        right: Param(name: _),
+        missing_behavior: ExcludeIfMissing,
+      ))),
+      order: CustomOrder(expr: order_expr, direction: direction),
+    ) -> {
+      let use_owner_join =
+        expr_needs_owner_join(left_expr) || expr_needs_owner_join(order_expr)
+      let base_alias = case use_owner_join {
+        True -> "h"
+        False -> ""
+      }
+      case expr_to_sql(left_expr, base_alias), expr_to_sql(order_expr, base_alias), operator_sql(
+        operator,
+      ) {
+        Ok(left_sql), Ok(order_sql), Ok(op_sql) -> {
+          let select_cols =
+            case use_owner_join {
+              True ->
+                returning_cols
+                |> list.map(fn(c) { "\"h\"." <> quote_ident(c) })
+                |> string.join(", ")
+              False ->
+                returning_cols
+                |> list.map(quote_ident)
+                |> string.join(", ")
+            }
+          let order_dir = case direction == dsl.Desc {
+            True -> " desc"
+            False -> " asc"
+          }
+          let join_sql = case use_owner_join {
+            True ->
+              "\nleft join \"human\" \"hu\" on \"h\".\"owner_human_id\" = \"hu\".\"id\" and \"hu\".\"deleted_at\" is null"
+            False -> ""
+          }
+          Some(
+            "select "
+            <> select_cols
+            <> " from "
+            <> quote_ident(table)
+            <> case use_owner_join {
+              True -> " \"h\""
+              False -> ""
+            }
+            <> join_sql
+            <> " where "
+            <> case use_owner_join {
+              True -> "\"h\".\"deleted_at\""
+              False -> quote_ident("deleted_at")
+            }
+            <> " is null and "
+            <> left_sql
+            <> " "
+            <> op_sql
+            <> " ? order by "
+            <> order_sql
+            <> order_dir
+            <> ";",
+          )
+        }
+        _, _, _ -> None
+      }
+    }
+    _ -> None
+  }
 }
 
 pub type ApiDbOutputs {
@@ -320,62 +447,10 @@ pub fn generate_api_db_outputs(
         )
       }),
       list.map(generated_query_specs, fn(spec) {
-        case spec.query {
-          Query(
-            shape: _,
-            filter: Some(Predicate(Compare(
-              left: left_expr,
-              operator: operator,
-              right: _,
-              missing_behavior: ExcludeIfMissing,
-            ))),
-            order: CustomOrder(expr: order_expr, direction: direction),
-          ) -> {
-            let filter_column = case left_expr {
-              Call(func: _, args: [Field(path: path)]) ->
-                case list.last(path) {
-                  Ok(col) -> col
-                  Error(Nil) ->
-                    panic as "api.generate_api_db_outputs: missing filter column"
-                }
-              Field(path: path) ->
-                case list.last(path) {
-                  Ok(col) -> col
-                  Error(Nil) ->
-                    panic as "api.generate_api_db_outputs: missing filter column"
-                }
-              _ -> panic as "api.generate_api_db_outputs: unsupported filter expression"
-            }
-            let order_column = case order_expr {
-              Field(path: path) ->
-                case list.last(path) {
-                  Ok(col) -> col
-                  Error(Nil) -> panic as "api.generate_api_db_outputs: missing order column"
-                }
-              _ -> panic as "api.generate_api_db_outputs: unsupported order expression"
-            }
-            case operator {
-              Eq ->
-                #(
-                  api_query.query_sql_const_name(spec.name),
-                  Some(api_sql.eq_column_order_sql(
-                    table,
-                    returning,
-                    filter_column,
-                    order_column,
-                    direction == dsl.Desc,
-                  )),
-                )
-              Lt ->
-                #(
-                  api_query.query_sql_const_name(spec.name),
-                  Some(api_sql.lt_column_asc_sql(table, returning, filter_column)),
-                )
-              _ -> panic as "api.generate_api_db_outputs: unsupported operator"
-            }
-          }
-          _ -> panic as "api.generate_api_db_outputs: unsupported query model"
-        }
+        #(
+          api_query.query_sql_const_name(spec.name),
+          custom_query_sql(table, returning, spec.query),
+        )
       }),
     )
   let query_fn_chunks =
