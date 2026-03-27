@@ -206,6 +206,7 @@ fn infer_query(f: glance.Function) -> Result(sd.Query, ParseError) {
                   left_operand_field_name: column,
                   operator: sd.Lt,
                   right_operand_parameter_name: threshold_name,
+                  missing_behavior: sd.ExcludeIfMissing,
                 )),
                 order: sd.CustomOrder(column, dsl.Asc),
               ))
@@ -226,6 +227,7 @@ fn infer_query(f: glance.Function) -> Result(sd.Query, ParseError) {
                       left_operand_field_name: filter_column,
                       operator: sd.Eq,
                       right_operand_parameter_name: match_param,
+                      missing_behavior: sd.ExcludeIfMissing,
                     )),
                     order: sd.CustomOrder(
                       order_column,
@@ -236,9 +238,10 @@ fn infer_query(f: glance.Function) -> Result(sd.Query, ParseError) {
                     ),
                   ))
                 None ->
-                  Error(UnsupportedSchema(
-                    Some(f.location),
-                    "unsupported query expression in " <> f.name,
+                  Ok(sd.Query(
+                    shape: sd.NoneOrBase,
+                    filter: None,
+                    order: sd.UpdatedAtDesc,
                   ))
               }
           }

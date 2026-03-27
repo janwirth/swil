@@ -12,7 +12,7 @@ import gleamgen/types as gtypes
 import schema_definition/schema_definition.{
   type EntityDefinition, type QueryParameter, type QuerySpecDefinition,
   Query, QueryParameter,
-  BooleanFilter, CustomOrder, NoneOrBase,
+  BooleanFilter, CustomOrder, ExcludeIfMissing, NoneOrBase,
 }
 
 pub fn query_sql_const_name(spec_name: String) -> String {
@@ -35,7 +35,24 @@ pub fn query_spec_targets_entity(
   entity: EntityDefinition,
 ) -> Bool {
   case spec.parameters {
-    [QueryParameter(_, _, t), _, _] -> type_named_entity(t, entity.type_name)
+    [QueryParameter(_, _, t), _, _] ->
+      type_named_entity(t, entity.type_name) && query_is_generatable(spec.query)
+    _ -> False
+  }
+}
+
+fn query_is_generatable(query: Query) -> Bool {
+  case query {
+    Query(
+      shape: NoneOrBase,
+      filter: Some(BooleanFilter(
+        left_operand_field_name: _,
+        operator: _,
+        right_operand_parameter_name: _,
+        missing_behavior: ExcludeIfMissing,
+      )),
+      order: CustomOrder(field: _, direction: _),
+    ) -> True
     _ -> False
   }
 }
@@ -120,6 +137,7 @@ fn query_fn_chunk_for_spec(
         left_operand_field_name: _,
         operator: _,
         right_operand_parameter_name: right_operand_parameter_name,
+        missing_behavior: ExcludeIfMissing,
       )),
       order: CustomOrder(field: _, direction: _),
     ) -> {

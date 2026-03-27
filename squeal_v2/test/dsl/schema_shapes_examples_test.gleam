@@ -30,6 +30,8 @@
 import gleam/list
 import gleam/string
 import gleeunit
+import dsl/dsl as dsl
+import gleam/option.{Some}
 import schema_definition/parser as schema_parser
 import schema_definition/schema_definition
 import simplifile
@@ -315,5 +317,13 @@ pub fn fruit_schema_query_infers_lt_missing_field_asc_test() {
   let assert Ok(def) = schema_parser.parse_module(src)
   let assert [q] = def.queries
   assert q.name == "query_cheap_fruit"
-  todo
+  let schema_definition.Query(shape: shape, filter: filter, order: order) = q.query
+  assert shape == schema_definition.NoneOrBase
+  let assert Some(schema_definition.BooleanFilter(
+    left_operand_field_name: "price",
+    operator: schema_definition.Lt,
+    right_operand_parameter_name: "max_price",
+    missing_behavior: schema_definition.ExcludeIfMissing,
+  )) = filter
+  assert order == schema_definition.CustomOrder("price", dsl.Asc)
 }

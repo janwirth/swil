@@ -19,7 +19,7 @@ import gleamgen/module/definition as gdef
 import gleamgen/render as grender
 import gleamgen/types as gtypes
 import schema_definition/schema_definition.{
-  type SchemaDefinition, BooleanFilter, CustomOrder, Eq, Lt, Query,
+  type SchemaDefinition, BooleanFilter, CustomOrder, Eq, ExcludeIfMissing, Lt, Query,
 }
 
 pub type ApiDbOutputs {
@@ -326,6 +326,7 @@ pub fn generate_api_db_outputs(
               left_operand_field_name: filter_column,
               operator: operator,
               right_operand_parameter_name: _,
+              missing_behavior: ExcludeIfMissing,
             )),
             order: CustomOrder(field: order_column, direction: direction),
           ) ->
