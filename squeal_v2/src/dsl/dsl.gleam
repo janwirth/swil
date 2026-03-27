@@ -69,6 +69,13 @@ pub type BooleanFilter(a) {
   OneToManyAssocCompare(assoc: List(a), related_item: Int, pred: WithPredicate)
 }
 
+pub type RecursiveFilterSpec(terminal) {
+  RecursiveAnd(items: List(RecursiveFilterSpec(terminal)))
+  RecursiveOr(items: List(RecursiveFilterSpec(terminal)))
+  RecursiveNot(item: RecursiveFilterSpec(terminal))
+  RecursiveTerminal(item: terminal)
+}
+
 pub fn has(field: List(a), related_item: Int) -> BooleanFilter(a) {
   OneToManyAssocHas(field, related_item)
 }
@@ -84,6 +91,20 @@ pub fn has_with(
   select: fn(related,attribs) -> a
 ) -> BooleanFilter(BelongsTo(related, attribs))  {
   OneToManyAssocCompare(field, related_id, predicate)
+}
+
+pub fn any(
+  relationship: List(BelongsTo(related, attribs)),
+  select: fn(related, MagicFields, attribs) -> Bool,
+) -> BooleanFilter(BelongsTo(related, attribs)) {
+  panic as "this is DSL"
+}
+
+pub fn complex_filter(
+  filter: RecursiveFilterSpec(t),
+  terminal_fn: fn(t, MagicFields, attribs) -> Bool,
+) -> BooleanFilter(BelongsTo(related, attribs)) {
+  panic as "this is DSL"
 }
 
 pub type WithPredicate {
