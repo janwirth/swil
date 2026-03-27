@@ -8,7 +8,6 @@ import gleam/string
 import gleamgen/expression as gexpr
 import gleamgen/function as gfun
 import gleamgen/module/definition as gdef
-import gleamgen/parameter as gparam
 import gleamgen/types as gtypes
 import schema_definition/schema_definition.{
   type EntityDefinition, type FieldDefinition, type IdentityVariantDefinition,
@@ -153,20 +152,85 @@ fn entity_needs_rich_row_decoder(entity: EntityDefinition, ctx: TypeCtx) -> Bool
   })
 }
 
+fn assert_supported_entity_data_field_types(
+  entity: EntityDefinition,
+  ctx: TypeCtx,
+) -> Nil {
+  let data_fields = api_sql.entity_data_fields(entity)
+  list.each(data_fields, fn(f) {
+    case f.type_ {
+      glance.NamedType(_, "Option", _, [glance.NamedType(_, n, _, [])]) ->
+        case
+          list.contains(ctx.scalar_names, n)
+          && !list.contains(ctx.enum_scalar_names, n)
+        {
+          True -> {
+            let msg =
+              "Unsupported field type in "
+              <> entity.type_name
+              <> "."
+              <> f.label
+              <> ": Option("
+              <> n
+              <> "). Non-enum scalar decoding is not implemented yet. "
+              <> "Use String/primitive fields or enum-only scalars for generated API rows."
+            panic as msg
+          }
+          False -> Nil
+        }
+      _ -> Nil
+    }
+  })
+}
+
 fn default_relationships_record(
   schema: SchemaDefinition,
   entity: EntityDefinition,
 ) -> String {
-  let assert Ok(rel_field) =
-    list.find(entity.fields, fn(f) { f.label == "relationships" })
+  let rel_field = case list.find(entity.fields, fn(f) { f.label == "relationships" }) {
+    Ok(f) -> f
+    Error(Nil) -> {
+      let msg =
+        "api_decoders.default_relationships_record: entity "
+        <> entity.type_name
+        <> " has no `relationships` field, but a relationships record was requested"
+      panic as msg
+    }
+  }
   let rel_type = case rel_field.type_ {
     glance.NamedType(_, n, None, []) -> n
     glance.NamedType(_, n, Some(_), []) -> n
-    _ -> panic as "api: relationships field must be a named type"
+    _ -> {
+      let msg =
+        "api_decoders.default_relationships_record: entity "
+        <> entity.type_name
+        <> " has `relationships` field with unsupported type; expected named custom type"
+      panic as msg
+    }
   }
-  let assert Ok(rc) =
-    list.find(schema.relationship_containers, fn(r) { r.type_name == rel_type })
-  let assert Ok(v) = list.first(rc.variants)
+  let rc = case list.find(schema.relationship_containers, fn(r) {
+    r.type_name == rel_type
+  }) {
+    Ok(found) -> found
+    Error(Nil) -> {
+      let msg =
+        "api_decoders.default_relationships_record: missing relationship container type "
+        <> rel_type
+        <> " for entity "
+        <> entity.type_name
+      panic as msg
+    }
+  }
+  let v = case list.first(rc.variants) {
+    Ok(found) -> found
+    Error(Nil) -> {
+      let msg =
+        "api_decoders.default_relationships_record: relationship container "
+        <> rel_type
+        <> " has no variants"
+      panic as msg
+    }
+  }
   let parts =
     list.map(v.fields, fn(f) {
       f.label <> ": " <> relationship_default_expr(f.type_)
@@ -299,9 +363,13 @@ fn entity_rich_row_decoder_fn(
     )
   let ident = "      identities: " <> rich_identity_construct_call(v) <> ","
   let rel =
-    "      relationships: "
-    <> default_relationships_record(schema, entity)
-    <> ","
+    case entity_has_relationships_field(entity) {
+      True ->
+        "\n      relationships: "
+        <> default_relationships_record(schema, entity)
+        <> ","
+      False -> ""
+    }
   uses
   <> "\n"
   <> use_id
@@ -322,7 +390,6 @@ fn entity_rich_row_decoder_fn(
   <> field_lines
   <> "\n"
   <> ident
-  <> "\n"
   <> rel
   <> "\n    )\n  decode.success(#(\n    "
   <> row_local
@@ -488,6 +555,7 @@ fn entity_with_magic_decoder_fn(
   v: IdentityVariantDefinition,
   ctx: TypeCtx,
 ) -> String {
+  assert_supported_entity_data_field_types(entity, ctx)
   case entity_needs_rich_row_decoder(entity, ctx) {
     True -> entity_rich_row_decoder_fn(schema, entity, v, ctx)
     False -> entity_simple_magic_decoder_fn(entity, v)

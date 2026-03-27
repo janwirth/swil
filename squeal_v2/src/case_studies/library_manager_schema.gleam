@@ -39,11 +39,22 @@ pub type TrackBucket {
     artist: option.Option(String),
     matched_tracks: List(ImportedTrack),
     /// `(tag_row_id, weight)`; `tag_row_id` matches [`FilterScalar`](FilterScalar) `TagExpression.tag_id`.
-    tags: List(#(Int, Int)),
     identities: TrackBucketIdentities,
+    relationships: TrackBucketRelationships,
+  )
+}
+pub type TrackBucketRelationships {
+  TrackBucketRelationship(
+    tag: Tag,
+    attributes: TrackBucketRelationshipAttributes,
   )
 }
 
+pub type TrackBucketRelationshipAttributes {
+  TrackBucketRelationshipAttributes(
+    value: Int,
+  )
+}
 pub type TrackBucketIdentities {
   ByBucketTitleAndArtist(title: String, artist: String)
 }
@@ -73,16 +84,6 @@ pub type TabIdentities {
 }
 
 /// Join naming for [`dsl.boolean_filter_tag_join_sql`](dsl.boolean_filter_tag_join_sql) on `trackbucket_tag`.
-fn trackbucket_tag_join_sql_naming() -> dsl.TagJoinSqlNaming {
-  dsl.TagJoinSqlNaming(
-    join_table: "trackbucket_tag",
-    parent_alias: "tb",
-    parent_pk_column: "id",
-    fk_column: "trackbucket_id",
-    tag_id_column: "tag_id",
-    weight_column: "weight",
-  )
-}
 
 pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields, _limit: Int) {
   dsl.query(tab)
@@ -106,33 +107,33 @@ pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields, _limit: Int) 
 // 
 import gleam/list
 
-pub fn filter_by_tag(
-  track_bucket: TrackBucket,
-  filter: FilterScalar,
-) -> dsl.BooleanFilter {
-  case filter {
-    And(exprs: exprs) ->
-      dsl.And(
-        exprs: list.map(exprs, fn(expr) { filter_by_tag(track_bucket, expr) }),
-      )
-    Or(exprs: exprs) ->
-      dsl.Or(
-        exprs: list.map(exprs, fn(expr) { filter_by_tag(track_bucket, expr) }),
-      )
-    Not(expr: expr) -> dsl.Not(expr: filter_by_tag(track_bucket, expr))
-    TagExpression(tag_id: tag_id, operator: operator) ->
-      case operator {
-        Has -> dsl.has(track_bucket.tags, tag_id)
-        DoesNotHave -> dsl.not_has(track_bucket.tags, tag_id)
-        IsAtLeast(value: value) ->
-          dsl.has_with(track_bucket.tags, tag_id, dsl.is_at_least(value))
-        IsAtMost(value: value) ->
-          dsl.has_with(track_bucket.tags, tag_id, dsl.is_at_most(value))
-        IsEqualTo(value: value) ->
-          dsl.has_with(track_bucket.tags, tag_id, dsl.is_equal_to(value))
-      }
-  }
-}
+// pub fn filter_by_tag(
+//   track_bucket: TrackBucket,
+//   filter: FilterScalar,
+// ) -> dsl.BooleanFilter {
+//   case filter {
+//     And(exprs: exprs) ->
+//       dsl.And(
+//         exprs: list.map(exprs, fn(expr) { filter_by_tag(track_bucket, expr) }),
+//       )
+//     Or(exprs: exprs) ->
+//       dsl.Or(
+//         exprs: list.map(exprs, fn(expr) { filter_by_tag(track_bucket, expr) }),
+//       )
+//     Not(expr: expr) -> dsl.Not(expr: filter_by_tag(track_bucket, expr))
+//     TagExpression(tag_id: tag_id, operator: operator) ->
+//       case operator {
+//         Has -> dsl.has(track_bucket.tags, tag_id)
+//         DoesNotHave -> dsl.not_has(track_bucket.tags, tag_id)
+//         IsAtLeast(value: value) ->
+//           dsl.has_with(track_bucket.tags, tag_id, dsl.is_at_least(value))
+//         IsAtMost(value: value) ->
+//           dsl.has_with(track_bucket.tags, tag_id, dsl.is_at_most(value))
+//         IsEqualTo(value: value) ->
+//           dsl.has_with(track_bucket.tags, tag_id, dsl.is_equal_to(value))
+//       }
+//   }
+// }
 
 // reverse filtering?
 // pub fn query_tracks_by_filter(
