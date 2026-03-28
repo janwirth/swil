@@ -13,14 +13,14 @@ import sqlight
 pub fn migrate(
   conn: sqlight.Connection,
 ) -> Result(Nil, sqlight.Error) {
-  todo as "TODO: generated migration SQL"
+  panic as "TODO: generated migration SQL"
 }
 
 /// List up to 100 recently edited hippo rows.
 pub fn last_100_edited_hippo(
   conn: sqlight.Connection,
 ) -> Result(List(#(Hippo, dsl.MagicFields)), sqlight.Error) {
-  todo as "TODO: generated select SQL and decoding"
+  panic as "TODO: generated select SQL and decoding"
 }
 
 /// Delete a hippo by the `ByNameAndDateOfBirth` identity.
@@ -29,7 +29,7 @@ pub fn delete_hippo_by_name_and_date_of_birth(
   name: String,
   date_of_birth: Date,
 ) -> Result(Nil, sqlight.Error) {
-  todo as "TODO: generated delete SQL"
+  panic as "TODO: generated delete SQL"
 }
 
 /// Update a hippo by the `ByNameAndDateOfBirth` identity.
@@ -39,7 +39,7 @@ pub fn update_hippo_by_name_and_date_of_birth(
   date_of_birth: Date,
   gender: option.Option(hippo_schema.GenderScalar),
 ) -> Result(#(Hippo, dsl.MagicFields), sqlight.Error) {
-  todo as "TODO: generated update SQL and decoding"
+  panic as "TODO: generated update SQL and decoding"
 }
 
 /// Get a hippo by the `ByNameAndDateOfBirth` identity.
@@ -48,7 +48,7 @@ pub fn get_hippo_by_name_and_date_of_birth(
   name: String,
   date_of_birth: Date,
 ) -> Result(option.Option(#(Hippo, dsl.MagicFields)), sqlight.Error) {
-  todo as "TODO: generated select SQL and decoding"
+  panic as "TODO: generated select SQL and decoding"
 }
 
 /// Upsert a hippo by the `ByNameAndDateOfBirth` identity.
@@ -58,14 +58,14 @@ pub fn upsert_hippo_by_name_and_date_of_birth(
   date_of_birth: Date,
   gender: option.Option(hippo_schema.GenderScalar),
 ) -> Result(#(Hippo, dsl.MagicFields), sqlight.Error) {
-  todo as "TODO: generated upsert SQL and decoding"
+  panic as "TODO: generated upsert SQL and decoding"
 }
 
 /// List up to 100 recently edited human rows.
 pub fn last_100_edited_human(
   conn: sqlight.Connection,
 ) -> Result(List(#(Human, dsl.MagicFields)), sqlight.Error) {
-  todo as "TODO: generated select SQL and decoding"
+  panic as "TODO: generated select SQL and decoding"
 }
 
 /// Delete a human by the `ByEmail` identity.
@@ -73,7 +73,7 @@ pub fn delete_human_by_email(
   conn: sqlight.Connection,
   email: String,
 ) -> Result(Nil, sqlight.Error) {
-  todo as "TODO: generated delete SQL"
+  panic as "TODO: generated delete SQL"
 }
 
 /// Update a human by the `ByEmail` identity.
@@ -82,7 +82,7 @@ pub fn update_human_by_email(
   email: String,
   name: option.Option(String),
 ) -> Result(#(Human, dsl.MagicFields), sqlight.Error) {
-  todo as "TODO: generated update SQL and decoding"
+  panic as "TODO: generated update SQL and decoding"
 }
 
 /// Get a human by the `ByEmail` identity.
@@ -90,7 +90,7 @@ pub fn get_human_by_email(
   conn: sqlight.Connection,
   email: String,
 ) -> Result(option.Option(#(Human, dsl.MagicFields)), sqlight.Error) {
-  todo as "TODO: generated select SQL and decoding"
+  panic as "TODO: generated select SQL and decoding"
 }
 
 /// Upsert a human by the `ByEmail` identity.
@@ -99,7 +99,7 @@ pub fn upsert_human_by_email(
   email: String,
   name: option.Option(String),
 ) -> Result(#(Human, dsl.MagicFields), sqlight.Error) {
-  todo as "TODO: generated upsert SQL and decoding"
+  panic as "TODO: generated upsert SQL and decoding"
 }
 
 pub type QueryOldHipposOwnerEmailsRow {
@@ -111,7 +111,7 @@ pub fn query_old_hippos_owner_emails(
   conn: sqlight.Connection,
   min_age: Int,
 ) -> Result(List(QueryOldHipposOwnerEmailsRow), sqlight.Error) {
-  todo as "TODO: generated select SQL, parameters, and decoder"
+  panic as "TODO: generated select SQL, parameters, and decoder"
 }
 
 pub type QueryOldHipposOwnerNamesRow {
@@ -123,7 +123,7 @@ pub fn query_old_hippos_owner_names(
   conn: sqlight.Connection,
   min_age: Int,
 ) -> Result(List(QueryOldHipposOwnerNamesRow), sqlight.Error) {
-  todo as "TODO: generated select SQL, parameters, and decoder"
+  panic as "TODO: generated select SQL, parameters, and decoder"
 }
 
 pub type QueryHipposByGenderRow {
@@ -135,5 +135,5 @@ pub fn query_hippos_by_gender(
   conn: sqlight.Connection,
   gender_to_match: hippo_schema.GenderScalar,
 ) -> Result(List(QueryHipposByGenderRow), sqlight.Error) {
-  todo as "TODO: generated select SQL, parameters, and decoder"
+  panic as "TODO: generated select SQL, parameters, and decoder"
 }

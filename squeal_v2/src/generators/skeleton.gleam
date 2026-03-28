@@ -20,7 +20,7 @@ import schema_definition/schema_definition.{
 }
 
 /// Emit the gleam `*_db` module skeleton for a parsed schema module.
-/// Query specs get a stub row type and function; bodies stay `todo` until
+/// Query specs get a stub row type and function; bodies stay `panic as` stubs until
 /// code generation is implemented.
 pub fn generate(import_path: String, def: SchemaDefinition) -> String {
   build_module(import_path, def)
@@ -164,7 +164,7 @@ fn add_migrate_fn(module_doc: String, acc: gmod.Module) -> gmod.Module {
     gfun.new_raw(
       [conn_param()],
       gtypes.result(gtypes.nil, gtypes.raw("sqlight.Error")),
-      fn(_args) { gexpr.todo_(Some("TODO: generated migration SQL")) },
+      fn(_args) { gexpr.panic_(Some("TODO: generated migration SQL")) },
     )
   gmod.with_function(migrate_def, func, fn(_n) { acc })
 }
@@ -239,7 +239,7 @@ fn entity_function_chunks(
       gfun.new_raw(
         upsert_params,
         gtypes.result(gtypes.raw(row_t), sql_err),
-        fn(_args) { gexpr.todo_(Some("TODO: generated upsert SQL and decoding")) },
+        fn(_args) { gexpr.panic_(Some("TODO: generated upsert SQL and decoding")) },
       )
         |> gfun.to_dynamic,
     ),
@@ -252,7 +252,7 @@ fn entity_function_chunks(
           gtypes.raw("option.Option(" <> row_t <> ")"),
           sql_err,
         ),
-        fn(_args) { gexpr.todo_(Some("TODO: generated select SQL and decoding")) },
+        fn(_args) { gexpr.panic_(Some("TODO: generated select SQL and decoding")) },
       )
         |> gfun.to_dynamic,
     ),
@@ -262,7 +262,7 @@ fn entity_function_chunks(
       gfun.new_raw(
         upsert_params,
         gtypes.result(gtypes.raw(row_t), sql_err),
-        fn(_args) { gexpr.todo_(Some("TODO: generated update SQL and decoding")) },
+        fn(_args) { gexpr.panic_(Some("TODO: generated update SQL and decoding")) },
       )
         |> gfun.to_dynamic,
     ),
@@ -272,7 +272,7 @@ fn entity_function_chunks(
       gfun.new_raw(
         delete_params,
         gtypes.result(gtypes.nil, sql_err),
-        fn(_args) { gexpr.todo_(Some("TODO: generated delete SQL")) },
+        fn(_args) { gexpr.panic_(Some("TODO: generated delete SQL")) },
       )
         |> gfun.to_dynamic,
     ),
@@ -286,7 +286,7 @@ fn entity_function_chunks(
       gfun.new_raw(
         list_params,
         gtypes.result(gtypes.list(gtypes.raw(row_t)), sql_err),
-        fn(_args) { gexpr.todo_(Some("TODO: generated select SQL and decoding")) },
+        fn(_args) { gexpr.panic_(Some("TODO: generated select SQL and decoding")) },
       )
         |> gfun.to_dynamic,
     ),
@@ -355,7 +355,7 @@ fn generic_query_module(
         fn_params,
         returns,
         fn(_args) {
-          gexpr.todo_(Some(
+          gexpr.panic_(Some(
             "TODO: generated select SQL, parameters, and decoder",
           ))
         },
@@ -415,7 +415,7 @@ fn hippos_by_gender_module(schema_alias: String, acc: gmod.Module) -> gmod.Modul
         gleamgen_emit.pub_def("query_hippos_by_gender")
           |> gdef.with_text_before(query_doc),
         gfun.new_raw(fn_params, returns, fn(_args) {
-          gexpr.todo_(Some(
+          gexpr.panic_(Some(
             "TODO: generated select SQL, parameters, and decoder",
           ))
         }),

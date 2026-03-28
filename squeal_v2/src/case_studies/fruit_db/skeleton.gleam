@@ -12,14 +12,14 @@ import sqlight
 pub fn migrate(
   conn: sqlight.Connection,
 ) -> Result(Nil, sqlight.Error) {
-  todo as "TODO: generated migration SQL"
+  panic as "TODO: generated migration SQL"
 }
 
 /// List up to 100 recently edited fruit rows.
 pub fn last_100_edited_fruit(
   conn: sqlight.Connection,
 ) -> Result(List(#(Fruit, dsl.MagicFields)), sqlight.Error) {
-  todo as "TODO: generated select SQL and decoding"
+  panic as "TODO: generated select SQL and decoding"
 }
 
 /// Delete a fruit by the `ByName` identity.
@@ -27,7 +27,7 @@ pub fn delete_fruit_by_name(
   conn: sqlight.Connection,
   name: String,
 ) -> Result(Nil, sqlight.Error) {
-  todo as "TODO: generated delete SQL"
+  panic as "TODO: generated delete SQL"
 }
 
 /// Update a fruit by the `ByName` identity.
@@ -38,7 +38,7 @@ pub fn update_fruit_by_name(
   price: option.Option(Float),
   quantity: option.Option(Int),
 ) -> Result(#(Fruit, dsl.MagicFields), sqlight.Error) {
-  todo as "TODO: generated update SQL and decoding"
+  panic as "TODO: generated update SQL and decoding"
 }
 
 /// Get a fruit by the `ByName` identity.
@@ -46,7 +46,7 @@ pub fn get_fruit_by_name(
   conn: sqlight.Connection,
   name: String,
 ) -> Result(option.Option(#(Fruit, dsl.MagicFields)), sqlight.Error) {
-  todo as "TODO: generated select SQL and decoding"
+  panic as "TODO: generated select SQL and decoding"
 }
 
 /// Upsert a fruit by the `ByName` identity.
@@ -57,7 +57,7 @@ pub fn upsert_fruit_by_name(
   price: option.Option(Float),
   quantity: option.Option(Int),
 ) -> Result(#(Fruit, dsl.MagicFields), sqlight.Error) {
-  todo as "TODO: generated upsert SQL and decoding"
+  panic as "TODO: generated upsert SQL and decoding"
 }
 
 pub type QueryCheapFruitRow {
@@ -69,5 +69,5 @@ pub fn query_cheap_fruit(
   conn: sqlight.Connection,
   max_price: Float,
 ) -> Result(List(QueryCheapFruitRow), sqlight.Error) {
-  todo as "TODO: generated select SQL, parameters, and decoder"
+  panic as "TODO: generated select SQL, parameters, and decoder"
 }

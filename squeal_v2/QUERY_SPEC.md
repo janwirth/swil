@@ -81,11 +81,11 @@ The following are currently **not** represented and fail at parse time with acti
   - Functions: `query_old_hippos_owner_emails`, `query_old_hippos_owner_names`
   - Example:
     - `dsl.filter(age(exclude_if_missing(hippo.date_of_birth)) > min_age)`
-- Computed order expression (`order_by(age(...), Desc)`)
+- Computed order expression (`dsl.order(age(...), Desc)`)
   - File: `src/case_studies/hippo_schema.gleam`
   - Functions: `query_old_hippos_owner_emails`, `query_old_hippos_owner_names`
   - Example:
-    - `dsl.order(dsl.order_by(age(exclude_if_missing(hippo.date_of_birth)), dsl.Desc))`
+    - `dsl.order(age(exclude_if_missing(hippo.date_of_birth)), dsl.Desc)`
 - `nullable(...)`-driven operand (no dedicated `MissingBehavior.Nullable` inference yet)
   - File: `src/case_studies/hippo_schema.gleam`
   - Functions: `query_old_hippos_owner_emails`, `query_old_hippos_owner_names`
@@ -99,19 +99,19 @@ The following are currently **not** represented and fail at parse time with acti
   - Function: `query_cheap_fruit`
   - Example:
     - `dsl.filter(dsl.exclude_if_missing(fruit.price) <. max_price)`
-    - `dsl.order(dsl.order_by(fruit.price, dsl.Asc))`
+    - `dsl.order(fruit.price, dsl.Asc)`
 - Fully supported equality + simple field order
   - File: `src/case_studies/hippo_schema.gleam`
   - Function: `query_hippos_by_gender`
   - Example:
     - `dsl.filter(exclude_if_missing(hippo.gender) == gender_to_match)`
-    - `dsl.order(dsl.order_by(hippo.name, dsl.Desc))`
+    - `dsl.order(hippo.name, dsl.Desc)`
 
 ### Currently Supported Precisely
 
-- `exclude_if_missing(entity.field) <. simple_param` + `order_by(entity.field, Asc)`
-- `exclude_if_missing(entity.field) == simple_or_scalar_param` + `order_by(entity.field, Asc|Desc)`
-- computed comparisons/orders such as `age(exclude_if_missing(...)) > min_age` + `order_by(age(...), Desc)`
+- `exclude_if_missing(entity.field) <. simple_param` + `dsl.order(entity.field, dsl.Asc)`
+- `exclude_if_missing(entity.field) == simple_or_scalar_param` + `dsl.order(entity.field, dsl.Asc|dsl.Desc)`
+- computed comparisons/orders such as `age(exclude_if_missing(...)) > min_age` + `dsl.order(age(...), dsl.Desc)`
 - relationship access through `nullable(...).item.<field>` in expression parsing
 
 ### Effect of Strict Parsing
@@ -220,7 +220,7 @@ pub type ExprFn {
 - Computed shape entries (for example `#("age", age(...))`)
 - Relationship-based shape expressions (`nullable(...).item.email`)
 - Computed filters (`age(...) > min_age`)
-- Computed order expressions (`order_by(age(...), Desc)`)
+- Computed order expressions (`dsl.order(age(...), dsl.Desc)`)
 - Future nested boolean filters without custom SQL escape hatches
 
 ### 3) Tightness Rules (Still Strict)

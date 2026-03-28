@@ -87,14 +87,14 @@ pub type TabIdentities {
 pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields, _limit: Int) {
   dsl.query(tab)
   |> dsl.shape(option.None)
-  |> dsl.order(dsl.order_by(tab_meta.updated_at, dsl.Desc))
+  |> dsl.order(tab_meta.updated_at, dsl.Desc)
 }
 
 // pub fn query_tracks_by_view_config(track_bucket: TrackBucket, view_config: ViewConfigScalar) {
 //   dsl.query(track_bucket)
 //   |> dsl.shape(option.None)
 //   |> dsl.filter(option.None)
-//   |> dsl.order(dsl.order_by(view_config.updated_at, dsl.Desc))
+//   |> dsl.order(view_config.updated_at, dsl.Desc)
 // }
 
 // scalar is a single value, like a string, a number, a boolean, etc, not another object type in the db

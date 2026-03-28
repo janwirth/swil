@@ -85,7 +85,7 @@ pub type TabIdentities {
 pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields, _limit: Int) {
   dsl.query(tab)
   |> dsl.shape(option.None)
-  |> dsl.order(dsl.order_by(tab_meta.updated_at, dsl.Desc))
+  |> dsl.order(tab_meta.updated_at, dsl.Desc)
 }
 
 pub fn query_tracks_by_view_config(track_bucket: TrackBucket, magic_fields: dsl.MagicFields, complex_tag_filter_expression: FilterExpressionScalar) {
@@ -93,12 +93,12 @@ pub fn query_tracks_by_view_config(track_bucket: TrackBucket, magic_fields: dsl.
   |> dsl.shape(option.None)
   // |> dsl.filter_bool(dsl.exclude_if_missing(track_bucket.title) == "hi")
   |> dsl.filter_complex(complex_tag_filter_expression, predicate_complex_tags_filter)
-  |> dsl.order(dsl.order_by(dsl.MagicFields, dsl.Desc))  
+  |> dsl.order(dsl.MagicFields, dsl.Desc)
 }
 
 
 // encodable type
-pub type FilterExpressionScalar = dsl.RecursiveFilterSpec(TagExpressionScalar)
+pub type FilterExpressionScalar = dsl.BooleanFilter(TagExpressionScalar)
 
 
 pub fn predicate_complex_tags_filter(

@@ -23,7 +23,8 @@ pub fn main() -> Nil {
 
 pub fn documented_shape_query_tail_call_parses_test() {
   let input =
-    "import gleam/option
+    "import dsl/dsl as dsl
+import gleam/option
 
 pub type Row {
   Row(identities: RowIdentities)
@@ -34,10 +35,10 @@ pub type RowIdentities {
 }
 
 pub fn query_by_key(row: Row, _magic: dsl.MagicFields, _k: Int) {
-  query(row)
-  |> shape(row)
-  |> filter(option.None)
-  |> order(option.None)
+  dsl.query(row)
+  |> dsl.shape(row)
+  |> dsl.filter_bool(option.None)
+  |> dsl.order(option.None, dsl.Desc)
 }
 "
   let assert Ok(def) = schema_parser.parse_module(input)
@@ -48,7 +49,8 @@ pub fn query_by_key(row: Row, _magic: dsl.MagicFields, _k: Int) {
 
 pub fn documented_shape_query_return_annotation_parses_test() {
   let input =
-    "import gleam/option
+    "import dsl/dsl as dsl
+import gleam/option
 
 pub type Row {
   Row(identities: RowIdentities)
@@ -59,10 +61,10 @@ pub type RowIdentities {
 }
 
 pub fn query_by_key(row: Row, _magic: dsl.MagicFields, _k: Int) {
-  query(row)
-  |> shape(row)
-  |> filter(option.None)
-  |> order(option.None)
+  dsl.query(row)
+  |> dsl.shape(row)
+  |> dsl.filter_bool(option.None)
+  |> dsl.order(option.None, dsl.Desc)
 }
 "
   let assert Ok(def) = schema_parser.parse_module(input)
@@ -73,7 +75,8 @@ pub fn query_by_key(row: Row, _magic: dsl.MagicFields, _k: Int) {
 
 pub fn public_function_without_allowed_prefix_rejected_includes_hint_test() {
   let input =
-    "import gleam/option
+    "import dsl/dsl as dsl
+import gleam/option
 
 pub type Row {
   Row(identities: RowIdentities)
@@ -84,10 +87,10 @@ pub type RowIdentities {
 }
 
 pub fn get_by_key(row: Row, _magic: dsl.MagicFields, _k: Int) {
-  query(row)
-  |> shape(row)
-  |> filter(option.None)
-  |> order(option.None)
+  dsl.query(row)
+  |> dsl.shape(row)
+  |> dsl.filter_bool(option.None)
+  |> dsl.order(option.None, dsl.Desc)
 }
 "
   case schema_parser.parse_module(input) {
@@ -102,7 +105,8 @@ pub fn get_by_key(row: Row, _magic: dsl.MagicFields, _k: Int) {
 
 pub fn public_query_function_wrong_prefix_rejected_includes_hint_test() {
   let input =
-    "import gleam/option
+    "import dsl/dsl as dsl
+import gleam/option
 
 pub type Row {
   Row(identities: RowIdentities)
@@ -113,10 +117,10 @@ pub type RowIdentities {
 }
 
 pub fn fetch_by_key(row: Row, _magic: dsl.MagicFields, _k: Int) {
-  query(row)
-  |> shape(row)
-  |> filter(option.None)
-  |> order(option.None)
+  dsl.query(row)
+  |> dsl.shape(row)
+  |> dsl.filter_bool(option.None)
+  |> dsl.order(option.None, dsl.Desc)
 }
 "
   case schema_parser.parse_module(input) {
@@ -168,8 +172,8 @@ pub type RowIdentities {
 pub fn query_rows(r: Row, _m: dsl.MagicFields, _x: Int) {
   dsl.query(r)
   |> dsl.shape(option.None)
-  |> dsl.filter(option.None)
-  |> dsl.order(option.None)
+  |> dsl.filter_bool(option.None)
+  |> dsl.order(r, dsl.Asc)
 }
 
 pub fn predicate_complex_tags_filter(_r: Row) -> dsl.BooleanFilter(Int) {

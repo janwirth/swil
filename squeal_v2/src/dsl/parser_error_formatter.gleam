@@ -69,7 +69,7 @@ fn print_query_spec_help() -> Nil {
     "    pub fn query_rows_matching_status(row: Row, magic: dsl.MagicFields, want: StatusScalar) {",
   )
   io.println(
-    "      query(row) |> shape(row) |> filter(row.status == want) |> order(dsl.order_by(row.id, dsl.Asc))",
+    "      query(row) |> shape(row) |> filter(row.status == want) |> order(row.id, dsl.Asc)",
   )
   io.println("    }")
   io.println("")

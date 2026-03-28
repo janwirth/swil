@@ -7,14 +7,14 @@
 Make recursive filters a first-class, reusable capability:
 
 - the recursive wrapper type is owned by `dsl`,
-- schema modules only define **predicate payload** types (the custom type carried in each `RecursivePredicate` leaf),
+- schema modules only define **predicate payload** types (the custom type carried in each `Predicate` leaf of `BooleanFilter`),
 - and the schema parser stores recursive filter specs as structured metadata.
 
 Query specs use the `query_` prefix; BooleanFilter helpers use `predicate_` (enforced by `schema_definition` parsing).
 
 ### Problem statement
 
-Earlier drafts used a local `RecursiveFilterSpec` plus hand-rolled recursion in the schema module. The target is a single shared recursive shape in `dsl` and consistent **predicate\_*** naming for leaf interpreters.
+Earlier drafts used a separate `RecursiveFilterSpec` type; that shape is merged into `dsl.BooleanFilter` (`And` / `Or` / `Not` / `Predicate`). Schema modules use consistent **predicate\_*** naming for leaf interpreters.
 
 ### Scope
 
@@ -48,15 +48,13 @@ Pipeline steps that return a value re-wrap with `Query(root: r)` so the phantom 
 
 ### Naming (enforced convention)
 
-Public functions passed as `predicate_fn` to `dsl.complex_filter` **must** use the prefix **`predicate_`**. Reference implementation: `predicate_complex_tags_filter` in `library_manager_schema_advanced.gleam`.
+Public functions passed as the second argument to `dsl.filter_complex(..., predicate_fn)` **must** use the prefix **`predicate_`**. Reference implementation: `predicate_complex_tags_filter` in `library_manager_advanced_schema.gleam`.
 
 | Artefact | Rule | Canonical example |
 |----------|------|-------------------|
-| Recursive leaf constructor | `dsl.RecursiveFilterSpec` variant holding payload | `RecursivePredicate(item: TagExpressionScalar)` |
+| Leaf constructor | `dsl.BooleanFilter` carrying payload type `T` | `Predicate(item: TagExpressionScalar)` |
 | Leaf interpreter `pub fn` | **`predicate_` prefix** | `predicate_complex_tags_filter` |
-| `complex_filter` argument | labeled **`predicate_fn`** | `dsl.complex_filter(root, spec, predicate_fn: predicate_complex_tags_filter)` |
-
-(Distinct from `dsl.WithPredicate`, which is only the numeric comparison wrapper for `has_with`.)
+| Pipeline filter | **`filter_complex(spec, predicate_fn)`** (no separate `complex_filter` in current `dsl`) | `dsl.filter_complex(complex_tag_filter_expression, predicate_complex_tags_filter)` |
 
 ### Query and predicate authoring
 
@@ -64,9 +62,9 @@ Public functions in a schema module are restricted to **`query_*`** and **`predi
 
 A **`query_*`** spec uses the usual `(entity, dsl.MagicFields, simple)` parameters and ends in:
 
-`dsl.query |> dsl.shape |> [dsl.filter_bool \| dsl.filter_complex]? |> dsl.order`
+`dsl.query |> dsl.shape |> [dsl.filter_bool \| dsl.filter_complex]? |> dsl.order(field, direction)`
 
-When the filter slot uses `dsl.complex_filter(...)` inside the schema layer, pass a **`predicate_*`** function as `predicate_fn` (see naming table). That helper must be `pub fn predicate_…(root, payload) -> dsl.BooleanFilter(...)` (or equivalent) with an explicit BooleanFilter return annotation.
+When the filter slot uses `dsl.filter_complex(spec, predicate_fn)`, pass a **`predicate_*`** function as `predicate_fn` (see naming table). That helper must be `pub fn predicate_…(root, payload) -> dsl.BooleanFilter(...)` (or equivalent) with an explicit BooleanFilter return annotation.
 
 ---
 
@@ -100,54 +98,61 @@ No breaking change required for `QuerySpecDefinition` initially.
 
 ## Relationships and recursive filters
 
-### Recursive wrapper in `dsl`
+### Recursive filter tree in `dsl`
 
 Shared type in `src/dsl/dsl.gleam`:
 
 ```gleam
-pub type RecursiveFilterSpec(payload) {
-  RecursiveAnd(items: List(RecursiveFilterSpec(payload)))
-  RecursiveOr(items: List(RecursiveFilterSpec(payload)))
-  RecursiveNot(item: RecursiveFilterSpec(payload))
-  RecursivePredicate(item: payload)
+pub type BooleanFilter(a) {
+  And(exprs: List(BooleanFilter(a)))
+  Or(exprs: List(BooleanFilter(a)))
+  Not(expr: BooleanFilter(a))
+  Predicate(item: a)
 }
 ```
 
-Constructor names avoid clashing with `BooleanFilter`’s `And` / `Or` / `Not` in the same module. **`RecursivePredicate`** holds one instance of the schema-defined payload type (e.g. `TagExpressionScalar`).
+**`Predicate`** holds one instance of the schema-defined payload type (e.g. `TagExpressionScalar`). The same type parameter `a` also tags trees produced by `predicate_*` helpers (e.g. `BooleanFilter(BelongsTo(...))`).
 
-Schema usage:
+Schema usage (see `library_manager_advanced_schema.gleam`):
 
 ```gleam
-pub type FilterConfigScalar = dsl.RecursiveFilterSpec(TagExpressionScalar)
+pub type FilterExpressionScalar = dsl.BooleanFilter(TagExpressionScalar)
 
-pub fn filter_tag_complex(
+pub fn predicate_complex_tags_filter(
   track_bucket: TrackBucket,
-  filter: dsl.RecursiveFilterSpec(TagExpressionScalar),
+  tag_expression: TagExpressionScalar,
 ) -> dsl.BooleanFilter(BelongsTo(Tag, TrackBucketRelationshipAttributes)) {
-  dsl.complex_filter(
-    track_bucket,
-    filter,
-    predicate_fn: predicate_complex_tags_filter,
-  )
+  panic as "see library_manager_advanced_schema.gleam"
+}
+
+pub fn query_tracks_by_view_config(
+  track_bucket: TrackBucket,
+  magic_fields: dsl.MagicFields,
+  complex_tag_filter_expression: FilterExpressionScalar,
+) {
+  dsl.query(track_bucket)
+  |> dsl.shape(option.None)
+  |> dsl.filter_complex(complex_tag_filter_expression, predicate_complex_tags_filter)
+  |> dsl.order(dsl.MagicFields, dsl.Desc)
 }
 ```
 
 ### Encodable data type requirement
 
-`dsl.RecursiveFilterSpec(payload)` is encodable iff `payload` is encodable.
+`dsl.BooleanFilter(payload)` is encodable iff `payload` is encodable (for config trees built with `Predicate` leaves).
 
 Encoding shape (logical contract, not wire-format locked):
 
-- `RecursiveAnd` / `RecursiveOr`: tag + `items`
-- `RecursiveNot`: tag + `item`
-- `RecursivePredicate`: tag + payload
+- `And` / `Or`: tag + `items` (or `exprs`)
+- `Not`: tag + `expr` (or `item`)
+- `Predicate`: tag + payload
 
 Example JSON-like representation:
 
 ```text
-{ "type": "RecursiveAnd", "items": [ ... ] }
-{ "type": "RecursiveNot", "item": { ... } }
-{ "type": "RecursivePredicate", "item": { "type": "Has", "tag_id": 3 } }
+{ "type": "And", "items": [ ... ] }
+{ "type": "Not", "expr": { ... } }
+{ "type": "Predicate", "item": { "type": "Has", "tag_id": 3 } }
 ```
 
 Implementation detail (derive/manual encoder) is decided by the scalar/codegen layer; this spec only fixes semantic shape.
@@ -156,32 +161,14 @@ Implementation detail (derive/manual encoder) is decided by the scalar/codegen l
 
 **Why no duplicate type-name strings on `FilterSpecDefinition`**
 
-The second parameter’s type already carries everything:
+The filter parameter’s type (typically the third slot after entity and `dsl.MagicFields`) already carries everything:
 
-- It must be (or alias to) `dsl.RecursiveFilterSpec(T)`.
-- **`T` (payload)** is whatever you put in `RecursivePredicate(item: t)` in JSON and in code — e.g. `TagExpressionScalar` with variants `Has`, `IsAtLeast`, …
+- It must be (or alias to) `dsl.BooleanFilter(T)`.
+- **`T` (payload)** is whatever you put in `Predicate(item: t)` in JSON and in code — e.g. `TagExpressionScalar` with variants `Has`, `IsAtLeast`, …
 
-So the parser **resolves** `T` from parameter 2 (unwrap the type/alias to `RecursiveFilterSpec(T)`). Codegen and encoders use that `T` to know leaf variant names and fields.
+So the parser **resolves** `T` from that parameter (unwrap the type/alias to `BooleanFilter(T)`). Codegen and encoders use that `T` to know leaf variant names and fields.
 
-**Example (usage)**
-
-```gleam
-pub type TagExpressionScalar { Has(tag_id: Int) /* ... */ }
-pub type FilterConfigScalar = dsl.RecursiveFilterSpec(TagExpressionScalar)
-
-pub fn filter_track_bucket_by_tag(
-  track_bucket: TrackBucket,
-  filter: FilterConfigScalar,
-) -> dsl.BooleanFilter(BelongsTo(Tag, TrackBucketRelationshipAttributes)) {
-  dsl.complex_filter(
-    track_bucket,
-    filter,
-    predicate_fn: predicate_complex_tags_filter,
-  )
-}
-```
-
-Extracted metadata: `filter_track_bucket_by_tag`, parameter 1 = `TrackBucket`, parameter 2 resolves to `dsl.RecursiveFilterSpec(TagExpressionScalar)` → payload type = `TagExpressionScalar`. No extra string fields required.
+Extracted metadata for `query_tracks_by_view_config`: parameter 1 = `TrackBucket`, parameter 3 resolves to `dsl.BooleanFilter(TagExpressionScalar)` (or an alias such as `FilterExpressionScalar`) → payload type = `TagExpressionScalar`. No extra string fields required.
 
 Add these model types:
 
@@ -235,9 +222,9 @@ Design notes:
 
 In the schema parsing pipeline:
 
-- resolve aliases until parameter 2 is `dsl.RecursiveFilterSpec(T)`; **record `T`** from the type arguments,
+- resolve aliases until the filter parameter type is `dsl.BooleanFilter(T)`; **record `T`** from the type arguments,
 - parse recursive shape into `FilterTree`,
-- parse `RecursivePredicate` branch and capture leaf operations as `FilterLeaf` (or keep `FilterPredicate` then lower later),
+- parse `Predicate` branch and capture leaf operations as `FilterLeaf` (or keep `FilterPredicate` then lower later),
 - validate that the `predicate_fn` reference is a `pub fn` whose name starts with `predicate_`,
 - store result in `SchemaDefinition.filters`.
 
@@ -247,8 +234,8 @@ Unsupported forms must emit `UnsupportedSchema` with function span and reason.
 
 ## Migration plan
 
-1. **Factor DSL into `src/dsl/dsl.gleam`**: `RecursiveFilterSpec`, `RecursivePredicate`, `complex_filter(...)`, etc.
-2. Switch schema aliases (e.g. `FilterConfigScalar = dsl.RecursiveFilterSpec(...)`) and delete duplicate recursive types from schema modules.
+1. **Keep recursive filter tree in `src/dsl/dsl.gleam`** as `BooleanFilter` with `Predicate` leaves.
+2. Schema aliases use `FilterConfigScalar = dsl.BooleanFilter(...)` (no duplicate recursive types in schema modules).
 3. Extend `schema_definition.gleam` with `filters` + filter model nodes.
 4. Implement parser extraction and populate `SchemaDefinition.filters` (unwrap param 2 to obtain payload type `T`).
 5. Add tests:
@@ -260,7 +247,7 @@ Unsupported forms must emit `UnsupportedSchema` with function span and reason.
 
 ## Acceptance criteria
 
-- At least one case study uses `dsl.RecursiveFilterSpec` with a `predicate_*` interpreter (e.g. `predicate_complex_tags_filter`).
+- At least one case study uses `dsl.BooleanFilter(T)` for filter config with a `predicate_*` interpreter (e.g. `predicate_complex_tags_filter` in `library_manager_advanced_schema`).
 - `SchemaDefinition` contains extracted `FilterSpecDefinition` entries.
 - Recursive filter payload can be encoded/decoded without losing tree structure.
 - Removing local recursive type declarations does not reduce expressiveness.

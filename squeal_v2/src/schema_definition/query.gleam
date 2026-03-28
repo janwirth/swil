@@ -13,7 +13,7 @@
 //// `query(...) |> shape(...) |> order(...)`, with an optional filter step:
 //// `dsl.filter(...)`, `dsl.filter_bool(...)`, or `dsl.filter_complex(..., predicate_fn)`.
 //// Supported shapes are detected structurally (for example
-//// `LtMissingFieldAsc` for `exclude_if_missing` + float threshold + ascending `order_by` on the same field).
+//// `LtMissingFieldAsc` for `exclude_if_missing` + float threshold + ascending `order` on the same field).
 
 import glance
 import dsl/dsl as dsl
@@ -199,7 +199,8 @@ type ParsedPipeline {
   ParsedPipeline(
     shape_value: glance.Expression,
     filter_: Option(PipelineFilter),
-    order_arg: glance.Expression,
+    order_field: glance.Expression,
+    order_direction: glance.Expression,
   )
 }
 
@@ -218,7 +219,7 @@ fn infer_query(f: glance.Function) -> Result(sd.Query, ParseError) {
             Some(f.location),
             "query "
               <> f.name
-              <> " must match `query |> shape |> [dsl.filter | dsl.filter_bool | dsl.filter_complex]? |> dsl.order`",
+              <> " must match `query |> shape |> [dsl.filter | dsl.filter_bool | dsl.filter_complex]? |> dsl.order(field, direction)`",
           ))
         Some(parts) -> {
           use shape <- result.try(parse_shape_expr(f, parts.shape_value))
@@ -228,7 +229,11 @@ fn infer_query(f: glance.Function) -> Result(sd.Query, ParseError) {
             Some(ComplexFilter(spec, pred)) ->
               parse_filter_complex(f, spec, pred)
           })
-          use order <- result.try(parse_order_expr(f, parts.order_arg))
+          use order <- result.try(parse_order_expr(
+            f,
+            parts.order_field,
+            parts.order_direction,
+          ))
           Ok(sd.Query(shape: shape, filter: filter, order: order))
         }
       }
@@ -427,37 +432,16 @@ fn parse_pred(f: glance.Function, expr: glance.Expression) -> Result(sd.Pred, Pa
 
 fn parse_order_expr(
   f: glance.Function,
-  order_expr: glance.Expression,
+  field_expr: glance.Expression,
+  dir_expr: glance.Expression,
 ) -> Result(sd.Order, ParseError) {
-  case normalize_expr(order_expr) {
-    glance.Variable(_, "None") -> Ok(sd.UpdatedAtDesc)
-    glance.FieldAccess(_, _, "None") -> Ok(sd.UpdatedAtDesc)
-    glance.Call(_, callee, oargs) ->
-      case expression_callee_name(callee) {
-        Ok("order_by") ->
-          case oargs {
-            [glance.UnlabelledField(order_value), glance.UnlabelledField(dir_ex)] -> {
-              use parsed_expr <- result.try(parse_expr(f, order_value))
-              use direction <- result.try(order_direction(dir_ex, f))
-              Ok(sd.CustomOrder(expr: parsed_expr, direction: direction))
-            }
-            _ ->
-              Error(UnsupportedSchema(
-                Some(f.location),
-                "query " <> f.name <> " order_by must have exactly two arguments",
-              ))
-          }
-        _ ->
-          Error(UnsupportedSchema(
-            Some(f.location),
-            "query " <> f.name <> " order must use dsl.order_by(...)",
-          ))
-      }
-    _ ->
-      Error(UnsupportedSchema(
-        Some(f.location),
-        "query " <> f.name <> " order must use dsl.order_by(...)",
-      ))
+  case is_none_expr(field_expr) {
+    True -> Ok(sd.UpdatedAtDesc)
+    False -> {
+      use parsed_expr <- result.try(parse_expr(f, field_expr))
+      use direction <- result.try(order_direction(dir_expr, f))
+      Ok(sd.CustomOrder(expr: parsed_expr, direction: direction))
+    }
   }
 }
 
@@ -652,15 +636,15 @@ fn normalize_expr(expr: glance.Expression) -> glance.Expression {
   }
 }
 
-/// Parses `dsl.order(inner, order_arg)`; `inner` is the rest of the pipeline.
+/// Parses `dsl.order(inner, field, direction)`; `inner` is the rest of the pipeline.
 fn peel_order_call(
   expr: glance.Expression,
-) -> Option(#(glance.Expression, glance.Expression)) {
+) -> Option(#(glance.Expression, glance.Expression, glance.Expression)) {
   case normalize_expr(expr) {
     glance.Call(_, order_callee, order_args) ->
-      case expression_callee_name(order_callee), two_unlabelled_args(order_args) {
-        Ok("order"), Some(#(before_order, order_arg)) ->
-          Some(#(before_order, order_arg))
+      case expression_callee_name(order_callee), three_unlabelled_args(order_args) {
+        Ok("order"), Some(#(before_order, field, dir)) ->
+          Some(#(before_order, field, dir))
         _, _ -> None
       }
     _ -> None
@@ -715,18 +699,19 @@ fn peel_shape_query_call(expr: glance.Expression) -> Option(glance.Expression) {
   }
 }
 
-/// Nested calls: `order( [filter_*]( shape(query(..), val) , ...)? , order_arg )`.
+/// Nested calls: `order( [filter_*]( shape(query(..), val) , ...)? , field , direction )`.
 fn query_pipeline_nested_calls(expr: glance.Expression) -> Option(ParsedPipeline) {
-  use #(before_order, order_arg) <- then(peel_order_call(expr))
+  use #(before_order, field, dir) <- then(peel_order_call(expr))
   let #(shape_call, filter_) = peel_optional_filter_before_shape(before_order)
   use shape_value <- then(peel_shape_query_call(shape_call))
-  Some(ParsedPipeline(shape_value, filter_, order_arg))
+  Some(ParsedPipeline(shape_value, filter_, field, dir))
 }
 
 /// `query(entity) |> shape(..)` segment when the AST still has `|>` (0 or 1 filter steps handled by caller).
 fn finish_pipe_shape_segment(
   expr: glance.Expression,
-  order_arg: glance.Expression,
+  order_field: glance.Expression,
+  order_direction: glance.Expression,
 ) -> Option(ParsedPipeline) {
   case normalize_expr(expr) {
     glance.BinaryOperator(_, _, query_step, shape_step) -> {
@@ -737,7 +722,7 @@ fn finish_pipe_shape_segment(
             query_args,
           ) {
             Ok("query"), Some(_) ->
-              Some(ParsedPipeline(shape_value, None, order_arg))
+              Some(ParsedPipeline(shape_value, None, order_field, order_direction))
             _, _ -> None
           }
         _ -> None
@@ -750,7 +735,8 @@ fn finish_pipe_shape_segment(
 /// Recursively peel `.. |> filter_*` then resolve `query |> shape`.
 fn collect_pipeline_from_pipe_left(
   left_chain: glance.Expression,
-  order_arg: glance.Expression,
+  order_field: glance.Expression,
+  order_direction: glance.Expression,
 ) -> Option(ParsedPipeline) {
   case normalize_expr(left_chain) {
     glance.BinaryOperator(_, _, inner_left, rhs) ->
@@ -760,50 +746,88 @@ fn collect_pipeline_from_pipe_left(
             Ok("filter") | Ok("filter_bool") ->
               case single_unlabelled_arg(args) {
                 Some(pred) ->
-                  collect_pipeline_from_pipe_left(inner_left, order_arg)
+                  collect_pipeline_from_pipe_left(
+                    inner_left,
+                    order_field,
+                    order_direction,
+                  )
                   |> then(fn(base) {
                     case base.filter_ {
                       None ->
                         Some(ParsedPipeline(
                           base.shape_value,
                           Some(BoolFilter(pred)),
-                          base.order_arg,
+                          base.order_field,
+                          base.order_direction,
                         ))
                       Some(_) -> None
                     }
                   })
-                None -> finish_pipe_shape_segment(left_chain, order_arg)
+                None ->
+                  finish_pipe_shape_segment(
+                    left_chain,
+                    order_field,
+                    order_direction,
+                  )
               }
             Ok("filter_complex") ->
               case two_unlabelled_args(args) {
                 Some(#(spec, pred)) ->
-                  collect_pipeline_from_pipe_left(inner_left, order_arg)
+                  collect_pipeline_from_pipe_left(
+                    inner_left,
+                    order_field,
+                    order_direction,
+                  )
                   |> then(fn(base) {
                     case base.filter_ {
                       None ->
                         Some(ParsedPipeline(
                           base.shape_value,
                           Some(ComplexFilter(spec, pred)),
-                          base.order_arg,
+                          base.order_field,
+                          base.order_direction,
                         ))
                       Some(_) -> None
                     }
                   })
-                None -> finish_pipe_shape_segment(left_chain, order_arg)
+                None ->
+                  finish_pipe_shape_segment(
+                    left_chain,
+                    order_field,
+                    order_direction,
+                  )
               }
-            _ -> finish_pipe_shape_segment(left_chain, order_arg)
+            _ ->
+              finish_pipe_shape_segment(
+                left_chain,
+                order_field,
+                order_direction,
+              )
           }
-        _ -> finish_pipe_shape_segment(left_chain, order_arg)
+        _ ->
+          finish_pipe_shape_segment(
+            left_chain,
+            order_field,
+            order_direction,
+          )
       }
-    _ -> finish_pipe_shape_segment(left_chain, order_arg)
+    _ ->
+      finish_pipe_shape_segment(left_chain, order_field, order_direction)
   }
 }
 
 fn query_pipeline_pipe_components(expr: glance.Expression) -> Option(ParsedPipeline) {
   case normalize_expr(expr) {
     glance.BinaryOperator(_, _, left_chain, order_step) -> {
-      use order_arg <- then(single_named_call_arg(order_step, "order"))
-      collect_pipeline_from_pipe_left(left_chain, order_arg)
+      use #(order_field, order_direction) <- then(two_unlabelled_named_call(
+        order_step,
+        "order",
+      ))
+      collect_pipeline_from_pipe_left(
+        left_chain,
+        order_field,
+        order_direction,
+      )
     }
     _ -> None
   }
@@ -824,6 +848,21 @@ fn single_named_call_arg(
     glance.Call(_, callee, args) ->
       case expression_callee_name(callee) {
         Ok(n) if n == name -> single_unlabelled_arg(args)
+        _ -> None
+      }
+    _ -> None
+  }
+}
+
+/// `name(a, b)` with two unlabelled arguments (e.g. `dsl.order(field, dsl.Asc)` on the RHS of `|>`).
+fn two_unlabelled_named_call(
+  expr: glance.Expression,
+  name: String,
+) -> Option(#(glance.Expression, glance.Expression)) {
+  case normalize_expr(expr) {
+    glance.Call(_, callee, args) ->
+      case expression_callee_name(callee) {
+        Ok(n) if n == name -> two_unlabelled_args(args)
         _ -> None
       }
     _ -> None
@@ -956,16 +995,22 @@ fn statements_return_query(body: List(glance.Statement)) -> Bool {
 
 /// Used when there is no return annotation: last expr is query pipeline tail.
 fn expression_is_query_in_tail(expr: glance.Expression) -> Bool {
-  case expr {
-    glance.Call(_, callee, _) -> callee_is_order(callee)
+  case normalize_expr(expr) {
+    glance.Call(_, callee, args) ->
+      case expression_callee_name(callee) {
+        Ok("order") ->
+          case three_unlabelled_args(args) {
+            Some(_) -> True
+            None -> False
+          }
+        _ -> False
+      }
+    glance.BinaryOperator(_, _, _, rhs) ->
+      case two_unlabelled_named_call(rhs, "order") {
+        Some(_) -> True
+        None -> False
+      }
     glance.Block(_, stmts) -> statements_return_query(stmts)
-    _ -> False
-  }
-}
-
-fn callee_is_order(expr: glance.Expression) -> Bool {
-  case expression_callee_name(expr) {
-    Ok("order") -> True
     _ -> False
   }
 }

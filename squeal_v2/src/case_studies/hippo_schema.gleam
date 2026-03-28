@@ -72,10 +72,7 @@ pub fn query_old_hippos_owner_emails(
     nullable(hippo.relationships.owner).item.email,
   ))
   |> dsl.filter_bool(age(exclude_if_missing(hippo.date_of_birth)) > min_age)
-  |> dsl.order(dsl.order_by(
-    age(exclude_if_missing(hippo.date_of_birth)),
-    dsl.Desc,
-  ))
+  |> dsl.order(age(exclude_if_missing(hippo.date_of_birth)), dsl.Desc)
 }
 
 /// Query input spec for "old hippos owner emails".
@@ -90,10 +87,7 @@ pub fn query_old_hippos_owner_names(
     nullable(hippo.relationships.owner).item.email,
   ))
   |> dsl.filter_bool(age(exclude_if_missing(hippo.date_of_birth)) > min_age)
-  |> dsl.order(dsl.order_by(
-    age(exclude_if_missing(hippo.date_of_birth)),
-    dsl.Desc,
-  ))
+  |> dsl.order(age(exclude_if_missing(hippo.date_of_birth)), dsl.Desc)
 }
 
 /// Query input spec for "hippos by gender".
@@ -105,5 +99,5 @@ pub fn query_hippos_by_gender(
   dsl.query(hippo)
   |> dsl.shape(hippo)
   |> dsl.filter_bool(exclude_if_missing(hippo.gender) == gender_to_match)
-  |> dsl.order(dsl.order_by(hippo.name, dsl.Desc))
+  |> dsl.order(hippo.name, dsl.Desc)
 }

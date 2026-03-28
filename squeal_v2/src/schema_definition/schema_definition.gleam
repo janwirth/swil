@@ -20,7 +20,7 @@ import dsl/dsl as dsl
 ///   dsl.query(fruit)
 ///   |> dsl.shape(fruit)
 ///   |> dsl.filter(dsl.exclude_if_missing(fruit.price) <. max_price)
-///   |> dsl.order(dsl.order_by(fruit.price, dsl.Asc))
+///   |> dsl.order(fruit.price, dsl.Asc)
 /// }
 /// ```
 pub type SchemaDefinition {
@@ -256,7 +256,7 @@ pub type Operator {
 // dsl.query(fruit)
 // |> dsl.shape(fruit)
 // |> dsl.filter(dsl.exclude_if_missing(fruit.price) <. max_price)
-// |> dsl.order(dsl.order_by(fruit.price, dsl.Asc))
+// |> dsl.order(fruit.price, dsl.Asc)
 // ```
 // pub type QueryCodegen {
 //   Unsupported

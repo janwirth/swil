@@ -167,7 +167,8 @@ pub type RowIdentities {
 
 pub fn entity_object_query_function_must_start_with_query_prefix_rejected_test() {
   let input =
-    "import gleam/option
+    "import dsl/dsl as dsl
+import gleam/option
 
 pub type Row {
   Row(identities: RowIdentities)
@@ -178,10 +179,10 @@ pub type RowIdentities {
 }
 
 pub fn by_key(k: Int) {
-  query(Row(identities: RowIdentities.ByKey(key: \"\")))
-  |> shape(option.None)
-  |> filter(option.None)
-  |> order(option.None)
+  dsl.query(Row(identities: RowIdentities.ByKey(key: \"\")))
+  |> dsl.shape(option.None)
+  |> dsl.filter_bool(option.None)
+  |> dsl.order(option.None, dsl.Desc)
 }
 "
   case schema_parser.parse_module(input) {
@@ -193,7 +194,8 @@ pub fn by_key(k: Int) {
 
 pub fn entity_object_query_function_with_let_statement_rejected_test() {
   let input =
-    "import gleam/option
+    "import dsl/dsl as dsl
+import gleam/option
 
 pub type Row {
   Row(identities: RowIdentities)
@@ -205,10 +207,10 @@ pub type RowIdentities {
 
 pub fn query_by_key(row: Row, _magic: dsl.MagicFields, k: Int) {
   let x = k
-  query(row)
-  |> shape(row)
-  |> filter(x > 0)
-  |> order(option.None)
+  dsl.query(row)
+  |> dsl.shape(row)
+  |> dsl.filter_bool(x > 0)
+  |> dsl.order(option.None, dsl.Desc)
 }
 "
   case schema_parser.parse_module(input) {
