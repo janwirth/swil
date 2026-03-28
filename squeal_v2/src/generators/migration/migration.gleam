@@ -293,24 +293,33 @@ fn find_junction_specs(schema: SchemaDefinition) -> List(JunctionSpec) {
         let assert [variant, ..] = container.variants
         list.filter_map(variant.fields, fn(field) {
           case field.type_ {
-            glance.NamedType(_, "List", _, [
-              glance.NamedType(_, "BelongsTo", _, [
-                glance.NamedType(_, target_name, _, []),
-                glance.NamedType(_, edge_attribs_name, _, []),
-              ]),
-            ]) -> {
-              let edge_fields =
-                case
-                  list.find(schema.relationship_edge_attributes, fn(ea) {
-                    ea.type_name == edge_attribs_name
-                  })
-                {
-                  Ok(ea) -> {
-                    let assert [v, ..] = ea.variants
-                    v.fields
-                  }
-                  Error(_) -> []
+            glance.NamedType(
+              _,
+              "List",
+              _,
+              [
+                glance.NamedType(
+                  _,
+                  "BelongsTo",
+                  _,
+                  [
+                    glance.NamedType(_, target_name, _, []),
+                    glance.NamedType(_, edge_attribs_name, _, []),
+                  ],
+                ),
+              ],
+            ) -> {
+              let edge_fields = case
+                list.find(schema.relationship_edge_attributes, fn(ea) {
+                  ea.type_name == edge_attribs_name
+                })
+              {
+                Ok(ea) -> {
+                  let assert [v, ..] = ea.variants
+                  v.fields
                 }
+                Error(_) -> []
+              }
               Ok(JunctionSpec(
                 root_entity: entity.type_name,
                 target_entity: target_name,
@@ -389,7 +398,10 @@ fn junction_ddl_sql(spec: JunctionSpec) -> String {
   let target_fk = string.lowercase(spec.target_entity) <> "_id"
   let edge_col_lines =
     list.map(spec.edge_fields, fn(f) {
-      "  " <> migration_sql.quote_ident(f.label) <> " " <> junction_field_sql_type(f.type_)
+      "  "
+      <> migration_sql.quote_ident(f.label)
+      <> " "
+      <> junction_field_sql_type(f.type_)
     })
   let all_col_lines =
     list.flatten([
@@ -425,8 +437,7 @@ fn junction_upsert_sql(spec: JunctionSpec) -> String {
       [root_fk, target_fk],
       list.map(spec.edge_fields, fn(f) { f.label }),
     ])
-  let placeholders =
-    list.map(all_col_names, fn(_) { "?" }) |> string.join(", ")
+  let placeholders = list.map(all_col_names, fn(_) { "?" }) |> string.join(", ")
   let update_cols =
     list.map(spec.edge_fields, fn(f) {
       migration_sql.quote_ident(f.label)
@@ -485,9 +496,7 @@ fn junction_upsert_gleam_fn(spec: JunctionSpec) -> String {
     "sqlight.int(" <> target_fk <> ")",
   ]
   let edge_binds =
-    list.map(spec.edge_fields, fn(f) {
-      junction_sqlight_bind(f.label, f.type_)
-    })
+    list.map(spec.edge_fields, fn(f) { junction_sqlight_bind(f.label, f.type_) })
   let all_binds = list.append(id_binds, edge_binds)
   "pub fn "
   <> fn_name

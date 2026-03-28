@@ -25,8 +25,8 @@ import gleamgen/types as gtypes
 import schema_definition/predicate_parser
 import schema_definition/schema_definition.{
   type Query, type QueryParameter, type SchemaDefinition, AgeFn, Call, Compare,
-  ComplexRecursive, CustomOrder, Eq, ExcludeIfMissing, ExcludeIfMissingFn,
-  Field, Ge, Gt, Le, Lt, Ne, NullableFn, Param, Predicate, Query, QueryParameter,
+  ComplexRecursive, CustomOrder, Eq, ExcludeIfMissing, ExcludeIfMissingFn, Field,
+  Ge, Gt, Le, Lt, Ne, NullableFn, Param, Predicate, Query, QueryParameter,
 }
 
 fn quote_ident(s: String) -> String {
@@ -281,7 +281,10 @@ fn ensure_decode_import(text: String) -> String {
 }
 
 fn ensure_list_import(text: String) -> String {
-  case string.contains(text, "list.") && !string.contains(text, "import gleam/list") {
+  case
+    string.contains(text, "list.")
+    && !string.contains(text, "import gleam/list")
+  {
     False -> text
     True -> {
       case string.split(text, "\n") {
@@ -750,9 +753,7 @@ pub fn generate_api_db_outputs(
             list.find(def.predicate_functions, fn(f) { f.name == pred_fn_name })
           {
             Error(_) ->
-              Error(
-                "predicate function not found in schema: " <> pred_fn_name,
-              )
+              Error("predicate function not found in schema: " <> pred_fn_name)
             Ok(pred_fn) -> {
               case predicate_parser.parse(pred_fn) {
                 Error(e) ->
@@ -804,8 +805,8 @@ pub fn generate_api_db_outputs(
                         pred_spec.root_entity_type,
                       ),
                       row_decoder_fn: string.lowercase(
-                          pred_spec.root_entity_type,
-                        )
+                        pred_spec.root_entity_type,
+                      )
                         <> "_with_magic_row_decoder",
                       select_cols_sql: select_cols_sql,
                       root_table: string.lowercase(pred_spec.root_entity_type),
@@ -853,8 +854,7 @@ pub fn generate_api_db_outputs(
   )
 
   let raw_query_text =
-    raw_query_text
-    <> string.join(list.reverse(complex_filter_parts), "")
+    raw_query_text <> string.join(list.reverse(complex_filter_parts), "")
   let raw_query_text =
     raw_query_text
     |> ensure_decode_import
