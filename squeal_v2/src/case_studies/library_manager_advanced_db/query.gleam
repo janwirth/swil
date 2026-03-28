@@ -21,8 +21,8 @@
 ////     where rel."trackbucket_id" = tb."id"
 ////     and t."id" = ?)
 
-import case_studies/library_manager_advanced_schema as schema
 import case_studies/library_manager_advanced_db/row
+import case_studies/library_manager_advanced_schema as schema
 import dsl/dsl
 import gleam/dynamic/decode
 import gleam/list
@@ -33,7 +33,9 @@ import sqlight
 // JSON decoders for the wire filter types
 // =============================================================================
 
-pub fn filter_expression_decoder() -> decode.Decoder(schema.FilterExpressionScalar) {
+pub fn filter_expression_decoder() -> decode.Decoder(
+  schema.FilterExpressionScalar,
+) {
   bool_filter_decoder(tag_expression_decoder())
 }
 
@@ -140,57 +142,53 @@ fn tag_predicate_to_sql(
   root_alias: String,
 ) -> #(String, List(sqlight.Value)) {
   case leaf {
-    schema.Has(tag_id: tag_id) ->
-      #(
-        "exists (select 1"
-          <> " from \"trackbucket_tag\" as rel"
-          <> " join \"tag\" as t on t.\"id\" = rel.\"tag_id\" and t.\"deleted_at\" is null"
-          <> " where rel.\"trackbucket_id\" = "
-          <> root_alias
-          <> ".\"id\""
-          <> " and t.\"id\" = ?"
-          <> ")",
-        [sqlight.int(tag_id)],
-      )
-    schema.IsAtLeast(tag_id: tag_id, value: value) ->
-      #(
-        "exists (select 1"
-          <> " from \"trackbucket_tag\" as rel"
-          <> " join \"tag\" as t on t.\"id\" = rel.\"tag_id\" and t.\"deleted_at\" is null"
-          <> " where rel.\"trackbucket_id\" = "
-          <> root_alias
-          <> ".\"id\""
-          <> " and t.\"id\" = ?"
-          <> " and rel.\"value\" >= ?"
-          <> ")",
-        [sqlight.int(tag_id), sqlight.int(value)],
-      )
-    schema.IsAtMost(tag_id: tag_id, value: value) ->
-      #(
-        "exists (select 1"
-          <> " from \"trackbucket_tag\" as rel"
-          <> " join \"tag\" as t on t.\"id\" = rel.\"tag_id\" and t.\"deleted_at\" is null"
-          <> " where rel.\"trackbucket_id\" = "
-          <> root_alias
-          <> ".\"id\""
-          <> " and t.\"id\" = ?"
-          <> " and rel.\"value\" <= ?"
-          <> ")",
-        [sqlight.int(tag_id), sqlight.int(value)],
-      )
-    schema.IsEqualTo(tag_id: tag_id, value: value) ->
-      #(
-        "exists (select 1"
-          <> " from \"trackbucket_tag\" as rel"
-          <> " join \"tag\" as t on t.\"id\" = rel.\"tag_id\" and t.\"deleted_at\" is null"
-          <> " where rel.\"trackbucket_id\" = "
-          <> root_alias
-          <> ".\"id\""
-          <> " and t.\"id\" = ?"
-          <> " and rel.\"value\" = ?"
-          <> ")",
-        [sqlight.int(tag_id), sqlight.int(value)],
-      )
+    schema.Has(tag_id: tag_id) -> #(
+      "exists (select 1"
+        <> " from \"trackbucket_tag\" as rel"
+        <> " join \"tag\" as t on t.\"id\" = rel.\"tag_id\" and t.\"deleted_at\" is null"
+        <> " where rel.\"trackbucket_id\" = "
+        <> root_alias
+        <> ".\"id\""
+        <> " and t.\"id\" = ?"
+        <> ")",
+      [sqlight.int(tag_id)],
+    )
+    schema.IsAtLeast(tag_id: tag_id, value: value) -> #(
+      "exists (select 1"
+        <> " from \"trackbucket_tag\" as rel"
+        <> " join \"tag\" as t on t.\"id\" = rel.\"tag_id\" and t.\"deleted_at\" is null"
+        <> " where rel.\"trackbucket_id\" = "
+        <> root_alias
+        <> ".\"id\""
+        <> " and t.\"id\" = ?"
+        <> " and rel.\"value\" >= ?"
+        <> ")",
+      [sqlight.int(tag_id), sqlight.int(value)],
+    )
+    schema.IsAtMost(tag_id: tag_id, value: value) -> #(
+      "exists (select 1"
+        <> " from \"trackbucket_tag\" as rel"
+        <> " join \"tag\" as t on t.\"id\" = rel.\"tag_id\" and t.\"deleted_at\" is null"
+        <> " where rel.\"trackbucket_id\" = "
+        <> root_alias
+        <> ".\"id\""
+        <> " and t.\"id\" = ?"
+        <> " and rel.\"value\" <= ?"
+        <> ")",
+      [sqlight.int(tag_id), sqlight.int(value)],
+    )
+    schema.IsEqualTo(tag_id: tag_id, value: value) -> #(
+      "exists (select 1"
+        <> " from \"trackbucket_tag\" as rel"
+        <> " join \"tag\" as t on t.\"id\" = rel.\"tag_id\" and t.\"deleted_at\" is null"
+        <> " where rel.\"trackbucket_id\" = "
+        <> root_alias
+        <> ".\"id\""
+        <> " and t.\"id\" = ?"
+        <> " and rel.\"value\" = ?"
+        <> ")",
+      [sqlight.int(tag_id), sqlight.int(value)],
+    )
   }
 }
 
@@ -220,7 +218,12 @@ pub fn query_tracks_by_view_config(
   filter: schema.FilterExpressionScalar,
 ) -> Result(List(#(schema.TrackBucket, dsl.MagicFields)), sqlight.Error) {
   let #(sql, binds) = query_tracks_by_view_config_sql_with(filter)
-  sqlight.query(sql, on: conn, with: binds, expecting: row.trackbucket_with_magic_row_decoder())
+  sqlight.query(
+    sql,
+    on: conn,
+    with: binds,
+    expecting: row.trackbucket_with_magic_row_decoder(),
+  )
 }
 
 /// List up to 100 recently edited trackbucket rows (no filter).

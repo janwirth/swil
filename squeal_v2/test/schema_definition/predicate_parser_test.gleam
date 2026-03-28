@@ -23,9 +23,7 @@ pub fn main() -> Nil {
 
 fn load_advanced_schema() {
   let assert Ok(src) =
-    simplifile.read(
-      "src/case_studies/library_manager_advanced_schema.gleam",
-    )
+    simplifile.read("src/case_studies/library_manager_advanced_schema.gleam")
   let assert Ok(def) = schema_parser.parse_module(src)
   def
 }
@@ -259,7 +257,8 @@ pub fn error_missing_return_annotation_test() {
       )
   }
 }"
-  let assert Error(sd.UnsupportedSchema(_, msg)) = schema_parser.parse_module(src)
+  let assert Error(sd.UnsupportedSchema(_, msg)) =
+    schema_parser.parse_module(src)
   // The error should mention the function name
   assert string.contains(msg, "predicate_no_return")
 }

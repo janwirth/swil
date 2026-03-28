@@ -18,10 +18,10 @@
 //// - Root table alias in SQL: `tb`;  junction alias: `rel`;  target alias: `t`.
 
 import generators/api/complex_filter_ir.{
-  type BoolSubExpr, type ComplexFilterPredicateSpec, type SubLeaf, type SubOperator,
-  BoundParam, EdgeAttribAccess, EdgeMagicAccess, LiteralBool, LiteralFloat,
-  LiteralInt, LiteralString, SubAnd, SubCompare, SubEq, SubGe, SubGt, SubLe,
-  SubLt, SubNe, SubNot, SubOr, TargetMagicAccess,
+  type BoolSubExpr, type ComplexFilterPredicateSpec, type SubLeaf,
+  type SubOperator, BoundParam, EdgeAttribAccess, EdgeMagicAccess, LiteralBool,
+  LiteralFloat, LiteralInt, LiteralString, SubAnd, SubCompare, SubEq, SubGe,
+  SubGt, SubLe, SubLt, SubNe, SubNot, SubOr, TargetMagicAccess,
 }
 import glance
 import gleam/float
@@ -221,11 +221,19 @@ fn emit_predicate_arm(
   //   )
   let exists_prefix =
     "exists (select 1"
-    <> " from \\\"" <> junction_table <> "\\\" as rel"
-    <> " join \\\"" <> target_table <> "\\\" as t"
-    <> " on t.\\\"id\\\" = rel.\\\"" <> target_fk_col <> "\\\""
+    <> " from \\\""
+    <> junction_table
+    <> "\\\" as rel"
+    <> " join \\\""
+    <> target_table
+    <> "\\\" as t"
+    <> " on t.\\\"id\\\" = rel.\\\""
+    <> target_fk_col
+    <> "\\\""
     <> " and t.\\\"deleted_at\\\" is null"
-    <> " where rel.\\\"" <> root_fk_col <> "\\\" = "
+    <> " where rel.\\\""
+    <> root_fk_col
+    <> "\\\" = "
   "    "
   <> pattern
   <> " -> #(\n"
@@ -307,8 +315,10 @@ fn leaf_parts(
     // Target row magic fields → `t."field"`
     TargetMagicAccess(field) -> #("t.\\\"" <> field <> "\\\"", [])
     // Edge attribute column → `rel."field"` (NULL exclusion via 3VL)
-    EdgeAttribAccess(field, _missing_behavior) ->
-      #("rel.\\\"" <> field <> "\\\"", [])
+    EdgeAttribAccess(field, _missing_behavior) -> #(
+      "rel.\\\"" <> field <> "\\\"",
+      [],
+    )
     // Edge junction row magic fields → `rel."field"`
     EdgeMagicAccess(field) -> #("rel.\\\"" <> field <> "\\\"", [])
     // Bound constructor parameter → `?` placeholder + Gleam bind expression
@@ -332,10 +342,7 @@ fn operator_sql(op: SubOperator) -> String {
   }
 }
 
-fn bind_expr_for(
-  name: String,
-  arm: complex_filter_ir.PredicateArm,
-) -> String {
+fn bind_expr_for(name: String, arm: complex_filter_ir.PredicateArm) -> String {
   case list.find(arm.bound_fields, fn(bf) { bf.name == name }) {
     Ok(bf) -> sqlight_bind_of(name, bf.type_)
     Error(_) -> "sqlight.text(\"unknown_" <> name <> "\")"

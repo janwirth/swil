@@ -92,10 +92,7 @@ fn two_arm_spec() -> ir.ComplexFilterPredicateSpec {
         ),
       ]),
     )
-  ir.ComplexFilterPredicateSpec(
-    ..has_spec(),
-    arms: [has_arm, is_at_least_arm],
-  )
+  ir.ComplexFilterPredicateSpec(..has_spec(), arms: [has_arm, is_at_least_arm])
 }
 
 fn default_ctx() -> csql.ComplexFilterGenCtx {
@@ -145,7 +142,10 @@ pub fn filter_to_sql_handles_not_test() {
 
 pub fn filter_to_sql_delegates_to_predicate_test() {
   let src = emit(has_spec())
-  assert string.contains(src, "dsl.Predicate(leaf) -> tag_predicate_to_sql(leaf")
+  assert string.contains(
+    src,
+    "dsl.Predicate(leaf) -> tag_predicate_to_sql(leaf",
+  )
 }
 
 // =============================================================================

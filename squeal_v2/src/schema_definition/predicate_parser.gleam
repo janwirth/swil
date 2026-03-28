@@ -23,8 +23,8 @@ import generators/api/complex_filter_ir.{
   type EdgeMissingBehavior, type PredicateArm, type SubLeaf, type SubOperator,
   BoundField, BoundParam, ComplexFilterPredicateSpec, EdgeAttribAccess,
   EdgeMagicAccess, ExcludeIfMissing, LiteralBool, LiteralFloat, LiteralInt,
-  LiteralString, Nullable, PredicateArm, SubAnd, SubCompare, SubEq, SubGe,
-  SubGt, SubLe, SubLt, SubNe, SubNot, SubOr, TargetMagicAccess,
+  LiteralString, Nullable, PredicateArm, SubAnd, SubCompare, SubEq, SubGe, SubGt,
+  SubLe, SubLt, SubNe, SubNot, SubOr, TargetMagicAccess,
 }
 import glance
 import gleam/float
@@ -39,16 +39,21 @@ import schema_definition/schema_definition.{type ParseError, UnsupportedSchema}
 // =============================================================================
 
 /// Parse one `predicate_*` function into a `ComplexFilterPredicateSpec`.
-pub fn parse(f: glance.Function) -> Result(ComplexFilterPredicateSpec, ParseError) {
+pub fn parse(
+  f: glance.Function,
+) -> Result(ComplexFilterPredicateSpec, ParseError) {
   use #(root_param_name, root_entity_type) <- result.try(extract_root_param(f))
   use #(leaf_param_name, leaf_param_type) <- result.try(extract_leaf_param(f))
   use #(target_entity_type, edge_attribs_type) <- result.try(
     extract_return_types(f),
   )
   use case_expr <- result.try(extract_case_body(f, leaf_param_name))
-  use #(relationship_field, arms) <- result.try(
-    parse_case_arms(f, case_expr, root_param_name, leaf_param_name),
-  )
+  use #(relationship_field, arms) <- result.try(parse_case_arms(
+    f,
+    case_expr,
+    root_param_name,
+    leaf_param_name,
+  ))
   Ok(ComplexFilterPredicateSpec(
     fn_name: f.name,
     root_param_name: root_param_name,
@@ -105,9 +110,7 @@ fn extract_leaf_param(
         None ->
           err(
             f,
-            "second parameter of "
-              <> f.name
-              <> " must have a type annotation",
+            "second parameter of " <> f.name <> " must have a type annotation",
           )
       }
     _ -> err(f, f.name <> " must have exactly two parameters")
@@ -155,10 +158,15 @@ fn unwrap_boolean_filter(t: glance.Type) -> Option(glance.Type) {
 
 fn unwrap_belongs_to(t: glance.Type) -> Option(#(String, String)) {
   case t {
-    glance.NamedType(_, "BelongsTo", _, [
-      glance.NamedType(_, target_name, _, []),
-      glance.NamedType(_, edge_name, _, []),
-    ]) -> Some(#(target_name, edge_name))
+    glance.NamedType(
+      _,
+      "BelongsTo",
+      _,
+      [
+        glance.NamedType(_, target_name, _, []),
+        glance.NamedType(_, edge_name, _, []),
+      ],
+    ) -> Some(#(target_name, edge_name))
     _ -> None
   }
 }
@@ -173,7 +181,10 @@ fn extract_case_body(
 ) -> Result(glance.Expression, ParseError) {
   case tail_expression(f.body) {
     None ->
-      err(f, f.name <> " body must be a single `case` expression on the leaf param")
+      err(
+        f,
+        f.name <> " body must be a single `case` expression on the leaf param",
+      )
     Some(expr) ->
       case normalize(expr) {
         glance.Case(_, [subject], _clauses) ->
@@ -182,19 +193,13 @@ fn extract_case_body(
             _ ->
               err(
                 f,
-                f.name
-                  <> " case subject must be `"
-                  <> leaf_param_name
-                  <> "`",
+                f.name <> " case subject must be `" <> leaf_param_name <> "`",
               )
           }
         _ ->
           err(
             f,
-            f.name
-              <> " body must be `case "
-              <> leaf_param_name
-              <> " { ... }`",
+            f.name <> " body must be `case " <> leaf_param_name <> " { ... }`",
           )
       }
   }
@@ -218,9 +223,11 @@ fn parse_case_arms(
         _ ->
           list.try_fold(clauses, #("", []), fn(acc, clause) {
             let #(seen_rel_field, arms_so_far) = acc
-            use #(rel_field, arm) <- result.try(
-              parse_arm(f, clause, root_param_name),
-            )
+            use #(rel_field, arm) <- result.try(parse_arm(
+              f,
+              clause,
+              root_param_name,
+            ))
             case seen_rel_field == "" || seen_rel_field == rel_field {
               True -> Ok(#(rel_field, list.append(arms_so_far, [arm])))
               False ->
@@ -251,12 +258,25 @@ fn parse_arm(
   root_param_name: String,
 ) -> Result(#(String, PredicateArm), ParseError) {
   let glance.Clause(patterns: patterns, guard: _guard, body: body_expr) = clause
-  use #(constructor_name, bound_fields) <- result.try(
-    parse_constructor_pattern(f, patterns),
-  )
-  use #(rel_field, target_param, target_magic_param, edge_attribs_param, edge_magic_param, body_sub_expr) <- result.try(
-    parse_any_call(f, normalize(body_expr), root_param_name, bound_fields),
-  )
+  use #(constructor_name, bound_fields) <- result.try(parse_constructor_pattern(
+    f,
+    patterns,
+  ))
+  use
+    #(
+      rel_field,
+      target_param,
+      target_magic_param,
+      edge_attribs_param,
+      edge_magic_param,
+      body_sub_expr,
+    )
+  <- result.try(parse_any_call(
+    f,
+    normalize(body_expr),
+    root_param_name,
+    bound_fields,
+  ))
   Ok(#(
     rel_field,
     PredicateArm(
@@ -291,11 +311,7 @@ fn parse_constructor_pattern(
               <> " each arm pattern must be a constructor like `Has(tag_id: tag_id)`",
           )
       }
-    _ ->
-      err(
-        f,
-        f.name <> " each arm must have exactly one pattern",
-      )
+    _ -> err(f, f.name <> " each arm must have exactly one pattern")
   }
 }
 
@@ -313,7 +329,8 @@ fn parse_bound_field(
     glance.UnlabelledField(item: glance.PatternDiscard(_, _)) ->
       err(
         f,
-        f.name <> " unlabelled discards in constructor patterns are not supported",
+        f.name
+          <> " unlabelled discards in constructor patterns are not supported",
       )
     glance.ShorthandField(label: label, ..) ->
       Ok(BoundField(name: label, type_: placeholder_int_type()))
@@ -350,16 +367,24 @@ fn parse_any_call(
               glance.UnlabelledField(path_expr),
               glance.UnlabelledField(glance.Fn(_, fn_params, _, fn_body)),
             ] -> {
-              use rel_field <- result.try(
-                parse_relationship_path(f, path_expr, root_param_name),
-              )
-              use #(p1, p2, p3, p4) <- result.try(
-                parse_four_lambda_params(f, fn_params),
-              )
+              use rel_field <- result.try(parse_relationship_path(
+                f,
+                path_expr,
+                root_param_name,
+              ))
+              use #(p1, p2, p3, p4) <- result.try(parse_four_lambda_params(
+                f,
+                fn_params,
+              ))
               let bound_names = list.map(bound_fields, fn(bf) { bf.name })
-              use body <- result.try(
-                parse_bool_body(f, tail_expression(fn_body), p2, p3, p4, bound_names),
-              )
+              use body <- result.try(parse_bool_body(
+                f,
+                tail_expression(fn_body),
+                p2,
+                p3,
+                p4,
+                bound_names,
+              ))
               Ok(#(rel_field, p1, p2, p3, p4, body))
             }
             _ ->
@@ -385,7 +410,9 @@ fn parse_relationship_path(
       _,
       glance.FieldAccess(_, glance.Variable(_, root_name), "relationships"),
       field_name,
-    ) if root_name == root_param_name -> Ok(field_name)
+    )
+      if root_name == root_param_name
+    -> Ok(field_name)
     _ ->
       err(
         f,

@@ -82,10 +82,7 @@ pub fn migration(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
     conn,
   ))
   use _ <- result.try(sqlight.exec(create_trackbucket_tag_sql, conn))
-  use _ <- result.try(sqlight.exec(
-    create_trackbucket_tag_fk_indexes_sql,
-    conn,
-  ))
+  use _ <- result.try(sqlight.exec(create_trackbucket_tag_fk_indexes_sql, conn))
   use _ <- result.try(sqlight.exec(create_importedtrack_sql, conn))
   use _ <- result.try(sqlight.exec(create_tab_sql, conn))
   Ok(Nil)
