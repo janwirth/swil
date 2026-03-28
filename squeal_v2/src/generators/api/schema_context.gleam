@@ -149,13 +149,6 @@ pub fn api_schema_exposing_all(def: SchemaDefinition) -> String {
     def.scalars
     |> list.map(fn(s) { s.type_name })
     |> uniq_sorted_strings
-  let type_exports =
-    list.flatten([
-      list.map(scalar_names, fn(s) { "type " <> s }),
-      list.map(entity_names, fn(e) { "type " <> e }),
-      list.map(rel_names, fn(r) { "type " <> r }),
-    ])
-    |> uniq_sorted_strings
   let id_variant_names =
     def.identities
     |> list.flat_map(fn(i) { list.map(i.variants, fn(v) { v.variant_name }) })
@@ -172,7 +165,34 @@ pub fn api_schema_exposing_all(def: SchemaDefinition) -> String {
       rel_names,
     ])
     |> uniq_sorted_strings
+  let type_exports =
+    list.flatten([
+      list.map(scalar_names, fn(s) { "type " <> s }),
+      list.map(entity_names, fn(e) { "type " <> e }),
+      list.map(rel_names, fn(r) { "type " <> r }),
+    ])
+    |> uniq_sorted_strings
   string.join(list.append(type_exports, value_exports), ", ")
+}
+
+/// Schema import list for modules that only mention entity and scalar types in signatures
+/// (not value constructors, identity variants, or relationship containers — those belong in `row`).
+pub fn api_schema_types_only_exposing(def: SchemaDefinition) -> String {
+  let entity_names =
+    def.entities
+    |> list.map(fn(e) { e.type_name })
+    |> uniq_sorted_strings
+  let scalar_names =
+    def.entities
+    |> list.flat_map(fn(e) { entity_used_scalar_type_names(def, e) })
+    |> uniq_sorted_strings
+  let type_exports =
+    list.flatten([
+      list.map(scalar_names, fn(s) { "type " <> s }),
+      list.map(entity_names, fn(e) { "type " <> e }),
+    ])
+    |> uniq_sorted_strings
+  string.join(type_exports, ", ")
 }
 
 pub fn find_identity(
@@ -196,6 +216,34 @@ pub fn schema_uses_calendar_date(def: SchemaDefinition) -> Bool {
   })
 }
 
+fn type_mentions_timestamp(t: glance.Type) -> Bool {
+  case t {
+    glance.NamedType(_, "Timestamp", _, _) -> True
+    glance.NamedType(_, "Option", _, [inner]) ->
+      type_mentions_timestamp(inner)
+    glance.NamedType(_, "List", _, [inner]) ->
+      type_mentions_timestamp(inner)
+    glance.NamedType(_, _, _, params) ->
+      list.any(params, type_mentions_timestamp)
+    glance.TupleType(_, els) -> list.any(els, type_mentions_timestamp)
+    glance.FunctionType(_, args, ret) ->
+      list.any(args, type_mentions_timestamp) || type_mentions_timestamp(ret)
+    glance.VariableType(_, _) | glance.HoleType(_, _) -> False
+  }
+}
+
+pub fn schema_uses_timestamp(def: SchemaDefinition) -> Bool {
+  list.any(def.entities, fn(e) {
+    list.any(e.fields, fn(f) { type_mentions_timestamp(f.type_) })
+    || {
+      let id = find_identity(def, e)
+      list.any(id.variants, fn(v) {
+        list.any(v.fields, fn(f) { type_mentions_timestamp(f.type_) })
+      })
+    }
+  })
+}
+
 pub fn entity_used_enum_scalars(
   def: SchemaDefinition,
   entity: EntityDefinition,
@@ -209,4 +257,22 @@ pub fn entity_used_enum_scalars(
 
 pub fn schema_uses_non_enum_scalars(def: SchemaDefinition) -> Bool {
   list.any(def.scalars, fn(s) { !s.enum_only })
+}
+
+/// True when the API facade forwards enum scalar codec helpers from `row`.
+pub fn api_facade_imports_row_module(def: SchemaDefinition) -> Bool {
+  list.any(def.entities, fn(e) {
+    case entity_used_enum_scalars(def, e) {
+      [] -> False
+      [_, ..] -> True
+    }
+  })
+}
+
+/// Row decoders use `None` in bodies when JSON-backed scalars or relationship graphs are present.
+pub fn row_decoder_mentions_option_none(def: SchemaDefinition) -> Bool {
+  schema_uses_non_enum_scalars(def)
+  || list.any(def.entities, fn(e) {
+    list.any(e.fields, fn(f) { f.label == "relationships" })
+  })
 }

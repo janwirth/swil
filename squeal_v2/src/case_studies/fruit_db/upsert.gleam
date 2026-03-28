@@ -1,11 +1,9 @@
 import api_help
 import dsl/dsl as dsl
 import case_studies/fruit_db/row
-import case_studies/fruit_schema.{type Fruit, Fruit, ByName}
-import gleam/dynamic/decode
-import gleam/option.{type Option, None, Some}
+import case_studies/fruit_schema.{type Fruit}
+import gleam/option.{type Option}
 import gleam/result
-import gleam/time/timestamp
 import sqlight
 
 const update_fruit_by_name_sql = "update \"fruit\" set \"color\" = ?, \"price\" = ?, \"quantity\" = ?, \"updated_at\" = ? where \"name\" = ? and \"deleted_at\" is null returning \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"

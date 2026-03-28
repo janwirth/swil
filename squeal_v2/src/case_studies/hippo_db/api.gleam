@@ -5,9 +5,8 @@ import case_studies/hippo_db/migration
 import case_studies/hippo_db/query
 import case_studies/hippo_db/row
 import case_studies/hippo_db/upsert
-import case_studies/hippo_schema.{type HumanRelationships, type Human, type HippoRelationships, type Hippo, type GenderScalar, Male, HumanRelationships, Human, HippoRelationships, Hippo, Female, ByNameAndDateOfBirth, ByEmail}
-import gleam/option.{type Option, None, Some}
-import gleam/result
+import case_studies/hippo_schema.{type Human, type Hippo, type GenderScalar}
+import gleam/option.{type Option}
 import gleam/time/calendar.{type Date, Date as CalDate, month_from_int, month_to_int}
 import sqlight
 

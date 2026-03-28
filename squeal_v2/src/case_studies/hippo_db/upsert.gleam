@@ -1,9 +1,8 @@
 import api_help
 import dsl/dsl as dsl
 import case_studies/hippo_db/row
-import case_studies/hippo_schema.{type HumanRelationships, type Human, type HippoRelationships, type Hippo, type GenderScalar, Male, HumanRelationships, Human, HippoRelationships, Hippo, Female, ByNameAndDateOfBirth, ByEmail}
-import gleam/dynamic/decode
-import gleam/option.{type Option, None, Some}
+import case_studies/hippo_schema.{type Human, type Hippo, type GenderScalar}
+import gleam/option.{type Option}
 import gleam/result
 import gleam/time/calendar.{type Date}
 import gleam/time/timestamp

@@ -7,9 +7,7 @@ import schema_definition/classify
 import schema_definition/entity
 import schema_definition/identity
 import schema_definition/parse_error.{
-  type ParseError,
-  UnsupportedSchema,
-  hint_public_type_suffixes_or_entity,
+  type ParseError, UnsupportedSchema, hint_public_type_suffixes_or_entity,
 }
 import schema_definition/query
 import schema_definition/schema_aggregate.{
@@ -98,4 +96,3 @@ fn validate_identity_types_linked_to_entities(
     }
   })
 }
-

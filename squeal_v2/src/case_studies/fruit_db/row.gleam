@@ -2,7 +2,7 @@ import api_help
 import dsl/dsl as dsl
 import case_studies/fruit_schema.{type Fruit, Fruit, ByName}
 import gleam/dynamic/decode
-import gleam/option.{type Option, None, Some}
+import gleam/option.{type Option, Some}
 
 pub fn fruit_with_magic_row_decoder() -> decode.Decoder(#(Fruit, dsl.MagicFields)) {
   use name <- decode.field(0, decode.string)

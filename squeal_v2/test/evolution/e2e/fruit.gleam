@@ -1,8 +1,6 @@
 import case_studies/fruit_db/api
-import gleam/io
 import gleam/list
 import gleam/option.{Some}
-import gleam/string
 import sqlight
 
 pub fn fruit_e2e_test() {

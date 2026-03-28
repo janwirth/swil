@@ -1,8 +1,7 @@
 import case_studies/hippo_db/row
 import dsl/dsl as dsl
 import gleam/option.{type Option, None, Some}
-import case_studies/hippo_schema.{type HumanRelationships, type Human, type HippoRelationships, type Hippo, type GenderScalar, Male, HumanRelationships, Human, HippoRelationships, Hippo, Female, ByNameAndDateOfBirth, ByEmail}
-import gleam/result
+import case_studies/hippo_schema.{type Human, type Hippo, type GenderScalar}
 import sqlight
 
 const hippos_by_gender_sql = "select \"name\", \"gender\", \"date_of_birth\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"hippo\" where \"deleted_at\" is null and \"gender\" = ? order by \"name\" desc;"

@@ -3,11 +3,9 @@ import dsl/dsl as dsl
 import case_studies/fruit_db/get
 import case_studies/fruit_db/migration
 import case_studies/fruit_db/query
-import case_studies/fruit_db/row
 import case_studies/fruit_db/upsert
-import case_studies/fruit_schema.{type Fruit, Fruit, ByName}
-import gleam/option.{type Option, None, Some}
-import gleam/result
+import case_studies/fruit_schema.{type Fruit}
+import gleam/option.{type Option}
 import sqlight
 
 pub fn migrate(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {

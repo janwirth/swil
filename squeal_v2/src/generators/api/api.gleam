@@ -218,6 +218,78 @@ fn ensure_option_import(text: String) -> String {
   }
 }
 
+/// gleamgen may omit `type Entity` when the value constructor shares the same name, but row decoders need the type in scope.
+fn ensure_row_schema_entity_type_imports(
+  text: String,
+  def: SchemaDefinition,
+) -> String {
+  list.fold(def.entities, text, fn(acc, ent) {
+    let name = ent.type_name
+    let typ = "type " <> name
+    case string.contains(acc, typ) {
+      True -> acc
+      False -> {
+        let open_comma = "{" <> name <> ","
+        let open_solo = "{" <> name <> "}"
+        case string.contains(acc, open_comma) {
+          True ->
+            string.replace(
+              acc,
+              open_comma,
+              "{" <> typ <> ", " <> name <> ",",
+            )
+          False ->
+            case string.contains(acc, open_solo) {
+              True ->
+                string.replace(
+                  acc,
+                  open_solo,
+                  "{" <> typ <> ", " <> name <> "}",
+                )
+              False -> acc
+            }
+        }
+      }
+    }
+  })
+}
+
+/// gleamgen may shrink the schema import to types only; row decoders need constructors and identity variants.
+fn ensure_row_schema_import_exposing(
+  text: String,
+  schema_path: String,
+  exposing: String,
+) -> String {
+  let open = "import " <> schema_path <> ".{"
+  let replacement = "import " <> schema_path <> ".{" <> exposing <> "}"
+  case string.split_once(text, open) {
+    Error(Nil) -> replacement <> "\n" <> text
+    Ok(#(before, after_open)) -> {
+      case string.split_once(after_open, "}") {
+        Error(Nil) -> text
+        Ok(#(_old_inner, rest)) -> before <> open <> exposing <> "}" <> rest
+      }
+    }
+  }
+}
+
+/// gleamgen drops `import gleam/dynamic/decode` when only raw decoder pipelines reference `decode`.
+fn ensure_decode_import(text: String) -> String {
+  case
+    string.contains(text, "decode.")
+    && !string.contains(text, "import gleam/dynamic/decode")
+  {
+    False -> text
+    True -> {
+      case string.split(text, "\n") {
+        [] -> text
+        [first, ..rest] ->
+          first <> "\nimport gleam/dynamic/decode\n" <> string.join(rest, "\n")
+      }
+    }
+  }
+}
+
 fn render_module(m: gmod.Module) -> String {
   m
   |> gmod.render(grender.default_context())
@@ -261,6 +333,7 @@ pub fn generate_api_db_outputs(
   let assert [first_entity, ..] = def.entities
   let ctx = dec.type_ctx(schema_path, def)
   let exposing = schema_context.api_schema_exposing_all(def)
+  let types_only_exposing = schema_context.api_schema_types_only_exposing(def)
   let migration_path = schema_context.migration_import_path(schema_path)
   let db_path = schema_context.db_module_path_from_schema(schema_path)
   let table = string.lowercase(first_entity.type_name)
@@ -369,7 +442,7 @@ pub fn generate_api_db_outputs(
       db_path,
       schema_path,
       def,
-      exposing,
+      types_only_exposing,
       fn() {
         upsert_const_entries
         |> fold_constants(fold_fn_chunks(upsert_fn_chunks, gmod.eof()))
@@ -436,7 +509,7 @@ pub fn generate_api_db_outputs(
       db_path,
       schema_path,
       def,
-      exposing,
+      types_only_exposing,
       fn() {
         get_const_entries
         |> fold_constants(fold_fn_chunks(get_fn_chunks, gmod.eof()))
@@ -555,7 +628,7 @@ pub fn generate_api_db_outputs(
       db_path,
       schema_path,
       def,
-      exposing,
+      types_only_exposing,
       fn() {
         query_const_entries
         |> fold_constants(fold_fn_chunks(query_fn_chunks, gmod.eof()))
@@ -575,14 +648,23 @@ pub fn generate_api_db_outputs(
       db_path,
       schema_path,
       def,
-      exposing,
+      types_only_exposing,
       fn() { fold_fn_chunks(facade_chunks, gmod.eof()) },
     )
 
+  let row_text = render_module(row_mod)
+  let row_text = ensure_row_schema_import_exposing(row_text, schema_path, exposing)
+  let row_text = ensure_api_help_import(row_text)
+  let row_text = ensure_decode_import(row_text)
+  let row_text = ensure_option_import(row_text)
+  let row_text = ensure_dsl_import(row_text)
+  let row_text = ensure_row_schema_entity_type_imports(row_text, def)
   ApiDbOutputs(
-    row: render_module(row_mod) |> ensure_dsl_import,
+    row: row_text,
     get: ensure_dsl_import(render_module(get_mod)),
-    upsert: ensure_dsl_import(render_module(upsert_mod)),
+    upsert: render_module(upsert_mod)
+      |> ensure_api_help_import
+      |> ensure_dsl_import,
     delete: ensure_api_help_import(render_module(delete_mod)),
     query: render_module(query_mod)
       |> ensure_option_import

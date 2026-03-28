@@ -293,8 +293,15 @@ fn entity_function_chunks(
   ]
 }
 
+fn stub_label(label: String) -> String {
+  case string.starts_with(label, "_") {
+    True -> label
+    False -> "_" <> label
+  }
+}
+
 fn conn_param() -> gparam.Parameter(gtypes.Dynamic) {
-  gparam.new("conn", gtypes.raw("sqlight.Connection"))
+  gparam.new("_conn", gtypes.raw("sqlight.Connection"))
 }
 
 fn fold_queries_reversed(
@@ -331,7 +338,7 @@ fn generic_query_module(
     })
     |> list.map(fn(p) {
       gparam.new(
-        query_param_label(p),
+        stub_label(query_param_label(p)),
         gtypes.raw(render_type(p.type_, ctx)),
       )
     })
@@ -398,7 +405,7 @@ fn hippos_by_gender_module(schema_alias: String, acc: gmod.Module) -> gmod.Modul
   let fn_params = [
     conn_param(),
     gparam.new(
-      "gender_to_match",
+      stub_label("gender_to_match"),
       gtypes.raw(schema_alias <> ".GenderScalar"),
     ),
   ]
@@ -497,7 +504,7 @@ fn identity_params(
   ctx: TypeCtx,
 ) -> List(gparam.Parameter(gtypes.Dynamic)) {
   list.map(variant.fields, fn(f) {
-    gparam.new(f.label, gtypes.raw(render_type(f.type_, ctx)))
+    gparam.new(stub_label(f.label), gtypes.raw(render_type(f.type_, ctx)))
   })
 }
 
@@ -516,7 +523,7 @@ fn upsert_or_update_params(
       && !type_is_list(f.type_)
     })
     |> list.map(fn(f) {
-      gparam.new(f.label, gtypes.raw(render_type(f.type_, ctx)))
+      gparam.new(stub_label(f.label), gtypes.raw(render_type(f.type_, ctx)))
     })
   list.append(id_params, extras)
 }

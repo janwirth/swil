@@ -1,41 +1,39 @@
-
-
-type Query (root, filter, order, shape) {
-
+pub type Query(root, filter, order, shape) {
 }
 
-type NotDefined
+pub type NotDefined
 
-type Defined(a)
+pub type Defined(a)
 
-type DuplicateFilterDefined(a)
+pub type DuplicateFilterDefined(a)
 
-type DuplicateOrderDefined(a)
+pub type DuplicateOrderDefined(a)
 
-type DuplicateShapeDefined(a)
+pub type DuplicateShapeDefined(a)
 
-fn query(root: root) -> Query(root, NotDefined, NotDefined, NotDefined) {
+pub fn query(_root: root) -> Query(root, NotDefined, NotDefined, NotDefined) {
+  panic as "phantom type experiment"
 }
 
-fn filter_bool(q: Query(root, NotDefined, NotDefined, shape), filter: Bool) -> Query(root, DuplicateFilterDefined(filter), order, shape) { 
+pub fn filter_bool(_q: Query(root, NotDefined, NotDefined, shape), _filter: Bool) -> Query(root, DuplicateFilterDefined(_filter), order, shape) { 
+  panic as "phantom type experiment"
 }
 
-fn filter_complex(q: Query(root, NotDefined, NotDefined, shape), filter: Bool) -> Query(root, DuplicateFilterDefined(filter), order, shape) { 
+pub fn filter_complex(_q: Query(root, NotDefined, NotDefined, shape), _filter: Bool) -> Query(root, DuplicateFilterDefined(_filter), order, shape) { 
+  panic as "phantom type experiment"
 }
 
-fn order(q: Query(root, filter, NotDefined, shape), order: order) -> Query(root, filter, DuplicateOrderDefined(order), shape) { 
+pub fn order(_q: Query(root, filter, NotDefined, shape), _order: order) -> Query(root, filter, DuplicateOrderDefined(_order), shape) { 
+  panic as "phantom type experiment"
 }
 
-fn shape(q: Query(root, filter, order, NotDefined), shape: shape) -> Query(root, filter, order, DuplicateShapeDefined(shape)) { 
+pub fn shape(_q: Query(root, filter, order, NotDefined), _shape: shape) -> Query(root, filter, order, DuplicateShapeDefined(_shape)) { 
+  panic as "phantom type experiment"
 }
 
-const x = 21
-
-fn my_query() {
-    query(x)
-    |> filter_bool(x == 2)
-    // |> filter(x == 3)
-    |> order(x == 2)
-    |> shape(x == 2)
-    // |> shape(x == 2)
+pub fn my_query() {
+  query(21)
+  |> filter_bool(False)
+  |> order(False)
+  |> shape(False)
 }

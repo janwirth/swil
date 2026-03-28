@@ -6,9 +6,7 @@ import schema_definition/edge_attributes
 import schema_definition/entity
 import schema_definition/identity
 import schema_definition/parse_error.{
-  type ParseError,
-  UnsupportedSchema,
-  hint_public_type_suffixes_or_entity,
+  type ParseError, UnsupportedSchema, hint_public_type_suffixes_or_entity,
 }
 import schema_definition/relationship_container
 import schema_definition/scalar

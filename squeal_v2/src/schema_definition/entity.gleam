@@ -8,9 +8,7 @@ import schema_definition/fields.{
   variant_fields_all_labelled, variant_fields_to_defs,
 }
 import schema_definition/parse_error.{
-  type ParseError,
-  UnsupportedSchema,
-  hint_public_type_suffixes_or_entity,
+  type ParseError, UnsupportedSchema, hint_public_type_suffixes_or_entity,
 }
 
 /// Parses custom types into entity definitions used by schema generation.
@@ -140,7 +138,9 @@ fn parse_identities_type_name(
         None ->
           Error(unsupported(
             ct,
-            "entity " <> ct.name <> " identities field must be a simple type name",
+            "entity "
+              <> ct.name
+              <> " identities field must be a simple type name",
           ))
         Some(id_name) ->
           case string.ends_with(id_name, "Identities") {
@@ -174,7 +174,9 @@ fn require_relationships_type_name_matches(
         None ->
           Error(unsupported(
             ct,
-            "entity " <> ct.name <> " relationships field must be a simple type name",
+            "entity "
+              <> ct.name
+              <> " relationships field must be a simple type name",
           ))
         Some(rel_name) ->
           case string.ends_with(rel_name, "Relationships") {

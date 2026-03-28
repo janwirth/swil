@@ -1,7 +1,6 @@
 import case_studies/fruit_db/row
 import dsl/dsl as dsl
-import case_studies/fruit_schema.{type Fruit, Fruit, ByName}
-import gleam/result
+import case_studies/fruit_schema.{type Fruit}
 import sqlight
 
 const cheap_fruit_sql = "select \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"fruit\" where \"deleted_at\" is null and \"price\" < ? order by \"price\" asc;"

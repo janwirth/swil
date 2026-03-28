@@ -167,3 +167,13 @@ pub fn filter_complex(
   let Query(root: _) = q
   panic as "this is DSL - should never be called"
 }
+
+/// References phantom slot markers so they are not reported as unused private constructors.
+pub fn phantom_query_slot_constructors() {
+  let _ = QueryShapeNotSet
+  let _ = QueryShapeSet
+  let _ = QueryFilterNotSet
+  let _ = QueryFilterSet
+  let _ = QueryOrderNotSet
+  let _ = QueryOrderSet
+}

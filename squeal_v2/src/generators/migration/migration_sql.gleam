@@ -39,11 +39,6 @@ pub fn quote_ident(label: String) -> String {
   sqlite_ident.quote(label)
 }
 
-fn comma_join_quoted(xs: List(String)) -> String {
-  list.map(xs, quote_ident)
-  |> string.join(", ")
-}
-
 /// True when a field’s Gleam type is `List(_)`, so it is stored outside the main row / DDL.
 pub fn type_is_list(t: glance.Type) -> Bool {
   case t {
@@ -96,7 +91,6 @@ fn entity_ddl(schema: SchemaDefinition, entity: EntityDefinition) -> String {
     <> " (\n  "
     <> string.join(all_columns, ",\n  ")
     <> "\n);"
-  let cols = comma_join_quoted(list.map(variant.fields, fn(f) { f.label }))
   let index_suffix =
     list.map(variant.fields, fn(f) { f.label })
     |> string.join("_")

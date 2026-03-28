@@ -184,7 +184,6 @@ fn from_query_parameter(parameter) -> schema_definition.QueryParameter {
   schema_definition.QueryParameter(label:, name:, type_:)
 }
 
-
 fn from_parse_error_mod(
   error: parse_error_mod.ParseError,
 ) -> schema_definition.ParseError {
