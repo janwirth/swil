@@ -1,7 +1,6 @@
 import argv
 import generators/api/api as api_generator
 import generators/migration/migration as migration_generator
-import generators/skeleton as skeleton_generator
 import gleam/io
 import gleam/list
 import gleam/result
@@ -14,17 +13,7 @@ pub fn main() -> Nil {
   glint.run(app(), argv.load().arguments)
 }
 
-/// Backwards-compatible entry when the module is run as `gleam run skeleton …`.
-pub fn main_as_skeleton_module() -> Nil {
-  let args = argv.load().arguments
-  case args {
-    ["--help"] | ["-h"] -> glint.run(app(), args)
-    [path] -> run_generate(path)
-    _ -> glint.run(app(), args)
-  }
-}
-
-/// Read [schema_path], emit `skeleton.gleam`, `migration.gleam`, `row.gleam`, `get.gleam`,
+/// Read [schema_path], emit `migration.gleam`, `row.gleam`, `get.gleam`,
 /// `upsert.gleam`, `delete.gleam`, `query.gleam`, and `api.gleam` under the sibling `*_db` directory.
 pub fn run_generate(schema_path: String) -> Nil {
   case generate_from_schema_path(schema_path) {
@@ -59,7 +48,6 @@ fn generate_from_schema_path(user_path: String) -> Result(Nil, String) {
       "failed to create " <> out_dir <> ": " <> simplifile.describe_error(e)
     }),
   )
-  let skeleton_out = out_dir <> "/skeleton.gleam"
   let migration_out = out_dir <> "/migration.gleam"
   let row_out = out_dir <> "/row.gleam"
   let get_out = out_dir <> "/get.gleam"
@@ -67,15 +55,10 @@ fn generate_from_schema_path(user_path: String) -> Result(Nil, String) {
   let delete_out = out_dir <> "/delete.gleam"
   let query_out = out_dir <> "/query.gleam"
   let api_out = out_dir <> "/api.gleam"
-  use skeleton_text <- result.try(skeleton_generator.generate(
-    schema_import,
-    def,
-  ))
   use api_outputs <- result.try(api_generator.generate_api_db_outputs(
     schema_import,
     def,
   ))
-  use _ <- result.try(write_file(skeleton_out, skeleton_text))
   use _ <- result.try(write_file(row_out, api_outputs.row))
   use _ <- result.try(write_file(get_out, api_outputs.get))
   use _ <- result.try(write_file(upsert_out, api_outputs.upsert))
@@ -89,7 +72,6 @@ fn generate_from_schema_path(user_path: String) -> Result(Nil, String) {
     ),
   )
   use _ <- result.try(write_file(migration_out, migration_text))
-  io.println("wrote " <> skeleton_out)
   io.println("wrote " <> row_out)
   io.println("wrote " <> get_out)
   io.println("wrote " <> upsert_out)
@@ -111,7 +93,7 @@ fn app() -> glint.Glint(Nil) {
   glint.new()
   |> glint.with_name("squeal_v2")
   |> glint.global_help(
-    "Generate squeal DB modules (skeleton, migration, api) from a schema module path.",
+    "Generate squeal DB modules (migration, api) from a schema module path.",
   )
   |> glint.add(at: [], do: root_command())
 }
@@ -190,7 +172,7 @@ fn output_db_directory(schema_file: String) -> String {
 
 fn root_command() -> glint.Command(Nil) {
   use <- glint.command_help(
-    "Emit skeleton, migration, row, get, upsert, delete, query, and api modules under the sibling *_db directory.",
+    "Emit migration, row, get, upsert, delete, query, and api modules under the sibling *_db directory.",
   )
   use <- glint.unnamed_args(glint.EqArgs(1))
   use _n, unnamed, _f <- glint.command()

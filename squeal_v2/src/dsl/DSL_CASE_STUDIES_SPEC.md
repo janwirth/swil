@@ -12,7 +12,7 @@ This pass trims `src/dsl/dsl.gleam` to what is **referenced from case-study sche
 **Out of scope for the dependency scan (but still compile-time consumers of `dsl`):**
 
 - `src/case_studies/*_db/**` (generated/runtime modules): they only use `dsl.MagicFields` in signatures and decoders, not the full DSL surface.
-- `src/schema_definition/**`, `src/generators/skeleton.gleam`, `test/**`, `FILTER_SPEC.md`, `old/**`.
+- `src/schema_definition/**`, `test/**`, `FILTER_SPEC.md`, `old/**`.
 
 ## What stayed (directly tied to those four schema files)
 
