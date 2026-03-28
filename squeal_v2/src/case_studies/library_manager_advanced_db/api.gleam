@@ -100,6 +100,19 @@ pub fn get_importedtrack_by_id(
   get.get_importedtrack_by_id(conn, id)
 }
 
+pub fn update_tab_by_id(
+  conn: sqlight.Connection,
+  id: Int,
+  label: option.Option(String),
+  order: option.Option(Float),
+  view_config: option.Option(library_manager_advanced_schema.ViewConfigScalar),
+) -> Result(
+  #(library_manager_advanced_schema.Tab, dsl.MagicFields),
+  sqlight.Error,
+) {
+  upsert.update_tab_by_id(conn, id, label, order, view_config)
+}
+
 pub fn delete_tab_by_tab_label(
   conn: sqlight.Connection,
   label: String,
@@ -139,6 +152,18 @@ pub fn upsert_tab_by_tab_label(
   sqlight.Error,
 ) {
   upsert.upsert_tab_by_tab_label(conn, label, order, view_config)
+}
+
+pub fn update_trackbucket_by_id(
+  conn: sqlight.Connection,
+  id: Int,
+  title: option.Option(String),
+  artist: option.Option(String),
+) -> Result(
+  #(library_manager_advanced_schema.TrackBucket, dsl.MagicFields),
+  sqlight.Error,
+) {
+  upsert.update_trackbucket_by_id(conn, id, title, artist)
 }
 
 pub fn delete_trackbucket_by_bucket_title_and_artist(
@@ -182,6 +207,18 @@ pub fn upsert_trackbucket_by_bucket_title_and_artist(
   upsert.upsert_trackbucket_by_bucket_title_and_artist(conn, title, artist)
 }
 
+pub fn update_tag_by_id(
+  conn: sqlight.Connection,
+  id: Int,
+  label: option.Option(String),
+  emoji: option.Option(String),
+) -> Result(
+  #(library_manager_advanced_schema.Tag, dsl.MagicFields),
+  sqlight.Error,
+) {
+  upsert.update_tag_by_id(conn, id, label, emoji)
+}
+
 pub fn delete_tag_by_tag_label(
   conn: sqlight.Connection,
   label: String,
@@ -219,6 +256,19 @@ pub fn upsert_tag_by_tag_label(
   sqlight.Error,
 ) {
   upsert.upsert_tag_by_tag_label(conn, label, emoji)
+}
+
+pub fn update_importedtrack_by_id(
+  conn: sqlight.Connection,
+  id: Int,
+  title: option.Option(String),
+  artist: option.Option(String),
+  file_path: option.Option(String),
+) -> Result(
+  #(library_manager_advanced_schema.ImportedTrack, dsl.MagicFields),
+  sqlight.Error,
+) {
+  upsert.update_importedtrack_by_id(conn, id, title, artist, file_path)
 }
 
 pub fn delete_importedtrack_by_file_path(

@@ -31,13 +31,17 @@ pub fn sql_bind_expr(
   }
 }
 
-fn non_id_temp_var(f: FieldDefinition, scalar_names: List(String)) -> String {
-  case render_type_plain(f, scalar_names) {
-    "String" -> "c"
-    "Float" -> "p"
-    "Int" -> "q"
-    _ -> "db_" <> f.label
+/// Bind a value already normalized for SQL (e.g. `db_label` strings from `let` lines).
+fn sql_bind_prepped_value(f: FieldDefinition, value: String) -> String {
+  case sql_types.sql_type(f.type_) {
+    "int" -> "sqlight.int(" <> value <> ")"
+    "real" -> "sqlight.float(" <> value <> ")"
+    _ -> "sqlight.text(" <> value <> ")"
   }
+}
+
+fn non_id_temp_var(f: FieldDefinition, _scalar_names: List(String)) -> String {
+  "db_" <> f.label
 }
 
 fn render_type_plain(f: FieldDefinition, scalar_names: List(String)) -> String {
@@ -98,27 +102,36 @@ pub fn upsert_fn_body(
         True -> ""
         False -> {
           let v = non_id_temp_var(f, scalar_names)
-          case render_type_plain(f, scalar_names) {
-            "String" ->
+          case dec.field_is_calendar_date(f) {
+            True ->
               "  let "
               <> v
-              <> " = api_help.opt_text_for_db("
+              <> " = case "
               <> f.label
-              <> ")\n"
-            "Float" ->
-              "  let "
-              <> v
-              <> " = api_help.opt_float_for_db("
-              <> f.label
-              <> ")\n"
-            "Int" ->
-              "  let " <> v <> " = api_help.opt_int_for_db(" <> f.label <> ")\n"
-            _ ->
-              "  let "
-              <> v
-              <> " = api_help.opt_text_for_db("
-              <> f.label
-              <> ")\n"
+              <> " { option.Some(d) -> api_help.date_to_db_string(d) option.None -> \"\" }\n"
+            False ->
+              case render_type_plain(f, scalar_names) {
+                "String" ->
+                  "  let "
+                  <> v
+                  <> " = api_help.opt_text_for_db("
+                  <> f.label
+                  <> ")\n"
+                "Float" ->
+                  "  let "
+                  <> v
+                  <> " = api_help.opt_float_for_db("
+                  <> f.label
+                  <> ")\n"
+                "Int" ->
+                  "  let " <> v <> " = api_help.opt_int_for_db(" <> f.label <> ")\n"
+                _ ->
+                  "  let "
+                  <> v
+                  <> " = api_help.opt_text_for_db("
+                  <> f.label
+                  <> ")\n"
+              }
           }
         }
       }
@@ -141,7 +154,11 @@ pub fn upsert_fn_body(
                 <> ")"
               False -> non_id_temp_var(f, scalar_names)
             }
-            "      " <> sql_bind_expr(f, value, row_qualifier) <> ","
+            let bind = case is_option_scalar(f, scalar_names) {
+              True -> sql_bind_expr(f, value, row_qualifier)
+              False -> sql_bind_prepped_value(f, value)
+            }
+            "      " <> bind <> ","
           }
         }
       }
@@ -165,7 +182,11 @@ pub fn upsert_fn_body(
               <> ")"
             False -> non_id_temp_var(f, scalar_names)
           }
-          "      " <> sql_bind_expr(f, value, row_qualifier) <> ","
+          let bind = case is_option_scalar(f, scalar_names) {
+            True -> sql_bind_expr(f, value, row_qualifier)
+            False -> sql_bind_prepped_value(f, value)
+          }
+          "      " <> bind <> ","
         })
         |> string.join("\n")
       let id_tail =
@@ -302,6 +323,129 @@ pub fn update_fn_chunk(
         scalar_names,
         "row",
         "update_" <> entity_snake <> "_by_" <> id_snake <> "_sql",
+        not_found_fn_name,
+      ))
+    })
+      |> gfun.to_dynamic,
+  )
+}
+
+pub fn update_by_id_fn_body(
+  entity: EntityDefinition,
+  entity_snake: String,
+  scalar_names: List(String),
+  row_qualifier: String,
+  sql_const_name: String,
+  not_found_fn_name: String,
+) -> String {
+  let data_fields = api_sql.entity_data_fields(entity)
+  let let_lines =
+    list.map(data_fields, fn(f) {
+      case is_option_scalar(f, scalar_names) {
+        True -> ""
+        False -> {
+          let v = non_id_temp_var(f, scalar_names)
+          case dec.field_is_calendar_date(f) {
+            True ->
+              "  let "
+              <> v
+              <> " = case "
+              <> f.label
+              <> " { option.Some(d) -> api_help.date_to_db_string(d) option.None -> \"\" }\n"
+            False ->
+              case render_type_plain(f, scalar_names) {
+                "String" ->
+                  "  let "
+                  <> v
+                  <> " = api_help.opt_text_for_db("
+                  <> f.label
+                  <> ")\n"
+                "Float" ->
+                  "  let "
+                  <> v
+                  <> " = api_help.opt_float_for_db("
+                  <> f.label
+                  <> ")\n"
+                "Int" ->
+                  "  let " <> v <> " = api_help.opt_int_for_db(" <> f.label <> ")\n"
+                _ ->
+                  "  let "
+                  <> v
+                  <> " = api_help.opt_text_for_db("
+                  <> f.label
+                  <> ")\n"
+              }
+          }
+        }
+      }
+    })
+    |> string.concat
+  let with_list =
+    list.map(data_fields, fn(f) {
+      let value = case is_option_scalar(f, scalar_names) {
+        True ->
+          row_qualifier
+          <> "."
+          <> dec.scalar_to_db_fn_name(scalar_name_from_option_field(f))
+          <> "("
+          <> f.label
+          <> ")"
+        False -> non_id_temp_var(f, scalar_names)
+      }
+      let bind = case is_option_scalar(f, scalar_names) {
+        True -> sql_bind_expr(f, value, row_qualifier)
+        False -> sql_bind_prepped_value(f, value)
+      }
+      "      " <> bind <> ","
+    })
+    |> string.join("\n")
+    |> string.append("\n      sqlight.int(now),\n      sqlight.int(id),")
+    |> string.trim_end
+  let let_block = case let_lines {
+    "" -> ""
+    s -> s
+  }
+  "let now = api_help.unix_seconds_now()\n"
+  <> let_block
+  <> "  use rows <- result.try(sqlight.query(\n    "
+  <> sql_const_name
+  <> ",\n    on: conn,\n    with: [\n"
+  <> with_list
+  <> "\n    ],\n    expecting: "
+  <> row_qualifier
+  <> "."
+  <> entity_snake
+  <> "_with_magic_row_decoder(),\n  ))\n"
+  <> "  case rows {\n    [r, ..] -> Ok(r)\n    [] -> Error("
+  <> not_found_fn_name
+  <> "(\"update_"
+  <> entity_snake
+  <> "_by_id\"))\n  }"
+}
+
+pub fn update_by_id_fn_chunk(
+  entity: EntityDefinition,
+  entity_snake: String,
+  params: List(gparam.Parameter(gtypes.Dynamic)),
+  row_t: gtypes.GeneratedType(r),
+  sql_err: gtypes.GeneratedType(e),
+  scalar_names: List(String),
+  not_found_fn_name: String,
+) -> #(gdef.Definition, gfun.Function(gtypes.Dynamic, gtypes.Dynamic)) {
+  #(
+    gleamgen_emit.pub_def("update_" <> entity_snake <> "_by_id")
+      |> gdef.with_text_before(
+        "/// Update a "
+        <> entity_snake
+        <> " by row id (all scalar columns, including natural-key fields).\n",
+      ),
+    gfun.new_raw(params, gtypes.result(row_t, sql_err), fn(_) {
+      gexpr.raw(update_by_id_fn_body(
+        entity,
+        entity_snake,
+        scalar_names,
+        "row",
+        "update_" <> entity_snake <> "_by_id_sql",
         not_found_fn_name,
       ))
     })

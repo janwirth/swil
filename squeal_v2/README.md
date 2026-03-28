@@ -1,13 +1,21 @@
 # Squeal experiment v2
 
-New assumpitons
+Squeal is a DB access layer for sqlite.
+You describe your types & queries in a gleam subset.
 
-- 1 file
-- dsl that instructs code generator.
-- outside of there it's direct funciton calls. basta
-  - migrations
-  - mutation
-  - query
+```gleam
+// my_schema.gleam
+type MyType
+
+```
+
+Then you run a generator
+
+```
+squeal
+```
+
+Use it in your code
 
 ## Approach
 

@@ -111,6 +111,29 @@ pub fn upsert_module_fn_chunks(
   ]
 }
 
+pub fn update_by_id_fn_chunks(
+  entity: EntityDefinition,
+  entity_snake: String,
+  params: List(gparam.Parameter(gtypes.Dynamic)),
+  row_t,
+  sql_err,
+  scalar_names: List(String),
+) {
+  let not_found_fn = "not_found_" <> entity_snake <> "_id_error"
+  [
+    not_found_private_chunk(entity_snake, not_found_fn),
+    ud.update_by_id_fn_chunk(
+      entity,
+      entity_snake,
+      params,
+      row_t,
+      sql_err,
+      scalar_names,
+      not_found_fn,
+    ),
+  ]
+}
+
 pub fn get_module_fn_chunks(
   entity: EntityDefinition,
   variant: IdentityVariantDefinition,

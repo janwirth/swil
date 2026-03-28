@@ -79,6 +79,15 @@ pub fn get_hippo_by_id(
   get.get_hippo_by_id(conn, id)
 }
 
+pub fn update_human_by_id(
+  conn: sqlight.Connection,
+  id: Int,
+  name: option.Option(String),
+  email: option.Option(String),
+) -> Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error) {
+  upsert.update_human_by_id(conn, id, name, email)
+}
+
 pub fn delete_human_by_email(
   conn: sqlight.Connection,
   email: String,
@@ -110,6 +119,16 @@ pub fn upsert_human_by_email(
   name: option.Option(String),
 ) -> Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error) {
   upsert.upsert_human_by_email(conn, email, name)
+}
+
+pub fn update_hippo_by_id(
+  conn: sqlight.Connection,
+  id: Int,
+  name: option.Option(String),
+  gender: option.Option(hippo_schema.GenderScalar),
+  date_of_birth: option.Option(calendar.Date),
+) -> Result(#(hippo_schema.Hippo, dsl.MagicFields), sqlight.Error) {
+  upsert.update_hippo_by_id(conn, id, name, gender, date_of_birth)
 }
 
 pub fn delete_hippo_by_name_and_date_of_birth(

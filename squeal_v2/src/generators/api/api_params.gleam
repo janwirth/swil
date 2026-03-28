@@ -41,3 +41,18 @@ pub fn identity_gparams(
     |> gparam.to_dynamic
   })
 }
+
+/// Parameters for `update_<entity>_by_id`: row id, then every scalar column (same order as the table).
+pub fn update_by_id_gparams(
+  entity: EntityDefinition,
+  ctx: dec.TypeCtx,
+) -> List(gparam.Parameter(gtypes.Dynamic)) {
+  let id_p = gparam.new("id", gtypes.int) |> gparam.to_dynamic
+  let field_ps =
+    api_sql.entity_data_fields(entity)
+    |> list.map(fn(f) {
+      gparam.new(f.label, gtypes.raw(dec.render_type(f.type_, ctx)))
+      |> gparam.to_dynamic
+    })
+  [id_p, ..field_ps]
+}

@@ -120,6 +120,29 @@ pub fn update_by_identity_sql(
   <> ";"
 }
 
+/// Update all persisted scalar columns including natural-key fields; `where` uses row `id`.
+pub fn update_by_row_id_sql(
+  table: String,
+  data_cols: List(String),
+  returning_cols: List(String),
+) -> String {
+  let data_sets = list.map(data_cols, fn(c) { q(c) <> " = ?" })
+  let set_parts =
+    list.append(data_sets, [q("updated_at") <> " = ?"])
+  let set_clause = string.join(set_parts, ", ")
+  "update "
+  <> q(table)
+  <> " set "
+  <> set_clause
+  <> " where "
+  <> q("id")
+  <> " = ? and "
+  <> q("deleted_at")
+  <> " is null returning "
+  <> comma_join_q(returning_cols)
+  <> ";"
+}
+
 pub fn soft_delete_by_identity_sql(
   table: String,
   id_cols: List(String),

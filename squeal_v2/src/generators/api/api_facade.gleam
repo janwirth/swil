@@ -182,39 +182,56 @@ pub fn facade_fn_chunks(
     list.flat_map(def.entities, fn(e) {
       let e_snake = string.lowercase(e.type_name)
       let id = schema_context.find_identity(def, e)
-      list.map(id.variants, fn(variant) {
-        let id_snake = case string.starts_with(variant.variant_name, "By") {
-          True ->
-            api_naming.pascal_to_snake(string.drop_start(
-              variant.variant_name,
-              2,
-            ))
-          False -> api_naming.pascal_to_snake(variant.variant_name)
-        }
-        let upsert_name = "upsert_" <> e_snake <> "_by_" <> id_snake
-        let get_name = "get_" <> e_snake <> "_by_" <> id_snake
-        let update_name = "update_" <> e_snake <> "_by_" <> id_snake
-        let delete_name = "delete_" <> e_snake <> "_by_" <> id_snake
-        let upsert_params =
-          list.append(
-            [api_params.conn_param()],
-            api_params.upsert_gparams(e, variant, ctx),
-          )
-        let get_params =
-          list.append(
-            [api_params.conn_param()],
-            api_params.identity_gparams(variant),
-          )
-        let row_t = gtypes.raw(dec.entity_row_tuple_type(ctx, e.type_name))
-        let row_opt = gtypes.raw(dec.option_entity_row_tuple(ctx, e.type_name))
-        [
-          forward_fn("upsert", upsert_name, upsert_params, row_t, sql_err),
-          forward_fn("get", get_name, get_params, row_opt, sql_err),
-          forward_fn("upsert", update_name, upsert_params, row_t, sql_err),
-          forward_fn_nil_result("delete", delete_name, get_params, sql_err),
-        ]
-      })
-      |> list.flatten
+      let variant_forwards =
+        list.map(id.variants, fn(variant) {
+          let id_snake = case string.starts_with(variant.variant_name, "By") {
+            True ->
+              api_naming.pascal_to_snake(string.drop_start(
+                variant.variant_name,
+                2,
+              ))
+            False -> api_naming.pascal_to_snake(variant.variant_name)
+          }
+          let upsert_name = "upsert_" <> e_snake <> "_by_" <> id_snake
+          let get_name = "get_" <> e_snake <> "_by_" <> id_snake
+          let update_name = "update_" <> e_snake <> "_by_" <> id_snake
+          let delete_name = "delete_" <> e_snake <> "_by_" <> id_snake
+          let upsert_params =
+            list.append(
+              [api_params.conn_param()],
+              api_params.upsert_gparams(e, variant, ctx),
+            )
+          let get_params =
+            list.append(
+              [api_params.conn_param()],
+              api_params.identity_gparams(variant),
+            )
+          let row_t = gtypes.raw(dec.entity_row_tuple_type(ctx, e.type_name))
+          let row_opt = gtypes.raw(dec.option_entity_row_tuple(ctx, e.type_name))
+          [
+            forward_fn("upsert", upsert_name, upsert_params, row_t, sql_err),
+            forward_fn("get", get_name, get_params, row_opt, sql_err),
+            forward_fn("upsert", update_name, upsert_params, row_t, sql_err),
+            forward_fn_nil_result("delete", delete_name, get_params, sql_err),
+          ]
+        })
+        |> list.flatten
+      let row_t = gtypes.raw(dec.entity_row_tuple_type(ctx, e.type_name))
+      let update_by_id_params =
+        list.append(
+          [api_params.conn_param()],
+          api_params.update_by_id_gparams(e, ctx),
+        )
+      let update_by_id_forward = [
+        forward_fn(
+          "upsert",
+          "update_" <> e_snake <> "_by_id",
+          update_by_id_params,
+          row_t,
+          sql_err,
+        ),
+      ]
+      list.append(variant_forwards, update_by_id_forward)
     })
   list.flatten([
     entity_operation_forwards,

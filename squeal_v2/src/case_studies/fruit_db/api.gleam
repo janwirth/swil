@@ -35,6 +35,17 @@ pub fn get_fruit_by_id(
   get.get_fruit_by_id(conn, id)
 }
 
+pub fn update_fruit_by_id(
+  conn: sqlight.Connection,
+  id: Int,
+  name: option.Option(String),
+  color: option.Option(String),
+  price: option.Option(Float),
+  quantity: option.Option(Int),
+) -> Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error) {
+  upsert.update_fruit_by_id(conn, id, name, color, price, quantity)
+}
+
 pub fn delete_fruit_by_name(
   conn: sqlight.Connection,
   name: String,
