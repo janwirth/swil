@@ -1,8 +1,5 @@
 import case_studies/library_manager_db/row
-import case_studies/library_manager_schema.{
-  type ImportedTrack, type Tab, type Tag, type TrackBucket,
-  type ViewConfigScalar,
-}
+import case_studies/library_manager_schema
 import dsl/dsl
 import sqlight
 
@@ -17,7 +14,7 @@ const last_100_importedtrack_sql = "select \"title\", \"artist\", \"file_path\",
 /// List up to 100 recently edited tab rows.
 pub fn last_100_edited_tab(
   conn: sqlight.Connection,
-) -> Result(List(#(Tab, dsl.MagicFields)), sqlight.Error) {
+) -> Result(List(#(library_manager_schema.Tab, dsl.MagicFields)), sqlight.Error) {
   sqlight.query(
     last_100_tab_sql,
     on: conn,
@@ -29,7 +26,7 @@ pub fn last_100_edited_tab(
 /// List up to 100 recently edited trackbucket rows.
 pub fn last_100_edited_trackbucket(
   conn: sqlight.Connection,
-) -> Result(List(#(TrackBucket, dsl.MagicFields)), sqlight.Error) {
+) -> Result(List(#(library_manager_schema.TrackBucket, dsl.MagicFields)), sqlight.Error) {
   sqlight.query(
     last_100_trackbucket_sql,
     on: conn,
@@ -41,7 +38,7 @@ pub fn last_100_edited_trackbucket(
 /// List up to 100 recently edited tag rows.
 pub fn last_100_edited_tag(
   conn: sqlight.Connection,
-) -> Result(List(#(Tag, dsl.MagicFields)), sqlight.Error) {
+) -> Result(List(#(library_manager_schema.Tag, dsl.MagicFields)), sqlight.Error) {
   sqlight.query(
     last_100_tag_sql,
     on: conn,
@@ -53,7 +50,7 @@ pub fn last_100_edited_tag(
 /// List up to 100 recently edited importedtrack rows.
 pub fn last_100_edited_importedtrack(
   conn: sqlight.Connection,
-) -> Result(List(#(ImportedTrack, dsl.MagicFields)), sqlight.Error) {
+) -> Result(List(#(library_manager_schema.ImportedTrack, dsl.MagicFields)), sqlight.Error) {
   sqlight.query(
     last_100_importedtrack_sql,
     on: conn,

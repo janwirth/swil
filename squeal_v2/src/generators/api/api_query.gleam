@@ -103,7 +103,7 @@ fn query_bind_expr_for_param(p: QueryParameter) -> String {
     glance.NamedType(_, name, _, []) ->
       "sqlight.text(row."
       <> dec.scalar_to_db_fn_name(name)
-      <> "(Some("
+      <> "(option.Some("
       <> schema_query_param_name(p)
       <> ")))"
     _ -> "sqlight.text(" <> schema_query_param_name(p) <> ")"

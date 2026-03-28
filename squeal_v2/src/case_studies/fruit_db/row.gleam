@@ -1,11 +1,11 @@
 import api_help
-import case_studies/fruit_schema.{type Fruit, ByName, Fruit}
+import case_studies/fruit_schema
 import dsl/dsl
 import gleam/dynamic/decode
-import gleam/option.{type Option, Some}
+import gleam/option
 
 pub fn fruit_with_magic_row_decoder() -> decode.Decoder(
-  #(Fruit, dsl.MagicFields),
+  #(fruit_schema.Fruit, dsl.MagicFields),
 ) {
   use name <- decode.field(0, decode.string)
   use color <- decode.field(1, decode.string)
@@ -16,12 +16,12 @@ pub fn fruit_with_magic_row_decoder() -> decode.Decoder(
   use updated_at <- decode.field(6, decode.int)
   use deleted_at_raw <- decode.field(7, decode.optional(decode.int))
   let fruit =
-    Fruit(
-      name: Some(name),
+    fruit_schema.Fruit(
+      name: option.Some(name),
       color: api_help.opt_string_from_db(color),
-      price: Some(price),
-      quantity: Some(quantity),
-      identities: ByName(name:),
+      price: option.Some(price),
+      quantity: option.Some(quantity),
+      identities: fruit_schema.ByName(name:),
     )
   decode.success(#(
     fruit,

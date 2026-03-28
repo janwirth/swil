@@ -1,11 +1,8 @@
 import api_help
 import case_studies/library_manager_db/row
-import case_studies/library_manager_schema.{
-  type ImportedTrack, type Tab, type Tag, type TrackBucket,
-  type ViewConfigScalar,
-}
+import case_studies/library_manager_schema
 import dsl/dsl
-import gleam/option.{type Option}
+import gleam/option as option
 import gleam/result
 import sqlight
 
@@ -64,9 +61,9 @@ returning \"title\", \"artist\", \"file_path\", \"id\", \"created_at\", \"update
 pub fn update_tab_by_tab_label(
   conn: sqlight.Connection,
   label: String,
-  order: Option(Float),
-  view_config: Option(ViewConfigScalar),
-) -> Result(#(Tab, dsl.MagicFields), sqlight.Error) {
+  order: option.Option(Float),
+  view_config: option.Option(library_manager_schema.ViewConfigScalar),
+) -> Result(#(library_manager_schema.Tab, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   let p = api_help.opt_float_for_db(order)
   use rows <- result.try(sqlight.query(
@@ -90,9 +87,9 @@ pub fn update_tab_by_tab_label(
 pub fn upsert_tab_by_tab_label(
   conn: sqlight.Connection,
   label: String,
-  order: Option(Float),
-  view_config: Option(ViewConfigScalar),
-) -> Result(#(Tab, dsl.MagicFields), sqlight.Error) {
+  order: option.Option(Float),
+  view_config: option.Option(library_manager_schema.ViewConfigScalar),
+) -> Result(#(library_manager_schema.Tab, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   let p = api_help.opt_float_for_db(order)
   use rows <- result.try(sqlight.query(
@@ -127,7 +124,7 @@ pub fn update_trackbucket_by_bucket_title_and_artist(
   conn: sqlight.Connection,
   title: String,
   artist: String,
-) -> Result(#(TrackBucket, dsl.MagicFields), sqlight.Error) {
+) -> Result(#(library_manager_schema.TrackBucket, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   use rows <- result.try(sqlight.query(
     update_trackbucket_by_bucket_title_and_artist_sql,
@@ -153,7 +150,7 @@ pub fn upsert_trackbucket_by_bucket_title_and_artist(
   conn: sqlight.Connection,
   title: String,
   artist: String,
-) -> Result(#(TrackBucket, dsl.MagicFields), sqlight.Error) {
+) -> Result(#(library_manager_schema.TrackBucket, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   use rows <- result.try(sqlight.query(
     upsert_trackbucket_by_bucket_title_and_artist_sql,
@@ -191,8 +188,8 @@ fn not_found_trackbucket_bucket_title_and_artist_error(
 pub fn update_tag_by_tag_label(
   conn: sqlight.Connection,
   label: String,
-  emoji: Option(String),
-) -> Result(#(Tag, dsl.MagicFields), sqlight.Error) {
+  emoji: option.Option(String),
+) -> Result(#(library_manager_schema.Tag, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   let c = api_help.opt_text_for_db(emoji)
   use rows <- result.try(sqlight.query(
@@ -215,8 +212,8 @@ pub fn update_tag_by_tag_label(
 pub fn upsert_tag_by_tag_label(
   conn: sqlight.Connection,
   label: String,
-  emoji: Option(String),
-) -> Result(#(Tag, dsl.MagicFields), sqlight.Error) {
+  emoji: option.Option(String),
+) -> Result(#(library_manager_schema.Tag, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   let c = api_help.opt_text_for_db(emoji)
   use rows <- result.try(sqlight.query(
@@ -249,18 +246,18 @@ fn not_found_tag_tag_label_error(op: String) -> sqlight.Error {
 pub fn update_importedtrack_by_file_path(
   conn: sqlight.Connection,
   file_path: String,
-  title: Option(String),
-  artist: Option(String),
-) -> Result(#(ImportedTrack, dsl.MagicFields), sqlight.Error) {
+  title: option.Option(String),
+  artist: option.Option(String),
+) -> Result(#(library_manager_schema.ImportedTrack, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
-  let c = api_help.opt_text_for_db(title)
-  let c = api_help.opt_text_for_db(artist)
+  let title_t = api_help.opt_text_for_db(title)
+  let artist_t = api_help.opt_text_for_db(artist)
   use rows <- result.try(sqlight.query(
     update_importedtrack_by_file_path_sql,
     on: conn,
     with: [
-      sqlight.text(c),
-      sqlight.text(c),
+      sqlight.text(title_t),
+      sqlight.text(artist_t),
       sqlight.int(now),
       sqlight.text(file_path),
     ],
@@ -279,18 +276,18 @@ pub fn update_importedtrack_by_file_path(
 pub fn upsert_importedtrack_by_file_path(
   conn: sqlight.Connection,
   file_path: String,
-  title: Option(String),
-  artist: Option(String),
-) -> Result(#(ImportedTrack, dsl.MagicFields), sqlight.Error) {
+  title: option.Option(String),
+  artist: option.Option(String),
+) -> Result(#(library_manager_schema.ImportedTrack, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
-  let c = api_help.opt_text_for_db(title)
-  let c = api_help.opt_text_for_db(artist)
+  let title_t = api_help.opt_text_for_db(title)
+  let artist_t = api_help.opt_text_for_db(artist)
   use rows <- result.try(sqlight.query(
     upsert_importedtrack_by_file_path_sql,
     on: conn,
     with: [
-      sqlight.text(c),
-      sqlight.text(c),
+      sqlight.text(title_t),
+      sqlight.text(artist_t),
       sqlight.text(file_path),
       sqlight.int(now),
       sqlight.int(now),
@@ -321,8 +318,8 @@ pub fn update_importedtrack_by_title_and_artist(
   conn: sqlight.Connection,
   title: String,
   artist: String,
-  file_path: Option(String),
-) -> Result(#(ImportedTrack, dsl.MagicFields), sqlight.Error) {
+  file_path: option.Option(String),
+) -> Result(#(library_manager_schema.ImportedTrack, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   let c = api_help.opt_text_for_db(file_path)
   use rows <- result.try(sqlight.query(
@@ -350,8 +347,8 @@ pub fn upsert_importedtrack_by_title_and_artist(
   conn: sqlight.Connection,
   title: String,
   artist: String,
-  file_path: Option(String),
-) -> Result(#(ImportedTrack, dsl.MagicFields), sqlight.Error) {
+  file_path: option.Option(String),
+) -> Result(#(library_manager_schema.ImportedTrack, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   let c = api_help.opt_text_for_db(file_path)
   use rows <- result.try(sqlight.query(

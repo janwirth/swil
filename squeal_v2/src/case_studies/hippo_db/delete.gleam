@@ -1,7 +1,7 @@
 import api_help
 import gleam/dynamic/decode
 import gleam/result
-import gleam/time/calendar.{type Date}
+import gleam/time/calendar
 import sqlight
 
 const soft_delete_human_by_email_sql = "update \"human\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"email\" = ? and \"deleted_at\" is null returning \"email\";"
@@ -43,7 +43,7 @@ fn not_found_human_email_error(op: String) -> sqlight.Error {
 pub fn delete_hippo_by_name_and_date_of_birth(
   conn: sqlight.Connection,
   name: String,
-  date_of_birth: Date,
+  date_of_birth: calendar.Date,
 ) -> Result(Nil, sqlight.Error) {
   let now = api_help.unix_seconds_now()
   use rows <- result.try(

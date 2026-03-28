@@ -203,19 +203,26 @@ fn ensure_dsl_import(text: String) -> String {
   }
 }
 
-/// gleamgen may omit `gleam/option` when signatures use `Option(...)` only via raw types.
+/// gleamgen may omit `gleam/option` when bodies use `option.*` only via raw strings.
+fn strip_option_import_if_unused(text: String) -> String {
+  case string.contains(text, "option.") {
+    True -> text
+    False -> string.replace(text, "import gleam/option\n", "")
+  }
+}
+
 fn ensure_option_import(text: String) -> String {
   let needs_option =
-    string.contains(text, "Option(") || string.contains(text, "Some(")
+    string.contains(text, "option.None")
+    || string.contains(text, "option.Some(")
+    || string.contains(text, "option.Option(")
   case needs_option && !string.contains(text, "import gleam/option") {
     False -> text
     True -> {
       case string.split(text, "\n") {
         [] -> text
         [first, ..rest] ->
-          first
-          <> "\nimport gleam/option.{type Option, None, Some}\n"
-          <> string.join(rest, "\n")
+          first <> "\nimport gleam/option\n" <> string.join(rest, "\n")
       }
     }
   }
@@ -251,25 +258,6 @@ fn ensure_row_schema_entity_type_imports(
       }
     }
   })
-}
-
-/// gleamgen may shrink the schema import to types only; row decoders need constructors and identity variants.
-fn ensure_row_schema_import_exposing(
-  text: String,
-  schema_path: String,
-  exposing: String,
-) -> String {
-  let open = "import " <> schema_path <> ".{"
-  let replacement = "import " <> schema_path <> ".{" <> exposing <> "}"
-  case string.split_once(text, open) {
-    Error(Nil) -> replacement <> "\n" <> text
-    Ok(#(before, after_open)) -> {
-      case string.split_once(after_open, "}") {
-        Error(Nil) -> text
-        Ok(#(_old_inner, rest)) -> before <> open <> exposing <> "}" <> rest
-      }
-    }
-  }
 }
 
 /// gleamgen drops `import gleam/dynamic/decode` when only raw decoder pipelines reference `decode`.
@@ -346,7 +334,7 @@ pub fn generate_api_db_outputs(
       api_query.query_spec_targets_entity(q, first_entity)
     })
 
-  let row_t = gtypes.raw(dec.entity_row_tuple_type(first_entity.type_name))
+  let row_t = gtypes.raw(dec.entity_row_tuple_type(ctx, first_entity.type_name))
   let sql_err = gtypes.raw("sqlight.Error")
 
   let scalar_names = list.map(def.scalars, fn(s) { s.type_name })
@@ -419,7 +407,7 @@ pub fn generate_api_db_outputs(
     list.flat_map(def.entities, fn(e) {
       let id_e = schema_context.find_identity(def, e)
       let entity_snake_e = string.lowercase(e.type_name)
-      let row_t_e = gtypes.raw(dec.entity_row_tuple_type(e.type_name))
+      let row_t_e = gtypes.raw(dec.entity_row_tuple_type(ctx, e.type_name))
       list.map(id_e.variants, fn(variant_e) {
         let id_snake_e = case string.starts_with(variant_e.variant_name, "By") {
           True ->
@@ -519,6 +507,7 @@ pub fn generate_api_db_outputs(
           variant_e.variant_name == first_variant_e.variant_name,
           row_t,
           sql_err,
+          ctx,
         )
       })
       |> list.flatten
@@ -630,7 +619,7 @@ pub fn generate_api_db_outputs(
     list.append(
       list.flat_map(def.entities, fn(e) {
         let entity_snake_e = string.lowercase(e.type_name)
-        let row_t_e = gtypes.raw(dec.entity_row_tuple_type(e.type_name))
+        let row_t_e = gtypes.raw(dec.entity_row_tuple_type(ctx, e.type_name))
         api_chunks.query_module_fn_chunks(
           entity_snake_e,
           "last_100_" <> entity_snake_e <> "_sql",
@@ -673,8 +662,6 @@ pub fn generate_api_db_outputs(
     )
 
   let row_text = render_module(row_mod)
-  let row_text =
-    ensure_row_schema_import_exposing(row_text, schema_path, exposing)
   let row_text = ensure_api_help_import(row_text)
   let row_text = ensure_decode_import(row_text)
   let row_text = ensure_option_import(row_text)
@@ -697,8 +684,14 @@ pub fn generate_api_db_outputs(
   use row_text <- result.try(gleam_fmt.format_generated_source(row_text))
   use get_text <- result.try(gleam_fmt.format_generated_source(get_text))
   use upsert_text <- result.try(gleam_fmt.format_generated_source(upsert_text))
-  use delete_text <- result.try(gleam_fmt.format_generated_source(delete_text))
-  use query_text <- result.try(gleam_fmt.format_generated_source(query_text))
+  use delete_text <- result.try(
+    gleam_fmt.format_generated_source(delete_text)
+    |> result.map(strip_option_import_if_unused),
+  )
+  use query_text <- result.try(
+    gleam_fmt.format_generated_source(query_text)
+    |> result.map(strip_option_import_if_unused),
+  )
   use api_text <- result.try(gleam_fmt.format_generated_source(api_text))
   Ok(ApiDbOutputs(
     row: row_text,

@@ -56,7 +56,7 @@ pub fn row_module_fn_chunks(
   }
   list.flatten([
     decode_ordered,
-    scalar_codecs.scalar_db_fn_chunks(def, entity),
+    scalar_codecs.scalar_db_fn_chunks(def, entity, ctx),
   ])
 }
 
@@ -120,6 +120,7 @@ pub fn get_module_fn_chunks(
   include_by_id: Bool,
   _row_t,
   sql_err,
+  ctx: dec.TypeCtx,
 ) {
   list.append(
     [
@@ -135,9 +136,7 @@ pub fn get_module_fn_chunks(
         gfun.new_raw(
           get_params,
           gtypes.result(
-            gtypes.raw(
-              "Option(" <> dec.entity_row_tuple_type(entity.type_name) <> ")",
-            ),
+            gtypes.raw(dec.option_entity_row_tuple(ctx, entity.type_name)),
             sql_err,
           ),
           fn(_) {
@@ -166,9 +165,7 @@ pub fn get_module_fn_chunks(
               gparam.new("id", gtypes.int) |> gparam.to_dynamic,
             ],
             gtypes.result(
-              gtypes.raw(
-                "Option(" <> dec.entity_row_tuple_type(entity.type_name) <> ")",
-              ),
+              gtypes.raw(dec.option_entity_row_tuple(ctx, entity.type_name)),
               sql_err,
             ),
             fn(_) {

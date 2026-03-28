@@ -1,8 +1,8 @@
 import api_help
 import case_studies/fruit_db/row
-import case_studies/fruit_schema.{type Fruit}
+import case_studies/fruit_schema
 import dsl/dsl
-import gleam/option.{type Option}
+import gleam/option
 import gleam/result
 import sqlight
 
@@ -22,10 +22,10 @@ returning \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", 
 pub fn update_fruit_by_name(
   conn: sqlight.Connection,
   name: String,
-  color: Option(String),
-  price: Option(Float),
-  quantity: Option(Int),
-) -> Result(#(Fruit, dsl.MagicFields), sqlight.Error) {
+  color: option.Option(String),
+  price: option.Option(Float),
+  quantity: option.Option(Int),
+) -> Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   let c = api_help.opt_text_for_db(color)
   let p = api_help.opt_float_for_db(price)
@@ -52,10 +52,10 @@ pub fn update_fruit_by_name(
 pub fn upsert_fruit_by_name(
   conn: sqlight.Connection,
   name: String,
-  color: Option(String),
-  price: Option(Float),
-  quantity: Option(Int),
-) -> Result(#(Fruit, dsl.MagicFields), sqlight.Error) {
+  color: option.Option(String),
+  price: option.Option(Float),
+  quantity: option.Option(Int),
+) -> Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   let c = api_help.opt_text_for_db(color)
   let p = api_help.opt_float_for_db(price)

@@ -1,4 +1,4 @@
-import dsl/dsl.{type BelongsTo}
+import dsl/dsl
 import gleam/option
 
 // id / created_at / updated_at / deleted_at come from `dsl.MagicFields`, not the schema type.
@@ -46,7 +46,7 @@ pub type TrackBucket {
 
 pub type TrackBucketRelationships {
   TrackBucketRelationships(
-    tags: List(BelongsTo(Tag, TrackBucketRelationshipAttributes)),
+    tags: List(dsl.BelongsTo(Tag, TrackBucketRelationshipAttributes)),
   )
 }
 
@@ -88,7 +88,7 @@ pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields, _limit: Int) 
 
 pub fn query_tracks_by_view_config(
   track_bucket: TrackBucket,
-  magic_fields: dsl.MagicFields,
+  _magic_fields: dsl.MagicFields,
   complex_tag_filter_expression: FilterExpressionScalar,
 ) {
   dsl.query(track_bucket)
@@ -108,17 +108,17 @@ pub type FilterExpressionScalar =
 pub fn predicate_complex_tags_filter(
   track_bucket: TrackBucket,
   tag_expression: TagExpressionScalar,
-) -> dsl.BooleanFilter(BelongsTo(Tag, TrackBucketRelationshipAttributes)) {
+) -> dsl.BooleanFilter(dsl.BelongsTo(Tag, TrackBucketRelationshipAttributes)) {
   case tag_expression {
     Has(tag_id: tag_id) ->
       dsl.any(
         track_bucket.relationships.tags,
-        fn(tag, magic_fields, edge_attribs) { magic_fields.id == tag_id },
+        fn(_tag, magic_fields, _edge_attribs) { magic_fields.id == tag_id },
       )
     IsAtLeast(tag_id: tag_id, value: value) ->
       dsl.any(
         track_bucket.relationships.tags,
-        fn(tag, magic_fields, edge_attribs) {
+        fn(_tag, magic_fields, edge_attribs) {
           magic_fields.id == tag_id
           && dsl.exclude_if_missing(edge_attribs.value) >= value
         },
@@ -126,7 +126,7 @@ pub fn predicate_complex_tags_filter(
     IsAtMost(tag_id: tag_id, value: value) ->
       dsl.any(
         track_bucket.relationships.tags,
-        fn(tag, magic_fields, edge_attribs) {
+        fn(_tag, magic_fields, edge_attribs) {
           magic_fields.id == tag_id
           && dsl.exclude_if_missing(edge_attribs.value) <= value
         },
@@ -134,7 +134,7 @@ pub fn predicate_complex_tags_filter(
     IsEqualTo(tag_id: tag_id, value: value) ->
       dsl.any(
         track_bucket.relationships.tags,
-        fn(tag, magic_fields, edge_attribs) {
+        fn(_tag, magic_fields, edge_attribs) {
           magic_fields.id == tag_id
           && dsl.exclude_if_missing(edge_attribs.value) == value
         },

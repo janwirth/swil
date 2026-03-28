@@ -19,6 +19,7 @@ pub type TypeCtx {
     schema_alias: String,
     entity_names: List(String),
     scalar_names: List(String),
+    relationship_container_names: List(String),
     /// `*Scalar` types whose variants are all payload-free (enum string storage in SQL).
     enum_scalar_names: List(String),
   )
@@ -36,6 +37,9 @@ pub fn type_ctx(schema_path: String, def: SchemaDefinition) -> TypeCtx {
     schema_alias: import_alias(schema_path),
     entity_names: list.map(def.entities, fn(e) { e.type_name }),
     scalar_names: list.map(def.scalars, fn(s) { s.type_name }),
+    relationship_container_names: list.map(def.relationship_containers, fn(r) {
+      r.type_name
+    }),
     enum_scalar_names: def.scalars
       |> list.filter(fn(s) { s.enum_only })
       |> list.map(fn(s) { s.type_name }),
@@ -85,6 +89,19 @@ pub fn scalar_to_db_fn_name(type_name: String) -> String {
   scalar_type_snake_case(type_name) <> "_to_db_string"
 }
 
+fn schema_qualified_name(name: String, ctx: TypeCtx) -> Bool {
+  list.contains(ctx.scalar_names, name)
+  || list.contains(ctx.entity_names, name)
+  || list.contains(ctx.relationship_container_names, name)
+}
+
+fn render_named_simple(name: String, ctx: TypeCtx) -> String {
+  case schema_qualified_name(name, ctx) {
+    True -> ctx.schema_alias <> "." <> name
+    False -> name
+  }
+}
+
 pub fn render_type(t: glance.Type, ctx: TypeCtx) -> String {
   case t {
     glance.NamedType(_, "MagicFields", _, []) -> "dsl.MagicFields"
@@ -92,24 +109,16 @@ pub fn render_type(t: glance.Type, ctx: TypeCtx) -> String {
     glance.NamedType(_, "Int", None, []) -> "Int"
     glance.NamedType(_, "Float", None, []) -> "Float"
     glance.NamedType(_, "Bool", None, []) -> "Bool"
-    glance.NamedType(_, "Date", _, []) -> "Date"
+    glance.NamedType(_, "Date", _, []) -> "calendar.Date"
     glance.NamedType(_, "Timestamp", _, []) -> "Timestamp"
     glance.NamedType(_, "Option", _, [inner]) ->
-      "Option(" <> render_type(inner, ctx) <> ")"
+      "option.Option(" <> render_type(inner, ctx) <> ")"
     glance.NamedType(_, "List", _, [inner]) ->
       "List(" <> render_type(inner, ctx) <> ")"
-    glance.NamedType(_, name, None, []) ->
-      case list.contains(ctx.scalar_names, name) {
-        True -> name
-        False -> name
-      }
-    glance.NamedType(_, name, Some(_), []) ->
-      case list.contains(ctx.scalar_names, name) {
-        True -> name
-        False -> name
-      }
+    glance.NamedType(_, name, None, []) -> render_named_simple(name, ctx)
+    glance.NamedType(_, name, Some(_), []) -> render_named_simple(name, ctx)
     glance.NamedType(_, name, _, params) ->
-      name
+      render_named_simple(name, ctx)
       <> "("
       <> string.join(list.map(params, fn(p) { render_type(p, ctx) }), ", ")
       <> ")"
@@ -153,6 +162,7 @@ fn entity_needs_rich_row_decoder(
 fn default_relationships_record(
   schema: SchemaDefinition,
   entity: EntityDefinition,
+  ctx: TypeCtx,
 ) -> String {
   let rel_field = case
     list.find(entity.fields, fn(f) { f.label == "relationships" })
@@ -205,19 +215,23 @@ fn default_relationships_record(
       f.label <> ": " <> relationship_default_expr(f.type_)
     })
     |> string.join(",\n        ")
-  rel_type <> "(\n        " <> parts <> ",\n      )"
+  ctx.schema_alias <> "." <> rel_type <> "(\n        " <> parts <> ",\n      )"
 }
 
 fn relationship_default_expr(t: glance.Type) -> String {
   case t {
-    glance.NamedType(_, "Option", _, _) -> "None"
-    glance.NamedType(_, "BacklinkWith", _, _) -> "dsl.BacklinkWith([], None)"
+    glance.NamedType(_, "Option", _, _) -> "option.None"
+    glance.NamedType(_, "BacklinkWith", _, _) ->
+      "dsl.BacklinkWith([], option.None)"
     glance.NamedType(_, "List", _, _) -> "[]"
-    _ -> "None"
+    _ -> "option.None"
   }
 }
 
-fn rich_identity_construct_call(v: IdentityVariantDefinition) -> String {
+fn rich_identity_construct_call(
+  v: IdentityVariantDefinition,
+  ctx: TypeCtx,
+) -> String {
   let args =
     list.map(v.fields, fn(f) {
       case type_expr_is_calendar_date(f.type_) {
@@ -226,7 +240,7 @@ fn rich_identity_construct_call(v: IdentityVariantDefinition) -> String {
       }
     })
     |> string.join(", ")
-  v.variant_name <> "(" <> args <> ")"
+  ctx.schema_alias <> "." <> v.variant_name <> "(" <> args <> ")"
 }
 
 fn data_field_raw_decode_name(f: FieldDefinition) -> String {
@@ -253,7 +267,7 @@ fn rich_decode_lets(data_fields: List(FieldDefinition), ctx: TypeCtx) -> String 
             <> f.label
             <> " = case "
             <> raw(f)
-            <> " {\n    \"\" -> None\n    s -> Some(api_help.date_from_db_string(s))\n  }"
+            <> " {\n    \"\" -> option.None\n    s -> option.Some(api_help.date_from_db_string(s))\n  }"
           glance.NamedType(_, n, _, []) ->
             case list.contains(ctx.enum_scalar_names, n) {
               True ->
@@ -330,7 +344,7 @@ fn entity_rich_row_decoder_fn(
   let needs_dob_assert =
     list.any(v.fields, fn(f) { type_expr_is_calendar_date(f.type_) })
   let assert_line = case needs_dob_assert {
-    True -> "\n  let assert Some(dob_identity) = date_of_birth\n"
+    True -> "\n  let assert option.Some(dob_identity) = date_of_birth\n"
     False -> ""
   }
   let row_intro = case needs_dob_assert {
@@ -344,11 +358,12 @@ fn entity_rich_row_decoder_fn(
         |> string.join("\n"),
       entity,
     )
-  let ident = "      identities: " <> rich_identity_construct_call(v) <> ","
+  let ident =
+    "      identities: " <> rich_identity_construct_call(v, ctx) <> ","
   let rel = case entity_has_relationships_field(entity) {
     True ->
       "\n      relationships: "
-      <> default_relationships_record(schema, entity)
+      <> default_relationships_record(schema, entity, ctx)
       <> ","
     False -> ""
   }
@@ -367,6 +382,8 @@ fn entity_rich_row_decoder_fn(
   <> row_intro
   <> row_local
   <> " =\n    "
+  <> ctx.schema_alias
+  <> "."
   <> entity.type_name
   <> "(\n"
   <> field_lines
@@ -378,8 +395,16 @@ fn entity_rich_row_decoder_fn(
   <> ",\n    api_help.magic_from_db_row(id, created_at, updated_at, deleted_at_raw),\n  ))"
 }
 
-pub fn entity_row_tuple_type(entity_name: String) -> String {
-  "#(" <> entity_name <> ", dsl.MagicFields)"
+pub fn entity_row_tuple_type(ctx: TypeCtx, entity_name: String) -> String {
+  "#(" <> ctx.schema_alias <> "." <> entity_name <> ", dsl.MagicFields)"
+}
+
+pub fn option_entity_row_tuple(ctx: TypeCtx, entity_name: String) -> String {
+  "option.Option(#("
+  <> ctx.schema_alias
+  <> "."
+  <> entity_name
+  <> ", dsl.MagicFields))"
 }
 
 fn row_decoder_expr_for_named(name: String, ctx: TypeCtx) -> String {
@@ -393,7 +418,9 @@ fn row_decoder_expr_for_named(name: String, ctx: TypeCtx) -> String {
         True ->
           "decode.then(decode.string, fn(s) {\n    case "
           <> scalar_from_db_fn_name(name)
-          <> "(s) {\n      Some(v) -> decode.success(v)\n      None -> decode.failure("
+          <> "(s) {\n      option.Some(v) -> decode.success(v)\n      option.None -> decode.failure("
+          <> ctx.schema_alias
+          <> "."
           <> name
           <> ", expected: \""
           <> name
@@ -413,7 +440,7 @@ fn row_decoder_expr(field_type: glance.Type, ctx: TypeCtx) -> String {
         True, False ->
           "decode.then(decode.string, fn(s) {\n    case "
           <> scalar_from_db_fn_name(n)
-          <> "(s) {\n      Ok(v) -> decode.success(v)\n      Error(_) -> decode.failure(None, expected: \"Option("
+          <> "(s) {\n      Ok(v) -> decode.success(v)\n      Error(_) -> decode.failure(option.None, expected: \"Option("
           <> n
           <> ")\")\n    }\n  })"
         True, True ->
@@ -449,11 +476,11 @@ fn type_is_option(t: glance.Type) -> Bool {
   }
 }
 
-fn identity_construct_call(v: IdentityVariantDefinition) -> String {
+fn identity_construct_call(v: IdentityVariantDefinition, ctx: TypeCtx) -> String {
   let args =
     list.map(v.fields, fn(f) { f.label <> ":" })
     |> string.join(", ")
-  v.variant_name <> "(" <> args <> ")"
+  ctx.schema_alias <> "." <> v.variant_name <> "(" <> args <> ")"
 }
 
 fn entity_constructor_list_placeholder_lines(entity: EntityDefinition) -> String {
@@ -491,7 +518,7 @@ fn field_to_constructor_arg(
   case in_id {
     True ->
       case type_is_option(f.type_) {
-        True -> "Some(" <> var <> ")"
+        True -> "option.Some(" <> var <> ")"
         False -> var
       }
     False ->
@@ -502,7 +529,7 @@ fn field_to_constructor_arg(
       {
         True, _, _ -> var
         False, True, True -> "api_help.opt_string_from_db(" <> var <> ")"
-        False, True, False -> "Some(" <> var <> ")"
+        False, True, False -> "option.Some(" <> var <> ")"
         False, False, _ -> var
       }
   }
@@ -557,7 +584,7 @@ fn entity_simple_magic_decoder_fn(
         |> string.join("\n"),
       entity,
     )
-  let ident = "      identities: " <> identity_construct_call(v) <> ","
+  let ident = "      identities: " <> identity_construct_call(v, ctx) <> ","
   uses
   <> "\n"
   <> use_id
@@ -570,6 +597,8 @@ fn entity_simple_magic_decoder_fn(
   <> "\n  let "
   <> row_local
   <> " =\n    "
+  <> ctx.schema_alias
+  <> "."
   <> entity.type_name
   <> "(\n"
   <> field_lines
@@ -605,7 +634,9 @@ pub fn row_decode_helpers_fn_chunks(
       gfun.new_raw(
         [],
         gtypes.raw(
-          "decode.Decoder(" <> entity_row_tuple_type(entity.type_name) <> ")",
+          "decode.Decoder("
+          <> entity_row_tuple_type(ctx, entity.type_name)
+          <> ")",
         ),
         fn(_) {
           gexpr.raw(entity_with_magic_decoder_fn(schema, entity, variant, ctx))

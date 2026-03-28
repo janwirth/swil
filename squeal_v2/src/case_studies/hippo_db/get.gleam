@@ -1,10 +1,10 @@
 import api_help
 import case_studies/hippo_db/row
-import case_studies/hippo_schema.{type GenderScalar, type Hippo, type Human}
+import case_studies/hippo_schema
 import dsl/dsl
-import gleam/option.{type Option, None, Some}
+import gleam/option
 import gleam/result
-import gleam/time/calendar.{type Date}
+import gleam/time/calendar
 import sqlight
 
 const select_human_by_id_sql = "select \"name\", \"email\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"human\" where \"id\" = ? and \"deleted_at\" is null;"
@@ -19,7 +19,10 @@ const select_hippo_by_name_and_date_of_birth_sql = "select \"name\", \"gender\",
 pub fn get_human_by_id(
   conn: sqlight.Connection,
   id: Int,
-) -> Result(Option(#(Human, dsl.MagicFields)), sqlight.Error) {
+) -> Result(
+  option.Option(#(hippo_schema.Human, dsl.MagicFields)),
+  sqlight.Error,
+) {
   use rows <- result.try(sqlight.query(
     select_human_by_id_sql,
     on: conn,
@@ -27,8 +30,8 @@ pub fn get_human_by_id(
     expecting: row.human_with_magic_row_decoder(),
   ))
   case rows {
-    [] -> Ok(None)
-    [r, ..] -> Ok(Some(r))
+    [] -> Ok(option.None)
+    [r, ..] -> Ok(option.Some(r))
   }
 }
 
@@ -36,7 +39,10 @@ pub fn get_human_by_id(
 pub fn get_human_by_email(
   conn: sqlight.Connection,
   email: String,
-) -> Result(Option(#(Human, dsl.MagicFields)), sqlight.Error) {
+) -> Result(
+  option.Option(#(hippo_schema.Human, dsl.MagicFields)),
+  sqlight.Error,
+) {
   use rows <- result.try(sqlight.query(
     select_human_by_email_sql,
     on: conn,
@@ -44,8 +50,8 @@ pub fn get_human_by_email(
     expecting: row.human_with_magic_row_decoder(),
   ))
   case rows {
-    [] -> Ok(None)
-    [r, ..] -> Ok(Some(r))
+    [] -> Ok(option.None)
+    [r, ..] -> Ok(option.Some(r))
   }
 }
 
@@ -53,7 +59,10 @@ pub fn get_human_by_email(
 pub fn get_hippo_by_id(
   conn: sqlight.Connection,
   id: Int,
-) -> Result(Option(#(Hippo, dsl.MagicFields)), sqlight.Error) {
+) -> Result(
+  option.Option(#(hippo_schema.Hippo, dsl.MagicFields)),
+  sqlight.Error,
+) {
   use rows <- result.try(sqlight.query(
     select_hippo_by_id_sql,
     on: conn,
@@ -61,8 +70,8 @@ pub fn get_hippo_by_id(
     expecting: row.hippo_with_magic_row_decoder(),
   ))
   case rows {
-    [] -> Ok(None)
-    [r, ..] -> Ok(Some(r))
+    [] -> Ok(option.None)
+    [r, ..] -> Ok(option.Some(r))
   }
 }
 
@@ -70,8 +79,11 @@ pub fn get_hippo_by_id(
 pub fn get_hippo_by_name_and_date_of_birth(
   conn: sqlight.Connection,
   name: String,
-  date_of_birth: Date,
-) -> Result(Option(#(Hippo, dsl.MagicFields)), sqlight.Error) {
+  date_of_birth: calendar.Date,
+) -> Result(
+  option.Option(#(hippo_schema.Hippo, dsl.MagicFields)),
+  sqlight.Error,
+) {
   use rows <- result.try(sqlight.query(
     select_hippo_by_name_and_date_of_birth_sql,
     on: conn,
@@ -82,7 +94,7 @@ pub fn get_hippo_by_name_and_date_of_birth(
     expecting: row.hippo_with_magic_row_decoder(),
   ))
   case rows {
-    [] -> Ok(None)
-    [r, ..] -> Ok(Some(r))
+    [] -> Ok(option.None)
+    [r, ..] -> Ok(option.Some(r))
   }
 }

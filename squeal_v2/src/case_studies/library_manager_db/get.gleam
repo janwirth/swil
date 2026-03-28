@@ -1,10 +1,7 @@
 import case_studies/library_manager_db/row
-import case_studies/library_manager_schema.{
-  type ImportedTrack, type Tab, type Tag, type TrackBucket,
-  type ViewConfigScalar,
-}
+import case_studies/library_manager_schema
 import dsl/dsl
-import gleam/option.{type Option, None, Some}
+import gleam/option as option
 import gleam/result
 import sqlight
 
@@ -30,7 +27,7 @@ const select_importedtrack_by_title_and_artist_sql = "select \"title\", \"artist
 pub fn get_tab_by_id(
   conn: sqlight.Connection,
   id: Int,
-) -> Result(Option(#(Tab, dsl.MagicFields)), sqlight.Error) {
+) -> Result(option.Option(#(library_manager_schema.Tab, dsl.MagicFields)), sqlight.Error) {
   use rows <- result.try(sqlight.query(
     select_tab_by_id_sql,
     on: conn,
@@ -38,8 +35,8 @@ pub fn get_tab_by_id(
     expecting: row.tab_with_magic_row_decoder(),
   ))
   case rows {
-    [] -> Ok(None)
-    [r, ..] -> Ok(Some(r))
+    [] -> Ok(option.None)
+    [r, ..] -> Ok(option.Some(r))
   }
 }
 
@@ -47,7 +44,7 @@ pub fn get_tab_by_id(
 pub fn get_tab_by_tab_label(
   conn: sqlight.Connection,
   label: String,
-) -> Result(Option(#(Tab, dsl.MagicFields)), sqlight.Error) {
+) -> Result(option.Option(#(library_manager_schema.Tab, dsl.MagicFields)), sqlight.Error) {
   use rows <- result.try(sqlight.query(
     select_tab_by_tab_label_sql,
     on: conn,
@@ -55,8 +52,8 @@ pub fn get_tab_by_tab_label(
     expecting: row.tab_with_magic_row_decoder(),
   ))
   case rows {
-    [] -> Ok(None)
-    [r, ..] -> Ok(Some(r))
+    [] -> Ok(option.None)
+    [r, ..] -> Ok(option.Some(r))
   }
 }
 
@@ -64,7 +61,7 @@ pub fn get_tab_by_tab_label(
 pub fn get_trackbucket_by_id(
   conn: sqlight.Connection,
   id: Int,
-) -> Result(Option(#(TrackBucket, dsl.MagicFields)), sqlight.Error) {
+) -> Result(option.Option(#(library_manager_schema.TrackBucket, dsl.MagicFields)), sqlight.Error) {
   use rows <- result.try(sqlight.query(
     select_trackbucket_by_id_sql,
     on: conn,
@@ -72,8 +69,8 @@ pub fn get_trackbucket_by_id(
     expecting: row.trackbucket_with_magic_row_decoder(),
   ))
   case rows {
-    [] -> Ok(None)
-    [r, ..] -> Ok(Some(r))
+    [] -> Ok(option.None)
+    [r, ..] -> Ok(option.Some(r))
   }
 }
 
@@ -82,7 +79,7 @@ pub fn get_trackbucket_by_bucket_title_and_artist(
   conn: sqlight.Connection,
   title: String,
   artist: String,
-) -> Result(Option(#(TrackBucket, dsl.MagicFields)), sqlight.Error) {
+) -> Result(option.Option(#(library_manager_schema.TrackBucket, dsl.MagicFields)), sqlight.Error) {
   use rows <- result.try(sqlight.query(
     select_trackbucket_by_bucket_title_and_artist_sql,
     on: conn,
@@ -93,8 +90,8 @@ pub fn get_trackbucket_by_bucket_title_and_artist(
     expecting: row.trackbucket_with_magic_row_decoder(),
   ))
   case rows {
-    [] -> Ok(None)
-    [r, ..] -> Ok(Some(r))
+    [] -> Ok(option.None)
+    [r, ..] -> Ok(option.Some(r))
   }
 }
 
@@ -102,7 +99,7 @@ pub fn get_trackbucket_by_bucket_title_and_artist(
 pub fn get_tag_by_id(
   conn: sqlight.Connection,
   id: Int,
-) -> Result(Option(#(Tag, dsl.MagicFields)), sqlight.Error) {
+) -> Result(option.Option(#(library_manager_schema.Tag, dsl.MagicFields)), sqlight.Error) {
   use rows <- result.try(sqlight.query(
     select_tag_by_id_sql,
     on: conn,
@@ -110,8 +107,8 @@ pub fn get_tag_by_id(
     expecting: row.tag_with_magic_row_decoder(),
   ))
   case rows {
-    [] -> Ok(None)
-    [r, ..] -> Ok(Some(r))
+    [] -> Ok(option.None)
+    [r, ..] -> Ok(option.Some(r))
   }
 }
 
@@ -119,7 +116,7 @@ pub fn get_tag_by_id(
 pub fn get_tag_by_tag_label(
   conn: sqlight.Connection,
   label: String,
-) -> Result(Option(#(Tag, dsl.MagicFields)), sqlight.Error) {
+) -> Result(option.Option(#(library_manager_schema.Tag, dsl.MagicFields)), sqlight.Error) {
   use rows <- result.try(sqlight.query(
     select_tag_by_tag_label_sql,
     on: conn,
@@ -127,8 +124,8 @@ pub fn get_tag_by_tag_label(
     expecting: row.tag_with_magic_row_decoder(),
   ))
   case rows {
-    [] -> Ok(None)
-    [r, ..] -> Ok(Some(r))
+    [] -> Ok(option.None)
+    [r, ..] -> Ok(option.Some(r))
   }
 }
 
@@ -136,7 +133,7 @@ pub fn get_tag_by_tag_label(
 pub fn get_importedtrack_by_file_path(
   conn: sqlight.Connection,
   file_path: String,
-) -> Result(Option(#(ImportedTrack, dsl.MagicFields)), sqlight.Error) {
+) -> Result(option.Option(#(library_manager_schema.ImportedTrack, dsl.MagicFields)), sqlight.Error) {
   use rows <- result.try(sqlight.query(
     select_importedtrack_by_file_path_sql,
     on: conn,
@@ -144,8 +141,8 @@ pub fn get_importedtrack_by_file_path(
     expecting: row.importedtrack_with_magic_row_decoder(),
   ))
   case rows {
-    [] -> Ok(None)
-    [r, ..] -> Ok(Some(r))
+    [] -> Ok(option.None)
+    [r, ..] -> Ok(option.Some(r))
   }
 }
 
@@ -153,7 +150,7 @@ pub fn get_importedtrack_by_file_path(
 pub fn get_importedtrack_by_id(
   conn: sqlight.Connection,
   id: Int,
-) -> Result(Option(#(ImportedTrack, dsl.MagicFields)), sqlight.Error) {
+) -> Result(option.Option(#(library_manager_schema.ImportedTrack, dsl.MagicFields)), sqlight.Error) {
   use rows <- result.try(sqlight.query(
     select_importedtrack_by_id_sql,
     on: conn,
@@ -161,8 +158,8 @@ pub fn get_importedtrack_by_id(
     expecting: row.importedtrack_with_magic_row_decoder(),
   ))
   case rows {
-    [] -> Ok(None)
-    [r, ..] -> Ok(Some(r))
+    [] -> Ok(option.None)
+    [r, ..] -> Ok(option.Some(r))
   }
 }
 
@@ -171,7 +168,7 @@ pub fn get_importedtrack_by_title_and_artist(
   conn: sqlight.Connection,
   title: String,
   artist: String,
-) -> Result(Option(#(ImportedTrack, dsl.MagicFields)), sqlight.Error) {
+) -> Result(option.Option(#(library_manager_schema.ImportedTrack, dsl.MagicFields)), sqlight.Error) {
   use rows <- result.try(sqlight.query(
     select_importedtrack_by_title_and_artist_sql,
     on: conn,
@@ -182,7 +179,7 @@ pub fn get_importedtrack_by_title_and_artist(
     expecting: row.importedtrack_with_magic_row_decoder(),
   ))
   case rows {
-    [] -> Ok(None)
-    [r, ..] -> Ok(Some(r))
+    [] -> Ok(option.None)
+    [r, ..] -> Ok(option.Some(r))
   }
 }

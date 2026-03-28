@@ -38,7 +38,7 @@ pub fn get_fn_body(
   <> decoder_qualifier
   <> "."
   <> entity_snake
-  <> "_with_magic_row_decoder(),\n  ))\n  case rows {\n    [] -> Ok(None)\n    [r, ..] -> Ok(Some(r))\n  }"
+  <> "_with_magic_row_decoder(),\n  ))\n  case rows {\n    [] -> Ok(option.None)\n    [r, ..] -> Ok(option.Some(r))\n  }"
 }
 
 pub fn last_fn_body(
@@ -65,5 +65,5 @@ pub fn get_by_id_fn_body(
   <> decoder_qualifier
   <> "."
   <> entity_snake
-  <> "_with_magic_row_decoder(),\n  ))\n  case rows {\n    [] -> Ok(None)\n    [r, ..] -> Ok(Some(r))\n  }"
+  <> "_with_magic_row_decoder(),\n  ))\n  case rows {\n    [] -> Ok(option.None)\n    [r, ..] -> Ok(option.Some(r))\n  }"
 }

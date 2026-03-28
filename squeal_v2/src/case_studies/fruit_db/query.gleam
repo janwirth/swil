@@ -1,5 +1,5 @@
 import case_studies/fruit_db/row
-import case_studies/fruit_schema.{type Fruit}
+import case_studies/fruit_schema
 import dsl/dsl
 import sqlight
 
@@ -10,7 +10,7 @@ const last_100_fruit_sql = "select \"name\", \"color\", \"price\", \"quantity\",
 pub fn query_cheap_fruit(
   conn: sqlight.Connection,
   max_price: Float,
-) -> Result(List(#(Fruit, dsl.MagicFields)), sqlight.Error) {
+) -> Result(List(#(fruit_schema.Fruit, dsl.MagicFields)), sqlight.Error) {
   sqlight.query(
     cheap_fruit_sql,
     on: conn,
@@ -22,7 +22,7 @@ pub fn query_cheap_fruit(
 /// List up to 100 recently edited fruit rows.
 pub fn last_100_edited_fruit(
   conn: sqlight.Connection,
-) -> Result(List(#(Fruit, dsl.MagicFields)), sqlight.Error) {
+) -> Result(List(#(fruit_schema.Fruit, dsl.MagicFields)), sqlight.Error) {
   sqlight.query(
     last_100_fruit_sql,
     on: conn,

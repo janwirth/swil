@@ -1,7 +1,7 @@
 import case_studies/fruit_db/row
-import case_studies/fruit_schema.{type Fruit}
+import case_studies/fruit_schema
 import dsl/dsl
-import gleam/option.{type Option, None, Some}
+import gleam/option
 import gleam/result
 import sqlight
 
@@ -13,7 +13,10 @@ const select_fruit_by_name_sql = "select \"name\", \"color\", \"price\", \"quant
 pub fn get_fruit_by_id(
   conn: sqlight.Connection,
   id: Int,
-) -> Result(Option(#(Fruit, dsl.MagicFields)), sqlight.Error) {
+) -> Result(
+  option.Option(#(fruit_schema.Fruit, dsl.MagicFields)),
+  sqlight.Error,
+) {
   use rows <- result.try(sqlight.query(
     select_fruit_by_id_sql,
     on: conn,
@@ -21,8 +24,8 @@ pub fn get_fruit_by_id(
     expecting: row.fruit_with_magic_row_decoder(),
   ))
   case rows {
-    [] -> Ok(None)
-    [r, ..] -> Ok(Some(r))
+    [] -> Ok(option.None)
+    [r, ..] -> Ok(option.Some(r))
   }
 }
 
@@ -30,7 +33,10 @@ pub fn get_fruit_by_id(
 pub fn get_fruit_by_name(
   conn: sqlight.Connection,
   name: String,
-) -> Result(Option(#(Fruit, dsl.MagicFields)), sqlight.Error) {
+) -> Result(
+  option.Option(#(fruit_schema.Fruit, dsl.MagicFields)),
+  sqlight.Error,
+) {
   use rows <- result.try(sqlight.query(
     select_fruit_by_name_sql,
     on: conn,
@@ -38,7 +44,7 @@ pub fn get_fruit_by_name(
     expecting: row.fruit_with_magic_row_decoder(),
   ))
   case rows {
-    [] -> Ok(None)
-    [r, ..] -> Ok(Some(r))
+    [] -> Ok(option.None)
+    [r, ..] -> Ok(option.Some(r))
   }
 }

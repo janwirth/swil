@@ -65,13 +65,20 @@ fn migrate_chunk(sql_err: gtypes.GeneratedType(e)) {
   )
 }
 
-fn scalar_forward_chunks(def: SchemaDefinition, entity: EntityDefinition) {
+fn scalar_forward_chunks(
+  def: SchemaDefinition,
+  entity: EntityDefinition,
+  ctx: dec.TypeCtx,
+) {
   schema_context.entity_used_enum_scalars(def, entity)
   |> list.flat_map(fn(s) {
     let base = dec.scalar_type_snake_case(s.type_name)
     let from_n = base <> "_from_db_string"
     let to_n = base <> "_to_db_string"
-    let opt_t = gtypes.raw("Option(" <> s.type_name <> ")")
+    let opt_t =
+      gtypes.raw(
+        "option.Option(" <> ctx.schema_alias <> "." <> s.type_name <> ")",
+      )
     [
       #(
         gleamgen_emit.pub_def(from_n),
@@ -129,7 +136,7 @@ pub fn facade_fn_chunks(
 ) {
   let assert [first_entity, ..] = def.entities
   let first_row_t =
-    gtypes.raw(dec.entity_row_tuple_type(first_entity.type_name))
+    gtypes.raw(dec.entity_row_tuple_type(ctx, first_entity.type_name))
   let entity_operation_forwards =
     list.flat_map(def.entities, fn(e) {
       let e_snake = string.lowercase(e.type_name)
@@ -157,9 +164,8 @@ pub fn facade_fn_chunks(
             [api_params.conn_param()],
             api_params.identity_gparams(variant),
           )
-        let row_t = gtypes.raw(dec.entity_row_tuple_type(e.type_name))
-        let row_opt =
-          gtypes.raw("Option(" <> dec.entity_row_tuple_type(e.type_name) <> ")")
+        let row_t = gtypes.raw(dec.entity_row_tuple_type(ctx, e.type_name))
+        let row_opt = gtypes.raw(dec.option_entity_row_tuple(ctx, e.type_name))
         [
           forward_fn("upsert", upsert_name, upsert_params, row_t, sql_err),
           forward_fn("get", get_name, get_params, row_opt, sql_err),
@@ -180,7 +186,7 @@ pub fn facade_fn_chunks(
           api_params.conn_param(),
           gparam.new("id", gtypes.int) |> gparam.to_dynamic,
         ],
-        gtypes.raw("Option(" <> dec.entity_row_tuple_type(e.type_name) <> ")"),
+        gtypes.raw(dec.option_entity_row_tuple(ctx, e.type_name)),
         sql_err,
       )
     }),
@@ -190,14 +196,14 @@ pub fn facade_fn_chunks(
         "query",
         "last_100_edited_" <> e_snake,
         [api_params.conn_param()],
-        gtypes.list(gtypes.raw(dec.entity_row_tuple_type(e.type_name))),
+        gtypes.list(gtypes.raw(dec.entity_row_tuple_type(ctx, e.type_name))),
         sql_err,
       )
     }),
     list.map(generated_query_specs, fn(s) {
       query_spec_forward_chunk(s, first_row_t, sql_err, ctx)
     }),
-    list.flat_map(def.entities, fn(e) { scalar_forward_chunks(def, e) }),
+    list.flat_map(def.entities, fn(e) { scalar_forward_chunks(def, e, ctx) }),
     [migrate_chunk(sql_err)],
   ])
 }

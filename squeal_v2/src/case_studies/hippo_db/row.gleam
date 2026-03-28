@@ -1,16 +1,11 @@
 import api_help
-import case_studies/hippo_schema.{
-  type GenderScalar, type Hippo, type HippoRelationships, type Human,
-  type HumanRelationships, ByEmail, ByNameAndDateOfBirth, Female, Hippo,
-  HippoRelationships, Human, HumanRelationships, Male,
-}
+import case_studies/hippo_schema
 import dsl/dsl
 import gleam/dynamic/decode
-import gleam/option.{type Option, None, Some}
-import gleam/time/calendar.{type Date}
+import gleam/option
 
 pub fn human_with_magic_row_decoder() -> decode.Decoder(
-  #(Human, dsl.MagicFields),
+  #(hippo_schema.Human, dsl.MagicFields),
 ) {
   use name_raw <- decode.field(0, decode.string)
   use email_raw <- decode.field(1, decode.string)
@@ -21,12 +16,15 @@ pub fn human_with_magic_row_decoder() -> decode.Decoder(
   let name = api_help.opt_string_from_db(name_raw)
   let email = api_help.opt_string_from_db(email_raw)
   let human =
-    Human(
+    hippo_schema.Human(
       name:,
       email:,
       hippos: [],
-      identities: ByEmail(email: email_raw),
-      relationships: HumanRelationships(hippos: dsl.BacklinkWith([], None)),
+      identities: hippo_schema.ByEmail(email: email_raw),
+      relationships: hippo_schema.HumanRelationships(hippos: dsl.BacklinkWith(
+        [],
+        option.None,
+      )),
     )
   decode.success(#(
     human,
@@ -34,25 +32,29 @@ pub fn human_with_magic_row_decoder() -> decode.Decoder(
   ))
 }
 
-pub fn gender_scalar_to_db_string(o: Option(GenderScalar)) -> String {
+pub fn gender_scalar_to_db_string(
+  o: option.Option(hippo_schema.GenderScalar),
+) -> String {
   case o {
-    None -> ""
-    Some(Male) -> "Male"
-    Some(Female) -> "Female"
+    option.None -> ""
+    option.Some(hippo_schema.Male) -> "Male"
+    option.Some(hippo_schema.Female) -> "Female"
   }
 }
 
-pub fn gender_scalar_from_db_string(s: String) -> Option(GenderScalar) {
+pub fn gender_scalar_from_db_string(
+  s: String,
+) -> option.Option(hippo_schema.GenderScalar) {
   case s {
-    "" -> None
-    "Male" -> Some(Male)
-    "Female" -> Some(Female)
-    _ -> None
+    "" -> option.None
+    "Male" -> option.Some(hippo_schema.Male)
+    "Female" -> option.Some(hippo_schema.Female)
+    _ -> option.None
   }
 }
 
 pub fn hippo_with_magic_row_decoder() -> decode.Decoder(
-  #(Hippo, dsl.MagicFields),
+  #(hippo_schema.Hippo, dsl.MagicFields),
 ) {
   use name_raw <- decode.field(0, decode.string)
   use gender_raw <- decode.field(1, decode.string)
@@ -64,23 +66,23 @@ pub fn hippo_with_magic_row_decoder() -> decode.Decoder(
   let name = api_help.opt_string_from_db(name_raw)
   let gender = gender_scalar_from_db_string(gender_raw)
   let date_of_birth = case dob_raw {
-    "" -> None
-    s -> Some(api_help.date_from_db_string(s))
+    "" -> option.None
+    s -> option.Some(api_help.date_from_db_string(s))
   }
-  let assert Some(dob_identity) = date_of_birth
+  let assert option.Some(dob_identity) = date_of_birth
   let hippo =
-    Hippo(
+    hippo_schema.Hippo(
       name:,
       gender:,
       date_of_birth:,
-      identities: ByNameAndDateOfBirth(
+      identities: hippo_schema.ByNameAndDateOfBirth(
         name: name_raw,
         date_of_birth: dob_identity,
       ),
-      relationships: HippoRelationships(
-        friends: None,
-        best_friend: None,
-        owner: None,
+      relationships: hippo_schema.HippoRelationships(
+        friends: option.None,
+        best_friend: option.None,
+        owner: option.None,
       ),
     )
   decode.success(#(

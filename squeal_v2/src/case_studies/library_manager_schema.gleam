@@ -1,4 +1,4 @@
-import dsl/dsl.{type BelongsTo}
+import dsl/dsl
 import gleam/option
 
 // id / created_at / updated_at / deleted_at come from `dsl.MagicFields`, not the schema type.
@@ -102,7 +102,6 @@ pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields, _limit: Int) 
 
 // AND [OR[], AND[]]
 // 
-import gleam/list
 
 pub type FilterScalar {
   And(exprs: List(FilterScalar))

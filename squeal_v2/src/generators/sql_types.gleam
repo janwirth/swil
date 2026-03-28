@@ -17,6 +17,8 @@ fn to_generated_type(
       gleamgen_types.float |> gleamgen_types.to_dynamic
     glance.NamedType(_, "Bool", None, []) ->
       gleamgen_types.bool |> gleamgen_types.to_dynamic
+    glance.NamedType(_, "Date", None, []) ->
+      gleamgen_types.raw("calendar.Date") |> gleamgen_types.to_dynamic
     glance.NamedType(_, "Nil", None, []) ->
       gleamgen_types.nil |> gleamgen_types.to_dynamic
     glance.NamedType(_, name, module, params) ->

@@ -1,20 +1,13 @@
 import api_help
-import case_studies/library_manager_schema.{
-  type FilterScalar, type ImportedTrack, type Tab, type Tag,
-  type TagExpressionScalar, type TrackBucket, type TrackBucketRelationships,
-  type ViewConfigScalar, And, ByBucketTitleAndArtist, ByFilePath, ByTabLabel,
-  ByTagLabel, ByTitleAndArtist, DoesNotHave, Has, ImportedTrack, IsAtLeast,
-  IsAtMost, IsEqualTo, Not, Or, Tab, Tag, TagExpression, TrackBucket,
-  TrackBucketRelationships, ViewConfigScalar,
-}
+import case_studies/library_manager_schema
 import dsl/dsl
 import gleam/dynamic/decode
 import gleam/json
-import gleam/option.{type Option, None, Some}
+import gleam/option as option
 
 pub fn view_config_scalar_from_db_string(
   s: String,
-) -> Result(Option(ViewConfigScalar), String) {
+) -> Result(option.Option(library_manager_schema.ViewConfigScalar), String) {
   case
     json.parse(
       from: s,
@@ -26,10 +19,12 @@ pub fn view_config_scalar_from_db_string(
   }
 }
 
-pub fn view_config_scalar_to_db_string(o: Option(ViewConfigScalar)) -> String {
+pub fn view_config_scalar_to_db_string(
+  o: option.Option(library_manager_schema.ViewConfigScalar),
+) -> String {
   case o {
-    None -> "null"
-    Some(ViewConfigScalar(filter_config:, source_selector:)) ->
+    option.None -> "null"
+    option.Some(library_manager_schema.ViewConfigScalar(filter_config:, source_selector:)) ->
       json.to_string(
         json.object([
           #("tag", json.string("ViewConfigScalar")),
@@ -46,7 +41,7 @@ pub fn view_config_scalar_to_db_string(o: Option(ViewConfigScalar)) -> String {
   }
 }
 
-fn view_config_scalar_json_decoder() -> decode.Decoder(ViewConfigScalar) {
+fn view_config_scalar_json_decoder() -> decode.Decoder(library_manager_schema.ViewConfigScalar) {
   {
     use tag <- decode.field("tag", decode.string)
     case tag {
@@ -59,18 +54,21 @@ fn view_config_scalar_json_decoder() -> decode.Decoder(ViewConfigScalar) {
           "source_selector",
           decode.optional(decode.string),
         )
-        decode.success(ViewConfigScalar(filter_config:, source_selector:))
+        decode.success(library_manager_schema.ViewConfigScalar(filter_config:, source_selector:))
       }
       _ ->
         decode.failure(
-          ViewConfigScalar(filter_config: None, source_selector: None),
+          library_manager_schema.ViewConfigScalar(
+            filter_config: option.None,
+            source_selector: option.None,
+          ),
           expected: "ViewConfigScalar",
         )
     }
   }
 }
 
-pub fn tab_with_magic_row_decoder() -> decode.Decoder(#(Tab, dsl.MagicFields)) {
+pub fn tab_with_magic_row_decoder() -> decode.Decoder(#(library_manager_schema.Tab, dsl.MagicFields)) {
   use label <- decode.field(0, decode.string)
   use order <- decode.field(1, decode.float)
   use view_config <- decode.field(
@@ -78,7 +76,8 @@ pub fn tab_with_magic_row_decoder() -> decode.Decoder(#(Tab, dsl.MagicFields)) {
     decode.then(decode.string, fn(s) {
       case view_config_scalar_from_db_string(s) {
         Ok(v) -> decode.success(v)
-        Error(_) -> decode.failure(None, expected: "Option(ViewConfigScalar)")
+        Error(_) ->
+          decode.failure(option.None, expected: "Option(ViewConfigScalar)")
       }
     }),
   )
@@ -87,12 +86,12 @@ pub fn tab_with_magic_row_decoder() -> decode.Decoder(#(Tab, dsl.MagicFields)) {
   use updated_at <- decode.field(5, decode.int)
   use deleted_at_raw <- decode.field(6, decode.optional(decode.int))
   let tab =
-    Tab(
-      label: Some(label),
-      order: Some(order),
+    library_manager_schema.Tab(
+      label: option.Some(label),
+      order: option.Some(order),
       view_config: view_config,
       tracks: [],
-      identities: ByTabLabel(label:),
+      identities: library_manager_schema.ByTabLabel(label:),
     )
   decode.success(#(
     tab,
@@ -101,7 +100,7 @@ pub fn tab_with_magic_row_decoder() -> decode.Decoder(#(Tab, dsl.MagicFields)) {
 }
 
 pub fn trackbucket_with_magic_row_decoder() -> decode.Decoder(
-  #(TrackBucket, dsl.MagicFields),
+  #(library_manager_schema.TrackBucket, dsl.MagicFields),
 ) {
   use title_raw <- decode.field(0, decode.string)
   use artist_raw <- decode.field(1, decode.string)
@@ -112,12 +111,12 @@ pub fn trackbucket_with_magic_row_decoder() -> decode.Decoder(
   let title = api_help.opt_string_from_db(title_raw)
   let artist = api_help.opt_string_from_db(artist_raw)
   let trackbucket =
-    TrackBucket(
+    library_manager_schema.TrackBucket(
       title:,
       artist:,
       matched_tracks: [],
-      identities: ByBucketTitleAndArtist(title: title_raw, artist: artist_raw),
-      relationships: TrackBucketRelationships(tags: []),
+      identities: library_manager_schema.ByBucketTitleAndArtist(title: title_raw, artist: artist_raw),
+      relationships: library_manager_schema.TrackBucketRelationships(tags: []),
     )
   decode.success(#(
     trackbucket,
@@ -125,7 +124,7 @@ pub fn trackbucket_with_magic_row_decoder() -> decode.Decoder(
   ))
 }
 
-pub fn tag_with_magic_row_decoder() -> decode.Decoder(#(Tag, dsl.MagicFields)) {
+pub fn tag_with_magic_row_decoder() -> decode.Decoder(#(library_manager_schema.Tag, dsl.MagicFields)) {
   use label <- decode.field(0, decode.string)
   use emoji <- decode.field(1, decode.string)
   use id <- decode.field(2, decode.int)
@@ -133,10 +132,10 @@ pub fn tag_with_magic_row_decoder() -> decode.Decoder(#(Tag, dsl.MagicFields)) {
   use updated_at <- decode.field(4, decode.int)
   use deleted_at_raw <- decode.field(5, decode.optional(decode.int))
   let tag =
-    Tag(
-      label: Some(label),
+    library_manager_schema.Tag(
+      label: option.Some(label),
       emoji: api_help.opt_string_from_db(emoji),
-      identities: ByTagLabel(label:),
+      identities: library_manager_schema.ByTagLabel(label:),
     )
   decode.success(#(
     tag,
@@ -145,7 +144,7 @@ pub fn tag_with_magic_row_decoder() -> decode.Decoder(#(Tag, dsl.MagicFields)) {
 }
 
 pub fn importedtrack_with_magic_row_decoder() -> decode.Decoder(
-  #(ImportedTrack, dsl.MagicFields),
+  #(library_manager_schema.ImportedTrack, dsl.MagicFields),
 ) {
   use title <- decode.field(0, decode.string)
   use artist <- decode.field(1, decode.string)
@@ -155,12 +154,12 @@ pub fn importedtrack_with_magic_row_decoder() -> decode.Decoder(
   use updated_at <- decode.field(5, decode.int)
   use deleted_at_raw <- decode.field(6, decode.optional(decode.int))
   let importedtrack =
-    ImportedTrack(
-      title: Some(title),
-      artist: Some(artist),
+    library_manager_schema.ImportedTrack(
+      title: option.Some(title),
+      artist: option.Some(artist),
       file_path: api_help.opt_string_from_db(file_path),
       tags: [],
-      identities: ByTitleAndArtist(title:, artist:),
+      identities: library_manager_schema.ByTitleAndArtist(title:, artist:),
     )
   decode.success(#(
     importedtrack,

@@ -1,11 +1,10 @@
 import api_help
 import case_studies/hippo_db/row
-import case_studies/hippo_schema.{type GenderScalar, type Hippo, type Human}
+import case_studies/hippo_schema
 import dsl/dsl
-import gleam/option.{type Option}
+import gleam/option
 import gleam/result
-import gleam/time/calendar.{type Date}
-import gleam/time/timestamp
+import gleam/time/calendar
 import sqlight
 
 const update_human_by_email_sql = "update \"human\" set \"name\" = ?, \"updated_at\" = ? where \"email\" = ? and \"deleted_at\" is null returning \"name\", \"email\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
@@ -32,8 +31,8 @@ returning \"name\", \"gender\", \"date_of_birth\", \"id\", \"created_at\", \"upd
 pub fn update_human_by_email(
   conn: sqlight.Connection,
   email: String,
-  name: Option(String),
-) -> Result(#(Human, dsl.MagicFields), sqlight.Error) {
+  name: option.Option(String),
+) -> Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   let c = api_help.opt_text_for_db(name)
   use rows <- result.try(sqlight.query(
@@ -56,8 +55,8 @@ pub fn update_human_by_email(
 pub fn upsert_human_by_email(
   conn: sqlight.Connection,
   email: String,
-  name: Option(String),
-) -> Result(#(Human, dsl.MagicFields), sqlight.Error) {
+  name: option.Option(String),
+) -> Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   let c = api_help.opt_text_for_db(name)
   use rows <- result.try(sqlight.query(
@@ -94,9 +93,9 @@ fn not_found_human_email_error(op: String) -> sqlight.Error {
 pub fn update_hippo_by_name_and_date_of_birth(
   conn: sqlight.Connection,
   name: String,
-  date_of_birth: Date,
-  gender: Option(GenderScalar),
-) -> Result(#(Hippo, dsl.MagicFields), sqlight.Error) {
+  date_of_birth: calendar.Date,
+  gender: option.Option(hippo_schema.GenderScalar),
+) -> Result(#(hippo_schema.Hippo, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   use rows <- result.try(sqlight.query(
     update_hippo_by_name_and_date_of_birth_sql,
@@ -122,9 +121,9 @@ pub fn update_hippo_by_name_and_date_of_birth(
 pub fn upsert_hippo_by_name_and_date_of_birth(
   conn: sqlight.Connection,
   name: String,
-  date_of_birth: Date,
-  gender: Option(GenderScalar),
-) -> Result(#(Hippo, dsl.MagicFields), sqlight.Error) {
+  date_of_birth: calendar.Date,
+  gender: option.Option(hippo_schema.GenderScalar),
+) -> Result(#(hippo_schema.Hippo, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   use rows <- result.try(sqlight.query(
     upsert_hippo_by_name_and_date_of_birth_sql,
