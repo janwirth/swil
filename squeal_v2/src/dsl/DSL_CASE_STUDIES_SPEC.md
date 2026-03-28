@@ -16,15 +16,15 @@ This pass trims `src/dsl/dsl.gleam` to what is **referenced from case-study sche
 
 ## What stayed (directly tied to those four schema files)
 
-| Symbol | Used in |
-|--------|---------|
-| `age`, `exclude_if_missing`, `nullable` | `hippo_schema`, `fruit_schema`, `library_manager_advanced_schema` |
-| `Mutual`, `BelongsTo`, `BacklinkWith` | `hippo_schema` (relationship shapes); `BelongsTo` also in library manager schemas |
-| `MagicFields`, `Direction` / `Asc` / `Desc`, `order` (field + direction) | All four |
-| `query`, `shape`, `order`, `filter_bool`, `filter_complex` | Query pipeline in all four (where applicable) |
-| `BooleanFilter` | `FilterExpressionScalar` alias (`BooleanFilter(TagExpressionScalar)`); return type of `predicate_complex_tags_filter` |
-| `any` | Body of `predicate_complex_tags_filter` |
-| Phantom `Query(...)` types | Required so the pipeline type-checks |
+| Symbol                                                                   | Used in                                                                                                               |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| `age`, `exclude_if_missing`, `nullable`                                  | `hippo_schema`, `fruit_schema`, `library_manager_advanced_schema`                                                     |
+| `Mutual`, `BelongsTo`, `BacklinkWith`                                    | `hippo_schema` (relationship shapes); `BelongsTo` also in library manager schemas                                     |
+| `MagicFields`, `Direction` / `Asc` / `Desc`, `order` (field + direction) | All four                                                                                                              |
+| `query`, `shape`, `order`, `filter_bool`, `filter_complex`               | Query pipeline in all four (where applicable)                                                                         |
+| `BooleanFilter`                                                          | `FilterExpressionScalar` alias (`BooleanFilter(TagExpressionScalar)`); return type of `predicate_complex_tags_filter` |
+| `any`                                                                    | Body of `predicate_complex_tags_filter`                                                                               |
+| Phantom `Query(...)` types                                               | Required so the pipeline type-checks                                                                                  |
 
 ## What was removed (not referenced in those schema files)
 

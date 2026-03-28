@@ -14,7 +14,7 @@ Query specs use the `query_` prefix; BooleanFilter helpers use `predicate_` (enf
 
 ### Problem statement
 
-Earlier drafts used a separate `RecursiveFilterSpec` type; that shape is merged into `dsl.BooleanFilter` (`And` / `Or` / `Not` / `Predicate`). Schema modules use consistent **predicate\_*** naming for leaf interpreters.
+Earlier drafts used a separate `RecursiveFilterSpec` type; that shape is merged into `dsl.BooleanFilter` (`And` / `Or` / `Not` / `Predicate`). Schema modules use consistent **predicate\_\*** naming for leaf interpreters.
 
 ### Scope
 
@@ -50,11 +50,11 @@ Pipeline steps that return a value re-wrap with `Query(root: r)` so the phantom 
 
 Public functions passed as the second argument to `dsl.filter_complex(..., predicate_fn)` **must** use the prefix **`predicate_`**. Reference implementation: `predicate_complex_tags_filter` in `library_manager_advanced_schema.gleam`.
 
-| Artefact | Rule | Canonical example |
-|----------|------|-------------------|
-| Leaf constructor | `dsl.BooleanFilter` carrying payload type `T` | `Predicate(item: TagExpressionScalar)` |
-| Leaf interpreter `pub fn` | **`predicate_` prefix** | `predicate_complex_tags_filter` |
-| Pipeline filter | **`filter_complex(spec, predicate_fn)`** (no separate `complex_filter` in current `dsl`) | `dsl.filter_complex(complex_tag_filter_expression, predicate_complex_tags_filter)` |
+| Artefact                  | Rule                                                                                     | Canonical example                                                                  |
+| ------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Leaf constructor          | `dsl.BooleanFilter` carrying payload type `T`                                            | `Predicate(item: TagExpressionScalar)`                                             |
+| Leaf interpreter `pub fn` | **`predicate_` prefix**                                                                  | `predicate_complex_tags_filter`                                                    |
+| Pipeline filter           | **`filter_complex(spec, predicate_fn)`** (no separate `complex_filter` in current `dsl`) | `dsl.filter_complex(complex_tag_filter_expression, predicate_complex_tags_filter)` |
 
 ### Query and predicate authoring
 

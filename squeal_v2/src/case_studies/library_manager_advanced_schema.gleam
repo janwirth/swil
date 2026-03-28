@@ -108,18 +108,22 @@ pub fn predicate_complex_tags_filter(
       case tag_expression {
         Has(tag_id: tag_id) ->
           dsl.any(track_bucket.relationships.tags, fn(tag, magic_fields, edge_attribs) {
+
             magic_fields.id == tag_id
           })
         IsAtLeast(tag_id: tag_id, value: value) ->
           dsl.any(track_bucket.relationships.tags, fn(tag, magic_fields, edge_attribs) {
+            magic_fields.id == tag_id &&
             dsl.exclude_if_missing(edge_attribs.value) >= value
           })
         IsAtMost(tag_id: tag_id, value: value) ->
           dsl.any(track_bucket.relationships.tags, fn(tag, magic_fields, edge_attribs) {
+            magic_fields.id == tag_id &&
             dsl.exclude_if_missing(edge_attribs.value) <= value
           })
         IsEqualTo(tag_id: tag_id, value: value) ->
           dsl.any(track_bucket.relationships.tags, fn(tag, magic_fields, edge_attribs) {
+            magic_fields.id == tag_id &&
             dsl.exclude_if_missing(edge_attribs.value) == value
           })
 
