@@ -83,7 +83,10 @@ fn generate_from_schema_path(user_path: String) -> Result(Nil, String) {
   use _ <- result.try(write_file(query_out, api_outputs.query))
   use _ <- result.try(write_file(api_out, api_outputs.api))
   use migration_text <- result.try(
-    migration_generator.generate_pragma_migration_module(def, migration_tag),
+    migration_generator.generate_pragma_migration_module_with_junctions(
+      def,
+      migration_tag,
+    ),
   )
   use _ <- result.try(write_file(migration_out, migration_text))
   io.println("wrote " <> skeleton_out)

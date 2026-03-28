@@ -2,6 +2,7 @@ import generators/api/api_naming
 import generators/api/api_params
 import generators/api/api_query
 import generators/gleamgen_emit
+import glance
 import gleam/list
 import gleam/string
 import gleamgen/expression as gexpr
@@ -10,6 +11,7 @@ import gleamgen/parameter as gparam
 import gleamgen/types as gtypes
 import schema_definition/schema_definition.{
   type EntityDefinition, type QuerySpecDefinition, type SchemaDefinition,
+  QueryParameter,
 }
 
 import generators/api/api_decoders as dec
@@ -128,11 +130,50 @@ fn query_spec_forward_chunk(
   forward_fn("query", spec.name, fn_params, gtypes.list(row_t), sql_err)
 }
 
+fn entity_name_from_spec_params(
+  spec: QuerySpecDefinition,
+  fallback: String,
+) -> String {
+  case spec.parameters {
+    [QueryParameter(_, _, glance.NamedType(_, name, _, [])), ..] -> name
+    _ -> fallback
+  }
+}
+
+fn complex_query_forward_chunk(
+  spec: QuerySpecDefinition,
+  sql_err: gtypes.GeneratedType(e),
+  ctx: dec.TypeCtx,
+  fallback_entity: String,
+) {
+  let entity_name = entity_name_from_spec_params(spec, fallback_entity)
+  let row_t = gtypes.raw(dec.entity_row_tuple_type(ctx, entity_name))
+  let fn_params =
+    list.append(
+      [api_params.conn_param()],
+      list.map(
+        case spec.parameters {
+          [_, _, simple] -> [simple]
+          _ -> []
+        },
+        fn(p) {
+          gparam.new(
+            api_query.schema_query_param_name(p),
+            gtypes.raw(dec.render_type(p.type_, ctx)),
+          )
+          |> gparam.to_dynamic
+        },
+      ),
+    )
+  forward_fn("query", spec.name, fn_params, gtypes.list(row_t), sql_err)
+}
+
 pub fn facade_fn_chunks(
   def: SchemaDefinition,
   sql_err,
   ctx: dec.TypeCtx,
   generated_query_specs: List(QuerySpecDefinition),
+  complex_query_specs: List(QuerySpecDefinition),
 ) {
   let assert [first_entity, ..] = def.entities
   let first_row_t =
@@ -202,6 +243,9 @@ pub fn facade_fn_chunks(
     }),
     list.map(generated_query_specs, fn(s) {
       query_spec_forward_chunk(s, first_row_t, sql_err, ctx)
+    }),
+    list.map(complex_query_specs, fn(s) {
+      complex_query_forward_chunk(s, sql_err, ctx, first_entity.type_name)
     }),
     list.flat_map(def.entities, fn(e) { scalar_forward_chunks(def, e, ctx) }),
     [migrate_chunk(sql_err)],

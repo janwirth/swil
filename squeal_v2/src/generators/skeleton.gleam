@@ -569,13 +569,16 @@ fn render_type(t: glance.Type, ctx: TypeCtx) -> String {
       "option.Option(" <> render_type(inner, ctx) <> ")"
     glance.NamedType(_, "List", _, [inner]) ->
       "List(" <> render_type(inner, ctx) <> ")"
-    glance.NamedType(_, name, None, []) ->
-      case list.contains(ctx.scalar_names, name) {
-        True -> ctx.schema_alias <> "." <> name
-        False -> name
-      }
+    // Any bare named type not caught above (entity, scalar, or type alias from
+    // the schema module) is qualified with the schema import alias.
+    glance.NamedType(_, name, None, []) -> ctx.schema_alias <> "." <> name
+    // Module-qualified in source (e.g. `dsl.Something`): scalars/entities from
+    // the schema module are re-qualified; other qualified types use the bare name.
     glance.NamedType(_, name, Some(_mod), []) ->
-      case list.contains(ctx.scalar_names, name) {
+      case
+        list.contains(ctx.scalar_names, name)
+        || list.contains(ctx.entity_names, name)
+      {
         True -> ctx.schema_alias <> "." <> name
         False -> name
       }

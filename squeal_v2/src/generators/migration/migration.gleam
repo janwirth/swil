@@ -6,6 +6,7 @@ import generators/migration/pragma_migration_panic
 import glance
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/result
 import gleam/string
 import gleamgen/expression as gexpr
 import gleamgen/expression/statement as gstmt
@@ -265,6 +266,297 @@ pub fn build_pragma_migration_data_for_entity(
   )
 }
 
+// =============================================================================
+// Junction table (many-to-many via List(BelongsTo(...))) generation
+// =============================================================================
+
+type JunctionSpec {
+  JunctionSpec(
+    root_entity: String,
+    target_entity: String,
+    edge_fields: List(FieldDefinition),
+  )
+}
+
+fn find_junction_specs(schema: SchemaDefinition) -> List(JunctionSpec) {
+  list.flat_map(schema.relationship_containers, fn(container) {
+    let root_entity =
+      list.find(schema.entities, fn(e) {
+        list.any(e.fields, fn(f) {
+          f.label == "relationships"
+          && named_type_name(f.type_) == Some(container.type_name)
+        })
+      })
+    case root_entity {
+      Error(_) -> []
+      Ok(entity) -> {
+        let assert [variant, ..] = container.variants
+        list.filter_map(variant.fields, fn(field) {
+          case field.type_ {
+            glance.NamedType(_, "List", _, [
+              glance.NamedType(_, "BelongsTo", _, [
+                glance.NamedType(_, target_name, _, []),
+                glance.NamedType(_, edge_attribs_name, _, []),
+              ]),
+            ]) -> {
+              let edge_fields =
+                case
+                  list.find(schema.relationship_edge_attributes, fn(ea) {
+                    ea.type_name == edge_attribs_name
+                  })
+                {
+                  Ok(ea) -> {
+                    let assert [v, ..] = ea.variants
+                    v.fields
+                  }
+                  Error(_) -> []
+                }
+              Ok(JunctionSpec(
+                root_entity: entity.type_name,
+                target_entity: target_name,
+                edge_fields: edge_fields,
+              ))
+            }
+            _ -> Error(Nil)
+          }
+        })
+      }
+    }
+  })
+}
+
+fn junction_field_base_sql_type(t: glance.Type) -> String {
+  case t {
+    glance.NamedType(_, "Int", _, _) -> "integer"
+    glance.NamedType(_, "Bool", _, _) -> "integer"
+    glance.NamedType(_, "Float", _, _) -> "real"
+    _ -> "text"
+  }
+}
+
+fn junction_field_sql_type(t: glance.Type) -> String {
+  case t {
+    glance.NamedType(_, "Option", _, [inner]) ->
+      junction_field_base_sql_type(inner)
+    other -> junction_field_base_sql_type(other) <> " not null"
+  }
+}
+
+fn junction_gleam_base_type(t: glance.Type) -> String {
+  case t {
+    glance.NamedType(_, "Int", _, _) -> "Int"
+    glance.NamedType(_, "Float", _, _) -> "Float"
+    glance.NamedType(_, "Bool", _, _) -> "Bool"
+    glance.NamedType(_, "String", _, _) -> "String"
+    _ -> "String"
+  }
+}
+
+fn junction_gleam_type(t: glance.Type) -> String {
+  case t {
+    glance.NamedType(_, "Option", _, [inner]) ->
+      "option.Option(" <> junction_gleam_base_type(inner) <> ")"
+    other -> junction_gleam_base_type(other)
+  }
+}
+
+fn junction_sqlight_bind(field_name: String, t: glance.Type) -> String {
+  case t {
+    glance.NamedType(_, "Option", _, [glance.NamedType(_, "Int", _, _)]) ->
+      "case "
+      <> field_name
+      <> " { option.Some(v) -> sqlight.int(v) option.None -> sqlight.null() }"
+    glance.NamedType(_, "Option", _, [glance.NamedType(_, "Float", _, _)]) ->
+      "case "
+      <> field_name
+      <> " { option.Some(v) -> sqlight.float(v) option.None -> sqlight.null() }"
+    glance.NamedType(_, "Option", _, _) ->
+      "case "
+      <> field_name
+      <> " { option.Some(v) -> sqlight.text(v) option.None -> sqlight.null() }"
+    glance.NamedType(_, "Int", _, _) -> "sqlight.int(" <> field_name <> ")"
+    glance.NamedType(_, "Float", _, _) -> "sqlight.float(" <> field_name <> ")"
+    _ -> "sqlight.text(" <> field_name <> ")"
+  }
+}
+
+fn junction_ddl_sql(spec: JunctionSpec) -> String {
+  let jt =
+    string.lowercase(spec.root_entity)
+    <> "_"
+    <> string.lowercase(spec.target_entity)
+  let root_fk = string.lowercase(spec.root_entity) <> "_id"
+  let target_fk = string.lowercase(spec.target_entity) <> "_id"
+  let edge_col_lines =
+    list.map(spec.edge_fields, fn(f) {
+      "  " <> migration_sql.quote_ident(f.label) <> " " <> junction_field_sql_type(f.type_)
+    })
+  let all_col_lines =
+    list.flatten([
+      [
+        "  " <> migration_sql.quote_ident(root_fk) <> " integer not null",
+        "  " <> migration_sql.quote_ident(target_fk) <> " integer not null",
+      ],
+      edge_col_lines,
+      [
+        "  unique ("
+        <> migration_sql.quote_ident(root_fk)
+        <> ", "
+        <> migration_sql.quote_ident(target_fk)
+        <> ")",
+      ],
+    ])
+  "create table if not exists "
+  <> migration_sql.quote_ident(jt)
+  <> " (\n"
+  <> string.join(all_col_lines, ",\n")
+  <> "\n);"
+}
+
+fn junction_upsert_sql(spec: JunctionSpec) -> String {
+  let jt =
+    string.lowercase(spec.root_entity)
+    <> "_"
+    <> string.lowercase(spec.target_entity)
+  let root_fk = string.lowercase(spec.root_entity) <> "_id"
+  let target_fk = string.lowercase(spec.target_entity) <> "_id"
+  let all_col_names =
+    list.flatten([
+      [root_fk, target_fk],
+      list.map(spec.edge_fields, fn(f) { f.label }),
+    ])
+  let placeholders =
+    list.map(all_col_names, fn(_) { "?" }) |> string.join(", ")
+  let update_cols =
+    list.map(spec.edge_fields, fn(f) {
+      migration_sql.quote_ident(f.label)
+      <> " = excluded."
+      <> migration_sql.quote_ident(f.label)
+    })
+  let update_clause = case update_cols {
+    [] ->
+      migration_sql.quote_ident(root_fk)
+      <> " = excluded."
+      <> migration_sql.quote_ident(root_fk)
+    _ -> string.join(update_cols, ", ")
+  }
+  let cols_sql =
+    list.map(all_col_names, migration_sql.quote_ident) |> string.join(", ")
+  "insert into "
+  <> migration_sql.quote_ident(jt)
+  <> " ("
+  <> cols_sql
+  <> ") values ("
+  <> placeholders
+  <> ") on conflict ("
+  <> migration_sql.quote_ident(root_fk)
+  <> ", "
+  <> migration_sql.quote_ident(target_fk)
+  <> ") do update set "
+  <> update_clause
+  <> ";"
+}
+
+fn gleam_escape_string(s: String) -> String {
+  s
+  |> string.replace("\\", "\\\\")
+  |> string.replace("\"", "\\\"")
+  |> string.replace("\n", "\\n")
+}
+
+fn junction_upsert_gleam_fn(spec: JunctionSpec) -> String {
+  let jt =
+    string.lowercase(spec.root_entity)
+    <> "_"
+    <> string.lowercase(spec.target_entity)
+  let fn_name = "upsert_" <> jt
+  let sql_const = fn_name <> "_sql"
+  let root_fk = string.lowercase(spec.root_entity) <> "_id"
+  let target_fk = string.lowercase(spec.target_entity) <> "_id"
+  let id_params = [root_fk <> ": Int", target_fk <> ": Int"]
+  let edge_params =
+    list.map(spec.edge_fields, fn(f) {
+      f.label <> ": " <> junction_gleam_type(f.type_)
+    })
+  let all_params =
+    list.flatten([["conn: sqlight.Connection"], id_params, edge_params])
+  let id_binds = [
+    "sqlight.int(" <> root_fk <> ")",
+    "sqlight.int(" <> target_fk <> ")",
+  ]
+  let edge_binds =
+    list.map(spec.edge_fields, fn(f) {
+      junction_sqlight_bind(f.label, f.type_)
+    })
+  let all_binds = list.append(id_binds, edge_binds)
+  "pub fn "
+  <> fn_name
+  <> "(\n  "
+  <> string.join(all_params, ",\n  ")
+  <> ",\n) -> Result(Nil, sqlight.Error) {\n  sqlight.query(\n    "
+  <> sql_const
+  <> ",\n    on: conn,\n    with: ["
+  <> string.join(all_binds, ", ")
+  <> "],\n    expecting: decode.success(Nil),\n  )\n  |> result.map(fn(_) { Nil })\n}"
+}
+
+fn build_create_junction_tables_fn(specs: List(JunctionSpec)) -> String {
+  let lines =
+    list.map(specs, fn(spec) {
+      let jt =
+        string.lowercase(spec.root_entity)
+        <> "_"
+        <> string.lowercase(spec.target_entity)
+      "  use _ <- result.try(sqlight.exec(create_" <> jt <> "_sql, conn))"
+    })
+  "fn create_junction_tables(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {\n"
+  <> string.join(lines, "\n")
+  <> "\n  Ok(Nil)\n}"
+}
+
+fn generate_junction_table_appendage_inner(schema: SchemaDefinition) -> String {
+  let specs = find_junction_specs(schema)
+  case specs {
+    [] -> ""
+    _ -> {
+      let parts =
+        list.map(specs, fn(spec) {
+          let jt =
+            string.lowercase(spec.root_entity)
+            <> "_"
+            <> string.lowercase(spec.target_entity)
+          let create_const = "create_" <> jt <> "_sql"
+          let upsert_const = "upsert_" <> jt <> "_sql"
+          let consts =
+            "const "
+            <> create_const
+            <> " =\n  \""
+            <> gleam_escape_string(junction_ddl_sql(spec))
+            <> "\"\n\nconst "
+            <> upsert_const
+            <> " =\n  \""
+            <> gleam_escape_string(junction_upsert_sql(spec))
+            <> "\""
+          consts <> "\n\n" <> junction_upsert_gleam_fn(spec)
+        })
+      let create_fn = build_create_junction_tables_fn(specs)
+      "\n\n" <> create_fn <> "\n\n" <> string.join(parts, "\n\n")
+    }
+  }
+}
+
+fn inject_junction_tables_call(migration_text: String) -> String {
+  let suffix = "\n  Ok(Nil)\n}\n"
+  case string.ends_with(migration_text, suffix) {
+    False -> migration_text
+    True -> {
+      let before = string.drop_end(migration_text, string.length(suffix))
+      before
+      <> "\n  use _ <- result.try(create_junction_tables(conn))\n  Ok(Nil)\n}\n"
+    }
+  }
+}
+
 /// Full Gleam module text for pragma reconcile migrations: one module per schema,
 /// single- or multi-entity.
 /// [module_tag] is baked into panic messages so failures name the generating module.
@@ -294,4 +586,24 @@ pub fn generate_pragma_migration_module(
     True -> pragma_migration_emit.emit_multi(datas)
   }
   gleam_fmt.format_generated_source(unformatted)
+}
+
+/// Like `generate_pragma_migration_module` but also appends junction table DDL
+/// and helper functions for every `List(BelongsTo(...))` relationship in the schema.
+pub fn generate_pragma_migration_module_with_junctions(
+  schema: SchemaDefinition,
+  module_tag: String,
+) -> Result(String, String) {
+  use base_text <- result.try(generate_pragma_migration_module(
+    schema,
+    module_tag,
+  ))
+  let appendage = generate_junction_table_appendage_inner(schema)
+  case appendage {
+    "" -> Ok(base_text)
+    _ -> {
+      let modified = inject_junction_tables_call(base_text) <> appendage
+      gleam_fmt.format_generated_source(modified)
+    }
+  }
 }

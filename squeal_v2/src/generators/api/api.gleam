@@ -8,8 +8,10 @@ import generators/api/api_params
 import generators/api/api_query
 import generators/api/api_sql
 import generators/api/api_update_delete as ud
+import generators/api/complex_filter_sql
 import generators/api/schema_context
 import generators/gleam_format_generated as gleam_fmt
+import glance
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
@@ -20,10 +22,11 @@ import gleamgen/module as gmod
 import gleamgen/module/definition as gdef
 import gleamgen/render as grender
 import gleamgen/types as gtypes
+import schema_definition/predicate_parser
 import schema_definition/schema_definition.{
-  type Query, type SchemaDefinition, AgeFn, Call, Compare, CustomOrder, Eq,
-  ExcludeIfMissing, ExcludeIfMissingFn, Field, Ge, Gt, Le, Lt, Ne, NullableFn,
-  Param, Predicate, Query,
+  type Query, type QueryParameter, type SchemaDefinition, AgeFn, Call, Compare,
+  ComplexRecursive, CustomOrder, Eq, ExcludeIfMissing, ExcludeIfMissingFn,
+  Field, Ge, Gt, Le, Lt, Ne, NullableFn, Param, Predicate, Query, QueryParameter,
 }
 
 fn quote_ident(s: String) -> String {
@@ -277,6 +280,43 @@ fn ensure_decode_import(text: String) -> String {
   }
 }
 
+fn ensure_list_import(text: String) -> String {
+  case string.contains(text, "list.") && !string.contains(text, "import gleam/list") {
+    False -> text
+    True -> {
+      case string.split(text, "\n") {
+        [] -> text
+        [first, ..rest] ->
+          first <> "\nimport gleam/list\n" <> string.join(rest, "\n")
+      }
+    }
+  }
+}
+
+fn ensure_string_import(text: String) -> String {
+  case
+    string.contains(text, "string.")
+    && !string.contains(text, "import gleam/string")
+  {
+    False -> text
+    True -> {
+      case string.split(text, "\n") {
+        [] -> text
+        [first, ..rest] ->
+          first <> "\nimport gleam/string\n" <> string.join(rest, "\n")
+      }
+    }
+  }
+}
+
+fn format_parse_error(e: schema_definition.ParseError) -> String {
+  case e {
+    schema_definition.GlanceError(_) -> "glance parse error in predicate"
+    schema_definition.UnsupportedSchema(_, msg) ->
+      "unsupported predicate schema: " <> msg
+  }
+}
+
 fn render_module(m: gmod.Module) -> String {
   m
   |> gmod.render(grender.default_context())
@@ -332,6 +372,15 @@ pub fn generate_api_db_outputs(
   let generated_query_specs =
     list.filter(def.queries, fn(q) {
       api_query.query_spec_targets_entity(q, first_entity)
+    })
+
+  // Complex recursive filter query specs (target any entity).
+  let complex_recursive_specs =
+    list.filter(def.queries, fn(q) {
+      case q.query {
+        Query(filter: Some(ComplexRecursive(..)), ..) -> True
+        _ -> False
+      }
     })
 
   let row_t = gtypes.raw(dec.entity_row_tuple_type(ctx, first_entity.type_name))
@@ -650,7 +699,13 @@ pub fn generate_api_db_outputs(
     )
 
   let facade_chunks =
-    facade.facade_fn_chunks(def, sql_err, ctx, generated_query_specs)
+    facade.facade_fn_chunks(
+      def,
+      sql_err,
+      ctx,
+      generated_query_specs,
+      complex_recursive_specs,
+    )
   let api_mod =
     api_imports.with_facade_module_imports(
       migration_path,
@@ -673,10 +728,139 @@ pub fn generate_api_db_outputs(
     |> ensure_api_help_import
     |> ensure_dsl_import
   let delete_text = ensure_api_help_import(render_module(delete_mod))
-  let query_text =
+
+  // Build raw query text and append complex filter code.
+  let raw_query_text =
     render_module(query_mod)
     |> ensure_option_import
     |> ensure_dsl_import
+
+  use complex_filter_parts <- result.try(
+    list.fold(complex_recursive_specs, Ok([]), fn(acc, spec) {
+      use acc_parts <- result.try(acc)
+      case spec.query {
+        Query(
+          filter: Some(ComplexRecursive(
+            filter_param_name: fpn,
+            predicate_fn_name: pred_fn_name,
+          )),
+          ..,
+        ) -> {
+          case
+            list.find(def.predicate_functions, fn(f) { f.name == pred_fn_name })
+          {
+            Error(_) ->
+              Error(
+                "predicate function not found in schema: " <> pred_fn_name,
+              )
+            Ok(pred_fn) -> {
+              case predicate_parser.parse(pred_fn) {
+                Error(e) ->
+                  Error(
+                    "failed to parse predicate "
+                    <> pred_fn_name
+                    <> ": "
+                    <> format_parse_error(e),
+                  )
+                Ok(pred_spec) -> {
+                  let root_entity =
+                    list.find(def.entities, fn(e) {
+                      e.type_name == pred_spec.root_entity_type
+                    })
+                    |> result.unwrap(first_entity)
+                  let data_cols =
+                    api_sql.entity_data_fields(root_entity)
+                    |> list.map(fn(f) { f.label })
+                  let all_cols =
+                    list.append(data_cols, [
+                      "id",
+                      "created_at",
+                      "updated_at",
+                      "deleted_at",
+                    ])
+                  let select_cols_sql =
+                    list.map(all_cols, fn(c) { "\\\"" <> c <> "\\\"" })
+                    |> string.join(", ")
+                  let filter_param_type =
+                    list.find(spec.parameters, fn(p) {
+                      api_query.schema_query_param_name(p) == fpn
+                      || p.name == fpn
+                    })
+                    |> result.map(fn(p) { dec.render_type(p.type_, ctx) })
+                    |> result.unwrap(
+                      ctx.schema_alias <> "." <> pred_spec.leaf_param_type,
+                    )
+                  let filter_prefix =
+                    string.lowercase(pred_spec.target_entity_type)
+                  let gen_ctx =
+                    complex_filter_sql.ComplexFilterGenCtx(
+                      schema_alias: ctx.schema_alias,
+                      filter_param_type: filter_param_type,
+                      leaf_scalar_type: ctx.schema_alias
+                        <> "."
+                        <> pred_spec.leaf_param_type,
+                      row_tuple_type: dec.entity_row_tuple_type(
+                        ctx,
+                        pred_spec.root_entity_type,
+                      ),
+                      row_decoder_fn: string.lowercase(
+                          pred_spec.root_entity_type,
+                        )
+                        <> "_with_magic_row_decoder",
+                      select_cols_sql: select_cols_sql,
+                      root_table: string.lowercase(pred_spec.root_entity_type),
+                      root_alias: "tb",
+                      order_sql: "tb.\\\"updated_at\\\" desc",
+                      filter_prefix: filter_prefix,
+                    )
+                  let sql_code =
+                    complex_filter_sql.emit_complex_filter_query(
+                      pred_spec,
+                      gen_ctx,
+                      spec.name,
+                    )
+                  let leaf_dec_fn = filter_prefix <> "_expression_decoder"
+                  let bool_dec_fn = "filter_expression_decoder"
+                  let decoder_code =
+                    complex_filter_sql.emit_bool_filter_decoder(
+                      bool_dec_fn,
+                      leaf_dec_fn,
+                      filter_param_type,
+                    )
+                  let leaf_decoder_code =
+                    complex_filter_sql.emit_leaf_scalar_decoder(
+                      leaf_dec_fn,
+                      ctx.schema_alias <> "." <> pred_spec.leaf_param_type,
+                      ctx.schema_alias,
+                      pred_spec,
+                    )
+                  let part =
+                    "\n\n"
+                    <> sql_code
+                    <> "\n\n"
+                    <> decoder_code
+                    <> "\n\n"
+                    <> leaf_decoder_code
+                  Ok([part, ..acc_parts])
+                }
+              }
+            }
+          }
+        }
+        _ -> Ok(acc_parts)
+      }
+    }),
+  )
+
+  let raw_query_text =
+    raw_query_text
+    <> string.join(list.reverse(complex_filter_parts), "")
+  let raw_query_text =
+    raw_query_text
+    |> ensure_decode_import
+    |> ensure_list_import
+    |> ensure_string_import
+
   let api_text =
     render_module(api_mod)
     |> ensure_option_import
@@ -689,7 +873,7 @@ pub fn generate_api_db_outputs(
     |> result.map(strip_option_import_if_unused),
   )
   use query_text <- result.try(
-    gleam_fmt.format_generated_source(query_text)
+    gleam_fmt.format_generated_source(raw_query_text)
     |> result.map(strip_option_import_if_unused),
   )
   use api_text <- result.try(gleam_fmt.format_generated_source(api_text))

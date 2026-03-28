@@ -78,7 +78,7 @@ pub fn has_matches_tagged_bucket_test() {
   let tag_id = insert_tag(conn, "chill")
   let tb_id = insert_trackbucket(conn, "Mellow Mix", "Various")
   let assert Ok(Nil) =
-    migration.upsert_trackbucket_tag(conn, tb_id, tag_id, sqlight.null(), 0)
+    migration.upsert_trackbucket_tag(conn, tb_id, tag_id, None)
   let filter = dsl.Predicate(schema.Has(tag_id: tag_id))
   let assert Ok(results) = api.query_tracks_by_view_config(conn, filter)
   assert list.length(results) == 1
@@ -105,7 +105,7 @@ pub fn is_at_least_matches_when_value_ge_test() {
   let tag_id = insert_tag(conn, "priority")
   let tb_id = insert_trackbucket(conn, "Top Picks", "Curator")
   let assert Ok(Nil) =
-    migration.upsert_trackbucket_tag(conn, tb_id, tag_id, sqlight.int(80), 0)
+    migration.upsert_trackbucket_tag(conn, tb_id, tag_id, Some(80))
   let filter = dsl.Predicate(schema.IsAtLeast(tag_id: tag_id, value: 50))
   let assert Ok(results) = api.query_tracks_by_view_config(conn, filter)
   assert list.length(results) == 1
@@ -116,7 +116,7 @@ pub fn is_at_least_no_match_when_value_lt_test() {
   let tag_id = insert_tag(conn, "priority2")
   let tb_id = insert_trackbucket(conn, "Low Prio", "Curator")
   let assert Ok(Nil) =
-    migration.upsert_trackbucket_tag(conn, tb_id, tag_id, sqlight.int(20), 0)
+    migration.upsert_trackbucket_tag(conn, tb_id, tag_id, Some(20))
   let filter = dsl.Predicate(schema.IsAtLeast(tag_id: tag_id, value: 50))
   let assert Ok(results) = api.query_tracks_by_view_config(conn, filter)
   assert results == []
@@ -131,7 +131,7 @@ pub fn is_at_most_matches_test() {
   let tag_id = insert_tag(conn, "bpm")
   let tb_id = insert_trackbucket(conn, "Slow Jams", "DJ Mellow")
   let assert Ok(Nil) =
-    migration.upsert_trackbucket_tag(conn, tb_id, tag_id, sqlight.int(90), 0)
+    migration.upsert_trackbucket_tag(conn, tb_id, tag_id, Some(90))
   let filter = dsl.Predicate(schema.IsAtMost(tag_id: tag_id, value: 100))
   let assert Ok(results) = api.query_tracks_by_view_config(conn, filter)
   assert list.length(results) == 1
@@ -142,7 +142,7 @@ pub fn is_at_most_no_match_test() {
   let tag_id = insert_tag(conn, "bpm_high")
   let tb_id = insert_trackbucket(conn, "Fast Bangers", "DJ Speed")
   let assert Ok(Nil) =
-    migration.upsert_trackbucket_tag(conn, tb_id, tag_id, sqlight.int(150), 0)
+    migration.upsert_trackbucket_tag(conn, tb_id, tag_id, Some(150))
   let filter = dsl.Predicate(schema.IsAtMost(tag_id: tag_id, value: 100))
   let assert Ok(results) = api.query_tracks_by_view_config(conn, filter)
   assert results == []
@@ -157,7 +157,7 @@ pub fn is_equal_to_matches_test() {
   let tag_id = insert_tag(conn, "rating")
   let tb_id = insert_trackbucket(conn, "Gold", "Label")
   let assert Ok(Nil) =
-    migration.upsert_trackbucket_tag(conn, tb_id, tag_id, sqlight.int(5), 0)
+    migration.upsert_trackbucket_tag(conn, tb_id, tag_id, Some(5))
   let filter = dsl.Predicate(schema.IsEqualTo(tag_id: tag_id, value: 5))
   let assert Ok(results) = api.query_tracks_by_view_config(conn, filter)
   assert list.length(results) == 1
@@ -168,7 +168,7 @@ pub fn is_equal_to_no_match_test() {
   let tag_id = insert_tag(conn, "rating2")
   let tb_id = insert_trackbucket(conn, "Silver", "Label")
   let assert Ok(Nil) =
-    migration.upsert_trackbucket_tag(conn, tb_id, tag_id, sqlight.int(4), 0)
+    migration.upsert_trackbucket_tag(conn, tb_id, tag_id, Some(4))
   let filter = dsl.Predicate(schema.IsEqualTo(tag_id: tag_id, value: 5))
   let assert Ok(results) = api.query_tracks_by_view_config(conn, filter)
   assert results == []
@@ -184,9 +184,9 @@ pub fn and_matches_when_both_satisfied_test() {
   let tag_b = insert_tag(conn, "study")
   let tb_id = insert_trackbucket(conn, "Study Lofi", "Playlist")
   let assert Ok(Nil) =
-    migration.upsert_trackbucket_tag(conn, tb_id, tag_a, sqlight.null(), 0)
+    migration.upsert_trackbucket_tag(conn, tb_id, tag_a, None)
   let assert Ok(Nil) =
-    migration.upsert_trackbucket_tag(conn, tb_id, tag_b, sqlight.null(), 0)
+    migration.upsert_trackbucket_tag(conn, tb_id, tag_b, None)
   let filter =
     dsl.And([
       dsl.Predicate(schema.Has(tag_id: tag_a)),
@@ -202,7 +202,7 @@ pub fn and_no_match_when_one_missing_test() {
   let tag_b = insert_tag(conn, "blues")
   let tb_id = insert_trackbucket(conn, "Jazz Only", "Playlist")
   let assert Ok(Nil) =
-    migration.upsert_trackbucket_tag(conn, tb_id, tag_a, sqlight.null(), 0)
+    migration.upsert_trackbucket_tag(conn, tb_id, tag_a, None)
   // tag_b NOT attached
   let filter =
     dsl.And([
@@ -224,9 +224,9 @@ pub fn or_matches_when_either_satisfied_test() {
   let tb_rock = insert_trackbucket(conn, "Rock Anthology", "Label")
   let tb_pop = insert_trackbucket(conn, "Pop Hits", "Label")
   let assert Ok(Nil) =
-    migration.upsert_trackbucket_tag(conn, tb_rock, tag_rock, sqlight.null(), 0)
+    migration.upsert_trackbucket_tag(conn, tb_rock, tag_rock, None)
   let assert Ok(Nil) =
-    migration.upsert_trackbucket_tag(conn, tb_pop, tag_pop, sqlight.null(), 0)
+    migration.upsert_trackbucket_tag(conn, tb_pop, tag_pop, None)
   let filter =
     dsl.Or([
       dsl.Predicate(schema.Has(tag_id: tag_rock)),
@@ -247,13 +247,7 @@ pub fn not_excludes_tagged_bucket_test() {
   let tb_clean = insert_trackbucket(conn, "Clean Mix", "Label")
   // Only "Adult Mix" is tagged; "Clean Mix" is not.
   let assert Ok(Nil) =
-    migration.upsert_trackbucket_tag(
-      conn,
-      tb_flagged,
-      tag_nsfw,
-      sqlight.null(),
-      0,
-    )
+    migration.upsert_trackbucket_tag(conn, tb_flagged, tag_nsfw, None)
   let filter = dsl.Not(dsl.Predicate(schema.Has(tag_id: tag_nsfw)))
   let assert Ok(results) = api.query_tracks_by_view_config(conn, filter)
   // Only "Clean Mix" passes the NOT filter
@@ -273,7 +267,7 @@ pub fn is_at_least_excludes_null_value_test() {
   let tb_id = insert_trackbucket(conn, "Unweighted", "Various")
   // value is NULL
   let assert Ok(Nil) =
-    migration.upsert_trackbucket_tag(conn, tb_id, tag_id, sqlight.null(), 0)
+    migration.upsert_trackbucket_tag(conn, tb_id, tag_id, None)
   let filter = dsl.Predicate(schema.IsAtLeast(tag_id: tag_id, value: 0))
   // NULL >= 0 is UNKNOWN in SQL 3VL → row excluded
   let assert Ok(results) = api.query_tracks_by_view_config(conn, filter)
@@ -325,7 +319,7 @@ pub fn filter_returns_only_matching_rows_test() {
   let tb_yes = insert_trackbucket(conn, "Featured Album", "Artist A")
   let _tb_no = insert_trackbucket(conn, "Regular Album", "Artist B")
   let assert Ok(Nil) =
-    migration.upsert_trackbucket_tag(conn, tb_yes, tag_id, sqlight.null(), 0)
+    migration.upsert_trackbucket_tag(conn, tb_yes, tag_id, None)
   let filter = dsl.Predicate(schema.Has(tag_id: tag_id))
   let assert Ok(results) = api.query_tracks_by_view_config(conn, filter)
   assert list.length(results) == 1
