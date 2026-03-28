@@ -2,7 +2,7 @@
 
 Boolean expressions that **SQL generation** must parse and lower live in a **restricted sublanguage**. They appear inside **DSL expansion sites** — for example the callback passed to `dsl.any` in `src/dsl/dsl.gleam` — not in arbitrary Gleam in a `predicate_*` function.
 
-See [FILTER_SPEC.md](FILTER_SPEC.md) for how this fits **complex queries** (`filter_complex`, encodable `BooleanFilter(T)`, and `predicate_*` interpreters).
+See [FILTER_SPEC.md](FILTER_SPEC.md) for how this fits **complex queries** (`filter_complex`, encodable `BooleanFilter(*ParamExpressionScalar)`, and `predicate_*` interpreters).
 
 ---
 

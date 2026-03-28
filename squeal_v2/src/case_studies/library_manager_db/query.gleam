@@ -26,7 +26,10 @@ pub fn last_100_edited_tab(
 /// List up to 100 recently edited trackbucket rows.
 pub fn last_100_edited_trackbucket(
   conn: sqlight.Connection,
-) -> Result(List(#(library_manager_schema.TrackBucket, dsl.MagicFields)), sqlight.Error) {
+) -> Result(
+  List(#(library_manager_schema.TrackBucket, dsl.MagicFields)),
+  sqlight.Error,
+) {
   sqlight.query(
     last_100_trackbucket_sql,
     on: conn,
@@ -50,7 +53,10 @@ pub fn last_100_edited_tag(
 /// List up to 100 recently edited importedtrack rows.
 pub fn last_100_edited_importedtrack(
   conn: sqlight.Connection,
-) -> Result(List(#(library_manager_schema.ImportedTrack, dsl.MagicFields)), sqlight.Error) {
+) -> Result(
+  List(#(library_manager_schema.ImportedTrack, dsl.MagicFields)),
+  sqlight.Error,
+) {
   sqlight.query(
     last_100_importedtrack_sql,
     on: conn,

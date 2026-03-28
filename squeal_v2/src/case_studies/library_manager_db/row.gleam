@@ -3,7 +3,7 @@ import case_studies/library_manager_schema
 import dsl/dsl
 import gleam/dynamic/decode
 import gleam/json
-import gleam/option as option
+import gleam/option
 
 pub fn view_config_scalar_from_db_string(
   s: String,
@@ -24,7 +24,10 @@ pub fn view_config_scalar_to_db_string(
 ) -> String {
   case o {
     option.None -> "null"
-    option.Some(library_manager_schema.ViewConfigScalar(filter_config:, source_selector:)) ->
+    option.Some(library_manager_schema.ViewConfigScalar(
+      filter_config:,
+      source_selector:,
+    )) ->
       json.to_string(
         json.object([
           #("tag", json.string("ViewConfigScalar")),
@@ -41,7 +44,9 @@ pub fn view_config_scalar_to_db_string(
   }
 }
 
-fn view_config_scalar_json_decoder() -> decode.Decoder(library_manager_schema.ViewConfigScalar) {
+fn view_config_scalar_json_decoder() -> decode.Decoder(
+  library_manager_schema.ViewConfigScalar,
+) {
   {
     use tag <- decode.field("tag", decode.string)
     case tag {
@@ -54,7 +59,10 @@ fn view_config_scalar_json_decoder() -> decode.Decoder(library_manager_schema.Vi
           "source_selector",
           decode.optional(decode.string),
         )
-        decode.success(library_manager_schema.ViewConfigScalar(filter_config:, source_selector:))
+        decode.success(library_manager_schema.ViewConfigScalar(
+          filter_config:,
+          source_selector:,
+        ))
       }
       _ ->
         decode.failure(
@@ -68,7 +76,9 @@ fn view_config_scalar_json_decoder() -> decode.Decoder(library_manager_schema.Vi
   }
 }
 
-pub fn tab_with_magic_row_decoder() -> decode.Decoder(#(library_manager_schema.Tab, dsl.MagicFields)) {
+pub fn tab_with_magic_row_decoder() -> decode.Decoder(
+  #(library_manager_schema.Tab, dsl.MagicFields),
+) {
   use label <- decode.field(0, decode.string)
   use order <- decode.field(1, decode.float)
   use view_config <- decode.field(
@@ -115,7 +125,10 @@ pub fn trackbucket_with_magic_row_decoder() -> decode.Decoder(
       title:,
       artist:,
       matched_tracks: [],
-      identities: library_manager_schema.ByBucketTitleAndArtist(title: title_raw, artist: artist_raw),
+      identities: library_manager_schema.ByBucketTitleAndArtist(
+        title: title_raw,
+        artist: artist_raw,
+      ),
       relationships: library_manager_schema.TrackBucketRelationships(tags: []),
     )
   decode.success(#(
@@ -124,7 +137,9 @@ pub fn trackbucket_with_magic_row_decoder() -> decode.Decoder(
   ))
 }
 
-pub fn tag_with_magic_row_decoder() -> decode.Decoder(#(library_manager_schema.Tag, dsl.MagicFields)) {
+pub fn tag_with_magic_row_decoder() -> decode.Decoder(
+  #(library_manager_schema.Tag, dsl.MagicFields),
+) {
   use label <- decode.field(0, decode.string)
   use emoji <- decode.field(1, decode.string)
   use id <- decode.field(2, decode.int)

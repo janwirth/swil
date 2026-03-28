@@ -46,13 +46,7 @@ fn scalar_enum_to_db_expr(
   let branches =
     string.join(
       list.map(variants, fn(v) {
-        "    option.Some("
-        <> schema_alias
-        <> "."
-        <> v
-        <> ") -> \""
-        <> v
-        <> "\""
+        "    option.Some(" <> schema_alias <> "." <> v <> ") -> \"" <> v <> "\""
       }),
       "\n",
     )
@@ -107,7 +101,10 @@ fn placeholder_expr(t: glance.Type) -> String {
   }
 }
 
-fn scalar_variant_placeholder(v: VariantWithFields, schema_alias: String) -> String {
+fn scalar_variant_placeholder(
+  v: VariantWithFields,
+  schema_alias: String,
+) -> String {
   case v.fields {
     [] -> schema_alias <> "." <> v.variant_name
     fields ->
@@ -236,10 +233,7 @@ fn non_enum_scalar_from_db_fn_body(
   <> " from JSON: \" <> s)\n}"
 }
 
-fn non_enum_scalar_fn_chunks(
-  scalar: ScalarTypeDefinition,
-  ctx: dec.TypeCtx,
-) {
+fn non_enum_scalar_fn_chunks(scalar: ScalarTypeDefinition, ctx: dec.TypeCtx) {
   let base = dec.scalar_type_snake_case(scalar.type_name)
   let decode_fn = base <> "_json_decoder"
   let from_fn = dec.scalar_from_db_fn_name(scalar.type_name)
@@ -249,13 +243,9 @@ fn non_enum_scalar_fn_chunks(
   [
     #(
       gdef.new(decode_fn) |> gdef.with_publicity(False),
-      gfun.new_raw(
-        [],
-        gtypes.raw("decode.Decoder(" <> q <> ")"),
-        fn(_) {
-          gexpr.raw(non_enum_scalar_decoder_fn_body(scalar, ctx.schema_alias))
-        },
-      )
+      gfun.new_raw([], gtypes.raw("decode.Decoder(" <> q <> ")"), fn(_) {
+        gexpr.raw(non_enum_scalar_decoder_fn_body(scalar, ctx.schema_alias))
+      })
         |> gfun.to_dynamic,
     ),
     #(
@@ -281,10 +271,7 @@ fn non_enum_scalar_fn_chunks(
   ]
 }
 
-fn enum_scalar_fn_chunks(
-  scalar: ScalarTypeDefinition,
-  ctx: dec.TypeCtx,
-) {
+fn enum_scalar_fn_chunks(scalar: ScalarTypeDefinition, ctx: dec.TypeCtx) {
   let from_fn = dec.scalar_from_db_fn_name(scalar.type_name)
   let to_fn = dec.scalar_to_db_fn_name(scalar.type_name)
   let q = ctx.schema_alias <> "." <> scalar.type_name
@@ -319,11 +306,7 @@ fn enum_scalar_fn_chunks(
   ]
 }
 
-pub fn scalar_db_fn_chunks(
-  def,
-  entity: EntityDefinition,
-  ctx: dec.TypeCtx,
-) {
+pub fn scalar_db_fn_chunks(def, entity: EntityDefinition, ctx: dec.TypeCtx) {
   let used_names = schema_context.entity_used_scalar_type_names(def, entity)
   def.scalars
   |> list.filter(fn(s) { list.contains(used_names, s.type_name) })

@@ -57,7 +57,7 @@ pub fn nullable(_some_val: option.Option(some_type)) -> some_type {
 // =============================================================================
 
 /// Recursive filter tree: `And` / `Or` / `Not` plus `Predicate` leaves tagged with `a`.
-/// - Query parameters: `BooleanFilter(MyLeaf)` (e.g. tag filter config built from `Predicate(TagExpressionScalar)`).
+/// - Query parameters: `BooleanFilter(MyLeaf)` (e.g. tag filter built from `Predicate(TagParamExpressionScalar)`; see FILTER_SPEC.md).
 /// - `predicate_*` helpers: typically `BooleanFilter(BelongsTo(...))` from `any(...)`, expanded at SQL gen.
 pub type BooleanFilter(a) {
   And(exprs: List(BooleanFilter(a)))
@@ -80,29 +80,17 @@ pub fn any(
 // =============================================================================
 
 /// Slot markers: duplicate steps are rejected at compile time via incompatible type parameters.
-pub opaque type QueryShapeNotSet {
-  QueryShapeNotSet
-}
+pub type QueryShapeNotSet
 
-pub opaque type QueryShapeSet(projection) {
-  QueryShapeSet
-}
+pub type QueryShapeSet(projection)
 
-pub opaque type QueryFilterNotSet {
-  QueryFilterNotSet
-}
+pub type QueryFilterNotSet
 
-pub opaque type QueryFilterSet {
-  QueryFilterSet
-}
+pub type QueryFilterSet
 
-pub opaque type QueryOrderNotSet {
-  QueryOrderNotSet
-}
+pub type QueryOrderNotSet
 
-pub opaque type QueryOrderSet(field, direction) {
-  QueryOrderSet
-}
+pub type QueryOrderSet(field, direction)
 
 pub type Direction {
   Asc
@@ -156,14 +144,4 @@ pub fn filter_complex(
 ) -> Query(root, QueryShapeSet(projection), QueryFilterSet, QueryOrderNotSet) {
   let Query(root: _) = q
   panic as "this is DSL - should never be called"
-}
-
-/// References phantom slot markers so they are not reported as unused private constructors.
-pub fn phantom_query_slot_constructors() {
-  let _ = QueryShapeNotSet
-  let _ = QueryShapeSet
-  let _ = QueryFilterNotSet
-  let _ = QueryFilterSet
-  let _ = QueryOrderNotSet
-  let _ = QueryOrderSet
 }

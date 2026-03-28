@@ -2,7 +2,7 @@ import api_help
 import case_studies/library_manager_db/row
 import case_studies/library_manager_schema
 import dsl/dsl
-import gleam/option as option
+import gleam/option
 import gleam/result
 import sqlight
 
@@ -124,7 +124,10 @@ pub fn update_trackbucket_by_bucket_title_and_artist(
   conn: sqlight.Connection,
   title: String,
   artist: String,
-) -> Result(#(library_manager_schema.TrackBucket, dsl.MagicFields), sqlight.Error) {
+) -> Result(
+  #(library_manager_schema.TrackBucket, dsl.MagicFields),
+  sqlight.Error,
+) {
   let now = api_help.unix_seconds_now()
   use rows <- result.try(sqlight.query(
     update_trackbucket_by_bucket_title_and_artist_sql,
@@ -150,7 +153,10 @@ pub fn upsert_trackbucket_by_bucket_title_and_artist(
   conn: sqlight.Connection,
   title: String,
   artist: String,
-) -> Result(#(library_manager_schema.TrackBucket, dsl.MagicFields), sqlight.Error) {
+) -> Result(
+  #(library_manager_schema.TrackBucket, dsl.MagicFields),
+  sqlight.Error,
+) {
   let now = api_help.unix_seconds_now()
   use rows <- result.try(sqlight.query(
     upsert_trackbucket_by_bucket_title_and_artist_sql,
@@ -248,7 +254,10 @@ pub fn update_importedtrack_by_file_path(
   file_path: String,
   title: option.Option(String),
   artist: option.Option(String),
-) -> Result(#(library_manager_schema.ImportedTrack, dsl.MagicFields), sqlight.Error) {
+) -> Result(
+  #(library_manager_schema.ImportedTrack, dsl.MagicFields),
+  sqlight.Error,
+) {
   let now = api_help.unix_seconds_now()
   let title_t = api_help.opt_text_for_db(title)
   let artist_t = api_help.opt_text_for_db(artist)
@@ -278,7 +287,10 @@ pub fn upsert_importedtrack_by_file_path(
   file_path: String,
   title: option.Option(String),
   artist: option.Option(String),
-) -> Result(#(library_manager_schema.ImportedTrack, dsl.MagicFields), sqlight.Error) {
+) -> Result(
+  #(library_manager_schema.ImportedTrack, dsl.MagicFields),
+  sqlight.Error,
+) {
   let now = api_help.unix_seconds_now()
   let title_t = api_help.opt_text_for_db(title)
   let artist_t = api_help.opt_text_for_db(artist)
@@ -319,7 +331,10 @@ pub fn update_importedtrack_by_title_and_artist(
   title: String,
   artist: String,
   file_path: option.Option(String),
-) -> Result(#(library_manager_schema.ImportedTrack, dsl.MagicFields), sqlight.Error) {
+) -> Result(
+  #(library_manager_schema.ImportedTrack, dsl.MagicFields),
+  sqlight.Error,
+) {
   let now = api_help.unix_seconds_now()
   let c = api_help.opt_text_for_db(file_path)
   use rows <- result.try(sqlight.query(
@@ -348,7 +363,10 @@ pub fn upsert_importedtrack_by_title_and_artist(
   title: String,
   artist: String,
   file_path: option.Option(String),
-) -> Result(#(library_manager_schema.ImportedTrack, dsl.MagicFields), sqlight.Error) {
+) -> Result(
+  #(library_manager_schema.ImportedTrack, dsl.MagicFields),
+  sqlight.Error,
+) {
   let now = api_help.unix_seconds_now()
   let c = api_help.opt_text_for_db(file_path)
   use rows <- result.try(sqlight.query(

@@ -16,13 +16,19 @@ pub fn main() -> Nil {
 }
 
 /// Helper function to get a query by name from a schema definition.
-fn get_query_by_name (def: sd.SchemaDefinition, name: String) -> sd.QuerySpecDefinition {
+fn get_query_by_name(
+  def: sd.SchemaDefinition,
+  name: String,
+) -> sd.QuerySpecDefinition {
   let assert Ok(q) =
     list.find(in: def.queries, one_that: fn(q) { q.name == name })
   q
 }
 
-fn assert_some_predicate(filter: option.Option(sd.Filter), inspect: fn(sd.Pred) -> Nil) {
+fn assert_some_predicate(
+  filter: option.Option(sd.Filter),
+  inspect: fn(sd.Pred) -> Nil,
+) {
   let assert Some(sd.Predicate(pred: pred)) = filter
   inspect(pred)
 }
@@ -31,7 +37,7 @@ fn assert_some_predicate(filter: option.Option(sd.Filter), inspect: fn(sd.Pred) 
 pub fn filter_bool_fruit_cheap_price_parse_test() {
   let assert Ok(src) = simplifile.read("src/case_studies/fruit_schema.gleam")
   let assert Ok(def) = schema_parser.parse_module(src)
-  let q = get_query_by_name (def, "query_cheap_fruit")
+  let q = get_query_by_name(def, "query_cheap_fruit")
   assert_some_predicate(q.query.filter, fn(pred) {
     let assert sd.Compare(
       left: sd.Call(sd.ExcludeIfMissingFn, [sd.Field(path: price_path)]),
@@ -47,7 +53,7 @@ pub fn filter_bool_fruit_cheap_price_parse_test() {
 pub fn filter_bool_hippo_gender_eq_parse_test() {
   let assert Ok(src) = simplifile.read("src/case_studies/hippo_schema.gleam")
   let assert Ok(def) = schema_parser.parse_module(src)
-  let q = get_query_by_name (def, "query_hippos_by_gender")
+  let q = get_query_by_name(def, "query_hippos_by_gender")
   assert_some_predicate(q.query.filter, fn(pred) {
     let assert sd.Compare(
       left: sd.Call(sd.ExcludeIfMissingFn, [sd.Field(path: gender_path)]),
@@ -63,12 +69,13 @@ pub fn filter_bool_hippo_gender_eq_parse_test() {
 pub fn filter_bool_hippo_age_gt_parse_test() {
   let assert Ok(src) = simplifile.read("src/case_studies/hippo_schema.gleam")
   let assert Ok(def) = schema_parser.parse_module(src)
-  let q = get_query_by_name (def, "query_old_hippos_owner_emails")
+  let q = get_query_by_name(def, "query_old_hippos_owner_emails")
   assert_some_predicate(q.query.filter, fn(pred) {
     let assert sd.Compare(
-      left: sd.Call(sd.AgeFn, [
-        sd.Call(sd.ExcludeIfMissingFn, [sd.Field(path: dob_path)]),
-      ]),
+      left: sd.Call(
+        sd.AgeFn,
+        [sd.Call(sd.ExcludeIfMissingFn, [sd.Field(path: dob_path)])],
+      ),
       operator: sd.Gt,
       right: sd.Param(name: "min_age"),
       missing_behavior: sd.ExcludeIfMissing,
@@ -99,7 +106,7 @@ pub fn query_widget_active(w: Widget, _magic_fields: dsl.MagicFields, want: Bool
 /// `!` on a comparison → `Pred.Not`
 pub fn filter_bool_not_parse_test() {
   let assert Ok(def) = schema_parser.parse_module(not_filter_module)
-  let q = get_query_by_name (def, "query_widget_active")
+  let q = get_query_by_name(def, "query_widget_active")
   assert_some_predicate(q.query.filter, fn(pred) {
     let assert sd.Not(item: inner) = pred
     let assert sd.Compare(
@@ -140,7 +147,7 @@ pub fn query_duo_any_above(d: Duo, _magic_fields: dsl.MagicFields, t: Int) {
 /// `||` → `Pred.Or` with two `Compare` leaves
 pub fn filter_bool_or_parse_test() {
   let assert Ok(def) = schema_parser.parse_module(or_filter_module)
-  let q = get_query_by_name (def, "query_duo_any_above")
+  let q = get_query_by_name(def, "query_duo_any_above")
   assert_some_predicate(q.query.filter, fn(pred) {
     let assert sd.Or(items: items) = pred
     assert list.length(items) == 2

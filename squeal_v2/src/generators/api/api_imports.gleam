@@ -109,9 +109,9 @@ pub fn with_upsert_module_imports(
       }
     }
     True -> {
-      use _ <- gmod.with_import(gimport.new_predefined([
-        "gleam", "time", "calendar",
-      ]))
+      use _ <- gmod.with_import(
+        gimport.new_predefined(["gleam", "time", "calendar"]),
+      )
       inner()
     }
   }
@@ -133,9 +133,9 @@ pub fn with_delete_module_imports(
   case schema_context.schema_uses_calendar_date(def) {
     False -> inner()
     True -> {
-      use _ <- gmod.with_import(gimport.new_predefined([
-        "gleam", "time", "calendar",
-      ]))
+      use _ <- gmod.with_import(
+        gimport.new_predefined(["gleam", "time", "calendar"]),
+      )
       inner()
     }
   }
@@ -179,9 +179,9 @@ pub fn with_get_module_imports(
     case schema_context.schema_uses_calendar_date(def) {
       False -> inner()
       True -> {
-        use _ <- gmod.with_import(gimport.new_predefined([
-          "gleam", "time", "calendar",
-        ]))
+        use _ <- gmod.with_import(
+          gimport.new_predefined(["gleam", "time", "calendar"]),
+        )
         inner()
       }
     }
@@ -218,9 +218,9 @@ pub fn with_facade_module_imports(
     case schema_context.schema_uses_calendar_date(def) {
       False -> inner()
       True -> {
-        use _ <- gmod.with_import(gimport.new_predefined([
-          "gleam", "time", "calendar",
-        ]))
+        use _ <- gmod.with_import(
+          gimport.new_predefined(["gleam", "time", "calendar"]),
+        )
         inner()
       }
     }
