@@ -10,6 +10,7 @@ import generators/api/api_sql
 import generators/api/api_update_delete as ud
 import generators/api/complex_filter_sql
 import generators/api/schema_context
+import generators/migration/migration as pragma_migration
 import generators/gleam_format_generated as gleam_fmt
 import glance
 import gleam/list
@@ -730,6 +731,9 @@ pub fn generate_api_db_outputs(
     render_module(upsert_mod)
     |> ensure_api_help_import
     |> ensure_dsl_import
+  let upsert_text =
+    upsert_text <> pragma_migration.generate_junction_upserts_gleam_appendage(def)
+  let upsert_text = ensure_decode_import(upsert_text)
   let delete_text = ensure_api_help_import(render_module(delete_mod))
 
   // Build raw query text and append complex filter code.

@@ -2,6 +2,7 @@ import api_help
 import case_studies/library_manager_advanced_db/row
 import case_studies/library_manager_advanced_schema
 import dsl/dsl
+import gleam/dynamic/decode
 import gleam/option
 import gleam/result
 import sqlight
@@ -56,6 +57,8 @@ on conflict(\"title\", \"artist\") do update set
   \"updated_at\" = excluded.\"updated_at\",
   \"deleted_at\" = null
 returning \"title\", \"artist\", \"file_path\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
+
+const upsert_trackbucket_tag_sql = "insert into \"trackbucket_tag\" (\"trackbucket_id\", \"tag_id\", \"value\") values (?, ?, ?) on conflict (\"trackbucket_id\", \"tag_id\") do update set \"value\" = excluded.\"value\";"
 
 /// Update a tab by the `ByTabLabel` identity.
 pub fn update_tab_by_tab_label(
@@ -410,4 +413,27 @@ fn not_found_importedtrack_title_and_artist_error(op: String) -> sqlight.Error {
     "importedtrack" <> " not found: " <> op,
     -1,
   )
+}
+
+/// Upsert a row on junction `trackbucket_tag` keyed by `(trackbucket_id, tag_id)`.
+pub fn upsert_trackbucket_tag(
+  conn: sqlight.Connection,
+  trackbucket_id: Int,
+  tag_id: Int,
+  value: option.Option(Int),
+) -> Result(Nil, sqlight.Error) {
+  sqlight.query(
+    upsert_trackbucket_tag_sql,
+    on: conn,
+    with: [
+      sqlight.int(trackbucket_id),
+      sqlight.int(tag_id),
+      case value {
+        option.Some(v) -> sqlight.int(v)
+        option.None -> sqlight.null()
+      },
+    ],
+    expecting: decode.success(Nil),
+  )
+  |> result.map(fn(_) { Nil })
 }

@@ -737,26 +737,43 @@ fn generate_junction_table_appendage_inner(schema: SchemaDefinition) -> String {
         list.map(specs, fn(spec) {
           let jt = junction_table_ident(spec)
           let create_const = "create_" <> jt <> "_sql"
-          let upsert_const = "upsert_" <> jt <> "_sql"
           let consts =
             "const "
             <> create_const
             <> " =\n  \""
             <> gleam_escape_string(junction_ddl_sql(spec))
-            <> "\"\n\nconst "
-            <> upsert_const
-            <> " =\n  \""
-            <> gleam_escape_string(junction_upsert_sql(spec))
             <> "\""
           let perf =
             case spec.edge_fields {
               [] -> ""
               _ -> "\n\n" <> junction_perf_index_gleam_block(spec)
             }
-          consts <> perf <> "\n\n" <> junction_upsert_gleam_fn(spec)
+          consts <> perf
         })
       let create_fn = build_create_junction_tables_fn(specs)
       "\n\n" <> create_fn <> "\n\n" <> string.join(parts, "\n\n")
+    }
+  }
+}
+
+/// Gleam source for junction upsert SQL constants and `pub fn upsert_*` (for `*_db/upsert` module).
+pub fn generate_junction_upserts_gleam_appendage(schema: SchemaDefinition) -> String {
+  let specs = find_junction_specs(schema)
+  case specs {
+    [] -> ""
+    _ -> {
+      let parts =
+        list.map(specs, fn(spec) {
+          let jt = junction_table_ident(spec)
+          let upsert_const = "upsert_" <> jt <> "_sql"
+          "const "
+          <> upsert_const
+          <> " =\n  \""
+          <> gleam_escape_string(junction_upsert_sql(spec))
+          <> "\"\n\n"
+          <> junction_upsert_gleam_fn(spec)
+        })
+      "\n\n" <> string.join(parts, "\n\n")
     }
   }
 }
