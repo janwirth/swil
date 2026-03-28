@@ -1,6 +1,7 @@
 //// End-to-end tests for the complex `BooleanFilter` query pipeline.
 ////
 //// Uses a real in-memory SQLite database.  Exercises:
+////   0. Post-migration `pragma index_list` / `pragma index_info` — unique indexes on core tables and implicit unique index on `trackbucket_tag`.
 ////   1. `migration.migration` — creates all tables including `trackbucket_tag`.
 ////   2. `migration.upsert_trackbucket_tag` — inserts junction rows with edge attributes.
 ////   3. `query.query_tracks_by_view_config` — filters via `BooleanFilter(TagExpressionScalar)`.
@@ -17,6 +18,8 @@ import gleam/dynamic/decode
 import gleam/json
 import gleam/list
 import gleam/option.{None, Some}
+import gleam/string
+import sql/pragma_assert
 import sqlight
 
 // =============================================================================
@@ -27,6 +30,122 @@ fn open_db() -> sqlight.Connection {
   let assert Ok(conn) = sqlight.open(":memory:")
   let assert Ok(Nil) = api.migrate(conn)
   conn
+}
+
+// Expected `pragma index_list` / `pragma index_info` TSV after `migration.migration`
+// (same shape as `sql/pragma_assert`); `trackbucket_tag` uses SQLite’s implicit unique index.
+
+const expected_importedtrack_index_list = "seq	name	unique	origin	partial
+0	importedtrack_by_title_artist	1	c	0"
+
+const expected_importedtrack_index_info = "seqno	cid	name
+0	1	title
+1	2	artist"
+
+const expected_tab_index_list = "seq	name	unique	origin	partial
+0	tab_by_label	1	c	0"
+
+const expected_tab_index_info = "seqno	cid	name
+0	1	label"
+
+const expected_tag_index_list = "seq	name	unique	origin	partial
+0	tag_by_label	1	c	0"
+
+const expected_tag_index_info = "seqno	cid	name
+0	1	label"
+
+const expected_trackbucket_index_list = "seq	name	unique	origin	partial
+0	trackbucket_by_title_artist	1	c	0"
+
+const expected_trackbucket_index_info = "seqno	cid	name
+0	1	title
+1	2	artist"
+
+const expected_trackbucket_tag_index_list = "seq	name	unique	origin	partial
+0	sqlite_autoindex_trackbucket_tag_1	1	u	0"
+
+const expected_trackbucket_tag_index_info = "seqno	cid	name
+0	0	trackbucket_id
+1	1	tag_id"
+
+fn assert_index_list_and_info(
+  conn: sqlight.Connection,
+  table: String,
+  expected_list: String,
+  index_name: String,
+  expected_info: String,
+) -> Nil {
+  let assert Ok(got_list) = pragma_assert.index_list_tsv(conn, table)
+  let assert Ok(got_info) = pragma_assert.index_info_tsv(conn, index_name)
+  let assert True = got_list == expected_list
+  let assert True = got_info == expected_info
+  Nil
+}
+
+// =============================================================================
+// 0. Indices after migration (pragma snapshots)
+// =============================================================================
+
+pub fn migration_user_tables_include_junction_test() {
+  let conn = open_db()
+  let assert Ok(names) = pragma_assert.user_table_names(conn)
+  let want = ["importedtrack", "tab", "tag", "trackbucket", "trackbucket_tag"]
+  let assert True = list.sort(names, string.compare) == want
+}
+
+pub fn migration_indices_importedtrack_test() {
+  let conn = open_db()
+  assert_index_list_and_info(
+    conn,
+    "importedtrack",
+    expected_importedtrack_index_list,
+    "importedtrack_by_title_artist",
+    expected_importedtrack_index_info,
+  )
+}
+
+pub fn migration_indices_tab_test() {
+  let conn = open_db()
+  assert_index_list_and_info(
+    conn,
+    "tab",
+    expected_tab_index_list,
+    "tab_by_label",
+    expected_tab_index_info,
+  )
+}
+
+pub fn migration_indices_tag_test() {
+  let conn = open_db()
+  assert_index_list_and_info(
+    conn,
+    "tag",
+    expected_tag_index_list,
+    "tag_by_label",
+    expected_tag_index_info,
+  )
+}
+
+pub fn migration_indices_trackbucket_test() {
+  let conn = open_db()
+  assert_index_list_and_info(
+    conn,
+    "trackbucket",
+    expected_trackbucket_index_list,
+    "trackbucket_by_title_artist",
+    expected_trackbucket_index_info,
+  )
+}
+
+pub fn migration_indices_trackbucket_tag_test() {
+  let conn = open_db()
+  assert_index_list_and_info(
+    conn,
+    "trackbucket_tag",
+    expected_trackbucket_tag_index_list,
+    "sqlite_autoindex_trackbucket_tag_1",
+    expected_trackbucket_tag_index_info,
+  )
 }
 
 fn id_decoder() -> decode.Decoder(Int) {
