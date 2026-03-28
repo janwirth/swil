@@ -1,3 +1,4 @@
+import glance
 import schema_definition/edge_attributes
 import schema_definition/entity
 import schema_definition/identity
@@ -18,5 +19,8 @@ pub type SchemaDefinition {
     ),
     scalars: List(scalar.ScalarTypeDefinition),
     queries: List(query.QuerySpecDefinition),
+    /// Raw glance AST for every `predicate_*` public function found in the module.
+    /// Kept here so generators can parse them into IR on demand.
+    predicate_functions: List(glance.Function),
   )
 }

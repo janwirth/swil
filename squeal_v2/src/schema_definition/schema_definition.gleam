@@ -2,6 +2,7 @@ import dsl/dsl
 import glance
 import gleam/option.{type Option}
 
+
 /// Parsed from a full schema module that may contain entities, identities, relationships,
 /// edge attributes, scalar types, and public query functions.
 ///
@@ -32,6 +33,9 @@ pub type SchemaDefinition {
     relationship_edge_attributes: List(RelationshipEdgeAttributesDefinition),
     scalars: List(ScalarTypeDefinition),
     queries: List(QuerySpecDefinition),
+    /// Raw Glance AST for every public `predicate_*` function found in the module.
+    /// Generators parse these into IR on demand via `predicate_parser`.
+    predicate_functions: List(glance.Function),
   )
 }
 

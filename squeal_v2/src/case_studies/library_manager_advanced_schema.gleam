@@ -113,12 +113,14 @@ pub fn predicate_complex_tags_filter(
     Has(tag_id: tag_id) ->
       dsl.any(
         track_bucket.relationships.tags,
-        fn(_tag, magic_fields, _edge_attribs) { magic_fields.id == tag_id },
+        fn(_tag, magic_fields, _edge_attribs, _edge_magic) {
+          magic_fields.id == tag_id
+        },
       )
     IsAtLeast(tag_id: tag_id, value: value) ->
       dsl.any(
         track_bucket.relationships.tags,
-        fn(_tag, magic_fields, edge_attribs) {
+        fn(_tag, magic_fields, edge_attribs, _edge_magic) {
           magic_fields.id == tag_id
           && dsl.exclude_if_missing(edge_attribs.value) >= value
         },
@@ -126,7 +128,7 @@ pub fn predicate_complex_tags_filter(
     IsAtMost(tag_id: tag_id, value: value) ->
       dsl.any(
         track_bucket.relationships.tags,
-        fn(_tag, magic_fields, edge_attribs) {
+        fn(_tag, magic_fields, edge_attribs, _edge_magic) {
           magic_fields.id == tag_id
           && dsl.exclude_if_missing(edge_attribs.value) <= value
         },
@@ -134,7 +136,7 @@ pub fn predicate_complex_tags_filter(
     IsEqualTo(tag_id: tag_id, value: value) ->
       dsl.any(
         track_bucket.relationships.tags,
-        fn(_tag, magic_fields, edge_attribs) {
+        fn(_tag, magic_fields, edge_attribs, _edge_magic) {
           magic_fields.id == tag_id
           && dsl.exclude_if_missing(edge_attribs.value) == value
         },

@@ -56,6 +56,7 @@ fn from_schema_aggregate(
     relationship_edge_attributes: relationship_edge_attributes,
     scalars: scalars,
     queries: queries,
+    predicate_functions: predicate_functions,
   ) = aggregate
   schema_definition.SchemaDefinition(
     entities: list.map(entities, from_entity),
@@ -70,6 +71,7 @@ fn from_schema_aggregate(
     ),
     scalars: list.map(scalars, from_scalar),
     queries: list.map(queries, from_query_spec),
+    predicate_functions: predicate_functions,
   )
 }
 

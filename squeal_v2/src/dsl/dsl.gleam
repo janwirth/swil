@@ -66,9 +66,18 @@ pub type BooleanFilter(a) {
   Predicate(item: a)
 }
 
+/// Checks whether any related item (via a junction edge) satisfies the predicate.
+///
+/// Parameters passed to `select`:
+/// 1. `related` — the target entity value (often `_` when only fields matter)
+/// 2. `target_magic_fields` — `MagicFields` of the **target** (related) row
+/// 3. `edge_attribs` — domain attributes on the **junction** (edge) row
+/// 4. `edge_magic_fields` — `MagicFields` of the junction row itself
+///
+/// Stub: expanded at SQL generation time, never called at runtime.
 pub fn any(
   relationship: List(BelongsTo(related, attribs)),
-  select: fn(related, MagicFields, attribs) -> Bool,
+  select: fn(related, MagicFields, attribs, MagicFields) -> Bool,
 ) -> BooleanFilter(BelongsTo(related, attribs)) {
   let _ = relationship
   let _ = select

@@ -31,6 +31,8 @@ pub fn build_schema_strict(
     buckets.identities,
   ))
   use queries <- result.try(query.extract_from_functions(functions_ordered))
+  let predicate_functions =
+    query.extract_predicate_functions(functions_ordered)
   Ok(SchemaDefinition(
     entities: list.reverse(buckets.entities),
     identities: list.reverse(buckets.identities),
@@ -40,6 +42,7 @@ pub fn build_schema_strict(
     ),
     scalars: list.reverse(buckets.scalars),
     queries: queries,
+    predicate_functions: predicate_functions,
   ))
 }
 

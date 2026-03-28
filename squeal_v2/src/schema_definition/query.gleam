@@ -978,6 +978,26 @@ fn function_is_query_spec(f: glance.Function) -> Bool {
   }
 }
 
+/// Collects all public `predicate_*` functions from the module's function list.
+/// These are validated during `extract_from_functions`; here we just collect them for IR parsing.
+pub fn extract_predicate_functions(
+  functions: List(glance.Definition(glance.Function)),
+) -> List(glance.Function) {
+  list.filter_map(functions, fn(def) {
+    case def {
+      glance.Definition(_, f) ->
+        case
+          f.publicity,
+          function_is_boolean_filter_helper(f),
+          function_has_predicate_prefix(f.name)
+        {
+          glance.Public, True, True -> Ok(f)
+          _, _, _ -> Error(Nil)
+        }
+    }
+  })
+}
+
 /// Public helpers that build `dsl.BooleanFilter` trees are allowed alongside query specs.
 /// They are not emitted as `QuerySpecDefinition`; name them `predicate_*` with an explicit
 /// `-> ... BooleanFilter` return annotation.
