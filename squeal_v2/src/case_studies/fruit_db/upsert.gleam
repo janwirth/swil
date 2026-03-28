@@ -1,7 +1,7 @@
 import api_help
-import dsl/dsl as dsl
 import case_studies/fruit_db/row
 import case_studies/fruit_schema.{type Fruit}
+import dsl/dsl
 import gleam/option.{type Option}
 import gleam/result
 import sqlight
@@ -87,11 +87,7 @@ pub fn upsert_fruit_by_name(
 fn not_found_fruit_name_error(op: String) -> sqlight.Error {
   sqlight.SqlightError(
     sqlight.GenericError,
-    "fruit"
-    <>
-    " not found: "
-    <>
-    op,
+    "fruit" <> " not found: " <> op,
     -1,
   )
 }

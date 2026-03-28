@@ -1,11 +1,12 @@
 import api_help
-import dsl/dsl as dsl
 import case_studies/library_manager_db/row
-import case_studies/library_manager_schema.{type ViewConfigScalar, type TrackBucketRelationships, type TrackBucket, type TagExpressionScalar, type Tag, type Tab, type ImportedTrack, type FilterScalar, ViewConfigScalar, TrackBucketRelationships, TrackBucket, TagExpression, Tag, Tab, Or, Not, IsEqualTo, IsAtMost, IsAtLeast, ImportedTrack, Has, DoesNotHave, ByTitleAndArtist, ByTagLabel, ByTabLabel, ByFilePath, ByBucketTitleAndArtist, And}
-import gleam/dynamic/decode
-import gleam/option.{type Option, None, Some}
+import case_studies/library_manager_schema.{
+  type ImportedTrack, type Tab, type Tag, type TrackBucket,
+  type ViewConfigScalar,
+}
+import dsl/dsl
+import gleam/option.{type Option}
 import gleam/result
-import gleam/time/timestamp
 import sqlight
 
 const update_tab_by_tab_label_sql = "update \"tab\" set \"order\" = ?, \"view_config\" = ?, \"updated_at\" = ? where \"label\" = ? and \"deleted_at\" is null returning \"label\", \"order\", \"view_config\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
@@ -132,7 +133,6 @@ pub fn update_trackbucket_by_bucket_title_and_artist(
     update_trackbucket_by_bucket_title_and_artist_sql,
     on: conn,
     with: [
-
       sqlight.int(now),
       sqlight.text(title),
       sqlight.text(artist),
@@ -141,7 +141,10 @@ pub fn update_trackbucket_by_bucket_title_and_artist(
   ))
   case rows {
     [r, ..] -> Ok(r)
-    [] -> Error(not_found_trackbucket_bucket_title_and_artist_error("update_trackbucket_by_bucket_title_and_artist"))
+    [] ->
+      Error(not_found_trackbucket_bucket_title_and_artist_error(
+        "update_trackbucket_by_bucket_title_and_artist",
+      ))
   }
 }
 
@@ -174,14 +177,12 @@ pub fn upsert_trackbucket_by_bucket_title_and_artist(
   }
 }
 
-fn not_found_trackbucket_bucket_title_and_artist_error(op: String) -> sqlight.Error {
+fn not_found_trackbucket_bucket_title_and_artist_error(
+  op: String,
+) -> sqlight.Error {
   sqlight.SqlightError(
     sqlight.GenericError,
-    "trackbucket"
-    <>
-    " not found: "
-    <>
-    op,
+    "trackbucket" <> " not found: " <> op,
     -1,
   )
 }
@@ -267,7 +268,10 @@ pub fn update_importedtrack_by_file_path(
   ))
   case rows {
     [r, ..] -> Ok(r)
-    [] -> Error(not_found_importedtrack_file_path_error("update_importedtrack_by_file_path"))
+    [] ->
+      Error(not_found_importedtrack_file_path_error(
+        "update_importedtrack_by_file_path",
+      ))
   }
 }
 
@@ -307,11 +311,7 @@ pub fn upsert_importedtrack_by_file_path(
 fn not_found_importedtrack_file_path_error(op: String) -> sqlight.Error {
   sqlight.SqlightError(
     sqlight.GenericError,
-    "importedtrack"
-    <>
-    " not found: "
-    <>
-    op,
+    "importedtrack" <> " not found: " <> op,
     -1,
   )
 }
@@ -338,7 +338,10 @@ pub fn update_importedtrack_by_title_and_artist(
   ))
   case rows {
     [r, ..] -> Ok(r)
-    [] -> Error(not_found_importedtrack_title_and_artist_error("update_importedtrack_by_title_and_artist"))
+    [] ->
+      Error(not_found_importedtrack_title_and_artist_error(
+        "update_importedtrack_by_title_and_artist",
+      ))
   }
 }
 
@@ -377,11 +380,7 @@ pub fn upsert_importedtrack_by_title_and_artist(
 fn not_found_importedtrack_title_and_artist_error(op: String) -> sqlight.Error {
   sqlight.SqlightError(
     sqlight.GenericError,
-    "importedtrack"
-    <>
-    " not found: "
-    <>
-    op,
+    "importedtrack" <> " not found: " <> op,
     -1,
   )
 }

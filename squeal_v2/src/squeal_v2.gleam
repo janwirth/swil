@@ -67,8 +67,14 @@ fn generate_from_schema_path(user_path: String) -> Result(Nil, String) {
   let delete_out = out_dir <> "/delete.gleam"
   let query_out = out_dir <> "/query.gleam"
   let api_out = out_dir <> "/api.gleam"
-  let skeleton_text = skeleton_generator.generate(schema_import, def)
-  let api_outputs = api_generator.generate_api_db_outputs(schema_import, def)
+  use skeleton_text <- result.try(skeleton_generator.generate(
+    schema_import,
+    def,
+  ))
+  use api_outputs <- result.try(api_generator.generate_api_db_outputs(
+    schema_import,
+    def,
+  ))
   use _ <- result.try(write_file(skeleton_out, skeleton_text))
   use _ <- result.try(write_file(row_out, api_outputs.row))
   use _ <- result.try(write_file(get_out, api_outputs.get))
@@ -76,8 +82,9 @@ fn generate_from_schema_path(user_path: String) -> Result(Nil, String) {
   use _ <- result.try(write_file(delete_out, api_outputs.delete))
   use _ <- result.try(write_file(query_out, api_outputs.query))
   use _ <- result.try(write_file(api_out, api_outputs.api))
-  let migration_text =
-    migration_generator.generate_pragma_migration_module(def, migration_tag)
+  use migration_text <- result.try(
+    migration_generator.generate_pragma_migration_module(def, migration_tag),
+  )
   use _ <- result.try(write_file(migration_out, migration_text))
   io.println("wrote " <> skeleton_out)
   io.println("wrote " <> row_out)

@@ -1,16 +1,16 @@
 import case_studies/fruit_db/row
-import dsl/dsl as dsl
 import case_studies/fruit_schema.{type Fruit}
+import dsl/dsl
 import sqlight
 
 const cheap_fruit_sql = "select \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"fruit\" where \"deleted_at\" is null and \"price\" < ? order by \"price\" asc;"
 
 const last_100_fruit_sql = "select \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"fruit\" where \"deleted_at\" is null order by \"updated_at\" desc limit 100;"
 
-pub fn query_cheap_fruit(conn: sqlight.Connection, max_price: Float) -> Result(
-  List(#(Fruit, dsl.MagicFields)),
-  sqlight.Error,
-) {
+pub fn query_cheap_fruit(
+  conn: sqlight.Connection,
+  max_price: Float,
+) -> Result(List(#(Fruit, dsl.MagicFields)), sqlight.Error) {
   sqlight.query(
     cheap_fruit_sql,
     on: conn,

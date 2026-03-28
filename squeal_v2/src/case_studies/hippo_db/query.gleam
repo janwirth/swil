@@ -1,7 +1,7 @@
 import case_studies/hippo_db/row
-import dsl/dsl as dsl
+import case_studies/hippo_schema.{type GenderScalar, type Hippo, type Human}
+import dsl/dsl
 import gleam/option.{type Option, None, Some}
-import case_studies/hippo_schema.{type Human, type Hippo, type GenderScalar}
 import sqlight
 
 const hippos_by_gender_sql = "select \"name\", \"gender\", \"date_of_birth\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"hippo\" where \"deleted_at\" is null and \"gender\" = ? order by \"name\" desc;"
@@ -26,10 +26,10 @@ pub fn query_hippos_by_gender(
   )
 }
 
-pub fn query_old_hippos_owner_names(conn: sqlight.Connection, min_age: Int) -> Result(
-  List(#(Hippo, dsl.MagicFields)),
-  sqlight.Error,
-) {
+pub fn query_old_hippos_owner_names(
+  conn: sqlight.Connection,
+  min_age: Int,
+) -> Result(List(#(Hippo, dsl.MagicFields)), sqlight.Error) {
   sqlight.query(
     old_hippos_owner_names_sql,
     on: conn,
@@ -38,10 +38,10 @@ pub fn query_old_hippos_owner_names(conn: sqlight.Connection, min_age: Int) -> R
   )
 }
 
-pub fn query_old_hippos_owner_emails(conn: sqlight.Connection, min_age: Int) -> Result(
-  List(#(Hippo, dsl.MagicFields)),
-  sqlight.Error,
-) {
+pub fn query_old_hippos_owner_emails(
+  conn: sqlight.Connection,
+  min_age: Int,
+) -> Result(List(#(Hippo, dsl.MagicFields)), sqlight.Error) {
   sqlight.query(
     old_hippos_owner_emails_sql,
     on: conn,

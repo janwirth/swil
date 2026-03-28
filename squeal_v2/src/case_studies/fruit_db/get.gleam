@@ -1,6 +1,6 @@
 import case_studies/fruit_db/row
-import dsl/dsl as dsl
 import case_studies/fruit_schema.{type Fruit}
+import dsl/dsl
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import sqlight

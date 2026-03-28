@@ -1,3 +1,4 @@
+import generators/gleam_format_generated as gleam_fmt
 import generators/migration/migration_sql
 import generators/migration/pragma_migration_data
 import generators/migration/pragma_migration_emit
@@ -10,9 +11,7 @@ import gleamgen/expression as gexpr
 import gleamgen/expression/statement as gstmt
 import gleamgen/render as grender
 import schema_definition/schema_definition.{
-  type EntityDefinition,
-  type FieldDefinition,
-  type SchemaDefinition,
+  type EntityDefinition, type FieldDefinition, type SchemaDefinition,
 }
 
 // --- Re-exports: SQL helpers live in `migration_sql` for a smaller API surface here. ---
@@ -53,7 +52,7 @@ pub fn build_create_table_sql(
 fn unwrap_option_type(t: glance.Type) -> glance.Type {
   case t {
     glance.NamedType(_, "Option", _, [inner]) -> inner
-    
+
     _ -> t
   }
 }
@@ -97,10 +96,12 @@ fn belongs_to_fk_column_names(rel_fields: List(FieldDefinition)) -> List(String)
   list.filter_map(rel_fields, fn(field) {
     let t = unwrap_option_type(field.type_)
     case t {
-      glance.NamedType(_, "BelongsTo", _, [
-        glance.NamedType(_, target, _, _),
+      glance.NamedType(
         _,
-      ]) -> Ok(field.label <> "_" <> string.lowercase(target) <> "_id")
+        "BelongsTo",
+        _,
+        [glance.NamedType(_, target, _, _), _],
+      ) -> Ok(field.label <> "_" <> string.lowercase(target) <> "_id")
       _ -> Error(Nil)
     }
   })
@@ -270,19 +271,27 @@ pub fn build_pragma_migration_data_for_entity(
 pub fn generate_pragma_migration_module(
   schema: SchemaDefinition,
   module_tag: String,
-) -> String {
+) -> Result(String, String) {
   let entities =
-    list.sort(schema.entities, fn(a, b) { string.compare(a.type_name, b.type_name) })
+    list.sort(schema.entities, fn(a, b) {
+      string.compare(a.type_name, b.type_name)
+    })
   let multi_entity = list.length(entities) > 1
   let datas =
     list.map(entities, fn(e) {
-      build_pragma_migration_data_for_entity(schema, e, module_tag, multi_entity)
+      build_pragma_migration_data_for_entity(
+        schema,
+        e,
+        module_tag,
+        multi_entity,
+      )
     })
-  case multi_entity {
+  let unformatted = case multi_entity {
     False -> {
       let assert [d] = datas
       pragma_migration_emit.emit(d)
     }
     True -> pragma_migration_emit.emit_multi(datas)
   }
+  gleam_fmt.format_generated_source(unformatted)
 }

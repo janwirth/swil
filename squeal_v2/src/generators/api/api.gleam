@@ -1,3 +1,4 @@
+import dsl/dsl
 import generators/api/api_chunks
 import generators/api/api_decoders as dec
 import generators/api/api_facade as facade
@@ -8,9 +9,10 @@ import generators/api/api_query
 import generators/api/api_sql
 import generators/api/api_update_delete as ud
 import generators/api/schema_context
-import dsl/dsl as dsl
+import generators/gleam_format_generated as gleam_fmt
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/result
 import gleam/string
 import gleamgen/expression as gexpr
 import gleamgen/function as gfun
@@ -19,9 +21,9 @@ import gleamgen/module/definition as gdef
 import gleamgen/render as grender
 import gleamgen/types as gtypes
 import schema_definition/schema_definition.{
-  type Query,
-  type SchemaDefinition, Call, Compare, CustomOrder, Eq, ExcludeIfMissing, Field,
-  Gt, Lt, Predicate, Query, Ge, Le, Ne, Param, ExcludeIfMissingFn, NullableFn, AgeFn,
+  type Query, type SchemaDefinition, AgeFn, Call, Compare, CustomOrder, Eq,
+  ExcludeIfMissing, ExcludeIfMissingFn, Field, Ge, Gt, Le, Lt, Ne, NullableFn,
+  Param, Predicate, Query,
 }
 
 fn quote_ident(s: String) -> String {
@@ -45,7 +47,8 @@ fn expr_to_sql(expr, table_alias: String) -> Result(String, Nil) {
       }
     Field(path: [_entity, "relationships", "owner", "item", col]) ->
       Ok("\"hu\"." <> quote_ident(col))
-    Call(func: ExcludeIfMissingFn, args: [inner]) -> expr_to_sql(inner, table_alias)
+    Call(func: ExcludeIfMissingFn, args: [inner]) ->
+      expr_to_sql(inner, table_alias)
     Call(func: NullableFn, args: [inner]) -> expr_to_sql(inner, table_alias)
     Call(func: AgeFn, args: [inner]) ->
       case expr_to_sql(inner, table_alias) {
@@ -94,21 +97,22 @@ fn custom_query_sql(
         True -> "h"
         False -> ""
       }
-      case expr_to_sql(left_expr, base_alias), expr_to_sql(order_expr, base_alias), operator_sql(
-        operator,
-      ) {
+      case
+        expr_to_sql(left_expr, base_alias),
+        expr_to_sql(order_expr, base_alias),
+        operator_sql(operator)
+      {
         Ok(left_sql), Ok(order_sql), Ok(op_sql) -> {
-          let select_cols =
-            case use_owner_join {
-              True ->
-                returning_cols
-                |> list.map(fn(c) { "\"h\"." <> quote_ident(c) })
-                |> string.join(", ")
-              False ->
-                returning_cols
-                |> list.map(quote_ident)
-                |> string.join(", ")
-            }
+          let select_cols = case use_owner_join {
+            True ->
+              returning_cols
+              |> list.map(fn(c) { "\"h\"." <> quote_ident(c) })
+              |> string.join(", ")
+            False ->
+              returning_cols
+              |> list.map(quote_ident)
+              |> string.join(", ")
+          }
           let order_dir = case direction == dsl.Desc {
             True -> " desc"
             False -> " asc"
@@ -201,10 +205,9 @@ fn ensure_dsl_import(text: String) -> String {
 
 /// gleamgen may omit `gleam/option` when signatures use `Option(...)` only via raw types.
 fn ensure_option_import(text: String) -> String {
-  let needs_option = string.contains(text, "Option(") || string.contains(text, "Some(")
-  case
-    needs_option && !string.contains(text, "import gleam/option")
-  {
+  let needs_option =
+    string.contains(text, "Option(") || string.contains(text, "Some(")
+  case needs_option && !string.contains(text, "import gleam/option") {
     False -> text
     True -> {
       case string.split(text, "\n") {
@@ -233,11 +236,7 @@ fn ensure_row_schema_entity_type_imports(
         let open_solo = "{" <> name <> "}"
         case string.contains(acc, open_comma) {
           True ->
-            string.replace(
-              acc,
-              open_comma,
-              "{" <> typ <> ", " <> name <> ",",
-            )
+            string.replace(acc, open_comma, "{" <> typ <> ", " <> name <> ",")
           False ->
             case string.contains(acc, open_solo) {
               True ->
@@ -329,7 +328,7 @@ fn fold_constants(
 pub fn generate_api_db_outputs(
   schema_path: String,
   def: SchemaDefinition,
-) -> ApiDbOutputs {
+) -> Result(ApiDbOutputs, String) {
   let assert [first_entity, ..] = def.entities
   let ctx = dec.type_ctx(schema_path, def)
   let exposing = schema_context.api_schema_exposing_all(def)
@@ -386,14 +385,22 @@ pub fn generate_api_db_outputs(
       list.map(id_e.variants, fn(variant_e) {
         let id_snake_e = case string.starts_with(variant_e.variant_name, "By") {
           True ->
-            api_naming.pascal_to_snake(string.drop_start(variant_e.variant_name, 2))
+            api_naming.pascal_to_snake(string.drop_start(
+              variant_e.variant_name,
+              2,
+            ))
           False -> api_naming.pascal_to_snake(variant_e.variant_name)
         }
         let id_cols_e = list.map(variant_e.fields, fn(f) { f.label })
         [
           #(
             "upsert_" <> entity_snake_e <> "_by_" <> id_snake_e <> "_sql",
-            Some(api_sql.upsert_sql(table_e, data_cols_e, id_cols_e, returning_e)),
+            Some(api_sql.upsert_sql(
+              table_e,
+              data_cols_e,
+              id_cols_e,
+              returning_e,
+            )),
           ),
           #(
             "update_" <> entity_snake_e <> "_by_" <> id_snake_e <> "_sql",
@@ -416,7 +423,10 @@ pub fn generate_api_db_outputs(
       list.map(id_e.variants, fn(variant_e) {
         let id_snake_e = case string.starts_with(variant_e.variant_name, "By") {
           True ->
-            api_naming.pascal_to_snake(string.drop_start(variant_e.variant_name, 2))
+            api_naming.pascal_to_snake(string.drop_start(
+              variant_e.variant_name,
+              2,
+            ))
           False -> api_naming.pascal_to_snake(variant_e.variant_name)
         }
         let upsert_params_e =
@@ -457,12 +467,18 @@ pub fn generate_api_db_outputs(
         api_sql.entity_data_fields(e)
         |> list.map(fn(f) { f.label })
       let returning_e = api_sql.full_row_columns(data_cols_e)
-      let select_by_id_e = api_sql.select_by_identity_sql(table_e, returning_e, ["id"])
+      let select_by_id_e =
+        api_sql.select_by_identity_sql(table_e, returning_e, ["id"])
       list.append(
         list.map(id_e.variants, fn(variant_e) {
-          let id_snake_e = case string.starts_with(variant_e.variant_name, "By") {
+          let id_snake_e = case
+            string.starts_with(variant_e.variant_name, "By")
+          {
             True ->
-              api_naming.pascal_to_snake(string.drop_start(variant_e.variant_name, 2))
+              api_naming.pascal_to_snake(string.drop_start(
+                variant_e.variant_name,
+                2,
+              ))
             False -> api_naming.pascal_to_snake(variant_e.variant_name)
           }
           let id_cols_e = list.map(variant_e.fields, fn(f) { f.label })
@@ -483,7 +499,10 @@ pub fn generate_api_db_outputs(
       list.map(id_e.variants, fn(variant_e) {
         let id_snake_e = case string.starts_with(variant_e.variant_name, "By") {
           True ->
-            api_naming.pascal_to_snake(string.drop_start(variant_e.variant_name, 2))
+            api_naming.pascal_to_snake(string.drop_start(
+              variant_e.variant_name,
+              2,
+            ))
           False -> api_naming.pascal_to_snake(variant_e.variant_name)
         }
         let get_params_e =
@@ -523,7 +542,10 @@ pub fn generate_api_db_outputs(
       list.map(id_e.variants, fn(variant_e) {
         let id_snake_e = case string.starts_with(variant_e.variant_name, "By") {
           True ->
-            api_naming.pascal_to_snake(string.drop_start(variant_e.variant_name, 2))
+            api_naming.pascal_to_snake(string.drop_start(
+              variant_e.variant_name,
+              2,
+            ))
           False -> api_naming.pascal_to_snake(variant_e.variant_name)
         }
         let id_cols_e = list.map(variant_e.fields, fn(f) { f.label })
@@ -544,7 +566,10 @@ pub fn generate_api_db_outputs(
       list.map(id_e.variants, fn(variant_e) {
         let id_snake_e = case string.starts_with(variant_e.variant_name, "By") {
           True ->
-            api_naming.pascal_to_snake(string.drop_start(variant_e.variant_name, 2))
+            api_naming.pascal_to_snake(string.drop_start(
+              variant_e.variant_name,
+              2,
+            ))
           False -> api_naming.pascal_to_snake(variant_e.variant_name)
         }
         let get_params_e =
@@ -636,12 +661,7 @@ pub fn generate_api_db_outputs(
     )
 
   let facade_chunks =
-    facade.facade_fn_chunks(
-      def,
-      sql_err,
-      ctx,
-      generated_query_specs,
-    )
+    facade.facade_fn_chunks(def, sql_err, ctx, generated_query_specs)
   let api_mod =
     api_imports.with_facade_module_imports(
       migration_path,
@@ -653,29 +673,48 @@ pub fn generate_api_db_outputs(
     )
 
   let row_text = render_module(row_mod)
-  let row_text = ensure_row_schema_import_exposing(row_text, schema_path, exposing)
+  let row_text =
+    ensure_row_schema_import_exposing(row_text, schema_path, exposing)
   let row_text = ensure_api_help_import(row_text)
   let row_text = ensure_decode_import(row_text)
   let row_text = ensure_option_import(row_text)
   let row_text = ensure_dsl_import(row_text)
   let row_text = ensure_row_schema_entity_type_imports(row_text, def)
-  ApiDbOutputs(
+  let get_text = ensure_dsl_import(render_module(get_mod))
+  let upsert_text =
+    render_module(upsert_mod)
+    |> ensure_api_help_import
+    |> ensure_dsl_import
+  let delete_text = ensure_api_help_import(render_module(delete_mod))
+  let query_text =
+    render_module(query_mod)
+    |> ensure_option_import
+    |> ensure_dsl_import
+  let api_text =
+    render_module(api_mod)
+    |> ensure_option_import
+    |> ensure_dsl_import
+  use row_text <- result.try(gleam_fmt.format_generated_source(row_text))
+  use get_text <- result.try(gleam_fmt.format_generated_source(get_text))
+  use upsert_text <- result.try(gleam_fmt.format_generated_source(upsert_text))
+  use delete_text <- result.try(gleam_fmt.format_generated_source(delete_text))
+  use query_text <- result.try(gleam_fmt.format_generated_source(query_text))
+  use api_text <- result.try(gleam_fmt.format_generated_source(api_text))
+  Ok(ApiDbOutputs(
     row: row_text,
-    get: ensure_dsl_import(render_module(get_mod)),
-    upsert: render_module(upsert_mod)
-      |> ensure_api_help_import
-      |> ensure_dsl_import,
-    delete: ensure_api_help_import(render_module(delete_mod)),
-    query: render_module(query_mod)
-      |> ensure_option_import
-      |> ensure_dsl_import,
-    api: render_module(api_mod)
-      |> ensure_option_import
-      |> ensure_dsl_import,
-  )
+    get: get_text,
+    upsert: upsert_text,
+    delete: delete_text,
+    query: query_text,
+    api: api_text,
+  ))
 }
 
 /// Backwards-compatible: returns only the `api.gleam` facade source.
-pub fn generate_api(schema_path: String, schema: SchemaDefinition) -> String {
-  generate_api_db_outputs(schema_path, schema).api
+pub fn generate_api(
+  schema_path: String,
+  schema: SchemaDefinition,
+) -> Result(String, String) {
+  use outs <- result.try(generate_api_db_outputs(schema_path, schema))
+  Ok(outs.api)
 }

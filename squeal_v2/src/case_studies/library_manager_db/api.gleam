@@ -1,79 +1,76 @@
 import case_studies/library_manager_db/delete
-import dsl/dsl as dsl
 import case_studies/library_manager_db/get
 import case_studies/library_manager_db/migration
 import case_studies/library_manager_db/query
-import case_studies/library_manager_db/row
 import case_studies/library_manager_db/upsert
-import case_studies/library_manager_schema.{type ViewConfigScalar, type TrackBucketRelationships, type TrackBucket, type TagExpressionScalar, type Tag, type Tab, type ImportedTrack, type FilterScalar, ViewConfigScalar, TrackBucketRelationships, TrackBucket, TagExpression, Tag, Tab, Or, Not, IsEqualTo, IsAtMost, IsAtLeast, ImportedTrack, Has, DoesNotHave, ByTitleAndArtist, ByTagLabel, ByTabLabel, ByFilePath, ByBucketTitleAndArtist, And}
-import gleam/option.{type Option, None, Some}
-import gleam/result
+import case_studies/library_manager_schema.{
+  type ImportedTrack, type Tab, type Tag, type TrackBucket,
+  type ViewConfigScalar,
+}
+import dsl/dsl
+import gleam/option.{type Option}
 import sqlight
 
 pub fn migrate(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   migration.migration(conn)
 }
 
-pub fn last_100_edited_tab(conn: sqlight.Connection) -> Result(
-  List(#(Tab, dsl.MagicFields)),
-  sqlight.Error,
-) {
+pub fn last_100_edited_tab(
+  conn: sqlight.Connection,
+) -> Result(List(#(Tab, dsl.MagicFields)), sqlight.Error) {
   query.last_100_edited_tab(conn)
 }
 
-pub fn last_100_edited_trackbucket(conn: sqlight.Connection) -> Result(
-  List(#(TrackBucket, dsl.MagicFields)),
-  sqlight.Error,
-) {
+pub fn last_100_edited_trackbucket(
+  conn: sqlight.Connection,
+) -> Result(List(#(TrackBucket, dsl.MagicFields)), sqlight.Error) {
   query.last_100_edited_trackbucket(conn)
 }
 
-pub fn last_100_edited_tag(conn: sqlight.Connection) -> Result(
-  List(#(Tag, dsl.MagicFields)),
-  sqlight.Error,
-) {
+pub fn last_100_edited_tag(
+  conn: sqlight.Connection,
+) -> Result(List(#(Tag, dsl.MagicFields)), sqlight.Error) {
   query.last_100_edited_tag(conn)
 }
 
-pub fn last_100_edited_importedtrack(conn: sqlight.Connection) -> Result(
-  List(#(ImportedTrack, dsl.MagicFields)),
-  sqlight.Error,
-) {
+pub fn last_100_edited_importedtrack(
+  conn: sqlight.Connection,
+) -> Result(List(#(ImportedTrack, dsl.MagicFields)), sqlight.Error) {
   query.last_100_edited_importedtrack(conn)
 }
 
-pub fn get_tab_by_id(conn: sqlight.Connection, id: Int) -> Result(
-  Option(#(Tab, dsl.MagicFields)),
-  sqlight.Error,
-) {
+pub fn get_tab_by_id(
+  conn: sqlight.Connection,
+  id: Int,
+) -> Result(Option(#(Tab, dsl.MagicFields)), sqlight.Error) {
   get.get_tab_by_id(conn, id)
 }
 
-pub fn get_trackbucket_by_id(conn: sqlight.Connection, id: Int) -> Result(
-  Option(#(TrackBucket, dsl.MagicFields)),
-  sqlight.Error,
-) {
+pub fn get_trackbucket_by_id(
+  conn: sqlight.Connection,
+  id: Int,
+) -> Result(Option(#(TrackBucket, dsl.MagicFields)), sqlight.Error) {
   get.get_trackbucket_by_id(conn, id)
 }
 
-pub fn get_tag_by_id(conn: sqlight.Connection, id: Int) -> Result(
-  Option(#(Tag, dsl.MagicFields)),
-  sqlight.Error,
-) {
+pub fn get_tag_by_id(
+  conn: sqlight.Connection,
+  id: Int,
+) -> Result(Option(#(Tag, dsl.MagicFields)), sqlight.Error) {
   get.get_tag_by_id(conn, id)
 }
 
-pub fn get_importedtrack_by_id(conn: sqlight.Connection, id: Int) -> Result(
-  Option(#(ImportedTrack, dsl.MagicFields)),
-  sqlight.Error,
-) {
+pub fn get_importedtrack_by_id(
+  conn: sqlight.Connection,
+  id: Int,
+) -> Result(Option(#(ImportedTrack, dsl.MagicFields)), sqlight.Error) {
   get.get_importedtrack_by_id(conn, id)
 }
 
-pub fn delete_tab_by_tab_label(conn: sqlight.Connection, label: String) -> Result(
-  Nil,
-  sqlight.Error,
-) {
+pub fn delete_tab_by_tab_label(
+  conn: sqlight.Connection,
+  label: String,
+) -> Result(Nil, sqlight.Error) {
   delete.delete_tab_by_tab_label(conn, label)
 }
 
@@ -86,10 +83,10 @@ pub fn update_tab_by_tab_label(
   upsert.update_tab_by_tab_label(conn, label, order, view_config)
 }
 
-pub fn get_tab_by_tab_label(conn: sqlight.Connection, label: String) -> Result(
-  Option(#(Tab, dsl.MagicFields)),
-  sqlight.Error,
-) {
+pub fn get_tab_by_tab_label(
+  conn: sqlight.Connection,
+  label: String,
+) -> Result(Option(#(Tab, dsl.MagicFields)), sqlight.Error) {
   get.get_tab_by_tab_label(conn, label)
 }
 
@@ -134,10 +131,10 @@ pub fn upsert_trackbucket_by_bucket_title_and_artist(
   upsert.upsert_trackbucket_by_bucket_title_and_artist(conn, title, artist)
 }
 
-pub fn delete_tag_by_tag_label(conn: sqlight.Connection, label: String) -> Result(
-  Nil,
-  sqlight.Error,
-) {
+pub fn delete_tag_by_tag_label(
+  conn: sqlight.Connection,
+  label: String,
+) -> Result(Nil, sqlight.Error) {
   delete.delete_tag_by_tag_label(conn, label)
 }
 
@@ -149,10 +146,10 @@ pub fn update_tag_by_tag_label(
   upsert.update_tag_by_tag_label(conn, label, emoji)
 }
 
-pub fn get_tag_by_tag_label(conn: sqlight.Connection, label: String) -> Result(
-  Option(#(Tag, dsl.MagicFields)),
-  sqlight.Error,
-) {
+pub fn get_tag_by_tag_label(
+  conn: sqlight.Connection,
+  label: String,
+) -> Result(Option(#(Tag, dsl.MagicFields)), sqlight.Error) {
   get.get_tag_by_tag_label(conn, label)
 }
 
@@ -210,7 +207,12 @@ pub fn update_importedtrack_by_title_and_artist(
   artist: String,
   file_path: Option(String),
 ) -> Result(#(ImportedTrack, dsl.MagicFields), sqlight.Error) {
-  upsert.update_importedtrack_by_title_and_artist(conn, title, artist, file_path)
+  upsert.update_importedtrack_by_title_and_artist(
+    conn,
+    title,
+    artist,
+    file_path,
+  )
 }
 
 pub fn get_importedtrack_by_title_and_artist(
@@ -227,5 +229,10 @@ pub fn upsert_importedtrack_by_title_and_artist(
   artist: String,
   file_path: Option(String),
 ) -> Result(#(ImportedTrack, dsl.MagicFields), sqlight.Error) {
-  upsert.upsert_importedtrack_by_title_and_artist(conn, title, artist, file_path)
+  upsert.upsert_importedtrack_by_title_and_artist(
+    conn,
+    title,
+    artist,
+    file_path,
+  )
 }

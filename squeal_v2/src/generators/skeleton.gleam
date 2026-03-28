@@ -1,8 +1,9 @@
+import generators/gleam_format_generated as gleam_fmt
+import generators/gleamgen_emit
 import glance
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
-import generators/gleamgen_emit
 import gleamgen/expression as gexpr
 import gleamgen/function as gfun
 import gleamgen/import_ as gimport
@@ -22,11 +23,16 @@ import schema_definition/schema_definition.{
 /// Emit the gleam `*_db` module skeleton for a parsed schema module.
 /// Query specs get a stub row type and function; bodies stay `panic as` stubs until
 /// code generation is implemented.
-pub fn generate(import_path: String, def: SchemaDefinition) -> String {
-  build_module(import_path, def)
-  |> gmod.render(grender.default_context())
-  |> grender.to_string()
-  |> finalize_string
+pub fn generate(
+  import_path: String,
+  def: SchemaDefinition,
+) -> Result(String, String) {
+  let text =
+    build_module(import_path, def)
+    |> gmod.render(grender.default_context())
+    |> grender.to_string()
+    |> finalize_string
+  gleam_fmt.format_generated_source(text)
 }
 
 fn finalize_string(s: String) -> String {
@@ -71,9 +77,13 @@ fn build_module(import_path: String, def: SchemaDefinition) -> gmod.Module {
     |> fold_entities_reversed(entities_sorted, def, ctx)
     |> fn(acc) { add_migrate_fn(module_doc, acc) }
 
-  with_skeleton_imports(import_path, entity_names, needs_date, needs_timestamp, fn() {
-    body
-  })
+  with_skeleton_imports(
+    import_path,
+    entity_names,
+    needs_date,
+    needs_timestamp,
+    fn() { body },
+  )
 }
 
 fn entity_summary_part(def: SchemaDefinition) -> String {
@@ -119,40 +129,45 @@ fn with_skeleton_imports(
   let schema_mod =
     gimport.new_with_exposing(path_parts, schema_exposing_inner(entity_names))
   gmod.with_import(schema_mod, fn(_) {
-    gmod.with_import(gimport.new_predefined_with_alias(["dsl", "dsl"], "dsl"), fn(_) {
-      gmod.with_import(gimport.new_predefined(["gleam", "option"]), fn(_) {
-        let after_time = fn() {
-          gmod.with_import(gimport.new_predefined(["sqlight"]), fn(_) { inner() })
-        }
-        let after_timestamp = fn() {
-          case needs_timestamp {
-            True ->
-              gmod.with_import(
-                gimport.new_with_exposing(
-                  ["gleam", "time", "timestamp"],
-                  "type Timestamp",
-                ),
-                fn(_) { after_time() },
-              )
-            False -> after_time()
+    gmod.with_import(
+      gimport.new_predefined_with_alias(["dsl", "dsl"], "dsl"),
+      fn(_) {
+        gmod.with_import(gimport.new_predefined(["gleam", "option"]), fn(_) {
+          let after_time = fn() {
+            gmod.with_import(gimport.new_predefined(["sqlight"]), fn(_) {
+              inner()
+            })
           }
-        }
-        let after_calendar = fn() {
-          case needs_date {
-            True ->
-              gmod.with_import(
-                gimport.new_with_exposing(
-                  ["gleam", "time", "calendar"],
-                  "type Date",
-                ),
-                fn(_) { after_timestamp() },
-              )
-            False -> after_timestamp()
+          let after_timestamp = fn() {
+            case needs_timestamp {
+              True ->
+                gmod.with_import(
+                  gimport.new_with_exposing(
+                    ["gleam", "time", "timestamp"],
+                    "type Timestamp",
+                  ),
+                  fn(_) { after_time() },
+                )
+              False -> after_time()
+            }
           }
-        }
-        after_calendar()
-      })
-    })
+          let after_calendar = fn() {
+            case needs_date {
+              True ->
+                gmod.with_import(
+                  gimport.new_with_exposing(
+                    ["gleam", "time", "calendar"],
+                    "type Date",
+                  ),
+                  fn(_) { after_timestamp() },
+                )
+              False -> after_timestamp()
+            }
+          }
+          after_calendar()
+        })
+      },
+    )
   })
 }
 
@@ -176,7 +191,9 @@ fn fold_entities_reversed(
   ctx: TypeCtx,
 ) -> gmod.Module {
   list.reverse(entities_sorted)
-  |> list.fold(acc, fn(acc_inner, e) { prepend_entity_module(e, def, ctx, acc_inner) })
+  |> list.fold(acc, fn(acc_inner, e) {
+    prepend_entity_module(e, def, ctx, acc_inner)
+  })
 }
 
 fn prepend_entity_module(
@@ -192,7 +209,10 @@ fn prepend_entity_module(
 }
 
 type FnChunk {
-  FnChunk(def: gdef.Definition, fun: gfun.Function(gtypes.Dynamic, gtypes.Dynamic))
+  FnChunk(
+    def: gdef.Definition,
+    fun: gfun.Function(gtypes.Dynamic, gtypes.Dynamic),
+  )
 }
 
 fn entity_function_chunks(
@@ -224,8 +244,7 @@ fn entity_function_chunks(
 
   let upsert_params =
     list.append([conn_param()], upsert_or_update_params(entity, variant, ctx))
-  let get_params =
-    list.append([conn_param()], identity_params(variant, ctx))
+  let get_params = list.append([conn_param()], identity_params(variant, ctx))
   let delete_params = get_params
   let list_params = [conn_param()]
 
@@ -239,7 +258,9 @@ fn entity_function_chunks(
       gfun.new_raw(
         upsert_params,
         gtypes.result(gtypes.raw(row_t), sql_err),
-        fn(_args) { gexpr.panic_(Some("TODO: generated upsert SQL and decoding")) },
+        fn(_args) {
+          gexpr.panic_(Some("TODO: generated upsert SQL and decoding"))
+        },
       )
         |> gfun.to_dynamic,
     ),
@@ -248,11 +269,10 @@ fn entity_function_chunks(
         |> gdef.with_text_before(by_identity_doc("Get")),
       gfun.new_raw(
         get_params,
-        gtypes.result(
-          gtypes.raw("option.Option(" <> row_t <> ")"),
-          sql_err,
-        ),
-        fn(_args) { gexpr.panic_(Some("TODO: generated select SQL and decoding")) },
+        gtypes.result(gtypes.raw("option.Option(" <> row_t <> ")"), sql_err),
+        fn(_args) {
+          gexpr.panic_(Some("TODO: generated select SQL and decoding"))
+        },
       )
         |> gfun.to_dynamic,
     ),
@@ -262,31 +282,31 @@ fn entity_function_chunks(
       gfun.new_raw(
         upsert_params,
         gtypes.result(gtypes.raw(row_t), sql_err),
-        fn(_args) { gexpr.panic_(Some("TODO: generated update SQL and decoding")) },
+        fn(_args) {
+          gexpr.panic_(Some("TODO: generated update SQL and decoding"))
+        },
       )
         |> gfun.to_dynamic,
     ),
     FnChunk(
       gleamgen_emit.pub_def("delete_" <> entity_snake <> "_by_" <> id_snake)
         |> gdef.with_text_before(by_identity_doc("Delete")),
-      gfun.new_raw(
-        delete_params,
-        gtypes.result(gtypes.nil, sql_err),
-        fn(_args) { gexpr.panic_(Some("TODO: generated delete SQL")) },
-      )
+      gfun.new_raw(delete_params, gtypes.result(gtypes.nil, sql_err), fn(_args) {
+        gexpr.panic_(Some("TODO: generated delete SQL"))
+      })
         |> gfun.to_dynamic,
     ),
     FnChunk(
       gleamgen_emit.pub_def("last_100_edited_" <> entity_snake)
         |> gdef.with_text_before(
-          "/// List up to 100 recently edited "
-          <> entity_snake
-          <> " rows.\n",
+          "/// List up to 100 recently edited " <> entity_snake <> " rows.\n",
         ),
       gfun.new_raw(
         list_params,
         gtypes.result(gtypes.list(gtypes.raw(row_t)), sql_err),
-        fn(_args) { gexpr.panic_(Some("TODO: generated select SQL and decoding")) },
+        fn(_args) {
+          gexpr.panic_(Some("TODO: generated select SQL and decoding"))
+        },
       )
         |> gfun.to_dynamic,
     ),
@@ -349,27 +369,25 @@ fn generic_query_module(
       gtypes.raw("sqlight.Error"),
     )
   let query_doc =
-    "/// Execute generated query for the `"
-    <> spec.name
-    <> "` spec.\n"
+    "/// Execute generated query for the `" <> spec.name <> "` spec.\n"
   let type_builder =
     gcustom.new(Nil)
     |> gcustom.with_variant(fn(_) { gvariant.new(row_name) })
-  gmod.with_custom_type1(gleamgen_emit.pub_def(row_name), type_builder, fn(_ty, _con) {
-    gmod.with_function(
-      gleamgen_emit.pub_def(pub_name) |> gdef.with_text_before(query_doc),
-      gfun.new_raw(
-        fn_params,
-        returns,
-        fn(_args) {
+  gmod.with_custom_type1(
+    gleamgen_emit.pub_def(row_name),
+    type_builder,
+    fn(_ty, _con) {
+      gmod.with_function(
+        gleamgen_emit.pub_def(pub_name) |> gdef.with_text_before(query_doc),
+        gfun.new_raw(fn_params, returns, fn(_args) {
           gexpr.panic_(Some(
             "TODO: generated select SQL, parameters, and decoder",
           ))
-        },
-      ),
-      fn(_n) { acc },
-    )
-  })
+        }),
+        fn(_n) { acc },
+      )
+    },
+  )
 }
 
 fn is_magic_fields_param(t: glance.Type) -> Bool {
@@ -379,7 +397,10 @@ fn is_magic_fields_param(t: glance.Type) -> Bool {
   }
 }
 
-fn hippos_by_gender_module(schema_alias: String, acc: gmod.Module) -> gmod.Module {
+fn hippos_by_gender_module(
+  schema_alias: String,
+  acc: gmod.Module,
+) -> gmod.Module {
   let row_name = "HipposByGenderResult"
   let magic = gtypes.raw("dsl.MagicFields")
   let type_builder =

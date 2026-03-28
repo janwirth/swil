@@ -1,7 +1,9 @@
-import api_help
-import dsl/dsl as dsl
 import case_studies/library_manager_db/row
-import case_studies/library_manager_schema.{type ViewConfigScalar, type TrackBucketRelationships, type TrackBucket, type TagExpressionScalar, type Tag, type Tab, type ImportedTrack, type FilterScalar, ViewConfigScalar, TrackBucketRelationships, TrackBucket, TagExpression, Tag, Tab, Or, Not, IsEqualTo, IsAtMost, IsAtLeast, ImportedTrack, Has, DoesNotHave, ByTitleAndArtist, ByTagLabel, ByTabLabel, ByFilePath, ByBucketTitleAndArtist, And}
+import case_studies/library_manager_schema.{
+  type ImportedTrack, type Tab, type Tag, type TrackBucket,
+  type ViewConfigScalar,
+}
+import dsl/dsl
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import sqlight
@@ -25,10 +27,10 @@ const select_importedtrack_by_file_path_sql = "select \"title\", \"artist\", \"f
 const select_importedtrack_by_title_and_artist_sql = "select \"title\", \"artist\", \"file_path\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"importedtrack\" where \"title\" = ? and \"artist\" = ? and \"deleted_at\" is null;"
 
 /// Get a tab by row id.
-pub fn get_tab_by_id(conn: sqlight.Connection, id: Int) -> Result(
-  Option(#(Tab, dsl.MagicFields)),
-  sqlight.Error,
-) {
+pub fn get_tab_by_id(
+  conn: sqlight.Connection,
+  id: Int,
+) -> Result(Option(#(Tab, dsl.MagicFields)), sqlight.Error) {
   use rows <- result.try(sqlight.query(
     select_tab_by_id_sql,
     on: conn,
@@ -97,10 +99,10 @@ pub fn get_trackbucket_by_bucket_title_and_artist(
 }
 
 /// Get a tag by row id.
-pub fn get_tag_by_id(conn: sqlight.Connection, id: Int) -> Result(
-  Option(#(Tag, dsl.MagicFields)),
-  sqlight.Error,
-) {
+pub fn get_tag_by_id(
+  conn: sqlight.Connection,
+  id: Int,
+) -> Result(Option(#(Tag, dsl.MagicFields)), sqlight.Error) {
   use rows <- result.try(sqlight.query(
     select_tag_by_id_sql,
     on: conn,

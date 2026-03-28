@@ -1,11 +1,17 @@
 import api_help
-import dsl/dsl as dsl
-import case_studies/hippo_schema.{type HumanRelationships, type Human, type HippoRelationships, type Hippo, type GenderScalar, Male, HumanRelationships, Human, HippoRelationships, Hippo, Female, ByNameAndDateOfBirth, ByEmail}
+import case_studies/hippo_schema.{
+  type GenderScalar, type Hippo, type HippoRelationships, type Human,
+  type HumanRelationships, ByEmail, ByNameAndDateOfBirth, Female, Hippo,
+  HippoRelationships, Human, HumanRelationships, Male,
+}
+import dsl/dsl
 import gleam/dynamic/decode
 import gleam/option.{type Option, None, Some}
 import gleam/time/calendar.{type Date}
 
-pub fn human_with_magic_row_decoder() -> decode.Decoder(#(Human, dsl.MagicFields)) {
+pub fn human_with_magic_row_decoder() -> decode.Decoder(
+  #(Human, dsl.MagicFields),
+) {
   use name_raw <- decode.field(0, decode.string)
   use email_raw <- decode.field(1, decode.string)
   use id <- decode.field(2, decode.int)
@@ -20,9 +26,7 @@ pub fn human_with_magic_row_decoder() -> decode.Decoder(#(Human, dsl.MagicFields
       email:,
       hippos: [],
       identities: ByEmail(email: email_raw),
-      relationships: HumanRelationships(
-        hippos: dsl.BacklinkWith([], None),
-      ),
+      relationships: HumanRelationships(hippos: dsl.BacklinkWith([], None)),
     )
   decode.success(#(
     human,
@@ -47,7 +51,9 @@ pub fn gender_scalar_from_db_string(s: String) -> Option(GenderScalar) {
   }
 }
 
-pub fn hippo_with_magic_row_decoder() -> decode.Decoder(#(Hippo, dsl.MagicFields)) {
+pub fn hippo_with_magic_row_decoder() -> decode.Decoder(
+  #(Hippo, dsl.MagicFields),
+) {
   use name_raw <- decode.field(0, decode.string)
   use gender_raw <- decode.field(1, decode.string)
   use dob_raw <- decode.field(2, decode.string)
@@ -67,7 +73,10 @@ pub fn hippo_with_magic_row_decoder() -> decode.Decoder(#(Hippo, dsl.MagicFields
       name:,
       gender:,
       date_of_birth:,
-      identities: ByNameAndDateOfBirth(name: name_raw, date_of_birth: dob_identity),
+      identities: ByNameAndDateOfBirth(
+        name: name_raw,
+        date_of_birth: dob_identity,
+      ),
       relationships: HippoRelationships(
         friends: None,
         best_friend: None,

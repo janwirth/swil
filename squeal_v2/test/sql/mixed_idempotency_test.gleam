@@ -32,7 +32,7 @@ pub fn fruit_pragma_test() {
   let assert Ok(fruit_expected) =
     simplifile.read("src/case_studies/fruit_db/migration.gleam")
   let assert Ok(fruit_def) = schema_parser.parse_module(schema1)
-  let fruit_gleam =
+  let assert Ok(fruit_gleam) =
     migration.generate_pragma_migration_module(
       fruit_def,
       "case_studies/fruit_db/migration",
@@ -45,7 +45,7 @@ pub fn animal_pragma_test() {
   let assert Ok(animal_expected) =
     simplifile.read("src/case_studies/example_migration_animal.gleam")
   let assert Ok(animal_def) = schema_parser.parse_module(schema2)
-  let animal_gleam =
+  let assert Ok(animal_gleam) =
     migration.generate_pragma_migration_module(
       animal_def,
       "case_studies/example_migration_animal",
@@ -61,7 +61,7 @@ pub fn hippo_pragma_codegen_matches_disk_test() {
     simplifile.read("src/case_studies/hippo_db/migration.gleam")
   let assert Ok(def) = schema_parser.parse_module(src)
   let assert True = list.length(def.entities) == 2
-  let hippo_gleam =
+  let assert Ok(hippo_gleam) =
     migration.generate_pragma_migration_module(
       def,
       "case_studies/hippo_db/migration",

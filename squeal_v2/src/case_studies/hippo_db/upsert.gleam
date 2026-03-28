@@ -1,7 +1,7 @@
 import api_help
-import dsl/dsl as dsl
 import case_studies/hippo_db/row
-import case_studies/hippo_schema.{type Human, type Hippo, type GenderScalar}
+import case_studies/hippo_schema.{type GenderScalar, type Hippo, type Human}
+import dsl/dsl
 import gleam/option.{type Option}
 import gleam/result
 import gleam/time/calendar.{type Date}
@@ -85,11 +85,7 @@ pub fn upsert_human_by_email(
 fn not_found_human_email_error(op: String) -> sqlight.Error {
   sqlight.SqlightError(
     sqlight.GenericError,
-    "human"
-    <>
-    " not found: "
-    <>
-    op,
+    "human" <> " not found: " <> op,
     -1,
   )
 }
@@ -115,7 +111,10 @@ pub fn update_hippo_by_name_and_date_of_birth(
   ))
   case rows {
     [r, ..] -> Ok(r)
-    [] -> Error(not_found_hippo_name_and_date_of_birth_error("update_hippo_by_name_and_date_of_birth"))
+    [] ->
+      Error(not_found_hippo_name_and_date_of_birth_error(
+        "update_hippo_by_name_and_date_of_birth",
+      ))
   }
 }
 
@@ -153,11 +152,7 @@ pub fn upsert_hippo_by_name_and_date_of_birth(
 fn not_found_hippo_name_and_date_of_birth_error(op: String) -> sqlight.Error {
   sqlight.SqlightError(
     sqlight.GenericError,
-    "hippo"
-    <>
-    " not found: "
-    <>
-    op,
+    "hippo" <> " not found: " <> op,
     -1,
   )
 }

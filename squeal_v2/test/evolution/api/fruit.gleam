@@ -16,7 +16,8 @@ pub fn fruit_api_generation_test() {
   let assert Ok(schema_src) =
     simplifile.read("src/case_studies/fruit_schema.gleam")
   let assert Ok(def) = schema_parser.parse_module(schema_src)
-  let out = api.generate_api_db_outputs("case_studies/fruit_schema", def)
+  let assert Ok(out) =
+    api.generate_api_db_outputs("case_studies/fruit_schema", def)
   let norm = fn(s: String) {
     string.trim_end(s)
     |> collapse_extra_blank_lines

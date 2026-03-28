@@ -1,5 +1,5 @@
 import case_studies/fruit_schema.{type Fruit}
-import dsl/dsl as dsl
+import dsl/dsl
 import gleam/option
 import sqlight
 
@@ -9,9 +9,7 @@ import sqlight
 /// - `migrate/1`
 /// - Entity ops: Fruit
 /// - Query specs: `query_cheap_fruit`
-pub fn migrate(
-  _conn: sqlight.Connection,
-) -> Result(Nil, sqlight.Error) {
+pub fn migrate(_conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   panic as "TODO: generated migration SQL"
 }
 

@@ -65,18 +65,19 @@ pub fn delete_trackbucket_by_bucket_title_and_artist(
   )
   case rows {
     [Nil, ..] -> Ok(Nil)
-    [] -> Error(not_found_trackbucket_bucket_title_and_artist_error("delete_trackbucket_by_bucket_title_and_artist"))
+    [] ->
+      Error(not_found_trackbucket_bucket_title_and_artist_error(
+        "delete_trackbucket_by_bucket_title_and_artist",
+      ))
   }
 }
 
-fn not_found_trackbucket_bucket_title_and_artist_error(op: String) -> sqlight.Error {
+fn not_found_trackbucket_bucket_title_and_artist_error(
+  op: String,
+) -> sqlight.Error {
   sqlight.SqlightError(
     sqlight.GenericError,
-    "trackbucket"
-    <>
-    " not found: "
-    <>
-    op,
+    "trackbucket" <> " not found: " <> op,
     -1,
   )
 }
@@ -127,18 +128,17 @@ pub fn delete_importedtrack_by_file_path(
   )
   case rows {
     [Nil, ..] -> Ok(Nil)
-    [] -> Error(not_found_importedtrack_file_path_error("delete_importedtrack_by_file_path"))
+    [] ->
+      Error(not_found_importedtrack_file_path_error(
+        "delete_importedtrack_by_file_path",
+      ))
   }
 }
 
 fn not_found_importedtrack_file_path_error(op: String) -> sqlight.Error {
   sqlight.SqlightError(
     sqlight.GenericError,
-    "importedtrack"
-    <>
-    " not found: "
-    <>
-    op,
+    "importedtrack" <> " not found: " <> op,
     -1,
   )
 }
@@ -168,18 +168,17 @@ pub fn delete_importedtrack_by_title_and_artist(
   )
   case rows {
     [Nil, ..] -> Ok(Nil)
-    [] -> Error(not_found_importedtrack_title_and_artist_error("delete_importedtrack_by_title_and_artist"))
+    [] ->
+      Error(not_found_importedtrack_title_and_artist_error(
+        "delete_importedtrack_by_title_and_artist",
+      ))
   }
 }
 
 fn not_found_importedtrack_title_and_artist_error(op: String) -> sqlight.Error {
   sqlight.SqlightError(
     sqlight.GenericError,
-    "importedtrack"
-    <>
-    " not found: "
-    <>
-    op,
+    "importedtrack" <> " not found: " <> op,
     -1,
   )
 }

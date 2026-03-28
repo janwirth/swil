@@ -1,5 +1,5 @@
 import case_studies/hippo_schema.{type Hippo, type Human}
-import dsl/dsl as dsl
+import dsl/dsl
 import gleam/option
 import gleam/time/calendar.{type Date}
 import sqlight
@@ -10,9 +10,7 @@ import sqlight
 /// - `migrate/1`
 /// - Entity ops: Hippo, Human
 /// - Query specs: `query_old_hippos_owner_emails`, `query_old_hippos_owner_names`, `query_hippos_by_gender`
-pub fn migrate(
-  _conn: sqlight.Connection,
-) -> Result(Nil, sqlight.Error) {
+pub fn migrate(_conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   panic as "TODO: generated migration SQL"
 }
 

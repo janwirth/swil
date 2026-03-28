@@ -34,11 +34,7 @@ pub fn delete_human_by_email(
 fn not_found_human_email_error(op: String) -> sqlight.Error {
   sqlight.SqlightError(
     sqlight.GenericError,
-    "human"
-    <>
-    " not found: "
-    <>
-    op,
+    "human" <> " not found: " <> op,
     -1,
   )
 }
@@ -68,18 +64,17 @@ pub fn delete_hippo_by_name_and_date_of_birth(
   )
   case rows {
     [Nil, ..] -> Ok(Nil)
-    [] -> Error(not_found_hippo_name_and_date_of_birth_error("delete_hippo_by_name_and_date_of_birth"))
+    [] ->
+      Error(not_found_hippo_name_and_date_of_birth_error(
+        "delete_hippo_by_name_and_date_of_birth",
+      ))
   }
 }
 
 fn not_found_hippo_name_and_date_of_birth_error(op: String) -> sqlight.Error {
   sqlight.SqlightError(
     sqlight.GenericError,
-    "hippo"
-    <>
-    " not found: "
-    <>
-    op,
+    "hippo" <> " not found: " <> op,
     -1,
   )
 }
