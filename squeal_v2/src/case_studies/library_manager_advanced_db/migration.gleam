@@ -1056,15 +1056,39 @@ pub fn migration(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
     "trackbucket_by_title_artist",
     expected_trackbucket_index_info,
   )
+  use _ <- result.try(create_junction_tables(conn))
   Ok(Nil)
 }
 
-// STUB — will be overwritten by generator
-pub fn upsert_trackbucket_tag(
-  _conn: sqlight.Connection,
-  _trackbucket_id: Int,
-  _tag_id: Int,
-  _value: Option(Int),
+fn create_junction_tables(
+  conn: sqlight.Connection,
 ) -> Result(Nil, sqlight.Error) {
-  todo
+  use _ <- result.try(sqlight.exec(create_trackbucket_tag_sql, conn))
+  Ok(Nil)
+}
+
+const create_trackbucket_tag_sql = "create table if not exists \"trackbucket_tag\" (\n  \"trackbucket_id\" integer not null,\n  \"tag_id\" integer not null,\n  \"value\" integer,\n  unique (\"trackbucket_id\", \"tag_id\")\n);"
+
+const upsert_trackbucket_tag_sql = "insert into \"trackbucket_tag\" (\"trackbucket_id\", \"tag_id\", \"value\") values (?, ?, ?) on conflict (\"trackbucket_id\", \"tag_id\") do update set \"value\" = excluded.\"value\";"
+
+pub fn upsert_trackbucket_tag(
+  conn: sqlight.Connection,
+  trackbucket_id: Int,
+  tag_id: Int,
+  value: option.Option(Int),
+) -> Result(Nil, sqlight.Error) {
+  sqlight.query(
+    upsert_trackbucket_tag_sql,
+    on: conn,
+    with: [
+      sqlight.int(trackbucket_id),
+      sqlight.int(tag_id),
+      case value {
+        option.Some(v) -> sqlight.int(v)
+        option.None -> sqlight.null()
+      },
+    ],
+    expecting: decode.success(Nil),
+  )
+  |> result.map(fn(_) { Nil })
 }

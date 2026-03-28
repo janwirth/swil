@@ -1,6 +1,5 @@
 import case_studies/library_manager_advanced_schema.{
-  type FilterExpressionScalar, type ImportedTrack, type Tab, type Tag,
-  type TrackBucket,
+  type ImportedTrack, type Tab, type Tag, type TrackBucket,
 }
 import dsl/dsl
 import gleam/option
@@ -207,7 +206,7 @@ pub type QueryTracksByViewConfigRow {
 /// Execute generated query for the `query_tracks_by_view_config` spec.
 pub fn query_tracks_by_view_config(
   _conn: sqlight.Connection,
-  _complex_tag_filter_expression: FilterExpressionScalar,
+  _complex_tag_filter_expression: library_manager_advanced_schema.FilterExpressionScalar,
 ) -> Result(List(QueryTracksByViewConfigRow), sqlight.Error) {
   panic as "TODO: generated select SQL, parameters, and decoder"
 }

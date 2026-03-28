@@ -12,6 +12,16 @@ pub fn migrate(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   migration.migration(conn)
 }
 
+pub fn query_tracks_by_view_config(
+  conn: sqlight.Connection,
+  complex_tag_filter_expression: library_manager_advanced_schema.FilterExpressionScalar,
+) -> Result(
+  List(#(library_manager_advanced_schema.TrackBucket, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  query.query_tracks_by_view_config(conn, complex_tag_filter_expression)
+}
+
 pub fn last_100_edited_tab(
   conn: sqlight.Connection,
 ) -> Result(
@@ -307,15 +317,4 @@ pub fn upsert_importedtrack_by_title_and_artist(
     artist,
     file_path,
   )
-}
-
-// STUB — will be overwritten by generator
-pub fn query_tracks_by_view_config(
-  conn: sqlight.Connection,
-  filter: dsl.BooleanFilter(library_manager_advanced_schema.TagExpressionScalar),
-) -> Result(
-  List(#(library_manager_advanced_schema.TrackBucket, dsl.MagicFields)),
-  sqlight.Error,
-) {
-  query.query_tracks_by_view_config(conn, filter)
 }

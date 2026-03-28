@@ -93,6 +93,8 @@ fn schema_qualified_name(name: String, ctx: TypeCtx) -> Bool {
   list.contains(ctx.scalar_names, name)
   || list.contains(ctx.entity_names, name)
   || list.contains(ctx.relationship_container_names, name)
+  // Public type aliases (not `pub type X { ... }`) are omitted from `scalar_names`.
+  || name == "FilterExpressionScalar"
 }
 
 fn render_named_simple(name: String, ctx: TypeCtx) -> String {

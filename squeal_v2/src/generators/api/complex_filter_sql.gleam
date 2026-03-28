@@ -239,10 +239,11 @@ fn emit_predicate_arm(
   <> " -> #(\n"
   <> "      \""
   <> exists_prefix
-  <> "\" <> root_alias <> \".\\\"id\\"
-  <> "\\\"id\\\""
+  <> "\" <> root_alias <> \".\\\"id\\\""
   <> where_suffix
-  <> ")\",\n"
+  <> "\""
+  <> " <> \")\""
+  <> ",\n"
   <> "      "
   <> binds_code
   <> ",\n"
