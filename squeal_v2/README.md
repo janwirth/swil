@@ -5,17 +5,39 @@ You describe your types & queries in a gleam subset.
 
 ```gleam
 // my_schema.gleam
-type MyType
+type Person {
+  // all fields are optional to make for easy migrations
+  full_name: Option.Option(Int),
+  age: Option.option(Int),
+  identities: PersonIdentities
+}
+
+type PersonIdentities {
+  ByFullName
+}
+
+type Pet {
+  owner: Option.option(Person),
+  identities: PetIdentities
+}
+
+type PersonIdentities {
+  ByFullName
+}
 
 ```
 
 Then you run a generator
 
 ```
-squeal
+squeal src/my_schema.gleam
 ```
 
 Use it in your code
+
+```gleam
+// Migrations are idempotent and n
+```
 
 ## Approach
 
