@@ -4,6 +4,7 @@ import generators/migration/pragma_migration_data
 import generators/migration/pragma_migration_emit
 import generators/migration/pragma_migration_panic
 import glance
+import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
@@ -509,14 +510,218 @@ fn junction_upsert_gleam_fn(spec: JunctionSpec) -> String {
   <> "],\n    expecting: decode.success(Nil),\n  )\n  |> result.map(fn(_) { Nil })\n}"
 }
 
+fn junction_table_ident(spec: JunctionSpec) -> String {
+  string.lowercase(spec.root_entity)
+  <> "_"
+  <> string.lowercase(spec.target_entity)
+}
+
+fn junction_fk_names(spec: JunctionSpec) -> #(String, String) {
+  #(
+    string.lowercase(spec.root_entity) <> "_id",
+    string.lowercase(spec.target_entity) <> "_id",
+  )
+}
+
+/// Non-unique index on `(root_id, target_id, …edge columns)` for filter EXISTS lookups.
+fn junction_perf_index_name(spec: JunctionSpec) -> String {
+  let jt = junction_table_ident(spec)
+  let #(root_fk, target_fk) = junction_fk_names(spec)
+  let parts =
+    list.flatten([
+      [root_fk, target_fk],
+      list.map(spec.edge_fields, fn(f) { f.label }),
+    ])
+  jt <> "_by_" <> string.join(parts, "_")
+}
+
+fn junction_perf_index_create_sql(spec: JunctionSpec) -> String {
+  let jt = junction_table_ident(spec)
+  let iname = junction_perf_index_name(spec)
+  let #(root_fk, target_fk) = junction_fk_names(spec)
+  let col_names =
+    list.flatten([
+      [root_fk, target_fk],
+      list.map(spec.edge_fields, fn(f) { f.label }),
+    ])
+  let cols_sql =
+    list.map(col_names, migration_sql.quote_ident) |> string.join(", ")
+  "create index "
+  <> iname
+  <> " on "
+  <> migration_sql.quote_ident(jt)
+  <> "("
+  <> cols_sql
+  <> ");"
+}
+
+fn junction_sqlite_autoindex_name(jt: String) -> String {
+  "sqlite_autoindex_" <> jt <> "_1"
+}
+
+fn junction_expected_index_list_tsv(spec: JunctionSpec) -> String {
+  let jt = junction_table_ident(spec)
+  let perf = junction_perf_index_name(spec)
+  let auto_ix = junction_sqlite_autoindex_name(jt)
+  "seq\tname\tunique\torigin\tpartial\n0\t"
+  <> perf
+  <> "\t0\tc\t0\n1\t"
+  <> auto_ix
+  <> "\t1\tu\t0"
+}
+
+fn junction_expected_perf_index_info_tsv(spec: JunctionSpec) -> String {
+  let header = "seqno\tcid\tname"
+  let #(root_fk, target_fk) = junction_fk_names(spec)
+  let row0 = "0\t0\t" <> root_fk
+  let row1 = "1\t1\t" <> target_fk
+  let edge_rows =
+    list.index_map(spec.edge_fields, fn(f, i) {
+      int.to_string(i + 2) <> "\t" <> int.to_string(i + 2) <> "\t" <> f.label
+    })
+  string.join([header, row0, row1, ..edge_rows], "\n")
+}
+
+fn junction_expected_unique_index_info_tsv(spec: JunctionSpec) -> String {
+  let #(root_fk, target_fk) = junction_fk_names(spec)
+  "seqno\tcid\tname\n0\t0\t"
+  <> root_fk
+  <> "\n1\t1\t"
+  <> target_fk
+}
+
+fn junction_perf_index_const_name(spec: JunctionSpec) -> String {
+  "create_" <> junction_table_ident(spec) <> "_perf_index_sql"
+}
+
+fn junction_expected_list_const(spec: JunctionSpec) -> String {
+  "expected_" <> junction_table_ident(spec) <> "_index_list"
+}
+
+fn junction_expected_perf_info_const(spec: JunctionSpec) -> String {
+  "expected_" <> junction_table_ident(spec) <> "_perf_index_info"
+}
+
+fn junction_expected_unique_info_const(spec: JunctionSpec) -> String {
+  "expected_" <> junction_table_ident(spec) <> "_unique_index_info"
+}
+
+fn junction_drop_surplus_fn_name(spec: JunctionSpec) -> String {
+  "drop_surplus_user_indexes_on_" <> junction_table_ident(spec)
+}
+
+fn junction_ensure_indexes_fn_name(spec: JunctionSpec) -> String {
+  "ensure_" <> junction_table_ident(spec) <> "_indexes"
+}
+
+fn junction_perf_index_gleam_block(spec: JunctionSpec) -> String {
+  let jt = junction_table_ident(spec)
+  let perf = junction_perf_index_name(spec)
+  let create_sql = junction_perf_index_create_sql(spec)
+  let list_tsv = junction_expected_index_list_tsv(spec)
+  let perf_info = junction_expected_perf_index_info_tsv(spec)
+  let unique_info = junction_expected_unique_index_info_tsv(spec)
+  let c_create = junction_perf_index_const_name(spec)
+  let c_list = junction_expected_list_const(spec)
+  let c_perf = junction_expected_perf_info_const(spec)
+  let c_unique = junction_expected_unique_info_const(spec)
+  let fn_drop = junction_drop_surplus_fn_name(spec)
+  let fn_ensure = junction_ensure_indexes_fn_name(spec)
+  let auto_ix = junction_sqlite_autoindex_name(jt)
+  string.join(
+    [
+      "/// Seek `(…)` on junction `" <> jt <> "` for filter `EXISTS` subqueries.",
+      "const "
+        <> c_create
+        <> " = \""
+        <> gleam_escape_string(create_sql)
+        <> "\"",
+      "",
+      "const "
+        <> c_list
+        <> " = \""
+        <> gleam_escape_string(list_tsv)
+        <> "\"",
+      "",
+      "const "
+        <> c_perf
+        <> " = \""
+        <> gleam_escape_string(perf_info)
+        <> "\"",
+      "",
+      "const "
+        <> c_unique
+        <> " = \""
+        <> gleam_escape_string(unique_info)
+        <> "\"",
+      "",
+      "fn "
+        <> fn_drop
+        <> "(\n  conn: sqlight.Connection,\n) -> Result(Nil, sqlight.Error) {",
+      "  use rows <- result.try(pragma_index_name_origin_rows(conn, \"" <> jt <> "\"))",
+      "  list.try_each(rows, fn(pair) {",
+      "    let #(name, origin) = pair",
+      "    case origin == \"c\" && name != \"" <> perf <> "\" {",
+      "      True -> sqlight.exec(\"drop index if exists \" <> name <> \";\", conn)",
+      "      False -> Ok(Nil)",
+      "    }",
+      "  })",
+      "}",
+      "",
+      "fn "
+        <> fn_ensure
+        <> "(\n  conn: sqlight.Connection,\n) -> Result(Nil, sqlight.Error) {",
+      "  use _ <- result.try(" <> fn_drop <> "(conn))",
+      "  case",
+      "    sqlite_pragma_assert.index_list_tsv(conn, \"" <> jt <> "\"),",
+      "    sqlite_pragma_assert.index_info_tsv(conn, \"" <> perf <> "\"),",
+      "    sqlite_pragma_assert.index_info_tsv(conn, \"" <> auto_ix <> "\")",
+      "  {",
+      "    Ok(list_tsv), Ok(perf_info), Ok(unique_info) ->",
+      "      case",
+      "        list_tsv == "
+        <> c_list
+        <> " && perf_info == "
+        <> c_perf
+        <> " && unique_info == "
+        <> c_unique,
+      "      {",
+      "        True -> Ok(Nil)",
+      "        False -> {",
+      "          use _ <- result.try(sqlight.exec(",
+      "            \"drop index if exists " <> perf <> ";\",",
+      "            conn,",
+      "          ))",
+      "          sqlight.exec(" <> c_create <> ", conn)",
+      "        }",
+      "      }",
+      "    _, _, _ -> {",
+      "      use _ <- result.try(sqlight.exec(",
+      "        \"drop index if exists " <> perf <> ";\",",
+      "        conn,",
+      "      ))",
+      "      sqlight.exec(" <> c_create <> ", conn)",
+      "    }",
+      "  }",
+      "}",
+    ],
+    "\n",
+  )
+}
+
 fn build_create_junction_tables_fn(specs: List(JunctionSpec)) -> String {
   let lines =
     list.map(specs, fn(spec) {
-      let jt =
-        string.lowercase(spec.root_entity)
-        <> "_"
-        <> string.lowercase(spec.target_entity)
-      "  use _ <- result.try(sqlight.exec(create_" <> jt <> "_sql, conn))"
+      let jt = junction_table_ident(spec)
+      let create_line =
+        "  use _ <- result.try(sqlight.exec(create_" <> jt <> "_sql, conn))"
+      case spec.edge_fields {
+        [] -> create_line
+        _ -> {
+          let ensure = junction_ensure_indexes_fn_name(spec)
+          create_line <> "\n  use _ <- result.try(" <> ensure <> "(conn))"
+        }
+      }
     })
   "fn create_junction_tables(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {\n"
   <> string.join(lines, "\n")
@@ -530,10 +735,7 @@ fn generate_junction_table_appendage_inner(schema: SchemaDefinition) -> String {
     _ -> {
       let parts =
         list.map(specs, fn(spec) {
-          let jt =
-            string.lowercase(spec.root_entity)
-            <> "_"
-            <> string.lowercase(spec.target_entity)
+          let jt = junction_table_ident(spec)
           let create_const = "create_" <> jt <> "_sql"
           let upsert_const = "upsert_" <> jt <> "_sql"
           let consts =
@@ -546,7 +748,12 @@ fn generate_junction_table_appendage_inner(schema: SchemaDefinition) -> String {
             <> " =\n  \""
             <> gleam_escape_string(junction_upsert_sql(spec))
             <> "\""
-          consts <> "\n\n" <> junction_upsert_gleam_fn(spec)
+          let perf =
+            case spec.edge_fields {
+              [] -> ""
+              _ -> "\n\n" <> junction_perf_index_gleam_block(spec)
+            }
+          consts <> perf <> "\n\n" <> junction_upsert_gleam_fn(spec)
         })
       let create_fn = build_create_junction_tables_fn(specs)
       "\n\n" <> create_fn <> "\n\n" <> string.join(parts, "\n\n")

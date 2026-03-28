@@ -1,7 +1,7 @@
 //// End-to-end tests for the complex `BooleanFilter` query pipeline.
 ////
 //// Uses a real in-memory SQLite database.  Exercises:
-////   0. Post-migration `pragma index_list` / `pragma index_info` — unique indexes on core tables and implicit unique index on `trackbucket_tag`.
+////   0. Post-migration `pragma index_list` / `pragma index_info` — core unique indexes; `trackbucket_tag` has perf index `(trackbucket_id, tag_id, value)` plus implicit UNIQUE on `(trackbucket_id, tag_id)`.
 ////   1. `migration.migration` — creates all tables including `trackbucket_tag`.
 ////   2. `migration.upsert_trackbucket_tag` — inserts junction rows with edge attributes.
 ////   3. `query.query_tracks_by_view_config` — filters via `BooleanFilter(TagExpressionScalar)`.
@@ -33,7 +33,7 @@ fn open_db() -> sqlight.Connection {
 }
 
 // Expected `pragma index_list` / `pragma index_info` TSV after `migration.migration`
-// (same shape as `sql/pragma_assert`); `trackbucket_tag` uses SQLite’s implicit unique index.
+// (same shape as `sql/pragma_assert`).
 
 const expected_importedtrack_index_list = "seq	name	unique	origin	partial
 0	importedtrack_by_title_artist	1	c	0"
@@ -62,9 +62,15 @@ const expected_trackbucket_index_info = "seqno	cid	name
 1	2	artist"
 
 const expected_trackbucket_tag_index_list = "seq	name	unique	origin	partial
-0	sqlite_autoindex_trackbucket_tag_1	1	u	0"
+0	trackbucket_tag_by_trackbucket_id_tag_id_value	0	c	0
+1	sqlite_autoindex_trackbucket_tag_1	1	u	0"
 
-const expected_trackbucket_tag_index_info = "seqno	cid	name
+const expected_trackbucket_tag_perf_index_info = "seqno	cid	name
+0	0	trackbucket_id
+1	1	tag_id
+2	2	value"
+
+const expected_trackbucket_tag_unique_index_info = "seqno	cid	name
 0	0	trackbucket_id
 1	1	tag_id"
 
@@ -139,13 +145,17 @@ pub fn migration_indices_trackbucket_test() {
 
 pub fn migration_indices_trackbucket_tag_test() {
   let conn = open_db()
-  assert_index_list_and_info(
-    conn,
-    "trackbucket_tag",
-    expected_trackbucket_tag_index_list,
-    "sqlite_autoindex_trackbucket_tag_1",
-    expected_trackbucket_tag_index_info,
-  )
+  let assert Ok(got_list) = pragma_assert.index_list_tsv(conn, "trackbucket_tag")
+  let assert True = got_list == expected_trackbucket_tag_index_list
+  let assert Ok(got_perf) =
+    pragma_assert.index_info_tsv(
+      conn,
+      "trackbucket_tag_by_trackbucket_id_tag_id_value",
+    )
+  let assert True = got_perf == expected_trackbucket_tag_perf_index_info
+  let assert Ok(got_unique) =
+    pragma_assert.index_info_tsv(conn, "sqlite_autoindex_trackbucket_tag_1")
+  let assert True = got_unique == expected_trackbucket_tag_unique_index_info
 }
 
 fn id_decoder() -> decode.Decoder(Int) {

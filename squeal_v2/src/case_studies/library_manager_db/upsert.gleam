@@ -259,14 +259,14 @@ pub fn update_importedtrack_by_file_path(
   sqlight.Error,
 ) {
   let now = api_help.unix_seconds_now()
-  let title_t = api_help.opt_text_for_db(title)
-  let artist_t = api_help.opt_text_for_db(artist)
+  let c = api_help.opt_text_for_db(title)
+  let c = api_help.opt_text_for_db(artist)
   use rows <- result.try(sqlight.query(
     update_importedtrack_by_file_path_sql,
     on: conn,
     with: [
-      sqlight.text(title_t),
-      sqlight.text(artist_t),
+      sqlight.text(c),
+      sqlight.text(c),
       sqlight.int(now),
       sqlight.text(file_path),
     ],
@@ -292,14 +292,14 @@ pub fn upsert_importedtrack_by_file_path(
   sqlight.Error,
 ) {
   let now = api_help.unix_seconds_now()
-  let title_t = api_help.opt_text_for_db(title)
-  let artist_t = api_help.opt_text_for_db(artist)
+  let c = api_help.opt_text_for_db(title)
+  let c = api_help.opt_text_for_db(artist)
   use rows <- result.try(sqlight.query(
     upsert_importedtrack_by_file_path_sql,
     on: conn,
     with: [
-      sqlight.text(title_t),
-      sqlight.text(artist_t),
+      sqlight.text(c),
+      sqlight.text(c),
       sqlight.text(file_path),
       sqlight.int(now),
       sqlight.int(now),

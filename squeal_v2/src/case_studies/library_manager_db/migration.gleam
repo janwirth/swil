@@ -1056,5 +1056,104 @@ pub fn migration(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
     "trackbucket_by_title_artist",
     expected_trackbucket_index_info,
   )
+  use _ <- result.try(create_junction_tables(conn))
   Ok(Nil)
+}
+
+fn create_junction_tables(
+  conn: sqlight.Connection,
+) -> Result(Nil, sqlight.Error) {
+  use _ <- result.try(sqlight.exec(create_trackbucket_tag_sql, conn))
+  use _ <- result.try(ensure_trackbucket_tag_indexes(conn))
+  Ok(Nil)
+}
+
+const create_trackbucket_tag_sql = "create table if not exists \"trackbucket_tag\" (\n  \"trackbucket_id\" integer not null,\n  \"tag_id\" integer not null,\n  \"value\" integer,\n  unique (\"trackbucket_id\", \"tag_id\")\n);"
+
+const upsert_trackbucket_tag_sql = "insert into \"trackbucket_tag\" (\"trackbucket_id\", \"tag_id\", \"value\") values (?, ?, ?) on conflict (\"trackbucket_id\", \"tag_id\") do update set \"value\" = excluded.\"value\";"
+
+/// Seek `(…)` on junction `trackbucket_tag` for filter `EXISTS` subqueries.
+const create_trackbucket_tag_perf_index_sql = "create index trackbucket_tag_by_trackbucket_id_tag_id_value on \"trackbucket_tag\"(\"trackbucket_id\", \"tag_id\", \"value\");"
+
+const expected_trackbucket_tag_index_list = "seq	name	unique	origin	partial\n0	trackbucket_tag_by_trackbucket_id_tag_id_value	0	c	0\n1	sqlite_autoindex_trackbucket_tag_1	1	u	0"
+
+const expected_trackbucket_tag_perf_index_info = "seqno	cid	name\n0	0	trackbucket_id\n1	1	tag_id\n2	2	value"
+
+const expected_trackbucket_tag_unique_index_info = "seqno	cid	name\n0	0	trackbucket_id\n1	1	tag_id"
+
+fn drop_surplus_user_indexes_on_trackbucket_tag(
+  conn: sqlight.Connection,
+) -> Result(Nil, sqlight.Error) {
+  use rows <- result.try(pragma_index_name_origin_rows(conn, "trackbucket_tag"))
+  list.try_each(rows, fn(pair) {
+    let #(name, origin) = pair
+    case
+      origin == "c" && name != "trackbucket_tag_by_trackbucket_id_tag_id_value"
+    {
+      True -> sqlight.exec("drop index if exists " <> name <> ";", conn)
+      False -> Ok(Nil)
+    }
+  })
+}
+
+fn ensure_trackbucket_tag_indexes(
+  conn: sqlight.Connection,
+) -> Result(Nil, sqlight.Error) {
+  use _ <- result.try(drop_surplus_user_indexes_on_trackbucket_tag(conn))
+  case
+    sqlite_pragma_assert.index_list_tsv(conn, "trackbucket_tag"),
+    sqlite_pragma_assert.index_info_tsv(
+      conn,
+      "trackbucket_tag_by_trackbucket_id_tag_id_value",
+    ),
+    sqlite_pragma_assert.index_info_tsv(
+      conn,
+      "sqlite_autoindex_trackbucket_tag_1",
+    )
+  {
+    Ok(list_tsv), Ok(perf_info), Ok(unique_info) ->
+      case
+        list_tsv == expected_trackbucket_tag_index_list
+        && perf_info == expected_trackbucket_tag_perf_index_info
+        && unique_info == expected_trackbucket_tag_unique_index_info
+      {
+        True -> Ok(Nil)
+        False -> {
+          use _ <- result.try(sqlight.exec(
+            "drop index if exists trackbucket_tag_by_trackbucket_id_tag_id_value;",
+            conn,
+          ))
+          sqlight.exec(create_trackbucket_tag_perf_index_sql, conn)
+        }
+      }
+    _, _, _ -> {
+      use _ <- result.try(sqlight.exec(
+        "drop index if exists trackbucket_tag_by_trackbucket_id_tag_id_value;",
+        conn,
+      ))
+      sqlight.exec(create_trackbucket_tag_perf_index_sql, conn)
+    }
+  }
+}
+
+pub fn upsert_trackbucket_tag(
+  conn: sqlight.Connection,
+  trackbucket_id: Int,
+  tag_id: Int,
+  value: option.Option(Int),
+) -> Result(Nil, sqlight.Error) {
+  sqlight.query(
+    upsert_trackbucket_tag_sql,
+    on: conn,
+    with: [
+      sqlight.int(trackbucket_id),
+      sqlight.int(tag_id),
+      case value {
+        option.Some(v) -> sqlight.int(v)
+        option.None -> sqlight.null()
+      },
+    ],
+    expecting: decode.success(Nil),
+  )
+  |> result.map(fn(_) { Nil })
 }
