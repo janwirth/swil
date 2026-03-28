@@ -114,13 +114,17 @@ This is **not** an open question: simple-query SQL generation already fixes the 
 
 ---
 
-## Not decided yet (author does not know enough SQL yet)
+## `dsl.any` / `filter_complex` → SQL: **`EXISTS` only** (no filter joins on the outer query)
 
-Concrete choices still open:
+**Contract:** Each `dsl.any` (and the SQL emitted for each expanded leaf of `filter_complex`) lowers to a **correlated `EXISTS (SELECT 1 FROM … WHERE …)`** predicate on the **root** row. The main query’s **`FROM`** (and `JOIN`s used for **shape** / identity) **must not** add relationship or junction tables **solely to evaluate filters** (no “filter via widening the main join graph”).
 
-- How **`dsl.any`** should lower to SQL (e.g. `EXISTS` subquery vs joins vs lateral — and how correlation works).
+**Why:** Keeps row cardinality stable (no duplicate root rows from tag edges), keeps filter semantics independent of `SELECT`/`shape`, and matches how multiple `any` / `And` / `Or` compose as boolean predicates.
 
-Fill this in once the relationship / `any` lowering strategy is chosen.
+**Inside the subquery:** You may use **`JOIN`** between junction and target (e.g. `trackbucket_tag` ⟷ `tag`) as **local** to that `EXISTS` — that is not a “filter join” on the outer query; it is normal subquery shape.
+
+**Correlation:** The subquery `WHERE` references the root alias (e.g. `rel."trackbucket_id" = tb."id"`). Nested `EXISTS` for nested `any` / combined leaves each carry their own correlation.
+
+**Out of scope for this contract:** `LATERAL`, semi-join tricks, or optional performance rewrites — if the optimizer sees an equivalent join plan, fine; the **specified lowering** for codegen remains `EXISTS`.
 
 ---
 
@@ -261,7 +265,7 @@ Assume:
 - The `tags` relationship is stored as a junction/edge table `trackbucket_tag` (alias `rel`) with `trackbucket_id`, `tag_id`, and optional `value` (matches `TrackBucketRelationshipAttributes`).
 - Related tag rows are in `tag` (alias `t`).
 
-**Lowering style used here:** each `dsl.any` becomes an **`EXISTS` subquery** correlated on the root row. This is one plausible option; see [Not decided yet](#not-decided-yet-author-does-not-know-enough-sql-yet).
+**Lowering style:** each `dsl.any` is an **`EXISTS` subquery** correlated on the root row — see the **`EXISTS` only** section above. Inner `JOIN`s inside that subquery are allowed.
 
 ### 1. Wire JSON → single leaf `Has` with `tag_id = 42`
 
@@ -323,4 +327,4 @@ where tb."deleted_at" is null
 
 `Not(...)` would wrap the corresponding SQL fragment in `not (...)`.
 
-Table and column names here follow the library-manager case study; a real generator would emit identifiers from the schema and might choose joins instead of nested `EXISTS`.
+Table and column names here follow the library-manager case study; a real generator emits identifiers from the schema and keeps **outer-query filter lowering as `EXISTS`** per the contract above (not optional joins on the main `FROM` for filters).

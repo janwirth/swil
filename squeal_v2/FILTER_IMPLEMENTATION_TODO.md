@@ -64,7 +64,7 @@ Structured checklist to execute the plan in order. After each phase, prefer a **
 
 | # | Task | Location |
 |---|------|----------|
-| 4.1 | Teach **query spec → SQL** (or staged builder) for `Filter.ComplexRecursive`: walk `BooleanFilter`, apply named `predicate_*` expansion model, emit `EXISTS` / join strategy per [FILTER_SPEC.md](FILTER_SPEC.md) *Not decided yet* once chosen. | `src/generators/api/api.gleam`, `api_sql.gleam`, new helper module if needed |
+| 4.1 | Teach **query spec → SQL** (or staged builder) for `Filter.ComplexRecursive`: walk `BooleanFilter`, apply named `predicate_*` expansion model, emit **correlated `EXISTS`** per [FILTER_SPEC.md](FILTER_SPEC.md) (*`EXISTS` only* — no filter joins on the outer `FROM`; inner joins inside subqueries are fine). | `src/generators/api/api.gleam`, `api_sql.gleam`, new helper module if needed |
 | 4.2 | **`api_query.gleam`** (and friends): emit `query_*` fns for complex filter params — JSON decode, `sqlight.query`, bind order. Today only simple `Predicate(Compare)` is generatable; extend `query_is_generatable` / chunk builders. | `src/generators/api/api_query.gleam` |
 | 4.3 | **JSON codecs** for `BooleanFilter(Leaf)` per leaf type (generated from schema types). | `src/generators/api/api_decoders.gleam`, `scalar_codecs.gleam`, `api_imports.gleam` |
 | 4.4 | **Facade / api module** wiring: re-export pattern matches existing `library_manager_db/api.gleam`. | `src/generators/api/api_facade.gleam`, `api_chunks.gleam`, `api.gleam` |
@@ -81,7 +81,7 @@ Structured checklist to execute the plan in order. After each phase, prefer a **
 |---|------|----------|
 | 5.1 | Smoke: open DB, call generated API with a minimal JSON `filter_complex` payload, assert row count. | `test/` (optional; can fold into phase 6) |
 | 5.2 | Error paths: malformed JSON, unknown leaf constructor, empty `And([])`. | decoder + runtime tests |
-| 5.3 | Update **FILTER_SPEC** illustrative SQL if lowering choice in phase 4 differs from `EXISTS` sketch. | `FILTER_SPEC.md` |
+| 5.3 | Re-read **FILTER_SPEC** illustrative SQL vs emitted SQL; contract is **`EXISTS` only** for filters — fix docs only if codegen accidentally diverges. | `FILTER_SPEC.md` |
 
 ---
 
