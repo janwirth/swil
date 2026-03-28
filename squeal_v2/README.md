@@ -33,9 +33,10 @@ Then you run a generator
 squeal src/my_schema.gleam
 ```
 
-Use it in your code
+You get a nicely typed DB access layer
 
 ```gleam
+migration
 // Migrations are idempotent and n
 ```
 
