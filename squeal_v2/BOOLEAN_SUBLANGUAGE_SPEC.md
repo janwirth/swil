@@ -8,7 +8,7 @@ See [FILTER_SPEC.md](FILTER_SPEC.md) for how this fits **complex queries** (`fil
 
 ## Isolation
 
-Parsing for codegen **treats these boolean expressions separately** from the rest of the predicate body. Typical site: `dsl.any(relationship, fn(item, magic_fields, edge_attribs) { ... })` — only the body expression (when it is a single allowed tree) is the sublanguage target.
+Parsing for codegen **treats these boolean expressions separately** from the rest of the predicate body. Typical site: `dsl.any(relationship, fn(item, target_magic_fields, edge_attribs, edge_magic_fields) { ... })` — only the body expression (when it is a single allowed tree) is the sublanguage target. (Until `dsl.any` gains the fourth parameter, three-parameter callbacks remain the parse target; see [FILTER_SPEC.md](FILTER_SPEC.md) *Edge vs target*.)
 
 The parser **isolates** each allowed fragment (including nodes under `&&` / `||` / `!`) for lowering to SQL. Everything outside that fragment in `predicate_*` is normal Gleam and is **not** emitted as a portable filter expression.
 
@@ -18,7 +18,7 @@ The parser **isolates** each allowed fragment (including nodes under `&&` / `||`
 
 - Boolean combinators on booleans (`&&`, `||`, `!` as Gleam expresses them).
 - Comparisons (`==`, `!=`, `<`, `>`, `<=`, `>=`) between allowed operands.
-- **Property access** on parameters in scope: root row, `MagicFields`, relationship item, edge attribute record, and **values bound from the payload** / pattern matches (e.g. `tag_id`, `value`).
+- **Property access** on parameters in scope: root row, **target** `MagicFields` (related entity), **edge** `MagicFields` (junction row), edge attribute record, relationship item, and **values bound from the payload** / pattern matches (e.g. `tag_id`, `value`).
 - Literals compatible with those comparisons.
 - **Calls to the `dsl` module only** (e.g. `dsl.exclude_if_missing`, `dsl.nullable`, `dsl.age`). The exact whitelist is whatever the generator documents as expandible.
 
