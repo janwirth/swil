@@ -1,8 +1,10 @@
-import dsl/dsl as dsl
+import dsl/dsl
 import gleam/int
 import gleam/option.{type Option, None, Some}
 import gleam/string
-import gleam/time/calendar.{type Date, Date as CalDate, month_from_int, month_to_int}
+import gleam/time/calendar.{
+  type Date, Date as CalDate, month_from_int, month_to_int,
+}
 import gleam/time/timestamp
 
 fn pad2(n: Int) -> String {
@@ -15,11 +17,7 @@ fn pad2(n: Int) -> String {
 
 pub fn date_to_db_string(d: Date) -> String {
   let CalDate(year:, month:, day:) = d
-  int.to_string(year)
-  <> "-"
-  <> pad2(month_to_int(month))
-  <> "-"
-  <> pad2(day)
+  int.to_string(year) <> "-" <> pad2(month_to_int(month)) <> "-" <> pad2(day)
 }
 
 pub fn date_from_db_string(s: String) -> Date {

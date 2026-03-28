@@ -81,7 +81,6 @@ pub fn entity_without_relationships_parses_test() {
   assert e.type_name == "X"
   assert e.identity_type_name == "XIdentities"
 }
-
 // pub fn library_manager_schema_test() {
 //   let path = "old/library_manager_schema.gleam"
 //   let assert Ok(src) = simplifile.read(path)

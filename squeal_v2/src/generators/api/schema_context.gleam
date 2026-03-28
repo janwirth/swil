@@ -4,8 +4,8 @@ import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
 import schema_definition/schema_definition.{
-  type EntityDefinition, type IdentityTypeDefinition,
-  type ScalarTypeDefinition, type SchemaDefinition,
+  type EntityDefinition, type IdentityTypeDefinition, type ScalarTypeDefinition,
+  type SchemaDefinition,
 }
 
 pub fn migration_import_path(schema_path: String) -> String {
@@ -219,10 +219,8 @@ pub fn schema_uses_calendar_date(def: SchemaDefinition) -> Bool {
 fn type_mentions_timestamp(t: glance.Type) -> Bool {
   case t {
     glance.NamedType(_, "Timestamp", _, _) -> True
-    glance.NamedType(_, "Option", _, [inner]) ->
-      type_mentions_timestamp(inner)
-    glance.NamedType(_, "List", _, [inner]) ->
-      type_mentions_timestamp(inner)
+    glance.NamedType(_, "Option", _, [inner]) -> type_mentions_timestamp(inner)
+    glance.NamedType(_, "List", _, [inner]) -> type_mentions_timestamp(inner)
     glance.NamedType(_, _, _, params) ->
       list.any(params, type_mentions_timestamp)
     glance.TupleType(_, els) -> list.any(els, type_mentions_timestamp)
@@ -250,9 +248,7 @@ pub fn entity_used_enum_scalars(
 ) -> List(ScalarTypeDefinition) {
   let used = entity_used_scalar_type_names(def, entity)
   def.scalars
-  |> list.filter(fn(s) {
-    s.enum_only && list.contains(used, s.type_name)
-  })
+  |> list.filter(fn(s) { s.enum_only && list.contains(used, s.type_name) })
 }
 
 pub fn schema_uses_non_enum_scalars(def: SchemaDefinition) -> Bool {

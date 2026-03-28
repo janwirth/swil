@@ -34,7 +34,6 @@ pub fn gleamgen_fruit_db_skeleton_exact_match_test() {
   // simplifile.write("src/case_studies/fruit_db/skeleton.gleam", generated)
   assert_diff(expected, generated)
 }
-
 // pub fn gleamgen_library_manager_db_skeleton_exact_match_test() {
 //   let assert Ok(schema_src) =
 //     simplifile.read("src/case_studies/library_manager_schema.gleam")

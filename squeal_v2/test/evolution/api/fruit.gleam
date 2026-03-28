@@ -6,8 +6,7 @@ import simplifile
 
 fn collapse_extra_blank_lines(s: String) -> String {
   case string.contains(s, "\n\n\n") {
-    True ->
-      collapse_extra_blank_lines(string.replace(s, "\n\n\n", "\n\n"))
+    True -> collapse_extra_blank_lines(string.replace(s, "\n\n\n", "\n\n"))
     False -> s
   }
 }

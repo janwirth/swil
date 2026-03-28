@@ -54,7 +54,8 @@ pub fn library_manager_e2e_test() {
       )),
     )
   let assert Some("Main") = tab_row.label
-  let assert Some(ViewConfigScalar(filter_config:, source_selector:)) = tab_row.view_config
+  let assert Some(ViewConfigScalar(filter_config:, source_selector:)) =
+    tab_row.view_config
   let assert Some("genre:electronic") = filter_config
   let assert Some("all") = source_selector
 
@@ -81,4 +82,3 @@ pub fn library_manager_e2e_test() {
 
   let assert Ok(Nil) = sqlight.close(conn)
 }
-

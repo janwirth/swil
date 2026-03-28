@@ -15,16 +15,14 @@
 //// Supported shapes are detected structurally (for example
 //// `LtMissingFieldAsc` for `exclude_if_missing` + float threshold + ascending `order` on the same field).
 
+import dsl/dsl
 import glance
-import dsl/dsl as dsl
 import gleam/list
 import gleam/option.{type Option, None, Some, from_result, then}
 import gleam/result
 import gleam/string
 import schema_definition/parse_error.{
-  type ParseError,
-  UnsupportedSchema,
-  hint_public_function_prefixes,
+  type ParseError, UnsupportedSchema, hint_public_function_prefixes,
 }
 import schema_definition/schema_definition as sd
 
@@ -265,10 +263,12 @@ fn parse_filter_complex(
       ))
     True -> Ok(Nil)
   })
-  Ok(Some(sd.ComplexRecursive(
-    filter_param_name: filter_param,
-    predicate_fn_name: pred_name,
-  )))
+  Ok(
+    Some(sd.ComplexRecursive(
+      filter_param_name: filter_param,
+      predicate_fn_name: pred_name,
+    )),
+  )
 }
 
 fn reference_name_strict(
@@ -341,7 +341,9 @@ fn parse_shape_item(
         None ->
           Error(UnsupportedSchema(
             Some(f.location),
-            "query " <> f.name <> " shape field alias is required for ambiguous expressions",
+            "query "
+              <> f.name
+              <> " shape field alias is required for ambiguous expressions",
           ))
       }
     }
@@ -387,7 +389,10 @@ fn expression_span(e: glance.Expression) -> glance.Span {
   }
 }
 
-fn parse_pred(f: glance.Function, expr: glance.Expression) -> Result(sd.Pred, ParseError) {
+fn parse_pred(
+  f: glance.Function,
+  expr: glance.Expression,
+) -> Result(sd.Pred, ParseError) {
   case normalize_expr(expr) {
     glance.BinaryOperator(_, glance.And, left, right) -> {
       use l <- result.try(parse_pred(f, left))
@@ -445,15 +450,17 @@ fn parse_order_expr(
   }
 }
 
-fn parse_expr(f: glance.Function, expr: glance.Expression) -> Result(sd.Expr, ParseError) {
+fn parse_expr(
+  f: glance.Function,
+  expr: glance.Expression,
+) -> Result(sd.Expr, ParseError) {
   case normalize_expr(expr) {
     glance.Variable(_, name) ->
       case simple_bind_param_name(f) == Some(name) {
         True -> Ok(sd.Param(name: name))
         False -> Ok(sd.Field(path: [name]))
       }
-    glance.FieldAccess(_, _, _) ->
-      parse_field_access_expr(f, expr)
+    glance.FieldAccess(_, _, _) -> parse_field_access_expr(f, expr)
     glance.Call(_, callee, args) ->
       case expression_callee_name(callee) {
         Ok("exclude_if_missing") ->
@@ -528,20 +535,22 @@ fn infer_missing_behavior(
     sd.Call(func: sd.NullableFn, args: _) -> Ok(sd.Nullable)
     sd.Call(func: sd.ExcludeIfMissingFn, args: _) -> Ok(sd.ExcludeIfMissing)
     sd.Call(func: _, args: args) ->
-      case list.find_map(args, fn(arg) {
-        infer_missing_behavior(f, arg)
-      }) {
+      case list.find_map(args, fn(arg) { infer_missing_behavior(f, arg) }) {
         Ok(v) -> Ok(v)
         Error(Nil) ->
           Error(UnsupportedSchema(
             Some(f.location),
-            "query " <> f.name <> " filter must use exclude_if_missing(...) or nullable(...)",
+            "query "
+              <> f.name
+              <> " filter must use exclude_if_missing(...) or nullable(...)",
           ))
       }
     _ ->
       Error(UnsupportedSchema(
         Some(f.location),
-        "query " <> f.name <> " filter must use exclude_if_missing(...) or nullable(...)",
+        "query "
+          <> f.name
+          <> " filter must use exclude_if_missing(...) or nullable(...)",
       ))
   }
 }
@@ -566,17 +575,19 @@ fn parse_field_access_expr(
     glance.FieldAccess(_, inner, label) -> {
       use parsed_inner <- result.try(parse_expr(f, inner))
       case parsed_inner {
-        sd.Field(path: path) ->
-          Ok(sd.Field(path: list.append(path, [label])))
+        sd.Field(path: path) -> Ok(sd.Field(path: list.append(path, [label])))
         sd.Call(func: sd.NullableFn, args: [sd.Field(path: path)]) ->
-          Ok(sd.Call(
-            func: sd.NullableFn,
-            args: [sd.Field(path: list.append(path, [label]))],
-          ))
+          Ok(
+            sd.Call(func: sd.NullableFn, args: [
+              sd.Field(path: list.append(path, [label])),
+            ]),
+          )
         _ ->
           Error(UnsupportedSchema(
             Some(f.location),
-            "query " <> f.name <> " contains unsupported field access expression",
+            "query "
+              <> f.name
+              <> " contains unsupported field access expression",
           ))
       }
     }
@@ -613,7 +624,6 @@ fn order_direction(
   }
 }
 
-
 /// Last statement of a body when it is a bare expression; used as the “tail” of a function or block.
 fn function_tail_expression(
   body: List(glance.Statement),
@@ -642,7 +652,10 @@ fn peel_order_call(
 ) -> Option(#(glance.Expression, glance.Expression, glance.Expression)) {
   case normalize_expr(expr) {
     glance.Call(_, order_callee, order_args) ->
-      case expression_callee_name(order_callee), three_unlabelled_args(order_args) {
+      case
+        expression_callee_name(order_callee),
+        three_unlabelled_args(order_args)
+      {
         Ok("order"), Some(#(before_order, field, dir)) ->
           Some(#(before_order, field, dir))
         _, _ -> None
@@ -681,13 +694,17 @@ fn peel_optional_filter_before_shape(
 fn peel_shape_query_call(expr: glance.Expression) -> Option(glance.Expression) {
   case normalize_expr(expr) {
     glance.Call(_, shape_callee, shape_args) ->
-      case expression_callee_name(shape_callee), two_unlabelled_args(shape_args) {
+      case
+        expression_callee_name(shape_callee),
+        two_unlabelled_args(shape_args)
+      {
         Ok("shape"), Some(#(query_expr, shape_value_expr)) ->
           case normalize_expr(query_expr) {
             glance.Call(_, query_callee, query_args) ->
-              case expression_callee_name(query_callee), single_unlabelled_arg(
-                query_args,
-              ) {
+              case
+                expression_callee_name(query_callee),
+                single_unlabelled_arg(query_args)
+              {
                 Ok("query"), Some(_entity) -> Some(shape_value_expr)
                 _, _ -> None
               }
@@ -700,7 +717,9 @@ fn peel_shape_query_call(expr: glance.Expression) -> Option(glance.Expression) {
 }
 
 /// Nested calls: `order( [filter_*]( shape(query(..), val) , ...)? , field , direction )`.
-fn query_pipeline_nested_calls(expr: glance.Expression) -> Option(ParsedPipeline) {
+fn query_pipeline_nested_calls(
+  expr: glance.Expression,
+) -> Option(ParsedPipeline) {
   use #(before_order, field, dir) <- then(peel_order_call(expr))
   let #(shape_call, filter_) = peel_optional_filter_before_shape(before_order)
   use shape_value <- then(peel_shape_query_call(shape_call))
@@ -718,11 +737,17 @@ fn finish_pipe_shape_segment(
       use shape_value <- then(single_named_call_arg(shape_step, "shape"))
       case normalize_expr(query_step) {
         glance.Call(_, query_callee, query_args) ->
-          case expression_callee_name(query_callee), single_unlabelled_arg(
-            query_args,
-          ) {
+          case
+            expression_callee_name(query_callee),
+            single_unlabelled_arg(query_args)
+          {
             Ok("query"), Some(_) ->
-              Some(ParsedPipeline(shape_value, None, order_field, order_direction))
+              Some(ParsedPipeline(
+                shape_value,
+                None,
+                order_field,
+                order_direction,
+              ))
             _, _ -> None
           }
         _ -> None
@@ -804,30 +829,22 @@ fn collect_pipeline_from_pipe_left(
                 order_direction,
               )
           }
-        _ ->
-          finish_pipe_shape_segment(
-            left_chain,
-            order_field,
-            order_direction,
-          )
+        _ -> finish_pipe_shape_segment(left_chain, order_field, order_direction)
       }
-    _ ->
-      finish_pipe_shape_segment(left_chain, order_field, order_direction)
+    _ -> finish_pipe_shape_segment(left_chain, order_field, order_direction)
   }
 }
 
-fn query_pipeline_pipe_components(expr: glance.Expression) -> Option(ParsedPipeline) {
+fn query_pipeline_pipe_components(
+  expr: glance.Expression,
+) -> Option(ParsedPipeline) {
   case normalize_expr(expr) {
     glance.BinaryOperator(_, _, left_chain, order_step) -> {
       use #(order_field, order_direction) <- then(two_unlabelled_named_call(
         order_step,
         "order",
       ))
-      collect_pipeline_from_pipe_left(
-        left_chain,
-        order_field,
-        order_direction,
-      )
+      collect_pipeline_from_pipe_left(left_chain, order_field, order_direction)
     }
     _ -> None
   }
@@ -869,7 +886,6 @@ fn two_unlabelled_named_call(
   }
 }
 
-
 /// Call must have exactly one unlabelled argument (e.g. `exclude_if_missing(shape.col)`).
 fn single_unlabelled_arg(
   args: List(glance.Field(glance.Expression)),
@@ -902,7 +918,6 @@ fn three_unlabelled_args(
     _ -> None
   }
 }
-
 
 fn simple_bind_param_name(f: glance.Function) -> Option(String) {
   case f.parameters {

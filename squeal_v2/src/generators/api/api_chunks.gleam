@@ -2,8 +2,8 @@ import generators/api/api_crud_bodies as crud_bodies
 import generators/api/api_decoders as dec
 import generators/api/api_params
 import generators/api/api_query
-import generators/api/scalar_codecs
 import generators/api/api_update_delete as ud
+import generators/api/scalar_codecs
 import generators/gleamgen_emit
 import gleam/list
 import gleamgen/expression as gexpr
@@ -154,31 +154,30 @@ pub fn get_module_fn_chunks(
       ),
     ],
     case include_by_id {
-      True ->
-        [
-          #(
-            gleamgen_emit.pub_def("get_" <> entity_snake <> "_by_id")
-              |> gdef.with_text_before(
-                "/// Get a "
-                <> entity_snake
-                <> " by row id.\n",
+      True -> [
+        #(
+          gleamgen_emit.pub_def("get_" <> entity_snake <> "_by_id")
+            |> gdef.with_text_before(
+              "/// Get a " <> entity_snake <> " by row id.\n",
+            ),
+          gfun.new_raw(
+            [
+              api_params.conn_param(),
+              gparam.new("id", gtypes.int) |> gparam.to_dynamic,
+            ],
+            gtypes.result(
+              gtypes.raw(
+                "Option(" <> dec.entity_row_tuple_type(entity.type_name) <> ")",
               ),
-            gfun.new_raw(
-              [
-                api_params.conn_param(),
-                gparam.new("id", gtypes.int) |> gparam.to_dynamic,
-              ],
-              gtypes.result(
-                gtypes.raw("Option(" <> dec.entity_row_tuple_type(entity.type_name) <> ")"),
-                sql_err,
-              ),
-              fn(_) {
-                gexpr.raw(crud_bodies.get_by_id_fn_body(entity_snake, "row"))
-              },
-            )
-              |> gfun.to_dynamic,
-          ),
-        ]
+              sql_err,
+            ),
+            fn(_) {
+              gexpr.raw(crud_bodies.get_by_id_fn_body(entity_snake, "row"))
+            },
+          )
+            |> gfun.to_dynamic,
+        ),
+      ]
       False -> []
     },
   )
@@ -203,9 +202,11 @@ pub fn query_module_fn_chunks(
           [api_params.conn_param()],
           gtypes.result(gtypes.list(row_t), sql_err),
           fn(_) {
-            gexpr.raw(
-              crud_bodies.last_fn_body(entity_snake, last_100_sql_const_name, "row"),
-            )
+            gexpr.raw(crud_bodies.last_fn_body(
+              entity_snake,
+              last_100_sql_const_name,
+              "row",
+            ))
           },
         )
           |> gfun.to_dynamic,

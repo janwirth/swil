@@ -1,6 +1,7 @@
+import dsl/dsl
 import glance
 import gleam/option.{type Option}
-import dsl/dsl as dsl
+
 /// Parsed from a full schema module that may contain entities, identities, relationships,
 /// edge attributes, scalar types, and public query functions.
 ///
@@ -228,7 +229,12 @@ pub type Filter {
 }
 
 pub type Pred {
-  Compare(left: Expr, operator: Operator, right: Expr, missing_behavior: MissingBehavior)
+  Compare(
+    left: Expr,
+    operator: Operator,
+    right: Expr,
+    missing_behavior: MissingBehavior,
+  )
   And(items: List(Pred))
   Or(items: List(Pred))
   Not(item: Pred)
@@ -247,7 +253,6 @@ pub type Operator {
   Le
   Ge
 }
-
 
 // Parsed from the recognized tail shape of a public query function.
 //

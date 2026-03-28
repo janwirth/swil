@@ -1,7 +1,7 @@
-import help/diff.{type DiffLine, histogram, New, Old, Shared}
 import gleam/int
 import gleam/list
 import gleam/string
+import help/diff.{type DiffLine, New, Old, Shared, histogram}
 
 pub fn assert_diff(expected: String, actual: String) -> Nil {
   case expected == actual {

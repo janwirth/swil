@@ -1,8 +1,9 @@
 /// Case-study helpers for the `trackbucket_tag` link table and tag-weight loaders.
 /// Not emitted by `generate_api`; kept here until migrations own this DDL.
-
-import case_studies/library_manager_schema.{type TrackBucket, TrackBucket, ByBucketTitleAndArtist}
-import dsl/dsl as dsl
+import case_studies/library_manager_schema.{
+  type TrackBucket, ByBucketTitleAndArtist, TrackBucket,
+}
+import dsl/dsl
 import gleam/dict.{type Dict}
 import gleam/dynamic/decode
 import gleam/int
@@ -71,20 +72,22 @@ pub fn insert_tag_row_returning_id(
   label: String,
   created_epoch_s: Int,
 ) -> Result(Int, sqlight.Error) {
-  use rows <- result.try(sqlight.query(
-    insert_tag_returning_id_sql,
-    on: conn,
-    with: [
-      sqlight.text(label),
-      sqlight.text(""),
-      sqlight.int(created_epoch_s),
-      sqlight.int(created_epoch_s),
-    ],
-    expecting: {
-      use id <- decode.field(0, decode.int)
-      decode.success(id)
-    },
-  ))
+  use rows <- result.try(
+    sqlight.query(
+      insert_tag_returning_id_sql,
+      on: conn,
+      with: [
+        sqlight.text(label),
+        sqlight.text(""),
+        sqlight.int(created_epoch_s),
+        sqlight.int(created_epoch_s),
+      ],
+      expecting: {
+        use id <- decode.field(0, decode.int)
+        decode.success(id)
+      },
+    ),
+  )
   case rows {
     [id, ..] -> Ok(id)
     [] ->
@@ -102,20 +105,22 @@ pub fn insert_trackbucket_row_returning_id(
   artist: String,
   created_epoch_s: Int,
 ) -> Result(Int, sqlight.Error) {
-  use rows <- result.try(sqlight.query(
-    insert_trackbucket_returning_id_sql,
-    on: conn,
-    with: [
-      sqlight.text(title),
-      sqlight.text(artist),
-      sqlight.int(created_epoch_s),
-      sqlight.int(created_epoch_s),
-    ],
-    expecting: {
-      use id <- decode.field(0, decode.int)
-      decode.success(id)
-    },
-  ))
+  use rows <- result.try(
+    sqlight.query(
+      insert_trackbucket_returning_id_sql,
+      on: conn,
+      with: [
+        sqlight.text(title),
+        sqlight.text(artist),
+        sqlight.int(created_epoch_s),
+        sqlight.int(created_epoch_s),
+      ],
+      expecting: {
+        use id <- decode.field(0, decode.int)
+        decode.success(id)
+      },
+    ),
+  )
   case rows {
     [id, ..] -> Ok(id)
     [] ->
@@ -184,15 +189,19 @@ fn fold_trackbucket_tag_row(
         Some(tid), Some(w) -> [#(tid, w)]
         _, _ -> []
       }
-      dict.insert(d, r.bucket_id, TrackbucketTagAcc(
-        id: r.bucket_id,
-        title: r.title,
-        artist: r.artist,
-        created_s: r.created_s,
-        updated_s: r.updated_s,
-        deleted_raw: r.deleted_raw,
-        tags:,
-      ))
+      dict.insert(
+        d,
+        r.bucket_id,
+        TrackbucketTagAcc(
+          id: r.bucket_id,
+          title: r.title,
+          artist: r.artist,
+          created_s: r.created_s,
+          updated_s: r.updated_s,
+          deleted_raw: r.deleted_raw,
+          tags:,
+        ),
+      )
     }
   }
 }

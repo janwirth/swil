@@ -13,7 +13,6 @@
 /// 6. **Private** types are not validated as schema shapes.
 /// 7. **Nullable primitives** on entities / relationship / attribute types (see other tests).
 /// 8. **Magic row field labels** reserved on entities.
-
 import gleam/list
 import gleam/string
 import gleeunit
@@ -252,8 +251,7 @@ pub fn public_type_neither_entity_nor_suffix_rejected_includes_hint_test() {
 }
 "
   case schema_parser.parse_module(input) {
-    Ok(_) ->
-      panic as "expected invalid public type to be rejected"
+    Ok(_) -> panic as "expected invalid public type to be rejected"
     Error(e) -> {
       let msg = schema_parser.format_parse_error(input, e)
       assert string.contains(msg, "Scalar")

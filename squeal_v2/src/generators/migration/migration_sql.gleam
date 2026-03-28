@@ -3,10 +3,10 @@ import glance
 import gleam/int
 import gleam/list
 import gleam/string
-import sql/sqlite_ident
 import schema_definition/schema_definition.{
   type EntityDefinition, type FieldDefinition, type SchemaDefinition,
 }
+import sql/sqlite_ident
 
 /// Builds the SQL script emitted by the simple DDL migration path: drop stray
 /// tables, then `CREATE TABLE` / unique index per entity for the target schema.

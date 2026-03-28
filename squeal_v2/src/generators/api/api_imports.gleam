@@ -26,12 +26,10 @@ pub fn with_api_imports(
       True -> {
         use _ <- gmod.with_import(gimport.new_predefined(["gleam", "int"]))
         use _ <- gmod.with_import(gimport.new_predefined(["gleam", "string"]))
-        use _ <- gmod.with_import(
-          gimport.new_with_exposing(
-            ["gleam", "time", "calendar"],
-            "type Date, Date as CalDate, month_from_int, month_to_int",
-          ),
-        )
+        use _ <- gmod.with_import(gimport.new_with_exposing(
+          ["gleam", "time", "calendar"],
+          "type Date, Date as CalDate, month_from_int, month_to_int",
+        ))
         use _ <- gmod.with_import(
           gimport.new_predefined(["gleam", "time", "timestamp"]),
         )
@@ -47,23 +45,25 @@ pub fn with_api_imports(
   use _ <- gmod.with_import(
     gimport.new_predefined(["gleam", "dynamic", "decode"]),
   )
-  use _ <- gmod.with_import(
-    gimport.new_with_exposing(
-      ["gleam", "option"],
-      "type Option, None, Some",
-    ),
-  )
+  use _ <- gmod.with_import(gimport.new_with_exposing(
+    ["gleam", "option"],
+    "type Option, None, Some",
+  ))
   use _ <- gmod.with_import(gimport.new_predefined(["gleam", "result"]))
   after_result()
 }
 
-fn with_row_calendar_import(def: SchemaDefinition, inner: fn() -> gmod.Module) -> gmod.Module {
+fn with_row_calendar_import(
+  def: SchemaDefinition,
+  inner: fn() -> gmod.Module,
+) -> gmod.Module {
   case schema_context.schema_uses_calendar_date(def) {
     False -> inner()
     True -> {
-      use _ <- gmod.with_import(
-        gimport.new_with_exposing(["gleam", "time", "calendar"], "type Date"),
-      )
+      use _ <- gmod.with_import(gimport.new_with_exposing(
+        ["gleam", "time", "calendar"],
+        "type Date",
+      ))
       inner()
     }
   }
@@ -83,18 +83,22 @@ pub fn with_row_module_imports(
   use _ <- gmod.with_import(
     gimport.new_predefined(["gleam", "dynamic", "decode"]),
   )
-  let option_exposing = case schema_context.row_decoder_mentions_option_none(def) {
+  let option_exposing = case
+    schema_context.row_decoder_mentions_option_none(def)
+  {
     True -> "type Option, None, Some"
     False -> "type Option, Some"
   }
-  use _ <- gmod.with_import(
-    gimport.new_with_exposing(["gleam", "option"], option_exposing),
-  )
+  use _ <- gmod.with_import(gimport.new_with_exposing(
+    ["gleam", "option"],
+    option_exposing,
+  ))
   let with_optional_json = fn() {
     case schema_context.schema_uses_non_enum_scalars(def) {
-      True -> gmod.with_import(gimport.new_predefined(["gleam", "json"]), fn(_) {
-        with_row_calendar_import(def, inner)
-      })
+      True ->
+        gmod.with_import(gimport.new_predefined(["gleam", "json"]), fn(_) {
+          with_row_calendar_import(def, inner)
+        })
       False -> with_row_calendar_import(def, inner)
     }
   }
@@ -115,9 +119,10 @@ pub fn with_upsert_module_imports(
   use _ <- gmod.with_import(gimport.new_predefined(["api_help"]))
   use _ <- gmod.with_import(gimport.new_with_exposing(sch_parts, exposing))
   use _ <- gmod.with_import(gimport.new_with_alias(["dsl", "dsl"], "dsl"))
-  use _ <- gmod.with_import(
-    gimport.new_with_exposing(["gleam", "option"], "type Option"),
-  )
+  use _ <- gmod.with_import(gimport.new_with_exposing(
+    ["gleam", "option"],
+    "type Option",
+  ))
   use _ <- gmod.with_import(gimport.new_predefined(["gleam", "result"]))
   use _ <- gmod.with_import(gimport.new_predefined(["sqlight"]))
   case schema_context.schema_uses_calendar_date(def) {
@@ -132,9 +137,10 @@ pub fn with_upsert_module_imports(
       }
     }
     True -> {
-      use _ <- gmod.with_import(
-        gimport.new_with_exposing(["gleam", "time", "calendar"], "type Date"),
-      )
+      use _ <- gmod.with_import(gimport.new_with_exposing(
+        ["gleam", "time", "calendar"],
+        "type Date",
+      ))
       use _ <- gmod.with_import(
         gimport.new_predefined(["gleam", "time", "timestamp"]),
       )
@@ -159,9 +165,10 @@ pub fn with_delete_module_imports(
   case schema_context.schema_uses_calendar_date(def) {
     False -> inner()
     True -> {
-      use _ <- gmod.with_import(
-        gimport.new_with_exposing(["gleam", "time", "calendar"], "type Date"),
-      )
+      use _ <- gmod.with_import(gimport.new_with_exposing(
+        ["gleam", "time", "calendar"],
+        "type Date",
+      ))
       inner()
     }
   }
@@ -198,20 +205,19 @@ pub fn with_get_module_imports(
     use _ <- gmod.with_import(gimport.new_predefined(row_parts))
     use _ <- gmod.with_import(gimport.new_with_exposing(sch_parts, exposing))
     use _ <- gmod.with_import(gimport.new_with_alias(["dsl", "dsl"], "dsl"))
-    use _ <- gmod.with_import(
-      gimport.new_with_exposing(
-        ["gleam", "option"],
-        "type Option, None, Some",
-      ),
-    )
+    use _ <- gmod.with_import(gimport.new_with_exposing(
+      ["gleam", "option"],
+      "type Option, None, Some",
+    ))
     use _ <- gmod.with_import(gimport.new_predefined(["gleam", "result"]))
     use _ <- gmod.with_import(gimport.new_predefined(["sqlight"]))
     case schema_context.schema_uses_calendar_date(def) {
       False -> inner()
       True -> {
-        use _ <- gmod.with_import(
-          gimport.new_with_exposing(["gleam", "time", "calendar"], "type Date"),
-        )
+        use _ <- gmod.with_import(gimport.new_with_exposing(
+          ["gleam", "time", "calendar"],
+          "type Date",
+        ))
         inner()
       }
     }
@@ -243,19 +249,18 @@ pub fn with_facade_module_imports(
   let after_submodules = fn() {
     use _ <- gmod.with_import(gimport.new_with_exposing(sch_parts, exposing))
     use _ <- gmod.with_import(gimport.new_with_alias(["dsl", "dsl"], "dsl"))
-    use _ <- gmod.with_import(
-      gimport.new_with_exposing(["gleam", "option"], "type Option"),
-    )
+    use _ <- gmod.with_import(gimport.new_with_exposing(
+      ["gleam", "option"],
+      "type Option",
+    ))
     use _ <- gmod.with_import(gimport.new_predefined(["sqlight"]))
     case schema_context.schema_uses_calendar_date(def) {
       False -> inner()
       True -> {
-        use _ <- gmod.with_import(
-          gimport.new_with_exposing(
-            ["gleam", "time", "calendar"],
-            "type Date, Date as CalDate, month_from_int, month_to_int",
-          ),
-        )
+        use _ <- gmod.with_import(gimport.new_with_exposing(
+          ["gleam", "time", "calendar"],
+          "type Date, Date as CalDate, month_from_int, month_to_int",
+        ))
         inner()
       }
     }

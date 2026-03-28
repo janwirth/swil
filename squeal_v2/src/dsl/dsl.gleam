@@ -1,6 +1,5 @@
 /// Functions and types for describing schemas and queries. No runtime query execution here:
 /// bodies are placeholders expanded at SQL generation time.
-
 import gleam/option.{type Option}
 import gleam/time/calendar.{type Date}
 import gleam/time/timestamp.{type Timestamp}
@@ -81,7 +80,6 @@ pub fn any(
 // =============================================================================
 
 /// Slot markers: duplicate steps are rejected at compile time via incompatible type parameters.
-
 pub opaque type QueryShapeNotSet {
   QueryShapeNotSet
 }
@@ -115,7 +113,9 @@ pub type Query(root, shape, filter, order) {
   Query(root: root)
 }
 
-pub fn query(t: t) -> Query(t, QueryShapeNotSet, QueryFilterNotSet, QueryOrderNotSet) {
+pub fn query(
+  t: t,
+) -> Query(t, QueryShapeNotSet, QueryFilterNotSet, QueryOrderNotSet) {
   Query(root: t)
 }
 
@@ -128,26 +128,21 @@ pub fn shape(
 }
 
 pub fn order(
-  q: Query(
-    root,
-    QueryShapeSet(projection),
-    filter_slot,
-    QueryOrderNotSet,
-  ),
+  q: Query(root, QueryShapeSet(projection), filter_slot, QueryOrderNotSet),
   _field: field,
   _direction: Direction,
-) -> Query(root, QueryShapeSet(projection), filter_slot, QueryOrderSet(field, Direction)) {
+) -> Query(
+  root,
+  QueryShapeSet(projection),
+  filter_slot,
+  QueryOrderSet(field, Direction),
+) {
   let Query(root: r) = q
   Query(root: r)
 }
 
 pub fn filter_bool(
-  q: Query(
-    root,
-    QueryShapeSet(projection),
-    QueryFilterNotSet,
-    QueryOrderNotSet,
-  ),
+  q: Query(root, QueryShapeSet(projection), QueryFilterNotSet, QueryOrderNotSet),
   _expr: Bool,
 ) -> Query(root, QueryShapeSet(projection), QueryFilterSet, QueryOrderNotSet) {
   let Query(root: _) = q
@@ -155,12 +150,7 @@ pub fn filter_bool(
 }
 
 pub fn filter_complex(
-  q: Query(
-    root,
-    QueryShapeSet(projection),
-    QueryFilterNotSet,
-    QueryOrderNotSet,
-  ),
+  q: Query(root, QueryShapeSet(projection), QueryFilterNotSet, QueryOrderNotSet),
   _filter: BooleanFilter(f),
   _predicate_fn: fn(t, f) -> BooleanFilter(a),
 ) -> Query(root, QueryShapeSet(projection), QueryFilterSet, QueryOrderNotSet) {

@@ -17,12 +17,15 @@ fn scalar_enum_from_db_expr(
   _s: gexpr.Expression(String),
   variants: List(String),
 ) -> gexpr.Expression(a) {
-  let c = gexpr.raw("case s {\n    \"\" -> None\n" <>
-    string.join(
-      list.map(variants, fn(v) { "    \"" <> v <> "\" -> Some(" <> v <> ")" }),
-      "\n",
-    ) <>
-    "\n    _ -> None\n  }")
+  let c =
+    gexpr.raw(
+      "case s {\n    \"\" -> None\n"
+      <> string.join(
+        list.map(variants, fn(v) { "    \"" <> v <> "\" -> Some(" <> v <> ")" }),
+        "\n",
+      )
+      <> "\n    _ -> None\n  }",
+    )
   c
 }
 
@@ -101,12 +104,17 @@ fn scalar_variant_placeholder(v: VariantWithFields) -> String {
 }
 
 fn non_enum_scalar_decoder_fn_body(scalar: ScalarTypeDefinition) -> String {
-  let assert [first, .._] = scalar.variants
+  let assert [first, ..] = scalar.variants
   let branches =
     scalar.variants
     |> list.map(fn(v) {
       case v.fields {
-        [] -> "    \"" <> v.variant_name <> "\" -> decode.success(" <> v.variant_name <> ")"
+        [] ->
+          "    \""
+          <> v.variant_name
+          <> "\" -> decode.success("
+          <> v.variant_name
+          <> ")"
         fields -> {
           let uses =
             fields
@@ -203,16 +211,20 @@ fn non_enum_scalar_fn_chunks(scalar: ScalarTypeDefinition) {
   [
     #(
       gdef.new(decode_fn) |> gdef.with_publicity(False),
-      gfun.new_raw([], gtypes.raw("decode.Decoder(" <> scalar.type_name <> ")"), fn(_) {
-        gexpr.raw(non_enum_scalar_decoder_fn_body(scalar))
-      })
+      gfun.new_raw(
+        [],
+        gtypes.raw("decode.Decoder(" <> scalar.type_name <> ")"),
+        fn(_) { gexpr.raw(non_enum_scalar_decoder_fn_body(scalar)) },
+      )
         |> gfun.to_dynamic,
     ),
     #(
       gleamgen_emit.pub_def(to_fn),
-      gfun.new_raw([gparam.new("o", opt_scalar_t) |> gparam.to_dynamic], gtypes.string, fn(_) {
-        gexpr.raw(non_enum_scalar_to_db_fn_body(scalar))
-      })
+      gfun.new_raw(
+        [gparam.new("o", opt_scalar_t) |> gparam.to_dynamic],
+        gtypes.string,
+        fn(_) { gexpr.raw(non_enum_scalar_to_db_fn_body(scalar)) },
+      )
         |> gfun.to_dynamic,
     ),
     #(
@@ -266,4 +278,3 @@ pub fn scalar_db_fn_chunks(def, entity: EntityDefinition) {
     }
   })
 }
-

@@ -1,7 +1,9 @@
 import api_help
 import case_studies/library_manager_db/migration
-import case_studies/library_manager_schema.{type ImportedTrack, ByFilePath, ByTitleAndArtist, ImportedTrack}
-import dsl/dsl as dsl
+import case_studies/library_manager_schema.{
+  type ImportedTrack, ByFilePath, ByTitleAndArtist, ImportedTrack,
+}
+import dsl/dsl
 import gleam/dynamic/decode
 import gleam/option.{type Option, None, Some}
 import gleam/result
@@ -41,7 +43,9 @@ fn magic_from_db_row(
   )
 }
 
-fn importedtrack_with_magic_row_decoder() -> decode.Decoder(#(ImportedTrack, dsl.MagicFields)) {
+fn importedtrack_with_magic_row_decoder() -> decode.Decoder(
+  #(ImportedTrack, dsl.MagicFields),
+) {
   use title <- decode.field(0, decode.string)
   use artist <- decode.field(1, decode.string)
   use file_path <- decode.field(2, decode.string)
@@ -64,7 +68,11 @@ fn importedtrack_with_magic_row_decoder() -> decode.Decoder(#(ImportedTrack, dsl
 }
 
 fn not_found_error(op: String) -> sqlight.Error {
-  sqlight.SqlightError(sqlight.GenericError, "importedtrack not found: " <> op, -1)
+  sqlight.SqlightError(
+    sqlight.GenericError,
+    "importedtrack not found: " <> op,
+    -1,
+  )
 }
 
 pub fn migrate(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {

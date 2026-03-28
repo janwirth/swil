@@ -1,6 +1,6 @@
+import generators/api/api_naming
 import generators/api/api_params
 import generators/api/api_query
-import generators/api/api_naming
 import generators/gleamgen_emit
 import gleam/list
 import gleam/string
@@ -104,16 +104,19 @@ fn query_spec_forward_chunk(
   let fn_params =
     list.append(
       [api_params.conn_param()],
-      list.map(case spec.parameters {
-        [_, _, simple] -> [simple]
-        _ -> []
-      }, fn(p) {
-        gparam.new(
-          api_query.schema_query_param_name(p),
-          gtypes.raw(dec.render_type(p.type_, ctx)),
-        )
-        |> gparam.to_dynamic
-      }),
+      list.map(
+        case spec.parameters {
+          [_, _, simple] -> [simple]
+          _ -> []
+        },
+        fn(p) {
+          gparam.new(
+            api_query.schema_query_param_name(p),
+            gtypes.raw(dec.render_type(p.type_, ctx)),
+          )
+          |> gparam.to_dynamic
+        },
+      ),
     )
   forward_fn("query", spec.name, fn_params, gtypes.list(row_t), sql_err)
 }
@@ -125,7 +128,8 @@ pub fn facade_fn_chunks(
   generated_query_specs: List(QuerySpecDefinition),
 ) {
   let assert [first_entity, ..] = def.entities
-  let first_row_t = gtypes.raw(dec.entity_row_tuple_type(first_entity.type_name))
+  let first_row_t =
+    gtypes.raw(dec.entity_row_tuple_type(first_entity.type_name))
   let entity_operation_forwards =
     list.flat_map(def.entities, fn(e) {
       let e_snake = string.lowercase(e.type_name)
@@ -133,7 +137,10 @@ pub fn facade_fn_chunks(
       list.map(id.variants, fn(variant) {
         let id_snake = case string.starts_with(variant.variant_name, "By") {
           True ->
-            api_naming.pascal_to_snake(string.drop_start(variant.variant_name, 2))
+            api_naming.pascal_to_snake(string.drop_start(
+              variant.variant_name,
+              2,
+            ))
           False -> api_naming.pascal_to_snake(variant.variant_name)
         }
         let upsert_name = "upsert_" <> e_snake <> "_by_" <> id_snake
@@ -146,9 +153,13 @@ pub fn facade_fn_chunks(
             api_params.upsert_gparams(e, variant, ctx),
           )
         let get_params =
-          list.append([api_params.conn_param()], api_params.identity_gparams(variant))
+          list.append(
+            [api_params.conn_param()],
+            api_params.identity_gparams(variant),
+          )
         let row_t = gtypes.raw(dec.entity_row_tuple_type(e.type_name))
-        let row_opt = gtypes.raw("Option(" <> dec.entity_row_tuple_type(e.type_name) <> ")")
+        let row_opt =
+          gtypes.raw("Option(" <> dec.entity_row_tuple_type(e.type_name) <> ")")
         [
           forward_fn("upsert", upsert_name, upsert_params, row_t, sql_err),
           forward_fn("get", get_name, get_params, row_opt, sql_err),

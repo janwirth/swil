@@ -50,9 +50,7 @@ pub fn upsert_sql(
   let conflict_cols = comma_join_q(id_cols)
   let non_id_data = list.filter(data_cols, fn(c) { !list.contains(id_cols, c) })
   let update_sets =
-    list.map(non_id_data, fn(c) {
-      q(c) <> " = excluded." <> q(c)
-    })
+    list.map(non_id_data, fn(c) { q(c) <> " = excluded." <> q(c) })
     |> list.append([
       q("updated_at") <> " = excluded." <> q("updated_at"),
       q("deleted_at") <> " = null",

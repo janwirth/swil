@@ -140,7 +140,10 @@ fn entity_has_relationships_field(entity: EntityDefinition) -> Bool {
   list.any(entity.fields, fn(f) { f.label == "relationships" })
 }
 
-fn entity_needs_rich_row_decoder(entity: EntityDefinition, _ctx: TypeCtx) -> Bool {
+fn entity_needs_rich_row_decoder(
+  entity: EntityDefinition,
+  _ctx: TypeCtx,
+) -> Bool {
   entity_has_relationships_field(entity)
   || list.any(api_sql.entity_data_fields(entity), fn(f) {
     field_is_calendar_date(f)
@@ -151,7 +154,9 @@ fn default_relationships_record(
   schema: SchemaDefinition,
   entity: EntityDefinition,
 ) -> String {
-  let rel_field = case list.find(entity.fields, fn(f) { f.label == "relationships" }) {
+  let rel_field = case
+    list.find(entity.fields, fn(f) { f.label == "relationships" })
+  {
     Ok(f) -> f
     Error(Nil) -> {
       let msg =
@@ -172,9 +177,9 @@ fn default_relationships_record(
       panic as msg
     }
   }
-  let rc = case list.find(schema.relationship_containers, fn(r) {
-    r.type_name == rel_type
-  }) {
+  let rc = case
+    list.find(schema.relationship_containers, fn(r) { r.type_name == rel_type })
+  {
     Ok(found) -> found
     Error(Nil) -> {
       let msg =
@@ -238,7 +243,11 @@ fn rich_decode_lets(data_fields: List(FieldDefinition), ctx: TypeCtx) -> String 
       glance.NamedType(_, "Option", _, [inner]) -> {
         case inner {
           glance.NamedType(_, "String", None, []) ->
-            "  let " <> f.label <> " = api_help.opt_string_from_db(" <> raw(f) <> ")"
+            "  let "
+            <> f.label
+            <> " = api_help.opt_string_from_db("
+            <> raw(f)
+            <> ")"
           glance.NamedType(_, "Date", _, []) ->
             "  let "
             <> f.label
@@ -262,10 +271,20 @@ fn rich_decode_lets(data_fields: List(FieldDefinition), ctx: TypeCtx) -> String 
                 <> raw(f)
                 <> ")"
             }
-          _ -> "  let " <> f.label <> " = api_help.opt_string_from_db(" <> raw(f) <> ")"
+          _ ->
+            "  let "
+            <> f.label
+            <> " = api_help.opt_string_from_db("
+            <> raw(f)
+            <> ")"
         }
       }
-      _ -> "  let " <> f.label <> " = api_help.opt_string_from_db(" <> raw(f) <> ")"
+      _ ->
+        "  let "
+        <> f.label
+        <> " = api_help.opt_string_from_db("
+        <> raw(f)
+        <> ")"
     }
   })
   |> string.join("\n")
@@ -326,14 +345,13 @@ fn entity_rich_row_decoder_fn(
       entity,
     )
   let ident = "      identities: " <> rich_identity_construct_call(v) <> ","
-  let rel =
-    case entity_has_relationships_field(entity) {
-      True ->
-        "\n      relationships: "
-        <> default_relationships_record(schema, entity)
-        <> ","
-      False -> ""
-    }
+  let rel = case entity_has_relationships_field(entity) {
+    True ->
+      "\n      relationships: "
+      <> default_relationships_record(schema, entity)
+      <> ","
+    False -> ""
+  }
   uses
   <> "\n"
   <> use_id
@@ -388,7 +406,10 @@ fn row_decoder_expr_for_named(name: String, ctx: TypeCtx) -> String {
 fn row_decoder_expr(field_type: glance.Type, ctx: TypeCtx) -> String {
   case field_type {
     glance.NamedType(_, "Option", _, [glance.NamedType(_, n, _, [])]) ->
-      case list.contains(ctx.scalar_names, n), list.contains(ctx.enum_scalar_names, n) {
+      case
+        list.contains(ctx.scalar_names, n),
+        list.contains(ctx.enum_scalar_names, n)
+      {
         True, False ->
           "decode.then(decode.string, fn(s) {\n    case "
           <> scalar_from_db_fn_name(n)
@@ -403,9 +424,9 @@ fn row_decoder_expr(field_type: glance.Type, ctx: TypeCtx) -> String {
       }
     _ ->
       case field_type {
-    glance.NamedType(_, n, _, []) -> row_decoder_expr_for_named(n, ctx)
-    _ -> "decode.string"
-  }
+        glance.NamedType(_, n, _, []) -> row_decoder_expr_for_named(n, ctx)
+        _ -> "decode.string"
+      }
   }
 }
 
@@ -454,7 +475,8 @@ fn join_data_and_list_field_lines(
 fn is_option_non_enum_scalar_field(f: FieldDefinition, ctx: TypeCtx) -> Bool {
   case f.type_ {
     glance.NamedType(_, "Option", _, [glance.NamedType(_, n, _, [])]) ->
-      list.contains(ctx.scalar_names, n) && !list.contains(ctx.enum_scalar_names, n)
+      list.contains(ctx.scalar_names, n)
+      && !list.contains(ctx.enum_scalar_names, n)
     _ -> False
   }
 }

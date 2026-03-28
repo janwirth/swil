@@ -23,4 +23,3 @@ pub fn library_manager_non_enum_scalar_codegen_test() {
     "decode.failure(None, expected: \"Option(ViewConfigScalar)\")",
   )
 }
-

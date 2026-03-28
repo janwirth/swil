@@ -43,17 +43,17 @@ pub type TrackBucket {
     relationships: TrackBucketRelationships,
   )
 }
+
 pub type TrackBucketRelationships {
   TrackBucketRelationships(
-    tags: List(BelongsTo(Tag, TrackBucketRelationshipAttributes))
+    tags: List(BelongsTo(Tag, TrackBucketRelationshipAttributes)),
   )
 }
 
 pub type TrackBucketRelationshipAttributes {
-  TrackBucketRelationshipAttributes(
-    value: option.Option(Int),
-  )
+  TrackBucketRelationshipAttributes(value: option.Option(Int))
 }
+
 pub type TrackBucketIdentities {
   ByBucketTitleAndArtist(title: String, artist: String)
 }
@@ -76,11 +76,9 @@ pub type ViewConfigScalar {
   )
 }
 
-
 pub type TabIdentities {
   ByTabLabel(label: String)
 }
-
 
 pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields, _limit: Int) {
   dsl.query(tab)
@@ -88,49 +86,61 @@ pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields, _limit: Int) 
   |> dsl.order(tab_meta.updated_at, dsl.Desc)
 }
 
-pub fn query_tracks_by_view_config(track_bucket: TrackBucket, magic_fields: dsl.MagicFields, complex_tag_filter_expression: FilterExpressionScalar) {
+pub fn query_tracks_by_view_config(
+  track_bucket: TrackBucket,
+  magic_fields: dsl.MagicFields,
+  complex_tag_filter_expression: FilterExpressionScalar,
+) {
   dsl.query(track_bucket)
   |> dsl.shape(option.None)
   // |> dsl.filter_bool(dsl.exclude_if_missing(track_bucket.title) == "hi")
-  |> dsl.filter_complex(complex_tag_filter_expression, predicate_complex_tags_filter)
+  |> dsl.filter_complex(
+    complex_tag_filter_expression,
+    predicate_complex_tags_filter,
+  )
   |> dsl.order(dsl.MagicFields, dsl.Desc)
 }
 
-
 // encodable type
-pub type FilterExpressionScalar = dsl.BooleanFilter(TagExpressionScalar)
-
+pub type FilterExpressionScalar =
+  dsl.BooleanFilter(TagExpressionScalar)
 
 pub fn predicate_complex_tags_filter(
   track_bucket: TrackBucket,
   tag_expression: TagExpressionScalar,
 ) -> dsl.BooleanFilter(BelongsTo(Tag, TrackBucketRelationshipAttributes)) {
-      case tag_expression {
-        Has(tag_id: tag_id) ->
-          dsl.any(track_bucket.relationships.tags, fn(tag, magic_fields, edge_attribs) {
-
-            magic_fields.id == tag_id
-          })
-        IsAtLeast(tag_id: tag_id, value: value) ->
-          dsl.any(track_bucket.relationships.tags, fn(tag, magic_fields, edge_attribs) {
-            magic_fields.id == tag_id &&
-            dsl.exclude_if_missing(edge_attribs.value) >= value
-          })
-        IsAtMost(tag_id: tag_id, value: value) ->
-          dsl.any(track_bucket.relationships.tags, fn(tag, magic_fields, edge_attribs) {
-            magic_fields.id == tag_id &&
-            dsl.exclude_if_missing(edge_attribs.value) <= value
-          })
-        IsEqualTo(tag_id: tag_id, value: value) ->
-          dsl.any(track_bucket.relationships.tags, fn(tag, magic_fields, edge_attribs) {
-            magic_fields.id == tag_id &&
-            dsl.exclude_if_missing(edge_attribs.value) == value
-          })
-
-      }
+  case tag_expression {
+    Has(tag_id: tag_id) ->
+      dsl.any(
+        track_bucket.relationships.tags,
+        fn(tag, magic_fields, edge_attribs) { magic_fields.id == tag_id },
+      )
+    IsAtLeast(tag_id: tag_id, value: value) ->
+      dsl.any(
+        track_bucket.relationships.tags,
+        fn(tag, magic_fields, edge_attribs) {
+          magic_fields.id == tag_id
+          && dsl.exclude_if_missing(edge_attribs.value) >= value
+        },
+      )
+    IsAtMost(tag_id: tag_id, value: value) ->
+      dsl.any(
+        track_bucket.relationships.tags,
+        fn(tag, magic_fields, edge_attribs) {
+          magic_fields.id == tag_id
+          && dsl.exclude_if_missing(edge_attribs.value) <= value
+        },
+      )
+    IsEqualTo(tag_id: tag_id, value: value) ->
+      dsl.any(
+        track_bucket.relationships.tags,
+        fn(tag, magic_fields, edge_attribs) {
+          magic_fields.id == tag_id
+          && dsl.exclude_if_missing(edge_attribs.value) == value
+        },
+      )
   }
-
-
+}
 
 pub type TagExpressionScalar {
   Has(tag_id: Int)
@@ -138,4 +148,3 @@ pub type TagExpressionScalar {
   IsAtMost(tag_id: Int, value: Int)
   IsEqualTo(tag_id: Int, value: Int)
 }
-

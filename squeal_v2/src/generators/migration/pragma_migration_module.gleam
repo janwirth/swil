@@ -90,7 +90,9 @@ fn module_comment_block_multi(datas: List(PragmaMigrationData)) -> String {
     |> string.join("`, `")
   string.join(
     [
-      "//// Blueprint for a generated `migrate`: introspect user tables `" <> names <> "`",
+      "//// Blueprint for a generated `migrate`: introspect user tables `"
+        <> names
+        <> "`",
       "//// columns / indexes, then move to the desired state using `ALTER TABLE` only",
       "//// (add / drop column), never `DROP TABLE` / `CREATE TABLE` for shape fixes once those tables exist.",
     ],
@@ -250,32 +252,38 @@ fn build(data: PragmaMigrationData) -> gmod.Module {
 
 fn with_all_imports(inner: fn() -> gmod.Module) -> gmod.Module {
   // Only referenced from `gexpr.raw` strings; gleamgen skips normal imports otherwise.
-  gmod.with_import(gimport.new_predefined(["gleam", "dynamic", "decode"]), fn(_d) {
-    gmod.with_import(gimport.new_predefined(["gleam", "list"]), fn(_l) {
-      gmod.with_import(
-        gimport.new_with_exposing(
-          ["gleam", "option"],
-          "type Option, None, Some",
-        ),
-        fn(_o) {
-          gmod.with_import(gimport.new_predefined(["gleam", "result"]), fn(_r) {
-            gmod.with_import(gimport.new(["gleam", "string"]), fn(_s) {
-              gmod.with_import(gimport.new(["sqlight"]), fn(_sql) {
-                gmod.with_import(
-                  gimport.new_with_alias_and_exposing(
-                    ["sql", "pragma_assert"],
-                    "sqlite_pragma_assert",
-                    "type TableInfoRow",
-                  ),
-                  fn(_p) { inner() },
-                )
-              })
-            })
-          })
-        },
-      )
-    })
-  })
+  gmod.with_import(
+    gimport.new_predefined(["gleam", "dynamic", "decode"]),
+    fn(_d) {
+      gmod.with_import(gimport.new_predefined(["gleam", "list"]), fn(_l) {
+        gmod.with_import(
+          gimport.new_with_exposing(
+            ["gleam", "option"],
+            "type Option, None, Some",
+          ),
+          fn(_o) {
+            gmod.with_import(
+              gimport.new_predefined(["gleam", "result"]),
+              fn(_r) {
+                gmod.with_import(gimport.new(["gleam", "string"]), fn(_s) {
+                  gmod.with_import(gimport.new(["sqlight"]), fn(_sql) {
+                    gmod.with_import(
+                      gimport.new_with_alias_and_exposing(
+                        ["sql", "pragma_assert"],
+                        "sqlite_pragma_assert",
+                        "type TableInfoRow",
+                      ),
+                      fn(_p) { inner() },
+                    )
+                  })
+                })
+              },
+            )
+          },
+        )
+      })
+    },
+  )
 }
 
 fn def_const(
@@ -304,23 +312,13 @@ fn with_string_constants(data: PragmaMigrationData, next: fn() -> gmod.Module) {
         ]),
         gexpr.string(data.create_index_sql),
         fn() {
-          def_const(
-            exp_table,
-            gexpr.string(data.expected_table_info),
-            fn() {
-              def_const(
-                exp_list,
-                gexpr.string(data.expected_index_list),
-                fn() {
-                  def_const(
-                    exp_info,
-                    gexpr.string(data.expected_index_info),
-                    fn() { next() },
-                  )
-                },
-              )
-            },
-          )
+          def_const(exp_table, gexpr.string(data.expected_table_info), fn() {
+            def_const(exp_list, gexpr.string(data.expected_index_list), fn() {
+              def_const(exp_info, gexpr.string(data.expected_index_info), fn() {
+                next()
+              })
+            })
+          })
         },
       )
     },

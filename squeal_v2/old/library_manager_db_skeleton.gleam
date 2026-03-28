@@ -1,7 +1,7 @@
 import case_studies/library_manager_schema.{
   type ImportedTrack, type Tab, type Tag, type TrackBucket,
 }
-import dsl/dsl as dsl
+import dsl/dsl
 import gleam/option
 import sqlight
 
@@ -11,9 +11,7 @@ import sqlight
 /// - `migrate/1`
 /// - Entity ops: ImportedTrack, Tab, Tag, TrackBucket
 /// - Query specs: `query_tabs_for_tab_bar`
-pub fn migrate(
-  conn: sqlight.Connection,
-) -> Result(Nil, sqlight.Error) {
+pub fn migrate(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   panic as "TODO: generated migration SQL"
 }
 

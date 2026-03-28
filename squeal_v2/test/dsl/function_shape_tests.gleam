@@ -7,12 +7,11 @@
 /// Any other public function is rejected. Errors append
 /// [`hint_public_function_prefixes`](schema_definition/parse_error.html#hint_public_function_prefixes)
 /// (`query_` / `predicate_`).
-
+import dsl/dsl
 import gleam/list
+import gleam/option.{Some}
 import gleam/string
 import gleeunit
-import dsl/dsl as dsl
-import gleam/option.{Some}
 import schema_definition/parser as schema_parser
 import schema_definition/schema_definition
 import simplifile
@@ -124,7 +123,8 @@ pub fn fetch_by_key(row: Row, _magic: dsl.MagicFields, _k: Int) {
 }
 "
   case schema_parser.parse_module(input) {
-    Ok(_) -> panic as "expected query-shaped public fn without query_ prefix to be rejected"
+    Ok(_) ->
+      panic as "expected query-shaped public fn without query_ prefix to be rejected"
     Error(e) -> {
       let msg = schema_parser.format_parse_error(input, e)
       assert string.contains(msg, "query_")
@@ -189,7 +189,8 @@ pub fn fruit_schema_query_infers_lt_missing_field_asc_test() {
   let assert Ok(def) = schema_parser.parse_module(src)
   let assert [q] = def.queries
   assert q.name == "query_cheap_fruit"
-  let schema_definition.Query(shape: shape, filter: filter, order: order) = q.query
+  let schema_definition.Query(shape: shape, filter: filter, order: order) =
+    q.query
   assert shape == schema_definition.NoneOrBase
   let assert Some(schema_definition.Predicate(schema_definition.Compare(
     left: schema_definition.Call(

@@ -10,9 +10,9 @@ import gleamgen/function as gfun
 import gleamgen/parameter as gparam
 import gleamgen/types as gtypes
 import schema_definition/schema_definition.{
-  type EntityDefinition, type Query, type QueryParameter, type QuerySpecDefinition,
-  Query, QueryParameter,
-  Compare, CustomOrder, ExcludeIfMissing, Param, Predicate,
+  type EntityDefinition, type Query, type QueryParameter,
+  type QuerySpecDefinition, Compare, CustomOrder, ExcludeIfMissing, Param,
+  Predicate, Query, QueryParameter,
 }
 
 pub fn query_sql_const_name(spec_name: String) -> String {
@@ -95,7 +95,9 @@ fn query_bind_expr_for_param(p: QueryParameter) -> String {
     glance.NamedType(_, "Float", _, []) ->
       "sqlight.float(" <> schema_query_param_name(p) <> ")"
     glance.NamedType(_, "Bool", _, []) ->
-      "sqlight.int(case " <> schema_query_param_name(p) <> " { True -> 1 False -> 0 })"
+      "sqlight.int(case "
+      <> schema_query_param_name(p)
+      <> " { True -> 1 False -> 0 })"
     glance.NamedType(_, "String", _, []) ->
       "sqlight.text(" <> schema_query_param_name(p) <> ")"
     glance.NamedType(_, name, _, []) ->

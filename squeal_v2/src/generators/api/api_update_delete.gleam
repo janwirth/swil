@@ -25,8 +25,7 @@ pub fn sql_bind_expr(
     "real" -> "sqlight.float(" <> value <> ")"
     _ ->
       case dec.field_is_calendar_date(f) {
-        True ->
-          "sqlight.text(api_help.date_to_db_string(" <> value <> "))"
+        True -> "sqlight.text(api_help.date_to_db_string(" <> value <> "))"
         False -> "sqlight.text(" <> value <> ")"
       }
   }
@@ -63,14 +62,10 @@ fn render_type_plain_field(t: glance.Type, scalar_names: List(String)) -> String
   }
 }
 
-fn is_option_scalar(
-  f: FieldDefinition,
-  scalar_names: List(String),
-) -> Bool {
+fn is_option_scalar(f: FieldDefinition, scalar_names: List(String)) -> Bool {
   case f.type_ {
-    glance.NamedType(_, "Option", _, [
-      glance.NamedType(_, n, _, []),
-    ]) -> list.contains(scalar_names, n)
+    glance.NamedType(_, "Option", _, [glance.NamedType(_, n, _, [])]) ->
+      list.contains(scalar_names, n)
     _ -> False
   }
 }
@@ -105,12 +100,25 @@ pub fn upsert_fn_body(
           let v = non_id_temp_var(f, scalar_names)
           case render_type_plain(f, scalar_names) {
             "String" ->
-              "  let " <> v <> " = api_help.opt_text_for_db(" <> f.label <> ")\n"
+              "  let "
+              <> v
+              <> " = api_help.opt_text_for_db("
+              <> f.label
+              <> ")\n"
             "Float" ->
-              "  let " <> v <> " = api_help.opt_float_for_db(" <> f.label <> ")\n"
+              "  let "
+              <> v
+              <> " = api_help.opt_float_for_db("
+              <> f.label
+              <> ")\n"
             "Int" ->
               "  let " <> v <> " = api_help.opt_int_for_db(" <> f.label <> ")\n"
-            _ -> "  let " <> v <> " = api_help.opt_text_for_db(" <> f.label <> ")\n"
+            _ ->
+              "  let "
+              <> v
+              <> " = api_help.opt_text_for_db("
+              <> f.label
+              <> ")\n"
           }
         }
       }

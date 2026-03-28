@@ -43,17 +43,17 @@ pub type TrackBucket {
     relationships: TrackBucketRelationships,
   )
 }
+
 pub type TrackBucketRelationships {
   TrackBucketRelationships(
-    tags: List(dsl.BelongsTo(Tag, TrackBucketRelationshipAttributes))
+    tags: List(dsl.BelongsTo(Tag, TrackBucketRelationshipAttributes)),
   )
 }
 
 pub type TrackBucketRelationshipAttributes {
-  TrackBucketRelationshipAttributes(
-    value: option.Option(Int),
-  )
+  TrackBucketRelationshipAttributes(value: option.Option(Int))
 }
+
 pub type TrackBucketIdentities {
   ByBucketTitleAndArtist(title: String, artist: String)
 }
@@ -83,7 +83,6 @@ pub type TabIdentities {
 }
 
 /// Join naming for [`dsl.boolean_filter_tag_join_sql`](dsl.boolean_filter_tag_join_sql) on `trackbucket_tag`.
-
 pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields, _limit: Int) {
   dsl.query(tab)
   |> dsl.shape(option.None)
@@ -104,7 +103,6 @@ pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields, _limit: Int) 
 // AND [OR[], AND[]]
 // 
 import gleam/list
-
 
 pub type FilterScalar {
   And(exprs: List(FilterScalar))
