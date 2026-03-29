@@ -1,3 +1,8 @@
+# Known issues
+
+- imports are incorrect - need the prefix for the right version of squeal - codegen doesn't consider this
+- cli is called with squeal_v2
+
 # Squeal experiment v2
 
 Squeal is a DB access layer for sqlite.
