@@ -149,3 +149,8 @@ Equivalent manual flow:
 ```bash
 gleam run -m regenerate_orm_layers && gleam test
 ```
+
+## Why not squirrel?
+
+You can still use this with squirrel if you find the generated API to limiting
+https://hexdocs.pm/squirrel/index.html
