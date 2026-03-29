@@ -2,6 +2,7 @@
 
 - imports are incorrect - need the prefix for the right version of squeal - codegen doesn't consider this
 - cli is called with squeal_v2
+- namespacing is incorrect - group everything under squeal
 
 # Squeal experiment v2
 
