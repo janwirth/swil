@@ -44,7 +44,9 @@ This gives you the following nicely typed api:
 
 ```gleam
 // my_app.gleam
+import gleam/io
 import gleam/option
+import gleam/string
 import gleam/time/calendar.{Date, January}
 import hippo_db/api as hippo_api
 import hippo_schema
@@ -52,7 +54,7 @@ import sqlight
 
 pub fn example(conn: sqlight.Connection) {
   let assert Ok(Nil) = hippo_api.migrate(conn)
-  let dob_bree = Date(1975, January, 1)
+  let dob = Date(1975, January, 1)
   // let's create some hippos
   let assert Ok(#(_hippo, _)) =
     hippo_api.upsert_hippo_by_name_and_date_of_birth(
@@ -88,7 +90,7 @@ pub fn example(conn: sqlight.Connection) {
 
   // list all - convenient inspect helper
   let assert Ok(recent) = hippo_api.last_100_edited_hippo(conn)
-  //
+  io.println(string.inspect(recent))
   recent
 }
 ```
