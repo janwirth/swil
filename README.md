@@ -1,7 +1,11 @@
-# Skwil
+# Swil
+
+_a cute squeal_
 
 <a href="https://www.youtube.com/shorts/tw9_khiwNZU" target="_blank">
 <img src="bree.png" alt="unexpected BREEE" width="150" />
+</a>
+
 
 SQLite from Gleam types + small query functions → generated `*_db` (migrate, get, upsert, delete, query, api). Full case study: [`hippo_schema.gleam`](src/case_studies/hippo_schema.gleam).
 
@@ -9,7 +13,7 @@ SQLite from Gleam types + small query functions → generated `*_db` (migrate, g
 
 ## Basic usage
 
-First create the following file, then run `swkil hippo`.
+First create the following file, then run `swil hippo_schema`.
 
 ```gleam
 // hippo_schema.gleam
