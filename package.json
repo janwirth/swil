@@ -1,8 +1,0 @@
-{
-  "name": "squeal",
-  "private": true,
-  "scripts": {
-    "test": "gleam run -m regenerate_orm_layers && gleam test",
-    "test:only": "gleam test"
-  }
-}

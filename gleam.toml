@@ -1,7 +1,5 @@
-name = "squeal"
+name = "squeal_v2"
 version = "0.0.1"
-
-# For cat/dog ORM tests, prefer `bun run test` (regenerates `cat_db` / `dog_db` then runs `gleam test`).
 
 # Fill out these fields if you intend to generate HTML documentation or publish
 # your project to the Hex package manager.
@@ -21,10 +19,13 @@ sqlight = ">= 1.0.3 and < 2.0.0"
 simplifile = ">= 2.4.0 and < 3.0.0"
 
 glance = ">= 6.0.0 and < 7.0.0"
-gleamgen = { path = "../vendor/gleamgen"}
+glam = ">= 2.0.1 and < 3.0.0"
+gleamgen = { path = "../../vendor/gleamgen"}
 argv = ">= 1.0.2 and < 2.0.0"
 glint = ">= 1.2.1 and < 2.0.0"
-cake = ">= 2.2.0 and < 3.0.0"
+glance_armstrong = ">= 1.0.0 and < 2.0.0"
+gleam_json = ">= 3.1.0 and < 4.0.0"
+shellout = ">= 1.8.0 and < 2.0.0"
 
 
 [dev-dependencies]
