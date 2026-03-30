@@ -57,7 +57,7 @@ SQLite has no built-in **Levenshtein / similarity** in core. Options, in order o
 - Embedding / vector ANN search (separate store or extension).
 - Cross-engine replication of FTS (out of SQLite’s concern here).
 
-## Gleam / skwil alignment (future)
+## Gleam / swil alignment (future)
 
 - Codegen could emit **FTS mirror DDL + triggers** next to entity tables when a schema marks fields as “searchable.”
 - Predicate / query DSL might gain a **`search`** or **`fts`** facet distinct from relational filters to keep SQL injection-safe query construction.

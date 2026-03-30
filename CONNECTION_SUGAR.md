@@ -12,7 +12,7 @@ Built-in “where and how we open SQLite” for generated `*_db` APIs — **spec
 
 ## DSL: connection type
 
-Add a small union in `skwil/dsl/dsl` (or equivalent schema-adjacent module) describing **how** to connect:
+Add a small union in `swil/dsl/dsl` (or equivalent schema-adjacent module) describing **how** to connect:
 
 ```gleam
 pub type DbConnection {
@@ -41,7 +41,7 @@ Semantics (recommended):
 1. Map `target` to the SQLite URI / path for `sqlight.open`.
 2. Run **per-connection pragmas** on the new connection before returning it (order matters for SQLite).
 
-Implementation can live in a shared module (e.g. `skwil/sqlite_connect.open`) so every generated facade is a thin forwarder.
+Implementation can live in a shared module (e.g. `swil/sqlite_connect.open`) so every generated facade is a thin forwarder.
 
 ---
 
@@ -79,11 +79,11 @@ Discussions of `synchronous` often **mix two different risks**:
 
 **In WAL mode, what can actually “break”:**
 
-| Setting | After power loss / OS crash | Typical interpretation |
-| ------- | ---------------------------- | ---------------------- |
-| **`synchronous = FULL`** | All **committed** transactions persist; DB is **consistent**. | **Strongest** durability for “I committed ⇒ it’s on disk.” |
-| **`synchronous = NORMAL`** | The **last** committed transactions **may** be **lost**; DB **remains consistent**. In practice, **no structural corruption** from this mode alone (WAL recovery keeps the file valid). | **Good default** for local-first UX when **occasional last-commit loss** is acceptable vs **write latency**. |
-| **`synchronous = OFF`** | **Data loss** and **possible corruption**. | **Avoid** for anything you care about; this is the **only** setting here that is **truly dangerous** for file integrity. |
+| Setting                    | After power loss / OS crash                                                                                                                                                             | Typical interpretation                                                                                                   |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **`synchronous = FULL`**   | All **committed** transactions persist; DB is **consistent**.                                                                                                                           | **Strongest** durability for “I committed ⇒ it’s on disk.”                                                               |
+| **`synchronous = NORMAL`** | The **last** committed transactions **may** be **lost**; DB **remains consistent**. In practice, **no structural corruption** from this mode alone (WAL recovery keeps the file valid). | **Good default** for local-first UX when **occasional last-commit loss** is acceptable vs **write latency**.             |
+| **`synchronous = OFF`**    | **Data loss** and **possible corruption**.                                                                                                                                              | **Avoid** for anything you care about; this is the **only** setting here that is **truly dangerous** for file integrity. |
 
 So the baseline picks **`NORMAL`** not because corruption is “fine,” but because **`OFF` is the corruption class**, while **`NORMAL` vs `FULL`** is mostly **how hard you fight (1)**. For a **music library** single-tenant app, **`NORMAL` + WAL** matches “fast writes, acceptable last-frame loss on catastrophic crash”; switch to **`FULL`** if the product requires **financial- or safety-grade** commit persistence.
 
@@ -91,11 +91,11 @@ So the baseline picks **`NORMAL`** not because corruption is “fine,” but bec
 
 ## Performance targets (product)
 
-| Dimension | Target |
-| --------- | ------ |
-| Typical UI **read** | **Under 10 ms** (local disk, warm cache) |
-| Write burst | **~4k rows** in one shot (import / sync) without destroying read p99 afterward |
-| Tenancy | **Single-tenant**; one DB per user/device is assumed |
+| Dimension           | Target                                                                         |
+| ------------------- | ------------------------------------------------------------------------------ |
+| Typical UI **read** | **Under 10 ms** (local disk, warm cache)                                       |
+| Write burst         | **~4k rows** in one shot (import / sync) without destroying read p99 afterward |
+| Tenancy             | **Single-tenant**; one DB per user/device is assumed                           |
 
 “Sub-ms” reads are achievable when the **working set + hot indexes** stay in **page cache + mmap** (see read path below).
 

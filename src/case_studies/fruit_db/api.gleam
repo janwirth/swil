@@ -5,7 +5,7 @@ import case_studies/fruit_db/query
 import case_studies/fruit_db/upsert
 import case_studies/fruit_schema
 import gleam/option
-import skwil/dsl/dsl
+import swil/dsl/dsl
 import sqlight
 
 pub fn migrate(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {

@@ -1,6 +1,6 @@
 import case_studies/fruit_db/row
 import case_studies/fruit_schema
-import skwil/dsl/dsl
+import swil/dsl/dsl
 import sqlight
 
 const cheap_fruit_sql = "select \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"fruit\" where \"deleted_at\" is null and \"price\" < ? order by \"price\" asc;"

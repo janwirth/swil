@@ -206,7 +206,7 @@ pub fn is_equal_to_arm_operator_test() {
 // Error cases (inline sources)
 // =============================================================================
 
-const minimal_schema_prefix = "import skwil/dsl/dsl
+const minimal_schema_prefix = "import swil/dsl/dsl
 import gleam/option
 
 pub type Root {

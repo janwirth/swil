@@ -1,6 +1,6 @@
 import gleam/dynamic/decode
 import gleam/result
-import skwil/api_help
+import swil/api_help
 import sqlight
 
 const soft_delete_tab_by_tab_label_sql = "update \"tab\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"label\" = ? and \"deleted_at\" is null returning \"label\";"

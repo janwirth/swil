@@ -1,8 +1,8 @@
 import case_studies/hippo_schema
 import gleam/dynamic/decode
 import gleam/option
-import skwil/api_help
-import skwil/dsl/dsl
+import swil/api_help
+import swil/dsl/dsl
 
 pub fn human_with_magic_row_decoder() -> decode.Decoder(
   #(hippo_schema.Human, dsl.MagicFields),

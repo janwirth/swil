@@ -13,7 +13,7 @@ First create the following file, then run `swkil hippo`.
 
 ```gleam
 // hippo_schema.gleam
-import skwil/dsl/dsl.{
+import swil/dsl/dsl.{
   type BacklinkWith, type BelongsTo, type Mutual, age, exclude_if_missing,
   nullable,
 }
@@ -126,8 +126,10 @@ pub type HippoRelationships {
 }
 
 pub type FriendshipAttributes {
+  // yeeeah we are old friends :))
   FriendshipAttributes(since: option.Option(Date))
 }
+
 pub type Human {
   Human(
     name: option.Option(String),

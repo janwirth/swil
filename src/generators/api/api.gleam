@@ -1,4 +1,4 @@
-import skwil/dsl/dsl
+import swil/dsl/dsl
 import generators/api/api_chunks
 import generators/api/api_decoders as dec
 import generators/api/api_facade as facade
@@ -175,18 +175,18 @@ fn finalize_string(s: String) -> String {
   }
 }
 
-/// gleamgen drops `import skwil/api_help` when the module body only references `api_help` via raw strings.
+/// gleamgen drops `import swil/api_help` when the module body only references `api_help` via raw strings.
 fn ensure_api_help_import(text: String) -> String {
   case
     string.contains(text, "api_help.")
-    && !string.contains(text, "import skwil/api_help")
+    && !string.contains(text, "import swil/api_help")
   {
     False -> text
     True -> {
       case string.split(text, "\n") {
         [] -> text
         [first, ..rest] ->
-          first <> "\nimport skwil/api_help\n" <> string.join(rest, "\n")
+          first <> "\nimport swil/api_help\n" <> string.join(rest, "\n")
       }
     }
   }
@@ -200,7 +200,7 @@ fn ensure_dsl_import(text: String) -> String {
       case string.split(text, "\n") {
         [] -> text
         [first, ..rest] ->
-          first <> "\nimport skwil/dsl/dsl as dsl\n" <> string.join(rest, "\n")
+          first <> "\nimport swil/dsl/dsl as dsl\n" <> string.join(rest, "\n")
       }
     }
   }

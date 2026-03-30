@@ -10,7 +10,7 @@ pub type ParseError {
 
 /// Appended to errors about disallowed public [`glance.Function`](glance.Function) names.
 pub fn hint_public_function_prefixes() -> String {
-  "Hint: public functions in a skwil schema module must use prefix `query_` (query pipeline spec) or `predicate_` (BooleanFilter helper)."
+  "Hint: public functions in a swil schema module must use prefix `query_` (query pipeline spec) or `predicate_` (BooleanFilter helper)."
 }
 
 /// Appended when a public custom type is neither a recognised suffix bucket nor a valid entity.

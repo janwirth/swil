@@ -3,7 +3,7 @@ import case_studies/library_manager_advanced_schema
 import gleam/dynamic/decode
 import gleam/list
 import gleam/string
-import skwil/dsl/dsl
+import swil/dsl/dsl
 import sqlight
 
 const last_100_tab_sql = "select \"label\", \"order\", \"view_config\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"tab\" where \"deleted_at\" is null order by \"updated_at\" desc limit 100;"

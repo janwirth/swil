@@ -15,7 +15,7 @@
 //// Supported shapes are detected structurally (for example
 //// `LtMissingFieldAsc` for `exclude_if_missing` + float threshold + ascending `order` on the same field).
 
-import skwil/dsl/dsl
+import swil/dsl/dsl
 import glance
 import gleam/list
 import gleam/option.{type Option, None, Some, from_result, then}
@@ -104,7 +104,7 @@ pub fn extract_from_functions(
                           Some(f.location),
                           "public function "
                             <> f.name
-                            <> " is not allowed in a skwil schema module. "
+                            <> " is not allowed in a swil schema module. "
                             <> hint_public_function_prefixes(),
                         ))
                     }

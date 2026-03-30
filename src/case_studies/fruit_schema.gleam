@@ -1,4 +1,4 @@
-import skwil/dsl/dsl
+import swil/dsl/dsl
 import gleam/option
 
 pub type Fruit {

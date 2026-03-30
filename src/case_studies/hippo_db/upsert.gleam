@@ -4,8 +4,8 @@ import gleam/list
 import gleam/option
 import gleam/result
 import gleam/time/calendar
-import skwil/api_help
-import skwil/dsl/dsl
+import swil/api_help
+import swil/dsl/dsl
 import sqlight
 
 const update_human_by_id_sql = "update \"human\" set \"name\" = ?, \"email\" = ?, \"updated_at\" = ? where \"id\" = ? and \"deleted_at\" is null returning \"name\", \"email\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"

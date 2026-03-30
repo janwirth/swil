@@ -7,7 +7,7 @@ import case_studies/hippo_db/upsert
 import case_studies/hippo_schema
 import gleam/option
 import gleam/time/calendar
-import skwil/dsl/dsl
+import swil/dsl/dsl
 import sqlight
 
 pub fn migrate(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {

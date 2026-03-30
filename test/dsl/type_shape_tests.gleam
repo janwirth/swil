@@ -40,7 +40,7 @@ pub fn documented_shape_scalar_enum_parses_test() {
 
 pub fn documented_shape_scalar_record_variant_parses_test() {
   let input =
-    "import skwil/dsl/dsl as dsl
+    "import swil/dsl/dsl as dsl
 import gleam/option
 
 pub type ViewConfigScalar {
@@ -76,7 +76,7 @@ pub fn standalone_identities_without_entity_rejected_test() {
 
 pub fn documented_shape_entity_with_relationships_parses_test() {
   let input =
-    "import skwil/dsl/dsl as dsl
+    "import swil/dsl/dsl as dsl
 import gleam/option
 
 pub type Row {

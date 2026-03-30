@@ -1,4 +1,4 @@
-import skwil/dsl/dsl
+import swil/dsl/dsl
 import gleam/int
 import gleam/option.{type Option, None, Some}
 import gleam/string

@@ -13,7 +13,7 @@ pub fn format_generated_source(source: String) -> Result(String, String) {
     timestamp.system_time()
     |> timestamp.to_unix_seconds_and_nanoseconds
   let path =
-    "/tmp/skwil_fmt_"
+    "/tmp/swil_fmt_"
     <> int.to_string(sec)
     <> "_"
     <> int.to_string(nano)

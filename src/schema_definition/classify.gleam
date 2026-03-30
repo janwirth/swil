@@ -77,7 +77,7 @@ fn classify_entity_default(
         Some(ct.location),
         "public type "
           <> ct.name
-          <> " is not a skwil entity (expected a single record variant named like the type with a labelled `identities` field); for other shapes use a recognised type name suffix. "
+          <> " is not a swil entity (expected a single record variant named like the type with a labelled `identities` field); for other shapes use a recognised type name suffix. "
           <> hint_public_type_suffixes_or_entity(),
       ))
   }
@@ -91,7 +91,7 @@ fn require_no_type_parameters(ct: glance.CustomType) -> Result(Nil, ParseError) 
         Some(ct.location),
         "type "
           <> ct.name
-          <> " must not have generic parameters in a skwil schema module",
+          <> " must not have generic parameters in a swil schema module",
       ))
   }
 }
