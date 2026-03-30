@@ -1,8 +1,8 @@
-import skwil/api_help
 import case_studies/fruit_schema
-import skwil/dsl/dsl
 import gleam/dynamic/decode
 import gleam/option
+import skwil/api_help
+import skwil/dsl/dsl
 
 pub fn fruit_with_magic_row_decoder() -> decode.Decoder(
   #(fruit_schema.Fruit, dsl.MagicFields),

@@ -1,6 +1,6 @@
-import skwil/api_help
 import gleam/dynamic/decode
 import gleam/result
+import skwil/api_help
 import sqlight
 
 const soft_delete_fruit_by_name_sql = "update \"fruit\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"name\" = ? and \"deleted_at\" is null returning \"name\";"

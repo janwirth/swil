@@ -1,9 +1,9 @@
-import skwil/api_help
 import case_studies/fruit_db/row
 import case_studies/fruit_schema
-import skwil/dsl/dsl
 import gleam/option
 import gleam/result
+import skwil/api_help
+import skwil/dsl/dsl
 import sqlight
 
 const update_fruit_by_id_sql = "update \"fruit\" set \"name\" = ?, \"color\" = ?, \"price\" = ?, \"quantity\" = ?, \"updated_at\" = ? where \"id\" = ? and \"deleted_at\" is null returning \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
