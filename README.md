@@ -1,12 +1,6 @@
-# Known issues
+# Skwil
 
-- imports are incorrect - need the prefix for the right version of squeal - codegen doesn't consider this
-- cli is called with squeal_v2
-- namespacing is incorrect - group everything under squeal
-
-# Squeal experiment v2
-
-Squeal is a DB access layer for sqlite.
+is a DB access layer for sqlite.
 You describe your types & queries in a gleam subset.
 
 ```gleam
@@ -36,7 +30,7 @@ type PersonIdentities {
 Then you run a generator
 
 ```
-squeal src/my_schema.gleam
+skwil src/my_schema.gleam
 ```
 
 You get a nicely typed DB access layer
@@ -80,7 +74,7 @@ Reference: geldata (ex edgedb) code generation for typescript
   - soft delete
   - syncing / WAL merge whatever
 
-# squeal
+# skwil
 
 Write types, get sqlite access
 Opinionated
@@ -117,7 +111,7 @@ import cat_db.gleam
 Generate a SQLite access layer from a schema module:
 
 ```bash
-gleam run -m squeal -- cat_schema
+gleam run -m skwil -- cat_schema
 ```
 
 This reads `src/cat_schema.gleam` and writes generated files to the layer
@@ -127,10 +121,10 @@ Common commands:
 
 ```bash
 # Generate cat DB layer
-gleam run -m squeal -- cat_schema
+gleam run -m skwil -- cat_schema
 
 # Generate dog DB layer
-gleam run -m squeal -- dog_schema
+gleam run -m skwil -- dog_schema
 
 # Regenerate cat + dog ORM layers in one step
 gleam run -m regenerate_orm_layers
