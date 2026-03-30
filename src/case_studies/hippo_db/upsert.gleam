@@ -1,5 +1,6 @@
 import case_studies/hippo_db/row
 import case_studies/hippo_schema
+import gleam/list
 import gleam/option
 import gleam/result
 import gleam/time/calendar
@@ -64,6 +65,17 @@ fn not_found_human_id_error(op: String) -> sqlight.Error {
     "human" <> " not found: " <> op,
     -1,
   )
+}
+
+/// Upsert many human rows by the `ByEmail` identity (one SQL upsert per item).
+pub fn upsert_many_human_by_email(
+  conn: sqlight.Connection,
+  items items: List(#(String, option.Option(String))),
+) -> Result(List(#(hippo_schema.Human, dsl.MagicFields)), sqlight.Error) {
+  list.try_map(items, fn(item) {
+    let #(email, name) = item
+    upsert_human_by_email(conn, email: email, name: name)
+  })
 }
 
 /// Update a human by the `ByEmail` identity.
@@ -166,6 +178,24 @@ fn not_found_hippo_id_error(op: String) -> sqlight.Error {
     "hippo" <> " not found: " <> op,
     -1,
   )
+}
+
+/// Upsert many hippo rows by the `ByNameAndDateOfBirth` identity (one SQL upsert per item).
+pub fn upsert_many_hippo_by_name_and_date_of_birth(
+  conn: sqlight.Connection,
+  items items: List(
+    #(String, calendar.Date, option.Option(hippo_schema.GenderScalar)),
+  ),
+) -> Result(List(#(hippo_schema.Hippo, dsl.MagicFields)), sqlight.Error) {
+  list.try_map(items, fn(item) {
+    let #(name, date_of_birth, gender) = item
+    upsert_hippo_by_name_and_date_of_birth(
+      conn,
+      name: name,
+      date_of_birth: date_of_birth,
+      gender: gender,
+    )
+  })
 }
 
 /// Update a hippo by the `ByNameAndDateOfBirth` identity.

@@ -113,6 +113,13 @@ pub fn get_human_by_email(
   get.get_human_by_email(conn, email: email)
 }
 
+pub fn upsert_many_human_by_email(
+  conn: sqlight.Connection,
+  items items: List(#(String, option.Option(String))),
+) -> Result(List(#(hippo_schema.Human, dsl.MagicFields)), sqlight.Error) {
+  upsert.upsert_many_human_by_email(conn, items: items)
+}
+
 pub fn upsert_human_by_email(
   conn: sqlight.Connection,
   email email: String,
@@ -176,6 +183,15 @@ pub fn get_hippo_by_name_and_date_of_birth(
     name: name,
     date_of_birth: date_of_birth,
   )
+}
+
+pub fn upsert_many_hippo_by_name_and_date_of_birth(
+  conn: sqlight.Connection,
+  items items: List(
+    #(String, calendar.Date, option.Option(hippo_schema.GenderScalar)),
+  ),
+) -> Result(List(#(hippo_schema.Hippo, dsl.MagicFields)), sqlight.Error) {
+  upsert.upsert_many_hippo_by_name_and_date_of_birth(conn, items: items)
 }
 
 pub fn upsert_hippo_by_name_and_date_of_birth(

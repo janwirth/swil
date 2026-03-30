@@ -498,6 +498,7 @@ pub fn generate_api_db_outputs(
             row_t_e,
             sql_err,
             scalar_names,
+            ctx,
           )
         })
         |> list.flatten
@@ -760,6 +761,7 @@ pub fn generate_api_db_outputs(
     render_module(upsert_mod)
     |> ensure_api_help_import
     |> ensure_dsl_import
+    |> ensure_list_import
   let upsert_text =
     upsert_text <> pragma_migration.generate_junction_upserts_gleam_appendage(def)
   let upsert_text = ensure_decode_import(upsert_text)

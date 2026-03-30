@@ -5,6 +5,8 @@
 
 SQLite from Gleam types + small query functions → generated `*_db` (migrate, get, upsert, delete, query, api). Full case study: [`hippo_schema.gleam`](src/case_studies/hippo_schema.gleam).
 
+**WARNING: Migrations have not been tested thoroughly yet, could lead to data loss / unexpected consequences**
+
 ## Basic usage
 
 First create the following file, then run `swkil hippo`.
@@ -31,6 +33,12 @@ pub type Hippo {
     // optional, we get to this later
     relationships: HippoRelationships,
   )
+}
+
+// automatically encoded union types
+pub type GenderScalar {
+  Male
+  Female
 }
 
 
@@ -98,6 +106,7 @@ pub fn example(conn: sqlight.Connection) {
 ## Relationships
 
 ```gleam
+// continuing hippo_schema.gleam
 pub type HippoRelationships {
   HippoRelationships(
     friends: option.Option(Mutual(List(Hippo), FriendshipAttributes)),
@@ -119,11 +128,6 @@ pub type Human {
   )
 }
 
-// scalar types... how do we infer? no properties?
-pub type GenderScalar {
-  Male
-  Female
-}
 
 pub type HumanRelationships {
   HumanRelationships(hippos: BacklinkWith(List(Hippo), FriendshipAttributes))

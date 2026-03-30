@@ -133,6 +133,19 @@ pub fn get_tab_by_tab_label(
   get.get_tab_by_tab_label(conn, label: label)
 }
 
+pub fn upsert_many_tab_by_tab_label(
+  conn: sqlight.Connection,
+  items items: List(
+    #(
+      String,
+      option.Option(Float),
+      option.Option(library_manager_schema.ViewConfigScalar),
+    ),
+  ),
+) -> Result(List(#(library_manager_schema.Tab, dsl.MagicFields)), sqlight.Error) {
+  upsert.upsert_many_tab_by_tab_label(conn, items: items)
+}
+
 pub fn upsert_tab_by_tab_label(
   conn: sqlight.Connection,
   label label: String,
@@ -203,6 +216,16 @@ pub fn get_trackbucket_by_bucket_title_and_artist(
   )
 }
 
+pub fn upsert_many_trackbucket_by_bucket_title_and_artist(
+  conn: sqlight.Connection,
+  items items: List(#(String, String)),
+) -> Result(
+  List(#(library_manager_schema.TrackBucket, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  upsert.upsert_many_trackbucket_by_bucket_title_and_artist(conn, items: items)
+}
+
 pub fn upsert_trackbucket_by_bucket_title_and_artist(
   conn: sqlight.Connection,
   title title: String,
@@ -250,6 +273,13 @@ pub fn get_tag_by_tag_label(
   sqlight.Error,
 ) {
   get.get_tag_by_tag_label(conn, label: label)
+}
+
+pub fn upsert_many_tag_by_tag_label(
+  conn: sqlight.Connection,
+  items items: List(#(String, option.Option(String))),
+) -> Result(List(#(library_manager_schema.Tag, dsl.MagicFields)), sqlight.Error) {
+  upsert.upsert_many_tag_by_tag_label(conn, items: items)
 }
 
 pub fn upsert_tag_by_tag_label(
@@ -313,6 +343,16 @@ pub fn get_importedtrack_by_file_path(
   get.get_importedtrack_by_file_path(conn, file_path: file_path)
 }
 
+pub fn upsert_many_importedtrack_by_file_path(
+  conn: sqlight.Connection,
+  items items: List(#(String, option.Option(String), option.Option(String))),
+) -> Result(
+  List(#(library_manager_schema.ImportedTrack, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  upsert.upsert_many_importedtrack_by_file_path(conn, items: items)
+}
+
 pub fn upsert_importedtrack_by_file_path(
   conn: sqlight.Connection,
   file_path file_path: String,
@@ -368,6 +408,16 @@ pub fn get_importedtrack_by_title_and_artist(
   sqlight.Error,
 ) {
   get.get_importedtrack_by_title_and_artist(conn, title: title, artist: artist)
+}
+
+pub fn upsert_many_importedtrack_by_title_and_artist(
+  conn: sqlight.Connection,
+  items items: List(#(String, String, option.Option(String))),
+) -> Result(
+  List(#(library_manager_schema.ImportedTrack, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  upsert.upsert_many_importedtrack_by_title_and_artist(conn, items: items)
 }
 
 pub fn upsert_importedtrack_by_title_and_artist(

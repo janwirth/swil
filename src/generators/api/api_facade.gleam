@@ -192,6 +192,7 @@ pub fn facade_fn_chunks(
             False -> api_naming.pascal_to_snake(variant.variant_name)
           }
           let upsert_name = "upsert_" <> e_snake <> "_by_" <> id_snake
+          let upsert_many_name = "upsert_many_" <> e_snake <> "_by_" <> id_snake
           let get_name = "get_" <> e_snake <> "_by_" <> id_snake
           let update_name = "update_" <> e_snake <> "_by_" <> id_snake
           let delete_name = "delete_" <> e_snake <> "_by_" <> id_snake
@@ -200,6 +201,8 @@ pub fn facade_fn_chunks(
               [api_params.conn_param()],
               api_params.upsert_gparams(e, variant, ctx),
             )
+          let upsert_many_params =
+            api_params.upsert_many_gparams(e, variant, ctx)
           let get_params =
             list.append(
               [api_params.conn_param()],
@@ -209,6 +212,13 @@ pub fn facade_fn_chunks(
           let row_opt = gtypes.raw(dec.option_entity_row_tuple(ctx, e.type_name))
           [
             forward_fn("upsert", upsert_name, upsert_params, row_t, sql_err),
+            forward_fn(
+              "upsert",
+              upsert_many_name,
+              upsert_many_params,
+              gtypes.list(row_t),
+              sql_err,
+            ),
             forward_fn("get", get_name, get_params, row_opt, sql_err),
             forward_fn("upsert", update_name, upsert_params, row_t, sql_err),
             forward_fn_nil_result("delete", delete_name, get_params, sql_err),

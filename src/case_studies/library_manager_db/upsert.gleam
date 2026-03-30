@@ -1,6 +1,7 @@
 import case_studies/library_manager_db/row
 import case_studies/library_manager_schema
 import gleam/dynamic/decode
+import gleam/list
 import gleam/option
 import gleam/result
 import skwil/api_help
@@ -99,6 +100,28 @@ pub fn update_tab_by_id(
 
 fn not_found_tab_id_error(op: String) -> sqlight.Error {
   sqlight.SqlightError(sqlight.GenericError, "tab" <> " not found: " <> op, -1)
+}
+
+/// Upsert many tab rows by the `ByTabLabel` identity (one SQL upsert per item).
+pub fn upsert_many_tab_by_tab_label(
+  conn: sqlight.Connection,
+  items items: List(
+    #(
+      String,
+      option.Option(Float),
+      option.Option(library_manager_schema.ViewConfigScalar),
+    ),
+  ),
+) -> Result(List(#(library_manager_schema.Tab, dsl.MagicFields)), sqlight.Error) {
+  list.try_map(items, fn(item) {
+    let #(label, order, view_config) = item
+    upsert_tab_by_tab_label(
+      conn,
+      label: label,
+      order: order,
+      view_config: view_config,
+    )
+  })
 }
 
 /// Update a tab by the `ByTabLabel` identity.
@@ -205,6 +228,24 @@ fn not_found_trackbucket_id_error(op: String) -> sqlight.Error {
   )
 }
 
+/// Upsert many trackbucket rows by the `ByBucketTitleAndArtist` identity (one SQL upsert per item).
+pub fn upsert_many_trackbucket_by_bucket_title_and_artist(
+  conn: sqlight.Connection,
+  items items: List(#(String, String)),
+) -> Result(
+  List(#(library_manager_schema.TrackBucket, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  list.try_map(items, fn(item) {
+    let #(title, artist) = item
+    upsert_trackbucket_by_bucket_title_and_artist(
+      conn,
+      title: title,
+      artist: artist,
+    )
+  })
+}
+
 /// Update a trackbucket by the `ByBucketTitleAndArtist` identity.
 pub fn update_trackbucket_by_bucket_title_and_artist(
   conn: sqlight.Connection,
@@ -307,6 +348,17 @@ fn not_found_tag_id_error(op: String) -> sqlight.Error {
   sqlight.SqlightError(sqlight.GenericError, "tag" <> " not found: " <> op, -1)
 }
 
+/// Upsert many tag rows by the `ByTagLabel` identity (one SQL upsert per item).
+pub fn upsert_many_tag_by_tag_label(
+  conn: sqlight.Connection,
+  items items: List(#(String, option.Option(String))),
+) -> Result(List(#(library_manager_schema.Tag, dsl.MagicFields)), sqlight.Error) {
+  list.try_map(items, fn(item) {
+    let #(label, emoji) = item
+    upsert_tag_by_tag_label(conn, label: label, emoji: emoji)
+  })
+}
+
 /// Update a tag by the `ByTagLabel` identity.
 pub fn update_tag_by_tag_label(
   conn: sqlight.Connection,
@@ -406,6 +458,25 @@ fn not_found_importedtrack_id_error(op: String) -> sqlight.Error {
   )
 }
 
+/// Upsert many importedtrack rows by the `ByFilePath` identity (one SQL upsert per item).
+pub fn upsert_many_importedtrack_by_file_path(
+  conn: sqlight.Connection,
+  items items: List(#(String, option.Option(String), option.Option(String))),
+) -> Result(
+  List(#(library_manager_schema.ImportedTrack, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  list.try_map(items, fn(item) {
+    let #(file_path, title, artist) = item
+    upsert_importedtrack_by_file_path(
+      conn,
+      file_path: file_path,
+      title: title,
+      artist: artist,
+    )
+  })
+}
+
 /// Update a importedtrack by the `ByFilePath` identity.
 pub fn update_importedtrack_by_file_path(
   conn: sqlight.Connection,
@@ -481,6 +552,25 @@ fn not_found_importedtrack_file_path_error(op: String) -> sqlight.Error {
     "importedtrack" <> " not found: " <> op,
     -1,
   )
+}
+
+/// Upsert many importedtrack rows by the `ByTitleAndArtist` identity (one SQL upsert per item).
+pub fn upsert_many_importedtrack_by_title_and_artist(
+  conn: sqlight.Connection,
+  items items: List(#(String, String, option.Option(String))),
+) -> Result(
+  List(#(library_manager_schema.ImportedTrack, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  list.try_map(items, fn(item) {
+    let #(title, artist, file_path) = item
+    upsert_importedtrack_by_title_and_artist(
+      conn,
+      title: title,
+      artist: artist,
+      file_path: file_path,
+    )
+  })
 }
 
 /// Update a importedtrack by the `ByTitleAndArtist` identity.

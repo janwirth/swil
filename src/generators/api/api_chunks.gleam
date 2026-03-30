@@ -6,6 +6,7 @@ import generators/api/api_update_delete as ud
 import generators/api/scalar_codecs
 import generators/gleamgen_emit
 import gleam/list
+import gleam/string
 import gleamgen/expression as gexpr
 import gleamgen/function as gfun
 import gleamgen/module/definition as gdef
@@ -69,46 +70,85 @@ pub fn upsert_module_fn_chunks(
   row_t,
   sql_err,
   scalar_names: List(String),
+  ctx: dec.TypeCtx,
 ) {
   let not_found_fn = "not_found_" <> entity_snake <> "_" <> id_snake <> "_error"
-  [
-    not_found_private_chunk(entity_snake, not_found_fn),
-    #(
-      gleamgen_emit.pub_def("upsert_" <> entity_snake <> "_by_" <> id_snake)
-        |> gdef.with_text_before(
-          "/// Upsert a "
-          <> entity_snake
-          <> " by the `"
-          <> variant.variant_name
-          <> "` identity.\n",
+  let ordered = api_params.upsert_ordered_data_fields(entity, variant)
+  let tuple_inner =
+    ordered
+    |> list.map(fn(f) { dec.render_type(f.type_, ctx) })
+    |> string.join(", ")
+  let tuple_type_str = "#(" <> tuple_inner <> ")"
+  let many_params =
+    list.append(
+      [api_params.conn_param()],
+      [
+        api_params.consumer_param(
+          "items",
+          gtypes.list(gtypes.raw(tuple_type_str)),
         ),
-      gfun.new_raw(upsert_params, gtypes.result(row_t, sql_err), fn(_) {
-        gexpr.raw(ud.upsert_fn_body(
-          entity,
-          variant,
-          entity_snake,
-          id_snake,
-          "upsert",
-          scalar_names,
-          "row",
-          "upsert_" <> entity_snake <> "_by_" <> id_snake <> "_sql",
-          not_found_fn,
-        ))
-      })
-        |> gfun.to_dynamic,
-    ),
-    ud.update_fn_chunk(
-      entity,
-      variant,
-      entity_snake,
-      id_snake,
-      upsert_params,
-      row_t,
-      sql_err,
-      scalar_names,
-      not_found_fn,
-    ),
-  ]
+      ],
+    )
+  list.flatten([
+    [
+      not_found_private_chunk(entity_snake, not_found_fn),
+      #(
+        gleamgen_emit.pub_def("upsert_" <> entity_snake <> "_by_" <> id_snake)
+          |> gdef.with_text_before(
+            "/// Upsert a "
+            <> entity_snake
+            <> " by the `"
+            <> variant.variant_name
+            <> "` identity.\n",
+          ),
+        gfun.new_raw(upsert_params, gtypes.result(row_t, sql_err), fn(_) {
+          gexpr.raw(ud.upsert_fn_body(
+            entity,
+            variant,
+            entity_snake,
+            id_snake,
+            "upsert",
+            scalar_names,
+            "row",
+            "upsert_" <> entity_snake <> "_by_" <> id_snake <> "_sql",
+            not_found_fn,
+          ))
+        })
+          |> gfun.to_dynamic,
+      ),
+      ud.update_fn_chunk(
+        entity,
+        variant,
+        entity_snake,
+        id_snake,
+        upsert_params,
+        row_t,
+        sql_err,
+        scalar_names,
+        not_found_fn,
+      ),
+    ],
+    [
+      #(
+        gleamgen_emit.pub_def("upsert_many_" <> entity_snake <> "_by_" <> id_snake)
+          |> gdef.with_text_before(
+            "/// Upsert many "
+            <> entity_snake
+            <> " rows by the `"
+            <> variant.variant_name
+            <> "` identity (one SQL upsert per item).\n",
+          ),
+        gfun.new_raw(many_params, gtypes.result(gtypes.list(row_t), sql_err), fn(_) {
+          gexpr.raw(ud.upsert_many_fn_body(
+            entity_snake,
+            id_snake,
+            ordered,
+          ))
+        })
+          |> gfun.to_dynamic,
+      ),
+    ],
+  ])
 }
 
 pub fn update_by_id_fn_chunks(

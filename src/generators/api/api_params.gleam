@@ -2,10 +2,11 @@ import generators/api/api_decoders as dec
 import generators/api/api_sql
 import generators/sql_types
 import gleam/list
+import gleam/string
 import gleamgen/parameter as gparam
 import gleamgen/types as gtypes
 import schema_definition/schema_definition.{
-  type EntityDefinition, type IdentityVariantDefinition,
+  type EntityDefinition, type FieldDefinition, type IdentityVariantDefinition,
 }
 
 pub fn conn_param() -> gparam.Parameter(gtypes.Dynamic) {
@@ -23,6 +24,18 @@ pub fn consumer_param(
   |> gparam.to_dynamic
 }
 
+/// Identity fields first (variant order), then remaining data columns — matches `upsert_*` parameter order.
+pub fn upsert_ordered_data_fields(
+  entity: EntityDefinition,
+  variant: IdentityVariantDefinition,
+) -> List(FieldDefinition) {
+  let labels = dec.id_labels_list(variant)
+  let extras =
+    api_sql.entity_data_fields(entity)
+    |> list.filter(fn(f) { !list.contains(labels, f.label) })
+  list.append(variant.fields, extras)
+}
+
 pub fn upsert_gparams(
   entity: EntityDefinition,
   variant: IdentityVariantDefinition,
@@ -37,6 +50,23 @@ pub fn upsert_gparams(
       consumer_param(f.label, gtypes.raw(dec.render_type(f.type_, ctx)))
     })
   list.append(id_ps, extras)
+}
+
+pub fn upsert_many_gparams(
+  entity: EntityDefinition,
+  variant: IdentityVariantDefinition,
+  ctx: dec.TypeCtx,
+) -> List(gparam.Parameter(gtypes.Dynamic)) {
+  let ordered = upsert_ordered_data_fields(entity, variant)
+  let tuple_inner =
+    ordered
+    |> list.map(fn(f) { dec.render_type(f.type_, ctx) })
+    |> string.join(", ")
+  let tuple_t = "#(" <> tuple_inner <> ")"
+  list.append(
+    [conn_param()],
+    [consumer_param("items", gtypes.list(gtypes.raw(tuple_t)))],
+  )
 }
 
 pub fn identity_gparams(

@@ -1,5 +1,6 @@
 import case_studies/fruit_db/row
 import case_studies/fruit_schema
+import gleam/list
 import gleam/option
 import gleam/result
 import skwil/api_help
@@ -59,6 +60,25 @@ fn not_found_fruit_id_error(op: String) -> sqlight.Error {
     "fruit" <> " not found: " <> op,
     -1,
   )
+}
+
+/// Upsert many fruit rows by the `ByName` identity (one SQL upsert per item).
+pub fn upsert_many_fruit_by_name(
+  conn: sqlight.Connection,
+  items items: List(
+    #(String, option.Option(String), option.Option(Float), option.Option(Int)),
+  ),
+) -> Result(List(#(fruit_schema.Fruit, dsl.MagicFields)), sqlight.Error) {
+  list.try_map(items, fn(item) {
+    let #(name, color, price, quantity) = item
+    upsert_fruit_by_name(
+      conn,
+      name: name,
+      color: color,
+      price: price,
+      quantity: quantity,
+    )
+  })
 }
 
 /// Update a fruit by the `ByName` identity.

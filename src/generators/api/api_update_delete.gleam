@@ -227,6 +227,29 @@ pub fn upsert_fn_body(
   <> case_rows
 }
 
+pub fn upsert_many_fn_body(
+  entity_snake: String,
+  id_snake: String,
+  ordered_fields: List(FieldDefinition),
+) -> String {
+  let pat =
+    ordered_fields
+    |> list.map(fn(f) { f.label })
+    |> string.join(", ")
+  let fn_name = "upsert_" <> entity_snake <> "_by_" <> id_snake
+  let labelled =
+    ordered_fields
+    |> list.map(fn(f) { f.label <> ": " <> f.label })
+    |> string.join(", ")
+  "list.try_map(items, fn(item) {\n    let #("
+  <> pat
+  <> ") = item\n    "
+  <> fn_name
+  <> "(conn, "
+  <> labelled
+  <> ")\n  })"
+}
+
 pub fn delete_fn_body(
   variant: IdentityVariantDefinition,
   entity_snake: String,
