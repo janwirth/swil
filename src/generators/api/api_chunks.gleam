@@ -6,7 +6,6 @@ import generators/api/api_update_delete as ud
 import generators/api/scalar_codecs
 import generators/gleamgen_emit
 import gleam/list
-import gleam/string
 import gleamgen/expression as gexpr
 import gleamgen/function as gfun
 import gleamgen/module/definition as gdef
@@ -73,22 +72,8 @@ pub fn upsert_module_fn_chunks(
   ctx: dec.TypeCtx,
 ) {
   let not_found_fn = "not_found_" <> entity_snake <> "_" <> id_snake <> "_error"
-  let ordered = api_params.upsert_ordered_data_fields(entity, variant)
-  let tuple_inner =
-    ordered
-    |> list.map(fn(f) { dec.render_type(f.type_, ctx) })
-    |> string.join(", ")
-  let tuple_type_str = "#(" <> tuple_inner <> ")"
   let many_params =
-    list.append(
-      [api_params.conn_param()],
-      [
-        api_params.consumer_param(
-          "items",
-          gtypes.list(gtypes.raw(tuple_type_str)),
-        ),
-      ],
-    )
+    api_params.upsert_many_gparams(entity, variant, ctx, entity.type_name)
   list.flatten([
     [
       not_found_private_chunk(entity_snake, not_found_fn),
@@ -136,14 +121,15 @@ pub fn upsert_module_fn_chunks(
             <> entity_snake
             <> " rows by the `"
             <> variant.variant_name
-            <> "` identity (one SQL upsert per item).\n",
+            <> "` identity (one SQL upsert per item).\n/// "
+            <> "Pass the single-row `upsert_"
+            <> entity_snake
+            <> "_by_"
+            <> id_snake
+            <> "` as the last argument to `each` and call it with labelled fields from `item`.\n",
           ),
         gfun.new_raw(many_params, gtypes.result(gtypes.list(row_t), sql_err), fn(_) {
-          gexpr.raw(ud.upsert_many_fn_body(
-            entity_snake,
-            id_snake,
-            ordered,
-          ))
+          gexpr.raw(ud.upsert_many_fn_body(entity_snake, id_snake))
         })
           |> gfun.to_dynamic,
       ),

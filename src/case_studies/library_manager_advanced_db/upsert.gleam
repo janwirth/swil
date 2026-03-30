@@ -106,28 +106,33 @@ fn not_found_tab_id_error(op: String) -> sqlight.Error {
 }
 
 /// Upsert many tab rows by the `ByTabLabel` identity (one SQL upsert per item).
+/// Pass the single-row `upsert_tab_by_tab_label` as the last argument to `each` and call it with labelled fields from `item`.
 pub fn upsert_many_tab_by_tab_label(
   conn: sqlight.Connection,
-  items items: List(
-    #(
+  items items: List(a),
+  each each: fn(
+    sqlight.Connection,
+    a,
+    fn(
+      sqlight.Connection,
       String,
       option.Option(Float),
       option.Option(library_manager_advanced_schema.ViewConfigScalar),
+    ) ->
+      Result(
+        #(library_manager_advanced_schema.Tab, dsl.MagicFields),
+        sqlight.Error,
+      ),
+  ) ->
+    Result(
+      #(library_manager_advanced_schema.Tab, dsl.MagicFields),
+      sqlight.Error,
     ),
-  ),
 ) -> Result(
   List(#(library_manager_advanced_schema.Tab, dsl.MagicFields)),
   sqlight.Error,
 ) {
-  list.try_map(items, fn(item) {
-    let #(label, order, view_config) = item
-    upsert_tab_by_tab_label(
-      conn,
-      label: label,
-      order: order,
-      view_config: view_config,
-    )
-  })
+  list.try_map(items, fn(item) { each(conn, item, upsert_tab_by_tab_label) })
 }
 
 /// Update a tab by the `ByTabLabel` identity.
@@ -241,20 +246,29 @@ fn not_found_trackbucket_id_error(op: String) -> sqlight.Error {
 }
 
 /// Upsert many trackbucket rows by the `ByBucketTitleAndArtist` identity (one SQL upsert per item).
+/// Pass the single-row `upsert_trackbucket_by_bucket_title_and_artist` as the last argument to `each` and call it with labelled fields from `item`.
 pub fn upsert_many_trackbucket_by_bucket_title_and_artist(
   conn: sqlight.Connection,
-  items items: List(#(String, String)),
+  items items: List(a),
+  each each: fn(
+    sqlight.Connection,
+    a,
+    fn(sqlight.Connection, String, String) ->
+      Result(
+        #(library_manager_advanced_schema.TrackBucket, dsl.MagicFields),
+        sqlight.Error,
+      ),
+  ) ->
+    Result(
+      #(library_manager_advanced_schema.TrackBucket, dsl.MagicFields),
+      sqlight.Error,
+    ),
 ) -> Result(
   List(#(library_manager_advanced_schema.TrackBucket, dsl.MagicFields)),
   sqlight.Error,
 ) {
   list.try_map(items, fn(item) {
-    let #(title, artist) = item
-    upsert_trackbucket_by_bucket_title_and_artist(
-      conn,
-      title: title,
-      artist: artist,
-    )
+    each(conn, item, upsert_trackbucket_by_bucket_title_and_artist)
   })
 }
 
@@ -364,17 +378,28 @@ fn not_found_tag_id_error(op: String) -> sqlight.Error {
 }
 
 /// Upsert many tag rows by the `ByTagLabel` identity (one SQL upsert per item).
+/// Pass the single-row `upsert_tag_by_tag_label` as the last argument to `each` and call it with labelled fields from `item`.
 pub fn upsert_many_tag_by_tag_label(
   conn: sqlight.Connection,
-  items items: List(#(String, option.Option(String))),
+  items items: List(a),
+  each each: fn(
+    sqlight.Connection,
+    a,
+    fn(sqlight.Connection, String, option.Option(String)) ->
+      Result(
+        #(library_manager_advanced_schema.Tag, dsl.MagicFields),
+        sqlight.Error,
+      ),
+  ) ->
+    Result(
+      #(library_manager_advanced_schema.Tag, dsl.MagicFields),
+      sqlight.Error,
+    ),
 ) -> Result(
   List(#(library_manager_advanced_schema.Tag, dsl.MagicFields)),
   sqlight.Error,
 ) {
-  list.try_map(items, fn(item) {
-    let #(label, emoji) = item
-    upsert_tag_by_tag_label(conn, label: label, emoji: emoji)
-  })
+  list.try_map(items, fn(item) { each(conn, item, upsert_tag_by_tag_label) })
 }
 
 /// Update a tag by the `ByTagLabel` identity.
@@ -483,21 +508,29 @@ fn not_found_importedtrack_id_error(op: String) -> sqlight.Error {
 }
 
 /// Upsert many importedtrack rows by the `ByFilePath` identity (one SQL upsert per item).
+/// Pass the single-row `upsert_importedtrack_by_file_path` as the last argument to `each` and call it with labelled fields from `item`.
 pub fn upsert_many_importedtrack_by_file_path(
   conn: sqlight.Connection,
-  items items: List(#(String, option.Option(String), option.Option(String))),
+  items items: List(a),
+  each each: fn(
+    sqlight.Connection,
+    a,
+    fn(sqlight.Connection, String, option.Option(String), option.Option(String)) ->
+      Result(
+        #(library_manager_advanced_schema.ImportedTrack, dsl.MagicFields),
+        sqlight.Error,
+      ),
+  ) ->
+    Result(
+      #(library_manager_advanced_schema.ImportedTrack, dsl.MagicFields),
+      sqlight.Error,
+    ),
 ) -> Result(
   List(#(library_manager_advanced_schema.ImportedTrack, dsl.MagicFields)),
   sqlight.Error,
 ) {
   list.try_map(items, fn(item) {
-    let #(file_path, title, artist) = item
-    upsert_importedtrack_by_file_path(
-      conn,
-      file_path: file_path,
-      title: title,
-      artist: artist,
-    )
+    each(conn, item, upsert_importedtrack_by_file_path)
   })
 }
 
@@ -579,21 +612,29 @@ fn not_found_importedtrack_file_path_error(op: String) -> sqlight.Error {
 }
 
 /// Upsert many importedtrack rows by the `ByTitleAndArtist` identity (one SQL upsert per item).
+/// Pass the single-row `upsert_importedtrack_by_title_and_artist` as the last argument to `each` and call it with labelled fields from `item`.
 pub fn upsert_many_importedtrack_by_title_and_artist(
   conn: sqlight.Connection,
-  items items: List(#(String, String, option.Option(String))),
+  items items: List(a),
+  each each: fn(
+    sqlight.Connection,
+    a,
+    fn(sqlight.Connection, String, String, option.Option(String)) ->
+      Result(
+        #(library_manager_advanced_schema.ImportedTrack, dsl.MagicFields),
+        sqlight.Error,
+      ),
+  ) ->
+    Result(
+      #(library_manager_advanced_schema.ImportedTrack, dsl.MagicFields),
+      sqlight.Error,
+    ),
 ) -> Result(
   List(#(library_manager_advanced_schema.ImportedTrack, dsl.MagicFields)),
   sqlight.Error,
 ) {
   list.try_map(items, fn(item) {
-    let #(title, artist, file_path) = item
-    upsert_importedtrack_by_title_and_artist(
-      conn,
-      title: title,
-      artist: artist,
-      file_path: file_path,
-    )
+    each(conn, item, upsert_importedtrack_by_title_and_artist)
   })
 }
 

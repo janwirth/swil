@@ -202,7 +202,7 @@ pub fn facade_fn_chunks(
               api_params.upsert_gparams(e, variant, ctx),
             )
           let upsert_many_params =
-            api_params.upsert_many_gparams(e, variant, ctx)
+            api_params.upsert_many_gparams(e, variant, ctx, e.type_name)
           let get_params =
             list.append(
               [api_params.conn_param()],

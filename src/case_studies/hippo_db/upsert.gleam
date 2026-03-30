@@ -68,14 +68,19 @@ fn not_found_human_id_error(op: String) -> sqlight.Error {
 }
 
 /// Upsert many human rows by the `ByEmail` identity (one SQL upsert per item).
+/// Pass the single-row `upsert_human_by_email` as the last argument to `each` and call it with labelled fields from `item`.
 pub fn upsert_many_human_by_email(
   conn: sqlight.Connection,
-  items items: List(#(String, option.Option(String))),
+  items items: List(a),
+  each each: fn(
+    sqlight.Connection,
+    a,
+    fn(sqlight.Connection, String, option.Option(String)) ->
+      Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error),
+  ) ->
+    Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error),
 ) -> Result(List(#(hippo_schema.Human, dsl.MagicFields)), sqlight.Error) {
-  list.try_map(items, fn(item) {
-    let #(email, name) = item
-    upsert_human_by_email(conn, email: email, name: name)
-  })
+  list.try_map(items, fn(item) { each(conn, item, upsert_human_by_email) })
 }
 
 /// Update a human by the `ByEmail` identity.
@@ -181,20 +186,25 @@ fn not_found_hippo_id_error(op: String) -> sqlight.Error {
 }
 
 /// Upsert many hippo rows by the `ByNameAndDateOfBirth` identity (one SQL upsert per item).
+/// Pass the single-row `upsert_hippo_by_name_and_date_of_birth` as the last argument to `each` and call it with labelled fields from `item`.
 pub fn upsert_many_hippo_by_name_and_date_of_birth(
   conn: sqlight.Connection,
-  items items: List(
-    #(String, calendar.Date, option.Option(hippo_schema.GenderScalar)),
-  ),
+  items items: List(a),
+  each each: fn(
+    sqlight.Connection,
+    a,
+    fn(
+      sqlight.Connection,
+      String,
+      calendar.Date,
+      option.Option(hippo_schema.GenderScalar),
+    ) ->
+      Result(#(hippo_schema.Hippo, dsl.MagicFields), sqlight.Error),
+  ) ->
+    Result(#(hippo_schema.Hippo, dsl.MagicFields), sqlight.Error),
 ) -> Result(List(#(hippo_schema.Hippo, dsl.MagicFields)), sqlight.Error) {
   list.try_map(items, fn(item) {
-    let #(name, date_of_birth, gender) = item
-    upsert_hippo_by_name_and_date_of_birth(
-      conn,
-      name: name,
-      date_of_birth: date_of_birth,
-      gender: gender,
-    )
+    each(conn, item, upsert_hippo_by_name_and_date_of_birth)
   })
 }
 

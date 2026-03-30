@@ -1,5 +1,8 @@
 # Fuzzy & similarity search (SQLite)
 
+- also check https://github.com/nalgeon/sqlean/blob/main/docs/fuzzy.md
+
+AI slop below
 Companion to [`CONNECTION_SUGAR.md`](CONNECTION_SUGAR.md) (read path / FTS section). **Spec only.**
 
 **Goal:** Search-heavy UIs (music library: titles, artists, albums) with tolerance for typos, prefixes, and “close enough” matches without scanning whole tables with `LIKE '%foo%'`.
@@ -29,12 +32,12 @@ Avoid relying on **`LIKE '%x%'`** or ad-hoc trigram scans on hot paths; keep tho
 
 SQLite has no built-in **Levenshtein / similarity** in core. Options, in order of practicality:
 
-| Approach | Pros | Cons |
-| -------- | ---- | ---- |
-| **FTS5 + prefix + `bm25()`** | Fast, native, good UX for names | Not typo-forgiving for mid-token edits |
-| **[spellfix1](https://www.sqlite.org/spellfix1.html) extension | Suggests spellings / edit distance helpers | Extension load, extra tables, tuning |
-| **Application-side ranking** (fetch FTS hits + re-score with RapidFuzz etc. in Gleam/JS) | Full control | More data movement; cap candidate set with FTS first |
-| **Trigram / `GLOB` prefilter** (custom) | Substring-ish | Heavier than FTS; easy to get wrong at scale |
+| Approach                                                                                 | Pros                                       | Cons                                                 |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------ | ---------------------------------------------------- |
+| **FTS5 + prefix + `bm25()`**                                                             | Fast, native, good UX for names            | Not typo-forgiving for mid-token edits               |
+| \*\*[spellfix1](https://www.sqlite.org/spellfix1.html) extension                         | Suggests spellings / edit distance helpers | Extension load, extra tables, tuning                 |
+| **Application-side ranking** (fetch FTS hits + re-score with RapidFuzz etc. in Gleam/JS) | Full control                               | More data movement; cap candidate set with FTS first |
+| **Trigram / `GLOB` prefilter** (custom)                                                  | Substring-ish                              | Heavier than FTS; easy to get wrong at scale         |
 
 **Recommended pattern:** **FTS5 narrows candidates** → optional **second-stage similarity** on the small result set (e.g. top 200 rows) if the product needs “did you mean …” quality.
 

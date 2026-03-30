@@ -56,17 +56,35 @@ pub fn upsert_many_gparams(
   entity: EntityDefinition,
   variant: IdentityVariantDefinition,
   ctx: dec.TypeCtx,
+  entity_type_name: String,
 ) -> List(gparam.Parameter(gtypes.Dynamic)) {
   let ordered = upsert_ordered_data_fields(entity, variant)
-  let tuple_inner =
-    ordered
-    |> list.map(fn(f) { dec.render_type(f.type_, ctx) })
+  let row_pair = dec.entity_row_tuple_type(ctx, entity_type_name)
+  let upsert_one_arg_types =
+    list.flatten([
+      ["sqlight.Connection"],
+      list.map(ordered, fn(f) { dec.render_type(f.type_, ctx) }),
+    ])
     |> string.join(", ")
-  let tuple_t = "#(" <> tuple_inner <> ")"
-  list.append(
+  let upsert_one_fn =
+    "fn("
+    <> upsert_one_arg_types
+    <> ") -> Result("
+    <> row_pair
+    <> ", sqlight.Error)"
+  let each_fn =
+    "fn(sqlight.Connection, a, "
+    <> upsert_one_fn
+    <> ") -> Result("
+    <> row_pair
+    <> ", sqlight.Error)"
+  list.flatten([
     [conn_param()],
-    [consumer_param("items", gtypes.list(gtypes.raw(tuple_t)))],
-  )
+    [
+      consumer_param("items", gtypes.list(gtypes.generic("a"))),
+      consumer_param("each", gtypes.raw(each_fn)),
+    ],
+  ])
 }
 
 pub fn identity_gparams(

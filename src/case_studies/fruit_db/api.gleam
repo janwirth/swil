@@ -88,11 +88,22 @@ pub fn get_fruit_by_name(
 
 pub fn upsert_many_fruit_by_name(
   conn: sqlight.Connection,
-  items items: List(
-    #(String, option.Option(String), option.Option(Float), option.Option(Int)),
-  ),
+  items items: List(a),
+  each each: fn(
+    sqlight.Connection,
+    a,
+    fn(
+      sqlight.Connection,
+      String,
+      option.Option(String),
+      option.Option(Float),
+      option.Option(Int),
+    ) ->
+      Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error),
+  ) ->
+    Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error),
 ) -> Result(List(#(fruit_schema.Fruit, dsl.MagicFields)), sqlight.Error) {
-  upsert.upsert_many_fruit_by_name(conn, items: items)
+  upsert.upsert_many_fruit_by_name(conn, items: items, each: each)
 }
 
 pub fn upsert_fruit_by_name(

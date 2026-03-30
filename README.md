@@ -105,12 +105,22 @@ pub fn example(conn: sqlight.Connection) {
 
 ## Relationships
 
+You care about your relationships?
+
 ```gleam
 // continuing hippo_schema.gleam
 pub type HippoRelationships {
   HippoRelationships(
+    // we reference other types
+    // the friendship attributes define cols on the join table
+
+    // we support mutual lists (many to many)
     friends: option.Option(Mutual(List(Hippo), FriendshipAttributes)),
+
+    // and one-to-one (I should test this explicitly)
     best_friend: option.Option(Mutual(Hippo, FriendshipAttributes)),
+
+    // the owner is one to one
     owner: option.Option(BelongsTo(Human, Nil)),
   )
 }
