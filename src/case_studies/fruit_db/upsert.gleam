@@ -23,11 +23,11 @@ returning \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", 
 /// Update a fruit by row id (all scalar columns, including natural-key fields).
 pub fn update_fruit_by_id(
   conn: sqlight.Connection,
-  id: Int,
-  name: option.Option(String),
-  color: option.Option(String),
-  price: option.Option(Float),
-  quantity: option.Option(Int),
+  id id: Int,
+  name name: option.Option(String),
+  color color: option.Option(String),
+  price price: option.Option(Float),
+  quantity quantity: option.Option(Int),
 ) -> Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   let db_name = api_help.opt_text_for_db(name)
@@ -64,10 +64,10 @@ fn not_found_fruit_id_error(op: String) -> sqlight.Error {
 /// Update a fruit by the `ByName` identity.
 pub fn update_fruit_by_name(
   conn: sqlight.Connection,
-  name: String,
-  color: option.Option(String),
-  price: option.Option(Float),
-  quantity: option.Option(Int),
+  name name: String,
+  color color: option.Option(String),
+  price price: option.Option(Float),
+  quantity quantity: option.Option(Int),
 ) -> Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   let db_color = api_help.opt_text_for_db(color)
@@ -94,10 +94,10 @@ pub fn update_fruit_by_name(
 /// Upsert a fruit by the `ByName` identity.
 pub fn upsert_fruit_by_name(
   conn: sqlight.Connection,
-  name: String,
-  color: option.Option(String),
-  price: option.Option(Float),
-  quantity: option.Option(Int),
+  name name: String,
+  color color: option.Option(String),
+  price price: option.Option(Float),
+  quantity quantity: option.Option(Int),
 ) -> Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   let db_color = api_help.opt_text_for_db(color)

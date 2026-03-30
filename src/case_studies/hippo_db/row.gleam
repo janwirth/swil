@@ -33,7 +33,7 @@ pub fn human_with_magic_row_decoder() -> decode.Decoder(
 }
 
 pub fn gender_scalar_to_db_string(
-  o: option.Option(hippo_schema.GenderScalar),
+  o o: option.Option(hippo_schema.GenderScalar),
 ) -> String {
   case o {
     option.None -> ""
@@ -43,7 +43,7 @@ pub fn gender_scalar_to_db_string(
 }
 
 pub fn gender_scalar_from_db_string(
-  s: String,
+  s s: String,
 ) -> option.Option(hippo_schema.GenderScalar) {
   case s {
     "" -> option.None

@@ -12,7 +12,6 @@ import generators/api/complex_filter_sql
 import generators/api/schema_context
 import generators/migration/migration as pragma_migration
 import generators/gleam_format_generated as gleam_fmt
-import glance
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
@@ -25,9 +24,9 @@ import gleamgen/render as grender
 import gleamgen/types as gtypes
 import schema_definition/predicate_parser
 import schema_definition/schema_definition.{
-  type Query, type QueryParameter, type SchemaDefinition, AgeFn, Call, Compare,
+  type Query, type SchemaDefinition, AgeFn, Call, Compare,
   ComplexRecursive, CustomOrder, Eq, ExcludeIfMissing, ExcludeIfMissingFn, Field,
-  Ge, Gt, Le, Lt, Ne, NullableFn, Param, Predicate, Query, QueryParameter,
+  Ge, Gt, Le, Lt, Ne, NullableFn, Param, Predicate, Query,
 }
 
 fn quote_ident(s: String) -> String {
@@ -816,15 +815,21 @@ pub fn generate_api_db_outputs(
                   let select_cols_sql =
                     list.map(all_cols, fn(c) { "\\\"" <> c <> "\\\"" })
                     |> string.join(", ")
-                  let filter_param_type =
+                  let filter_param_match =
                     list.find(spec.parameters, fn(p) {
                       api_query.schema_query_param_name(p) == fpn
                       || p.name == fpn
                     })
+                  let filter_param_type =
+                    filter_param_match
                     |> result.map(fn(p) { dec.render_type(p.type_, ctx) })
                     |> result.unwrap(
                       ctx.schema_alias <> "." <> pred_spec.leaf_param_type,
                     )
+                  let filter_param_binding =
+                    filter_param_match
+                    |> result.map(fn(p) { api_query.schema_query_param_name(p) })
+                    |> result.unwrap("filter")
                   let filter_prefix =
                     string.lowercase(pred_spec.target_entity_type)
                   let gen_ctx =
@@ -847,6 +852,7 @@ pub fn generate_api_db_outputs(
                       root_alias: "tb",
                       order_sql: "tb.\\\"updated_at\\\" desc",
                       filter_prefix: filter_prefix,
+                      filter_param_binding: filter_param_binding,
                     )
                   let sql_code =
                     complex_filter_sql.emit_complex_filter_query(

@@ -58,6 +58,8 @@ pub type ComplexFilterGenCtx {
     order_sql: String,
     /// Snake-case prefix for helper function names, e.g. `"tag"`.
     filter_prefix: String,
+    /// Gleam binding for the filter argument (matches schema query param), e.g. `"complex_tag_filter_expression"`.
+    filter_param_binding: String,
   )
 }
 
@@ -100,13 +102,7 @@ pub fn emit_complex_filter_query(
         target_fk_col,
       ),
       emit_sql_with_fn(sql_with_fn, filter_to_sql_fn, ctx),
-      emit_public_query_fn(
-        query_fn_name,
-        sql_with_fn,
-        ctx.filter_param_type,
-        ctx.row_tuple_type,
-        ctx.row_decoder_fn,
-      ),
+      emit_public_query_fn(query_fn_name, sql_with_fn, ctx),
     ],
     "\n\n",
   )
@@ -382,16 +378,23 @@ fn emit_sql_with_fn(
     <> ctx.root_alias
     <> ".\\\"deleted_at\\\" is null and "
   let order_suffix = " order by " <> ctx.order_sql
+  let b = ctx.filter_param_binding
   "fn "
   <> fn_name
   <> "(\n"
-  <> "  filter: "
+  <> "  "
+  <> b
+  <> " "
+  <> b
+  <> ": "
   <> ctx.filter_param_type
   <> ",\n"
   <> ") -> #(String, List(sqlight.Value)) {\n"
   <> "  let #(filter_sql, binds) = "
   <> filter_to_sql_fn
-  <> "(filter, \""
+  <> "("
+  <> b
+  <> ", \""
   <> ctx.root_alias
   <> "\")\n"
   <> "  #(\""
@@ -409,25 +412,30 @@ fn emit_sql_with_fn(
 fn emit_public_query_fn(
   fn_name: String,
   sql_with_fn: String,
-  filter_type: String,
-  row_tuple_type: String,
-  row_decoder_fn: String,
+  ctx: ComplexFilterGenCtx,
 ) -> String {
+  let b = ctx.filter_param_binding
   "pub fn "
   <> fn_name
   <> "(\n"
   <> "  conn: sqlight.Connection,\n"
-  <> "  filter: "
-  <> filter_type
+  <> "  "
+  <> b
+  <> " "
+  <> b
+  <> ": "
+  <> ctx.filter_param_type
   <> ",\n"
   <> ") -> Result(List("
-  <> row_tuple_type
+  <> ctx.row_tuple_type
   <> "), sqlight.Error) {\n"
   <> "  let #(sql, binds) = "
   <> sql_with_fn
-  <> "(filter)\n"
+  <> "("
+  <> b
+  <> ")\n"
   <> "  sqlight.query(sql, on: conn, with: binds, expecting: row."
-  <> row_decoder_fn
+  <> ctx.row_decoder_fn
   <> "())\n"
   <> "}"
 }

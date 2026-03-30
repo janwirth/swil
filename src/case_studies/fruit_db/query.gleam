@@ -9,7 +9,7 @@ const last_100_fruit_sql = "select \"name\", \"color\", \"price\", \"quantity\",
 
 pub fn query_cheap_fruit(
   conn: sqlight.Connection,
-  max_price: Float,
+  max_price max_price: Float,
 ) -> Result(List(#(fruit_schema.Fruit, dsl.MagicFields)), sqlight.Error) {
   sqlight.query(
     cheap_fruit_sql,

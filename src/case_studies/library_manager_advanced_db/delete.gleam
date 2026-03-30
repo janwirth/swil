@@ -1,6 +1,6 @@
-import skwil/api_help
 import gleam/dynamic/decode
 import gleam/result
+import skwil/api_help
 import sqlight
 
 const soft_delete_tab_by_tab_label_sql = "update \"tab\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"label\" = ? and \"deleted_at\" is null returning \"label\";"
@@ -16,7 +16,7 @@ const soft_delete_importedtrack_by_title_and_artist_sql = "update \"importedtrac
 /// Delete a tab by the `ByTabLabel` identity.
 pub fn delete_tab_by_tab_label(
   conn: sqlight.Connection,
-  label: String,
+  label label: String,
 ) -> Result(Nil, sqlight.Error) {
   let now = api_help.unix_seconds_now()
   use rows <- result.try(
@@ -43,8 +43,8 @@ fn not_found_tab_tab_label_error(op: String) -> sqlight.Error {
 /// Delete a trackbucket by the `ByBucketTitleAndArtist` identity.
 pub fn delete_trackbucket_by_bucket_title_and_artist(
   conn: sqlight.Connection,
-  title: String,
-  artist: String,
+  title title: String,
+  artist artist: String,
 ) -> Result(Nil, sqlight.Error) {
   let now = api_help.unix_seconds_now()
   use rows <- result.try(
@@ -85,7 +85,7 @@ fn not_found_trackbucket_bucket_title_and_artist_error(
 /// Delete a tag by the `ByTagLabel` identity.
 pub fn delete_tag_by_tag_label(
   conn: sqlight.Connection,
-  label: String,
+  label label: String,
 ) -> Result(Nil, sqlight.Error) {
   let now = api_help.unix_seconds_now()
   use rows <- result.try(
@@ -112,7 +112,7 @@ fn not_found_tag_tag_label_error(op: String) -> sqlight.Error {
 /// Delete a importedtrack by the `ByFilePath` identity.
 pub fn delete_importedtrack_by_file_path(
   conn: sqlight.Connection,
-  file_path: String,
+  file_path file_path: String,
 ) -> Result(Nil, sqlight.Error) {
   let now = api_help.unix_seconds_now()
   use rows <- result.try(
@@ -146,8 +146,8 @@ fn not_found_importedtrack_file_path_error(op: String) -> sqlight.Error {
 /// Delete a importedtrack by the `ByTitleAndArtist` identity.
 pub fn delete_importedtrack_by_title_and_artist(
   conn: sqlight.Connection,
-  title: String,
-  artist: String,
+  title title: String,
+  artist artist: String,
 ) -> Result(Nil, sqlight.Error) {
   let now = api_help.unix_seconds_now()
   use rows <- result.try(

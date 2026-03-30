@@ -11,7 +11,7 @@ const soft_delete_hippo_by_name_and_date_of_birth_sql = "update \"hippo\" set \"
 /// Delete a human by the `ByEmail` identity.
 pub fn delete_human_by_email(
   conn: sqlight.Connection,
-  email: String,
+  email email: String,
 ) -> Result(Nil, sqlight.Error) {
   let now = api_help.unix_seconds_now()
   use rows <- result.try(
@@ -42,8 +42,8 @@ fn not_found_human_email_error(op: String) -> sqlight.Error {
 /// Delete a hippo by the `ByNameAndDateOfBirth` identity.
 pub fn delete_hippo_by_name_and_date_of_birth(
   conn: sqlight.Connection,
-  name: String,
-  date_of_birth: calendar.Date,
+  name name: String,
+  date_of_birth date_of_birth: calendar.Date,
 ) -> Result(Nil, sqlight.Error) {
   let now = api_help.unix_seconds_now()
   use rows <- result.try(

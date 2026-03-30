@@ -1,4 +1,5 @@
 import generators/api/api_decoders as dec
+import generators/api/api_params
 import generators/api/schema_context
 import generators/gleamgen_emit
 import glance
@@ -251,7 +252,7 @@ fn non_enum_scalar_fn_chunks(scalar: ScalarTypeDefinition, ctx: dec.TypeCtx) {
     #(
       gleamgen_emit.pub_def(to_fn),
       gfun.new_raw(
-        [gparam.new("o", opt_scalar_t) |> gparam.to_dynamic],
+        [api_params.consumer_param("o", opt_scalar_t)],
         gtypes.string,
         fn(_) {
           gexpr.raw(non_enum_scalar_to_db_fn_body(scalar, ctx.schema_alias))
@@ -262,7 +263,7 @@ fn non_enum_scalar_fn_chunks(scalar: ScalarTypeDefinition, ctx: dec.TypeCtx) {
     #(
       gleamgen_emit.pub_def(from_fn),
       gfun.new_raw(
-        [gparam.new("s", gtypes.string) |> gparam.to_dynamic],
+        [api_params.consumer_param("s", gtypes.string)],
         gtypes.raw("Result(option.Option(" <> q <> "), String)"),
         fn(_) { gexpr.raw(non_enum_scalar_from_db_fn_body(scalar, decode_fn)) },
       )
@@ -280,7 +281,7 @@ fn enum_scalar_fn_chunks(scalar: ScalarTypeDefinition, ctx: dec.TypeCtx) {
     #(
       gleamgen_emit.pub_def(from_fn),
       gfun.new1(
-        param1: gparam.new("s", gtypes.string),
+        param1: gparam.new("s", gtypes.string) |> gparam.with_label("s"),
         returns: opt_scalar,
         handler: fn(s) {
           scalar_enum_from_db_expr(s, scalar.variant_names, ctx.schema_alias)
@@ -291,7 +292,7 @@ fn enum_scalar_fn_chunks(scalar: ScalarTypeDefinition, ctx: dec.TypeCtx) {
     #(
       gleamgen_emit.pub_def(to_fn),
       gfun.new1(
-        param1: gparam.new("o", opt_scalar),
+        param1: gparam.new("o", opt_scalar) |> gparam.with_label("o"),
         returns: gtypes.string,
         handler: fn(o) {
           scalar_enum_to_db_expr(

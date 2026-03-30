@@ -107,6 +107,7 @@ fn default_ctx() -> csql.ComplexFilterGenCtx {
     root_alias: "tb",
     order_sql: "tb.\"updated_at\" desc",
     filter_prefix: "tag",
+    filter_param_binding: "filter",
   )
 }
 
@@ -243,7 +244,7 @@ pub fn public_query_fn_name_test() {
 pub fn public_query_fn_params_test() {
   let src = emit(has_spec())
   assert string.contains(src, "conn: sqlight.Connection")
-  assert string.contains(src, "filter: schema.FilterExpressionScalar")
+  assert string.contains(src, "filter filter: schema.FilterExpressionScalar")
 }
 
 pub fn public_query_fn_calls_sql_with_test() {

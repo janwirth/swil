@@ -185,7 +185,7 @@ pub fn get_module_fn_chunks(
           gfun.new_raw(
             [
               api_params.conn_param(),
-              gparam.new("id", gtypes.int) |> gparam.to_dynamic,
+              api_params.consumer_param("id", gtypes.int),
             ],
             gtypes.result(
               gtypes.raw(dec.option_entity_row_tuple(ctx, entity.type_name)),

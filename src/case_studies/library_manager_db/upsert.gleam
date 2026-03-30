@@ -1,10 +1,10 @@
-import skwil/api_help
 import case_studies/library_manager_db/row
 import case_studies/library_manager_schema
-import skwil/dsl/dsl
 import gleam/dynamic/decode
 import gleam/option
 import gleam/result
+import skwil/api_help
+import skwil/dsl/dsl
 import sqlight
 
 const update_tab_by_id_sql = "update \"tab\" set \"label\" = ?, \"order\" = ?, \"view_config\" = ?, \"updated_at\" = ? where \"id\" = ? and \"deleted_at\" is null returning \"label\", \"order\", \"view_config\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
@@ -69,10 +69,12 @@ returning \"title\", \"artist\", \"file_path\", \"id\", \"created_at\", \"update
 /// Update a tab by row id (all scalar columns, including natural-key fields).
 pub fn update_tab_by_id(
   conn: sqlight.Connection,
-  id: Int,
-  label: option.Option(String),
-  order: option.Option(Float),
-  view_config: option.Option(library_manager_schema.ViewConfigScalar),
+  id id: Int,
+  label label: option.Option(String),
+  order order: option.Option(Float),
+  view_config view_config: option.Option(
+    library_manager_schema.ViewConfigScalar,
+  ),
 ) -> Result(#(library_manager_schema.Tab, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   let db_label = api_help.opt_text_for_db(label)
@@ -102,9 +104,11 @@ fn not_found_tab_id_error(op: String) -> sqlight.Error {
 /// Update a tab by the `ByTabLabel` identity.
 pub fn update_tab_by_tab_label(
   conn: sqlight.Connection,
-  label: String,
-  order: option.Option(Float),
-  view_config: option.Option(library_manager_schema.ViewConfigScalar),
+  label label: String,
+  order order: option.Option(Float),
+  view_config view_config: option.Option(
+    library_manager_schema.ViewConfigScalar,
+  ),
 ) -> Result(#(library_manager_schema.Tab, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   let db_order = api_help.opt_float_for_db(order)
@@ -128,9 +132,11 @@ pub fn update_tab_by_tab_label(
 /// Upsert a tab by the `ByTabLabel` identity.
 pub fn upsert_tab_by_tab_label(
   conn: sqlight.Connection,
-  label: String,
-  order: option.Option(Float),
-  view_config: option.Option(library_manager_schema.ViewConfigScalar),
+  label label: String,
+  order order: option.Option(Float),
+  view_config view_config: option.Option(
+    library_manager_schema.ViewConfigScalar,
+  ),
 ) -> Result(#(library_manager_schema.Tab, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   let db_order = api_help.opt_float_for_db(order)
@@ -164,9 +170,9 @@ fn not_found_tab_tab_label_error(op: String) -> sqlight.Error {
 /// Update a trackbucket by row id (all scalar columns, including natural-key fields).
 pub fn update_trackbucket_by_id(
   conn: sqlight.Connection,
-  id: Int,
-  title: option.Option(String),
-  artist: option.Option(String),
+  id id: Int,
+  title title: option.Option(String),
+  artist artist: option.Option(String),
 ) -> Result(
   #(library_manager_schema.TrackBucket, dsl.MagicFields),
   sqlight.Error,
@@ -202,8 +208,8 @@ fn not_found_trackbucket_id_error(op: String) -> sqlight.Error {
 /// Update a trackbucket by the `ByBucketTitleAndArtist` identity.
 pub fn update_trackbucket_by_bucket_title_and_artist(
   conn: sqlight.Connection,
-  title: String,
-  artist: String,
+  title title: String,
+  artist artist: String,
 ) -> Result(
   #(library_manager_schema.TrackBucket, dsl.MagicFields),
   sqlight.Error,
@@ -231,8 +237,8 @@ pub fn update_trackbucket_by_bucket_title_and_artist(
 /// Upsert a trackbucket by the `ByBucketTitleAndArtist` identity.
 pub fn upsert_trackbucket_by_bucket_title_and_artist(
   conn: sqlight.Connection,
-  title: String,
-  artist: String,
+  title title: String,
+  artist artist: String,
 ) -> Result(
   #(library_manager_schema.TrackBucket, dsl.MagicFields),
   sqlight.Error,
@@ -273,9 +279,9 @@ fn not_found_trackbucket_bucket_title_and_artist_error(
 /// Update a tag by row id (all scalar columns, including natural-key fields).
 pub fn update_tag_by_id(
   conn: sqlight.Connection,
-  id: Int,
-  label: option.Option(String),
-  emoji: option.Option(String),
+  id id: Int,
+  label label: option.Option(String),
+  emoji emoji: option.Option(String),
 ) -> Result(#(library_manager_schema.Tag, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   let db_label = api_help.opt_text_for_db(label)
@@ -304,8 +310,8 @@ fn not_found_tag_id_error(op: String) -> sqlight.Error {
 /// Update a tag by the `ByTagLabel` identity.
 pub fn update_tag_by_tag_label(
   conn: sqlight.Connection,
-  label: String,
-  emoji: option.Option(String),
+  label label: String,
+  emoji emoji: option.Option(String),
 ) -> Result(#(library_manager_schema.Tag, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   let db_emoji = api_help.opt_text_for_db(emoji)
@@ -328,8 +334,8 @@ pub fn update_tag_by_tag_label(
 /// Upsert a tag by the `ByTagLabel` identity.
 pub fn upsert_tag_by_tag_label(
   conn: sqlight.Connection,
-  label: String,
-  emoji: option.Option(String),
+  label label: String,
+  emoji emoji: option.Option(String),
 ) -> Result(#(library_manager_schema.Tag, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   let db_emoji = api_help.opt_text_for_db(emoji)
@@ -362,10 +368,10 @@ fn not_found_tag_tag_label_error(op: String) -> sqlight.Error {
 /// Update a importedtrack by row id (all scalar columns, including natural-key fields).
 pub fn update_importedtrack_by_id(
   conn: sqlight.Connection,
-  id: Int,
-  title: option.Option(String),
-  artist: option.Option(String),
-  file_path: option.Option(String),
+  id id: Int,
+  title title: option.Option(String),
+  artist artist: option.Option(String),
+  file_path file_path: option.Option(String),
 ) -> Result(
   #(library_manager_schema.ImportedTrack, dsl.MagicFields),
   sqlight.Error,
@@ -403,9 +409,9 @@ fn not_found_importedtrack_id_error(op: String) -> sqlight.Error {
 /// Update a importedtrack by the `ByFilePath` identity.
 pub fn update_importedtrack_by_file_path(
   conn: sqlight.Connection,
-  file_path: String,
-  title: option.Option(String),
-  artist: option.Option(String),
+  file_path file_path: String,
+  title title: option.Option(String),
+  artist artist: option.Option(String),
 ) -> Result(
   #(library_manager_schema.ImportedTrack, dsl.MagicFields),
   sqlight.Error,
@@ -436,9 +442,9 @@ pub fn update_importedtrack_by_file_path(
 /// Upsert a importedtrack by the `ByFilePath` identity.
 pub fn upsert_importedtrack_by_file_path(
   conn: sqlight.Connection,
-  file_path: String,
-  title: option.Option(String),
-  artist: option.Option(String),
+  file_path file_path: String,
+  title title: option.Option(String),
+  artist artist: option.Option(String),
 ) -> Result(
   #(library_manager_schema.ImportedTrack, dsl.MagicFields),
   sqlight.Error,
@@ -480,9 +486,9 @@ fn not_found_importedtrack_file_path_error(op: String) -> sqlight.Error {
 /// Update a importedtrack by the `ByTitleAndArtist` identity.
 pub fn update_importedtrack_by_title_and_artist(
   conn: sqlight.Connection,
-  title: String,
-  artist: String,
-  file_path: option.Option(String),
+  title title: String,
+  artist artist: String,
+  file_path file_path: option.Option(String),
 ) -> Result(
   #(library_manager_schema.ImportedTrack, dsl.MagicFields),
   sqlight.Error,
@@ -512,9 +518,9 @@ pub fn update_importedtrack_by_title_and_artist(
 /// Upsert a importedtrack by the `ByTitleAndArtist` identity.
 pub fn upsert_importedtrack_by_title_and_artist(
   conn: sqlight.Connection,
-  title: String,
-  artist: String,
-  file_path: option.Option(String),
+  title title: String,
+  artist artist: String,
+  file_path file_path: option.Option(String),
 ) -> Result(
   #(library_manager_schema.ImportedTrack, dsl.MagicFields),
   sqlight.Error,
@@ -556,9 +562,9 @@ const upsert_trackbucket_tag_sql = "insert into \"trackbucket_tag\" (\"trackbuck
 
 pub fn upsert_trackbucket_tag(
   conn: sqlight.Connection,
-  trackbucket_id: Int,
-  tag_id: Int,
-  value: option.Option(Int),
+  trackbucket_id trackbucket_id: Int,
+  tag_id tag_id: Int,
+  value value: option.Option(Int),
 ) -> Result(Nil, sqlight.Error) {
   sqlight.query(
     upsert_trackbucket_tag_sql,

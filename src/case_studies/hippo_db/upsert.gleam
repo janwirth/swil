@@ -34,9 +34,9 @@ returning \"name\", \"gender\", \"date_of_birth\", \"id\", \"created_at\", \"upd
 /// Update a human by row id (all scalar columns, including natural-key fields).
 pub fn update_human_by_id(
   conn: sqlight.Connection,
-  id: Int,
-  name: option.Option(String),
-  email: option.Option(String),
+  id id: Int,
+  name name: option.Option(String),
+  email email: option.Option(String),
 ) -> Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   let db_name = api_help.opt_text_for_db(name)
@@ -69,8 +69,8 @@ fn not_found_human_id_error(op: String) -> sqlight.Error {
 /// Update a human by the `ByEmail` identity.
 pub fn update_human_by_email(
   conn: sqlight.Connection,
-  email: String,
-  name: option.Option(String),
+  email email: String,
+  name name: option.Option(String),
 ) -> Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   let db_name = api_help.opt_text_for_db(name)
@@ -93,8 +93,8 @@ pub fn update_human_by_email(
 /// Upsert a human by the `ByEmail` identity.
 pub fn upsert_human_by_email(
   conn: sqlight.Connection,
-  email: String,
-  name: option.Option(String),
+  email email: String,
+  name name: option.Option(String),
 ) -> Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   let db_name = api_help.opt_text_for_db(name)
@@ -131,10 +131,10 @@ fn not_found_human_email_error(op: String) -> sqlight.Error {
 /// Update a hippo by row id (all scalar columns, including natural-key fields).
 pub fn update_hippo_by_id(
   conn: sqlight.Connection,
-  id: Int,
-  name: option.Option(String),
-  gender: option.Option(hippo_schema.GenderScalar),
-  date_of_birth: option.Option(calendar.Date),
+  id id: Int,
+  name name: option.Option(String),
+  gender gender: option.Option(hippo_schema.GenderScalar),
+  date_of_birth date_of_birth: option.Option(calendar.Date),
 ) -> Result(#(hippo_schema.Hippo, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   let db_name = api_help.opt_text_for_db(name)
@@ -171,9 +171,9 @@ fn not_found_hippo_id_error(op: String) -> sqlight.Error {
 /// Update a hippo by the `ByNameAndDateOfBirth` identity.
 pub fn update_hippo_by_name_and_date_of_birth(
   conn: sqlight.Connection,
-  name: String,
-  date_of_birth: calendar.Date,
-  gender: option.Option(hippo_schema.GenderScalar),
+  name name: String,
+  date_of_birth date_of_birth: calendar.Date,
+  gender gender: option.Option(hippo_schema.GenderScalar),
 ) -> Result(#(hippo_schema.Hippo, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   use rows <- result.try(sqlight.query(
@@ -199,9 +199,9 @@ pub fn update_hippo_by_name_and_date_of_birth(
 /// Upsert a hippo by the `ByNameAndDateOfBirth` identity.
 pub fn upsert_hippo_by_name_and_date_of_birth(
   conn: sqlight.Connection,
-  name: String,
-  date_of_birth: calendar.Date,
-  gender: option.Option(hippo_schema.GenderScalar),
+  name name: String,
+  date_of_birth date_of_birth: calendar.Date,
+  gender gender: option.Option(hippo_schema.GenderScalar),
 ) -> Result(#(hippo_schema.Hippo, dsl.MagicFields), sqlight.Error) {
   let now = api_help.unix_seconds_now()
   use rows <- result.try(sqlight.query(

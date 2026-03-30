@@ -485,10 +485,13 @@ fn junction_upsert_gleam_fn(spec: JunctionSpec) -> String {
   let sql_const = fn_name <> "_sql"
   let root_fk = string.lowercase(spec.root_entity) <> "_id"
   let target_fk = string.lowercase(spec.target_entity) <> "_id"
-  let id_params = [root_fk <> ": Int", target_fk <> ": Int"]
+  let id_params = [
+    root_fk <> " " <> root_fk <> ": Int",
+    target_fk <> " " <> target_fk <> ": Int",
+  ]
   let edge_params =
     list.map(spec.edge_fields, fn(f) {
-      f.label <> ": " <> junction_gleam_type(f.type_)
+      f.label <> " " <> f.label <> ": " <> junction_gleam_type(f.type_)
     })
   let all_params =
     list.flatten([["conn: sqlight.Connection"], id_params, edge_params])

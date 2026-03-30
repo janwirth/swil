@@ -8,7 +8,7 @@ const soft_delete_fruit_by_name_sql = "update \"fruit\" set \"deleted_at\" = ?, 
 /// Delete a fruit by the `ByName` identity.
 pub fn delete_fruit_by_name(
   conn: sqlight.Connection,
-  name: String,
+  name name: String,
 ) -> Result(Nil, sqlight.Error) {
   let now = api_help.unix_seconds_now()
   use rows <- result.try(

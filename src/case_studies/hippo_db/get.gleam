@@ -18,7 +18,7 @@ const select_hippo_by_name_and_date_of_birth_sql = "select \"name\", \"gender\",
 /// Get a human by row id.
 pub fn get_human_by_id(
   conn: sqlight.Connection,
-  id: Int,
+  id id: Int,
 ) -> Result(
   option.Option(#(hippo_schema.Human, dsl.MagicFields)),
   sqlight.Error,
@@ -38,7 +38,7 @@ pub fn get_human_by_id(
 /// Get a human by the `ByEmail` identity.
 pub fn get_human_by_email(
   conn: sqlight.Connection,
-  email: String,
+  email email: String,
 ) -> Result(
   option.Option(#(hippo_schema.Human, dsl.MagicFields)),
   sqlight.Error,
@@ -58,7 +58,7 @@ pub fn get_human_by_email(
 /// Get a hippo by row id.
 pub fn get_hippo_by_id(
   conn: sqlight.Connection,
-  id: Int,
+  id id: Int,
 ) -> Result(
   option.Option(#(hippo_schema.Hippo, dsl.MagicFields)),
   sqlight.Error,
@@ -78,8 +78,8 @@ pub fn get_hippo_by_id(
 /// Get a hippo by the `ByNameAndDateOfBirth` identity.
 pub fn get_hippo_by_name_and_date_of_birth(
   conn: sqlight.Connection,
-  name: String,
-  date_of_birth: calendar.Date,
+  name name: String,
+  date_of_birth date_of_birth: calendar.Date,
 ) -> Result(
   option.Option(#(hippo_schema.Hippo, dsl.MagicFields)),
   sqlight.Error,

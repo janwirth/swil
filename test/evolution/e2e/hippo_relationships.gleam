@@ -19,26 +19,27 @@ pub fn hippo_relationship_queries_e2e_test() {
   let assert Ok(_) =
     hippo_api.upsert_hippo_by_name_and_date_of_birth(
       conn,
-      "Oldie",
-      dob_old,
-      Some(Male),
+      name: "Oldie",
+      date_of_birth: dob_old,
+      gender: Some(Male),
     )
   let assert Ok(_) =
     hippo_api.upsert_hippo_by_name_and_date_of_birth(
       conn,
-      "Youngin",
-      dob_young,
-      Some(Female),
+      name: "Youngin",
+      date_of_birth: dob_young,
+      gender: Some(Female),
     )
   let assert Ok(_) =
     hippo_api.upsert_hippo_by_name_and_date_of_birth(
       conn,
-      "Zebra",
-      dob_old,
-      Some(Male),
+      name: "Zebra",
+      date_of_birth: dob_old,
+      gender: Some(Male),
     )
 
-  let assert Ok(old_rows) = hippo_api.query_old_hippos_owner_emails(conn, 30)
+  let assert Ok(old_rows) =
+    hippo_api.query_old_hippos_owner_emails(conn, min_age: 30)
   let old_names =
     list.map(old_rows, fn(row) {
       let #(h, _) = row
@@ -49,7 +50,8 @@ pub fn hippo_relationship_queries_e2e_test() {
   let assert True = list.contains(old_names, "Zebra")
   let assert False = list.contains(old_names, "Youngin")
 
-  let assert Ok(by_gender) = hippo_api.query_hippos_by_gender(conn, Male)
+  let assert Ok(by_gender) =
+    hippo_api.query_hippos_by_gender(conn, gender_to_match: Male)
   let male_names =
     list.map(by_gender, fn(row) {
       let #(h, _) = row

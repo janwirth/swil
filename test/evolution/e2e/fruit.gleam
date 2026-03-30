@@ -23,19 +23,25 @@ pub fn fruit_e2e_test() {
   list.each(fruits, fn(row) {
     let #(name, color, price, qty) = row
     let assert Ok(_) =
-      api.upsert_fruit_by_name(conn, name, Some(color), Some(price), Some(qty))
+      api.upsert_fruit_by_name(
+        conn,
+        name: name,
+        color: Some(color),
+        price: Some(price),
+        quantity: Some(qty),
+      )
   })
   // ensure the migration is not killing the data
   let assert Ok(Nil) = api.migrate(conn)
 
-  let assert Ok(Some(#(_apple, magic))) = api.get_fruit_by_name(conn, "apple")
+  let assert Ok(Some(#(_apple, magic))) = api.get_fruit_by_name(conn, name: "apple")
   let assert True = magic.id > 0
   let assert Ok(Some(#(_apple_by_id, magic_by_id))) =
-    api.get_fruit_by_id(conn, magic.id)
+    api.get_fruit_by_id(conn, id: magic.id)
   let assert True = magic_by_id.id == magic.id
   let assert Ok(Nil) = api.migrate(conn)
 
-  let assert Ok(cheap) = api.query_cheap_fruit(conn, 5.5)
+  let assert Ok(cheap) = api.query_cheap_fruit(conn, max_price: 5.5)
   let names_and_prices =
     list.map(cheap, fn(pair) {
       let #(f, _) = pair

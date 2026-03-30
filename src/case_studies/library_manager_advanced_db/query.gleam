@@ -1,9 +1,9 @@
 import case_studies/library_manager_advanced_db/row
 import case_studies/library_manager_advanced_schema
-import skwil/dsl/dsl
 import gleam/dynamic/decode
 import gleam/list
 import gleam/string
+import skwil/dsl/dsl
 import sqlight
 
 const last_100_tab_sql = "select \"label\", \"order\", \"view_config\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"tab\" where \"deleted_at\" is null order by \"updated_at\" desc limit 100;"
@@ -136,9 +136,10 @@ fn tag_predicate_to_sql(
 }
 
 fn query_tracks_by_view_config_sql_with(
-  filter: library_manager_advanced_schema.FilterExpressionScalar,
+  complex_tag_filter_expression complex_tag_filter_expression: library_manager_advanced_schema.FilterExpressionScalar,
 ) -> #(String, List(sqlight.Value)) {
-  let #(filter_sql, binds) = tag_filter_to_sql(filter, "tb")
+  let #(filter_sql, binds) =
+    tag_filter_to_sql(complex_tag_filter_expression, "tb")
   #(
     "select \"title\", \"artist\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"trackbucket\" as tb where tb.\"deleted_at\" is null and "
       <> filter_sql
@@ -149,12 +150,13 @@ fn query_tracks_by_view_config_sql_with(
 
 pub fn query_tracks_by_view_config(
   conn: sqlight.Connection,
-  filter: library_manager_advanced_schema.FilterExpressionScalar,
+  complex_tag_filter_expression complex_tag_filter_expression: library_manager_advanced_schema.FilterExpressionScalar,
 ) -> Result(
   List(#(library_manager_advanced_schema.TrackBucket, dsl.MagicFields)),
   sqlight.Error,
 ) {
-  let #(sql, binds) = query_tracks_by_view_config_sql_with(filter)
+  let #(sql, binds) =
+    query_tracks_by_view_config_sql_with(complex_tag_filter_expression)
   sqlight.query(
     sql,
     on: conn,

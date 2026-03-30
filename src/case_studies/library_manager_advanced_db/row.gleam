@@ -1,12 +1,12 @@
-import skwil/api_help
 import case_studies/library_manager_advanced_schema
-import skwil/dsl/dsl
 import gleam/dynamic/decode
 import gleam/json
 import gleam/option
+import skwil/api_help
+import skwil/dsl/dsl
 
 pub fn view_config_scalar_from_db_string(
-  s: String,
+  s s: String,
 ) -> Result(
   option.Option(library_manager_advanced_schema.ViewConfigScalar),
   String,
@@ -23,7 +23,7 @@ pub fn view_config_scalar_from_db_string(
 }
 
 pub fn view_config_scalar_to_db_string(
-  o: option.Option(library_manager_advanced_schema.ViewConfigScalar),
+  o o: option.Option(library_manager_advanced_schema.ViewConfigScalar),
 ) -> String {
   case o {
     option.None -> "null"

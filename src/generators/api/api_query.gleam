@@ -7,7 +7,6 @@ import gleam/option.{None, Some}
 import gleam/string
 import gleamgen/expression as gexpr
 import gleamgen/function as gfun
-import gleamgen/parameter as gparam
 import gleamgen/types as gtypes
 import schema_definition/schema_definition.{
   type EntityDefinition, type Query, type QueryParameter,
@@ -165,11 +164,11 @@ fn query_fn_chunk_for_spec(
               list.append(
                 [api_params.conn_param()],
                 list.map(non_shape_params, fn(param) {
-                  gparam.new(
-                    schema_query_param_name(param),
+                  let n = schema_query_param_name(param)
+                  api_params.consumer_param(
+                    n,
                     gtypes.raw(dec.render_type(param.type_, ctx)),
                   )
-                  |> gparam.to_dynamic
                 }),
               ),
               gtypes.result(gtypes.list(row_t), sql_err),

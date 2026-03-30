@@ -17,8 +17,13 @@ import schema_definition/schema_definition.{
 import generators/api/api_decoders as dec
 import generators/api/schema_context
 
-fn param_names_csv(params: List(gparam.Parameter(gtypes.Dynamic))) -> String {
-  list.map(params, gparam.name)
+fn param_call_args_csv(params: List(gparam.Parameter(gtypes.Dynamic))) -> String {
+  list.map(params, fn(p) {
+    case gparam.has_label(p) {
+      True -> gparam.name(p) <> ": " <> gparam.name(p)
+      False -> gparam.name(p)
+    }
+  })
   |> string.join(", ")
 }
 
@@ -29,7 +34,7 @@ fn forward_fn(
   ret: gtypes.GeneratedType(r),
   sql_err: gtypes.GeneratedType(e),
 ) {
-  let names = param_names_csv(params)
+  let names = param_call_args_csv(params)
   #(
     gleamgen_emit.pub_def(fn_name),
     gfun.new_raw(params, gtypes.result(ret, sql_err), fn(_) {
@@ -45,7 +50,7 @@ fn forward_fn_nil_result(
   params: List(gparam.Parameter(gtypes.Dynamic)),
   sql_err: gtypes.GeneratedType(e),
 ) {
-  let names = param_names_csv(params)
+  let names = param_call_args_csv(params)
   #(
     gleamgen_emit.pub_def(fn_name),
     gfun.new_raw(params, gtypes.result(gtypes.nil, sql_err), fn(_) {
@@ -85,7 +90,7 @@ fn scalar_forward_chunks(
       #(
         gleamgen_emit.pub_def(from_n),
         gfun.new_raw(
-          [gparam.new("s", gtypes.string) |> gparam.to_dynamic],
+          [api_params.consumer_param("s", gtypes.string)],
           opt_t,
           fn(_) { gexpr.raw("row." <> from_n <> "(s)") },
         )
@@ -94,7 +99,7 @@ fn scalar_forward_chunks(
       #(
         gleamgen_emit.pub_def(to_n),
         gfun.new_raw(
-          [gparam.new("o", opt_t) |> gparam.to_dynamic],
+          [api_params.consumer_param("o", opt_t)],
           gtypes.string,
           fn(_) { gexpr.raw("row." <> to_n <> "(o)") },
         )
@@ -119,11 +124,8 @@ fn query_spec_forward_chunk(
           _ -> []
         },
         fn(p) {
-          gparam.new(
-            api_query.schema_query_param_name(p),
-            gtypes.raw(dec.render_type(p.type_, ctx)),
-          )
-          |> gparam.to_dynamic
+          let n = api_query.schema_query_param_name(p)
+          api_params.consumer_param(n, gtypes.raw(dec.render_type(p.type_, ctx)))
         },
       ),
     )
@@ -157,11 +159,8 @@ fn complex_query_forward_chunk(
           _ -> []
         },
         fn(p) {
-          gparam.new(
-            api_query.schema_query_param_name(p),
-            gtypes.raw(dec.render_type(p.type_, ctx)),
-          )
-          |> gparam.to_dynamic
+          let n = api_query.schema_query_param_name(p)
+          api_params.consumer_param(n, gtypes.raw(dec.render_type(p.type_, ctx)))
         },
       ),
     )
@@ -242,7 +241,7 @@ pub fn facade_fn_chunks(
         "get_" <> e_snake <> "_by_id",
         [
           api_params.conn_param(),
-          gparam.new("id", gtypes.int) |> gparam.to_dynamic,
+          api_params.consumer_param("id", gtypes.int),
         ],
         gtypes.raw(dec.option_entity_row_tuple(ctx, e.type_name)),
         sql_err,

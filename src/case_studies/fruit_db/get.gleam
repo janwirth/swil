@@ -12,7 +12,7 @@ const select_fruit_by_name_sql = "select \"name\", \"color\", \"price\", \"quant
 /// Get a fruit by row id.
 pub fn get_fruit_by_id(
   conn: sqlight.Connection,
-  id: Int,
+  id id: Int,
 ) -> Result(
   option.Option(#(fruit_schema.Fruit, dsl.MagicFields)),
   sqlight.Error,
@@ -32,7 +32,7 @@ pub fn get_fruit_by_id(
 /// Get a fruit by the `ByName` identity.
 pub fn get_fruit_by_name(
   conn: sqlight.Connection,
-  name: String,
+  name name: String,
 ) -> Result(
   option.Option(#(fruit_schema.Fruit, dsl.MagicFields)),
   sqlight.Error,

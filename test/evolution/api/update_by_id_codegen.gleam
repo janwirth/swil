@@ -22,7 +22,10 @@ pub fn update_by_id_emitted_for_all_entities_test() {
     "not_found_tag_id_error(\"update_tag_by_id\")",
   )
   assert string.contains(out.api, "pub fn update_tag_by_id(")
-  assert string.contains(out.api, "upsert.update_tag_by_id(conn, id, label, emoji)")
+  assert string.contains(
+    out.api,
+    "upsert.update_tag_by_id(conn, id: id, label: label, emoji: emoji)",
+  )
 
   assert string.contains(out.upsert, "const update_tab_by_id_sql")
   assert string.contains(out.upsert, "pub fn update_tab_by_id(")

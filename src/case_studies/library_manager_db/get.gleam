@@ -1,8 +1,8 @@
 import case_studies/library_manager_db/row
 import case_studies/library_manager_schema
-import skwil/dsl/dsl
 import gleam/option
 import gleam/result
+import skwil/dsl/dsl
 import sqlight
 
 const select_tab_by_id_sql = "select \"label\", \"order\", \"view_config\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"tab\" where \"id\" = ? and \"deleted_at\" is null;"
@@ -26,7 +26,7 @@ const select_importedtrack_by_title_and_artist_sql = "select \"title\", \"artist
 /// Get a tab by row id.
 pub fn get_tab_by_id(
   conn: sqlight.Connection,
-  id: Int,
+  id id: Int,
 ) -> Result(
   option.Option(#(library_manager_schema.Tab, dsl.MagicFields)),
   sqlight.Error,
@@ -46,7 +46,7 @@ pub fn get_tab_by_id(
 /// Get a tab by the `ByTabLabel` identity.
 pub fn get_tab_by_tab_label(
   conn: sqlight.Connection,
-  label: String,
+  label label: String,
 ) -> Result(
   option.Option(#(library_manager_schema.Tab, dsl.MagicFields)),
   sqlight.Error,
@@ -66,7 +66,7 @@ pub fn get_tab_by_tab_label(
 /// Get a trackbucket by row id.
 pub fn get_trackbucket_by_id(
   conn: sqlight.Connection,
-  id: Int,
+  id id: Int,
 ) -> Result(
   option.Option(#(library_manager_schema.TrackBucket, dsl.MagicFields)),
   sqlight.Error,
@@ -86,8 +86,8 @@ pub fn get_trackbucket_by_id(
 /// Get a trackbucket by the `ByBucketTitleAndArtist` identity.
 pub fn get_trackbucket_by_bucket_title_and_artist(
   conn: sqlight.Connection,
-  title: String,
-  artist: String,
+  title title: String,
+  artist artist: String,
 ) -> Result(
   option.Option(#(library_manager_schema.TrackBucket, dsl.MagicFields)),
   sqlight.Error,
@@ -110,7 +110,7 @@ pub fn get_trackbucket_by_bucket_title_and_artist(
 /// Get a tag by row id.
 pub fn get_tag_by_id(
   conn: sqlight.Connection,
-  id: Int,
+  id id: Int,
 ) -> Result(
   option.Option(#(library_manager_schema.Tag, dsl.MagicFields)),
   sqlight.Error,
@@ -130,7 +130,7 @@ pub fn get_tag_by_id(
 /// Get a tag by the `ByTagLabel` identity.
 pub fn get_tag_by_tag_label(
   conn: sqlight.Connection,
-  label: String,
+  label label: String,
 ) -> Result(
   option.Option(#(library_manager_schema.Tag, dsl.MagicFields)),
   sqlight.Error,
@@ -150,7 +150,7 @@ pub fn get_tag_by_tag_label(
 /// Get a importedtrack by the `ByFilePath` identity.
 pub fn get_importedtrack_by_file_path(
   conn: sqlight.Connection,
-  file_path: String,
+  file_path file_path: String,
 ) -> Result(
   option.Option(#(library_manager_schema.ImportedTrack, dsl.MagicFields)),
   sqlight.Error,
@@ -170,7 +170,7 @@ pub fn get_importedtrack_by_file_path(
 /// Get a importedtrack by row id.
 pub fn get_importedtrack_by_id(
   conn: sqlight.Connection,
-  id: Int,
+  id id: Int,
 ) -> Result(
   option.Option(#(library_manager_schema.ImportedTrack, dsl.MagicFields)),
   sqlight.Error,
@@ -190,8 +190,8 @@ pub fn get_importedtrack_by_id(
 /// Get a importedtrack by the `ByTitleAndArtist` identity.
 pub fn get_importedtrack_by_title_and_artist(
   conn: sqlight.Connection,
-  title: String,
-  artist: String,
+  title title: String,
+  artist artist: String,
 ) -> Result(
   option.Option(#(library_manager_schema.ImportedTrack, dsl.MagicFields)),
   sqlight.Error,

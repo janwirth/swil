@@ -16,7 +16,7 @@ const last_100_hippo_sql = "select \"name\", \"gender\", \"date_of_birth\", \"id
 
 pub fn query_hippos_by_gender(
   conn: sqlight.Connection,
-  gender_to_match: hippo_schema.GenderScalar,
+  gender_to_match gender_to_match: hippo_schema.GenderScalar,
 ) -> Result(List(#(hippo_schema.Hippo, dsl.MagicFields)), sqlight.Error) {
   sqlight.query(
     hippos_by_gender_sql,
@@ -30,7 +30,7 @@ pub fn query_hippos_by_gender(
 
 pub fn query_old_hippos_owner_names(
   conn: sqlight.Connection,
-  min_age: Int,
+  min_age min_age: Int,
 ) -> Result(List(#(hippo_schema.Hippo, dsl.MagicFields)), sqlight.Error) {
   sqlight.query(
     old_hippos_owner_names_sql,
@@ -42,7 +42,7 @@ pub fn query_old_hippos_owner_names(
 
 pub fn query_old_hippos_owner_emails(
   conn: sqlight.Connection,
-  min_age: Int,
+  min_age min_age: Int,
 ) -> Result(List(#(hippo_schema.Hippo, dsl.MagicFields)), sqlight.Error) {
   sqlight.query(
     old_hippos_owner_emails_sql,
