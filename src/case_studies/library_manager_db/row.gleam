@@ -1,6 +1,6 @@
 import skwil/api_help
 import case_studies/library_manager_schema
-import dsl/dsl
+import skwil/dsl/dsl
 import gleam/dynamic/decode
 import gleam/json
 import gleam/option

@@ -13,7 +13,7 @@ import case_studies/library_manager_advanced_db/api
 import case_studies/library_manager_advanced_db/query
 import case_studies/library_manager_advanced_db/upsert
 import case_studies/library_manager_advanced_schema as schema
-import dsl/dsl
+import skwil/dsl/dsl
 import gleam/dynamic/decode
 import gleam/json
 import gleam/list

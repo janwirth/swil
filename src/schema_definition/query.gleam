@@ -15,7 +15,7 @@
 //// Supported shapes are detected structurally (for example
 //// `LtMissingFieldAsc` for `exclude_if_missing` + float threshold + ascending `order` on the same field).
 
-import dsl/dsl
+import skwil/dsl/dsl
 import glance
 import gleam/list
 import gleam/option.{type Option, None, Some, from_result, then}

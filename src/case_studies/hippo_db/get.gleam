@@ -1,7 +1,7 @@
 import skwil/api_help
 import case_studies/hippo_db/row
 import case_studies/hippo_schema
-import dsl/dsl
+import skwil/dsl/dsl
 import gleam/option
 import gleam/result
 import gleam/time/calendar

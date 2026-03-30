@@ -1,7 +1,7 @@
 import skwil/api_help
 import case_studies/library_manager_advanced_db/row
 import case_studies/library_manager_advanced_schema
-import dsl/dsl
+import skwil/dsl/dsl
 import gleam/dynamic/decode
 import gleam/option
 import gleam/result

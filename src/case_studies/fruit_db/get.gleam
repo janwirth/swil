@@ -1,6 +1,6 @@
 import case_studies/fruit_db/row
 import case_studies/fruit_schema
-import dsl/dsl
+import skwil/dsl/dsl
 import gleam/option
 import gleam/result
 import sqlight

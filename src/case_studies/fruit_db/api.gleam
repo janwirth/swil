@@ -4,7 +4,7 @@ import case_studies/fruit_db/migration
 import case_studies/fruit_db/query
 import case_studies/fruit_db/upsert
 import case_studies/fruit_schema
-import dsl/dsl
+import skwil/dsl/dsl
 import gleam/option
 import sqlight
 

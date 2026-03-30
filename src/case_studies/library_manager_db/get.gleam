@@ -1,6 +1,6 @@
 import case_studies/library_manager_db/row
 import case_studies/library_manager_schema
-import dsl/dsl
+import skwil/dsl/dsl
 import gleam/option
 import gleam/result
 import sqlight

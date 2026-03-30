@@ -1,4 +1,4 @@
-import dsl/dsl.{
+import skwil/dsl/dsl.{
   type BacklinkWith, type BelongsTo, type Mutual, age, exclude_if_missing,
   nullable,
 }

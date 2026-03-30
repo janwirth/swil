@@ -1,4 +1,4 @@
-import dsl/dsl
+import skwil/dsl/dsl
 import generators/api/api_chunks
 import generators/api/api_decoders as dec
 import generators/api/api_facade as facade
@@ -201,7 +201,7 @@ fn ensure_dsl_import(text: String) -> String {
       case string.split(text, "\n") {
         [] -> text
         [first, ..rest] ->
-          first <> "\nimport dsl/dsl as dsl\n" <> string.join(rest, "\n")
+          first <> "\nimport skwil/dsl/dsl as dsl\n" <> string.join(rest, "\n")
       }
     }
   }

@@ -4,7 +4,7 @@ import case_studies/library_manager_advanced_db/migration
 import case_studies/library_manager_advanced_db/query
 import case_studies/library_manager_advanced_db/upsert
 import case_studies/library_manager_advanced_schema
-import dsl/dsl
+import skwil/dsl/dsl
 import gleam/option
 import sqlight
 

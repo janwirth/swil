@@ -1,4 +1,4 @@
-import dsl/dsl
+import skwil/dsl/dsl
 import glance
 import gleam/option.{type Option}
 

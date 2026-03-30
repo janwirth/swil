@@ -167,7 +167,7 @@ pub type RowIdentities {
 
 pub fn entity_object_query_function_must_start_with_query_prefix_rejected_test() {
   let input =
-    "import dsl/dsl as dsl
+    "import skwil/dsl/dsl as dsl
 import gleam/option
 
 pub type Row {
@@ -194,7 +194,7 @@ pub fn by_key(k: Int) {
 
 pub fn entity_object_query_function_with_let_statement_rejected_test() {
   let input =
-    "import dsl/dsl as dsl
+    "import skwil/dsl/dsl as dsl
 import gleam/option
 
 pub type Row {
@@ -222,7 +222,7 @@ pub fn query_by_key(row: Row, _magic: dsl.MagicFields, k: Int) {
 
 pub fn entity_object_predicate_function_must_start_with_predicate_prefix_rejected_test() {
   let input =
-    "import dsl/dsl as dsl
+    "import skwil/dsl/dsl as dsl
 import gleam/option
 
 pub type Row {

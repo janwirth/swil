@@ -1,6 +1,6 @@
 import skwil/api_help
 import case_studies/fruit_schema
-import dsl/dsl
+import skwil/dsl/dsl
 import gleam/dynamic/decode
 import gleam/option
 
