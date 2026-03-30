@@ -104,7 +104,7 @@ pub fn extract_from_functions(
                           Some(f.location),
                           "public function "
                             <> f.name
-                            <> " is not allowed in a squeal schema module. "
+                            <> " is not allowed in a skwil schema module. "
                             <> hint_public_function_prefixes(),
                         ))
                     }

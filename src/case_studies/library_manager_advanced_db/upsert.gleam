@@ -1,4 +1,4 @@
-import api_help
+import skwil/api_help
 import case_studies/library_manager_advanced_db/row
 import case_studies/library_manager_advanced_schema
 import dsl/dsl

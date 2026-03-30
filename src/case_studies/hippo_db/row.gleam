@@ -1,4 +1,4 @@
-import api_help
+import skwil/api_help
 import case_studies/hippo_schema
 import dsl/dsl
 import gleam/dynamic/decode

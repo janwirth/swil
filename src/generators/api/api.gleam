@@ -176,18 +176,18 @@ fn finalize_string(s: String) -> String {
   }
 }
 
-/// gleamgen drops `import api_help` when the module body only references `api_help` via raw strings.
+/// gleamgen drops `import skwil/api_help` when the module body only references `api_help` via raw strings.
 fn ensure_api_help_import(text: String) -> String {
   case
     string.contains(text, "api_help.")
-    && !string.contains(text, "import api_help")
+    && !string.contains(text, "import skwil/api_help")
   {
     False -> text
     True -> {
       case string.split(text, "\n") {
         [] -> text
         [first, ..rest] ->
-          first <> "\nimport api_help\n" <> string.join(rest, "\n")
+          first <> "\nimport skwil/api_help\n" <> string.join(rest, "\n")
       }
     }
   }

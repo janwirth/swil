@@ -91,9 +91,9 @@ fn write_file(path: String, contents: String) -> Result(Nil, String) {
 
 fn app() -> glint.Glint(Nil) {
   glint.new()
-  |> glint.with_name("squeal_v2")
+  |> glint.with_name("skwil_v2")
   |> glint.global_help(
-    "Generate squeal DB modules (migration, api) from a schema module path.",
+    "Generate skwil DB modules (migration, api) from a schema module path.",
   )
   |> glint.add(at: [], do: root_command())
 }

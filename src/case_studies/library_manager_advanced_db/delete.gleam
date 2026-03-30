@@ -1,4 +1,4 @@
-import api_help
+import skwil/api_help
 import gleam/dynamic/decode
 import gleam/result
 import sqlight
