@@ -40,17 +40,55 @@ pub type HippoIdentities {
 }
 ```
 
-This gives you
+This gives you the following nicely typed api:
 
 ```gleam
 // my_app.gleam
+import gleam/option
+import gleam/time/calendar.{Date, January}
 import hippo_db/api as hippo_api
+import hippo_schema
 import sqlight
 
 pub fn example(conn: sqlight.Connection) {
   let assert Ok(Nil) = hippo_api.migrate(conn)
+  let dob_bree = Date(1975, January, 1)
+  // let's create some hippos
+  let assert Ok(#(_hippo, _)) =
+    hippo_api.upsert_hippo_by_name_and_date_of_birth(
+      conn,
+      name: "Bree",
+      date_of_birth: dob,
+      gender: option.None,
+    )
+  // yes all born on the same day
+  let assert Ok(#(_hippo, _)) =
+    hippo_api.upsert_hippo_by_name_and_date_of_birth(
+      conn,
+      name: "Bloop",
+      date_of_birth: dob,
+      gender: option.None,
+    )
 
+  // update
+  let assert Ok(#(_, _)) =
+    hippo_api.update_hippo_by_name_and_date_of_birth(
+      conn,
+      name: "Bree",
+      date_of_birth: dob,
+      gender: option.Some(hippo_schema.Male),
+    )
+  // delete
+  let assert Ok(Nil) =
+    hippo_api.delete_hippo_by_name_and_date_of_birth(
+      conn,
+      name: "Bree",
+      date_of_birth: dob,
+    )
+
+  // list all - convenient inspect helper
   let assert Ok(recent) = hippo_api.last_100_edited_hippo(conn)
+  //
   recent
 }
 ```
