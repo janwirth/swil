@@ -327,6 +327,78 @@ fn render_module(m: gmod.Module) -> String {
   |> finalize_string
 }
 
+fn id_snake(variant_name: String) -> String {
+  case string.starts_with(variant_name, "By") {
+    True -> api_naming.pascal_to_snake(string.drop_start(variant_name, 2))
+    False -> api_naming.pascal_to_snake(variant_name)
+  }
+}
+
+fn pascal_from_snake(s: String) -> String {
+  string.split(s, "_")
+  |> list.map(fn(part) {
+    case string.length(part) == 0 {
+      True -> ""
+      False ->
+        string.uppercase(string.slice(at_index: 0, from: part, length: 1))
+        <> string.slice(
+          at_index: 1,
+          from: part,
+          length: string.length(part) - 1,
+        )
+    }
+  })
+  |> string.join("")
+}
+
+fn marker_type_name(entity_snake: String, id_snake: String) -> String {
+  pascal_from_snake(entity_snake) <> "By" <> pascal_from_snake(id_snake)
+}
+
+fn upsert_row_type_name(entity_snake: String) -> String {
+  pascal_from_snake(entity_snake) <> "UpsertRow"
+}
+
+fn run_upsert_row_fn_name(entity_snake: String) -> String {
+  "run_" <> entity_snake <> "_upsert_row"
+}
+
+fn facade_upsert_type_support(def: SchemaDefinition, ctx: dec.TypeCtx) -> String {
+  def.entities
+  |> list.map(fn(e) {
+    let e_snake = string.lowercase(e.type_name)
+    let id = schema_context.find_identity(def, e)
+    let markers =
+      id.variants
+      |> list.map(fn(v) {
+        "pub type "
+        <> marker_type_name(e_snake, id_snake(v.variant_name))
+        <> " {\n  "
+        <> marker_type_name(e_snake, id_snake(v.variant_name))
+        <> "\n}\n"
+      })
+      |> string.join("\n")
+    let row_t = dec.entity_row_tuple_type(ctx, e.type_name)
+    markers
+    <> "\npub type "
+    <> upsert_row_type_name(e_snake)
+    <> "(by) {\n  "
+    <> upsert_row_type_name(e_snake)
+    <> "(run: fn(sqlight.Connection) -> Result("
+    <> row_t
+    <> ", sqlight.Error))\n}\n\nfn "
+    <> run_upsert_row_fn_name(e_snake)
+    <> "(row: "
+    <> upsert_row_type_name(e_snake)
+    <> "(by), conn: sqlight.Connection) -> Result("
+    <> row_t
+    <> ", sqlight.Error) {\n  let "
+    <> upsert_row_type_name(e_snake)
+    <> "(run:) = row\n  run(conn)\n}\n"
+  })
+  |> string.join("\n")
+}
+
 fn fold_fn_chunks(
   chunks: List(
     #(gdef.Definition, gfun.Function(gtypes.Dynamic, gtypes.Dynamic)),
@@ -906,6 +978,7 @@ pub fn generate_api_db_outputs(
     |> ensure_option_import
     |> ensure_dsl_import
     |> ensure_list_import
+  let api_text = facade_upsert_type_support(def, ctx) <> "\n" <> api_text
   use row_text <- result.try(gleam_fmt.format_generated_source(row_text))
   use get_text <- result.try(gleam_fmt.format_generated_source(get_text))
   use upsert_text <- result.try(gleam_fmt.format_generated_source(upsert_text))

@@ -17,6 +17,42 @@ import schema_definition/schema_definition.{
 import generators/api/api_decoders as dec
 import generators/api/schema_context
 
+fn id_snake(variant_name: String) -> String {
+  case string.starts_with(variant_name, "By") {
+    True -> api_naming.pascal_to_snake(string.drop_start(variant_name, 2))
+    False -> api_naming.pascal_to_snake(variant_name)
+  }
+}
+
+fn pascal_from_snake(s: String) -> String {
+  string.split(s, "_")
+  |> list.map(fn(part) {
+    case string.length(part) == 0 {
+      True -> ""
+      False ->
+        string.uppercase(string.slice(at_index: 0, from: part, length: 1))
+        <> string.slice(
+          at_index: 1,
+          from: part,
+          length: string.length(part) - 1,
+        )
+    }
+  })
+  |> string.join("")
+}
+
+fn marker_type_name(entity_snake: String, id_snake: String) -> String {
+  pascal_from_snake(entity_snake) <> "By" <> pascal_from_snake(id_snake)
+}
+
+fn upsert_row_type_name(entity_snake: String) -> String {
+  pascal_from_snake(entity_snake) <> "UpsertRow"
+}
+
+fn run_upsert_row_fn_name(entity_snake: String) -> String {
+  "run_" <> entity_snake <> "_upsert_row"
+}
+
 fn param_call_args_csv(params: List(gparam.Parameter(gtypes.Dynamic))) -> String {
   list.map(params, fn(p) {
     case gparam.has_label(p) {
@@ -60,10 +96,8 @@ fn forward_fn_nil_result(
   )
 }
 
-fn row_op_type(row_t_str: String) -> gtypes.GeneratedType(r) {
-  gtypes.raw(
-    "fn(sqlight.Connection) -> Result(" <> row_t_str <> ", sqlight.Error)",
-  )
+fn row_op_type(entity_snake: String) -> gtypes.GeneratedType(r) {
+  gtypes.raw(upsert_row_type_name(entity_snake) <> "(by)")
 }
 
 fn migrate_chunk(sql_err: gtypes.GeneratedType(e)) {
@@ -195,9 +229,10 @@ pub fn facade_fn_chunks(
       let id = schema_context.find_identity(def, e)
       let row_t_str = dec.entity_row_tuple_type(ctx, e.type_name)
       let row_t = gtypes.raw(row_t_str)
-      let row_op_t = row_op_type(row_t_str)
+      let row_op_t = row_op_type(e_snake)
       let upsert_one_name = "upsert_one_" <> e_snake
       let upsert_many_new_name = "upsert_many_" <> e_snake
+      let run_upsert_row = run_upsert_row_fn_name(e_snake)
       let upsert_one_params = [
         api_params.conn_param(),
         api_params.consumer_param("row", row_op_t),
@@ -208,14 +243,7 @@ pub fn facade_fn_chunks(
       ]
       let variant_forwards =
         list.map(id.variants, fn(variant) {
-          let id_snake = case string.starts_with(variant.variant_name, "By") {
-            True ->
-              api_naming.pascal_to_snake(string.drop_start(
-                variant.variant_name,
-                2,
-              ))
-            False -> api_naming.pascal_to_snake(variant.variant_name)
-          }
+          let id_snake = id_snake(variant.variant_name)
           let upsert_name = "upsert_" <> e_snake <> "_by_" <> id_snake
           let get_name = "get_" <> e_snake <> "_by_" <> id_snake
           let update_name = "update_" <> e_snake <> "_by_" <> id_snake
@@ -235,18 +263,24 @@ pub fn facade_fn_chunks(
           let by_name = "by_" <> e_snake <> "_" <> id_snake
           let by_params = api_params.upsert_gparams(e, variant, ctx)
           let by_args = param_call_args_csv(by_params)
+          let marker_name = marker_type_name(e_snake, id_snake)
           [
             #(
               gleamgen_emit.pub_def(by_name),
-              gfun.new_raw(by_params, row_op_t, fn(_) {
+              gfun.new_raw(
+                by_params,
+                gtypes.raw(upsert_row_type_name(e_snake) <> "(" <> marker_name <> ")"),
+                fn(_) {
                 gexpr.raw(
-                  "fn(conn) { upsert."
+                  upsert_row_type_name(e_snake)
+                  <> "(fn(conn) { upsert."
                   <> upsert_name
                   <> "(conn, "
                   <> by_args
-                  <> ") }",
+                  <> ") })",
                 )
-              })
+              },
+              )
                 |> gfun.to_dynamic,
             ),
             forward_fn("get", get_name, get_params, row_opt, sql_err),
@@ -259,7 +293,7 @@ pub fn facade_fn_chunks(
         #(
           gleamgen_emit.pub_def(upsert_one_name),
           gfun.new_raw(upsert_one_params, gtypes.result(row_t, sql_err), fn(_) {
-            gexpr.raw("row(conn)")
+            gexpr.raw(run_upsert_row <> "(row, conn)")
           })
             |> gfun.to_dynamic,
         ),
@@ -268,7 +302,11 @@ pub fn facade_fn_chunks(
           gfun.new_raw(
             upsert_many_new_params,
             gtypes.result(gtypes.list(row_t), sql_err),
-            fn(_) { gexpr.raw("list.try_map(rows, fn(row) { row(conn) })") },
+            fn(_) {
+              gexpr.raw(
+                "list.try_map(rows, fn(row) { " <> run_upsert_row <> "(row, conn) })",
+              )
+            },
           )
             |> gfun.to_dynamic,
         ),

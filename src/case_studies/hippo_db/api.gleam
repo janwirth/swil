@@ -1,3 +1,41 @@
+pub type HippoByNameAndDateOfBirth {
+  HippoByNameAndDateOfBirth
+}
+
+pub type HippoUpsertRow(by) {
+  HippoUpsertRow(
+    run: fn(sqlight.Connection) ->
+      Result(#(hippo_schema.Hippo, dsl.MagicFields), sqlight.Error),
+  )
+}
+
+fn run_hippo_upsert_row(
+  row: HippoUpsertRow(by),
+  conn: sqlight.Connection,
+) -> Result(#(hippo_schema.Hippo, dsl.MagicFields), sqlight.Error) {
+  let HippoUpsertRow(run:) = row
+  run(conn)
+}
+
+pub type HumanByEmail {
+  HumanByEmail
+}
+
+pub type HumanUpsertRow(by) {
+  HumanUpsertRow(
+    run: fn(sqlight.Connection) ->
+      Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error),
+  )
+}
+
+fn run_human_upsert_row(
+  row: HumanUpsertRow(by),
+  conn: sqlight.Connection,
+) -> Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error) {
+  let HumanUpsertRow(run:) = row
+  run(conn)
+}
+
 import case_studies/hippo_db/delete
 import case_studies/hippo_db/get
 import case_studies/hippo_db/migration
@@ -117,27 +155,24 @@ pub fn get_human_by_email(
 pub fn by_human_email(
   email email: String,
   name name: option.Option(String),
-) -> fn(sqlight.Connection) ->
-  Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error) {
-  fn(conn) { upsert.upsert_human_by_email(conn, email: email, name: name) }
+) -> HumanUpsertRow(HumanByEmail) {
+  HumanUpsertRow(fn(conn) {
+    upsert.upsert_human_by_email(conn, email: email, name: name)
+  })
 }
 
 pub fn upsert_many_human(
   conn: sqlight.Connection,
-  rows rows: List(
-    fn(sqlight.Connection) ->
-      Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error),
-  ),
+  rows rows: List(HumanUpsertRow(by)),
 ) -> Result(List(#(hippo_schema.Human, dsl.MagicFields)), sqlight.Error) {
-  list.try_map(rows, fn(row) { row(conn) })
+  list.try_map(rows, fn(row) { run_human_upsert_row(row, conn) })
 }
 
 pub fn upsert_one_human(
   conn: sqlight.Connection,
-  row row: fn(sqlight.Connection) ->
-    Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error),
+  row row: HumanUpsertRow(by),
 ) -> Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error) {
-  row(conn)
+  run_human_upsert_row(row, conn)
 }
 
 pub fn update_hippo_by_id(
@@ -201,32 +236,27 @@ pub fn by_hippo_name_and_date_of_birth(
   name name: String,
   date_of_birth date_of_birth: calendar.Date,
   gender gender: option.Option(hippo_schema.GenderScalar),
-) -> fn(sqlight.Connection) ->
-  Result(#(hippo_schema.Hippo, dsl.MagicFields), sqlight.Error) {
-  fn(conn) {
+) -> HippoUpsertRow(HippoByNameAndDateOfBirth) {
+  HippoUpsertRow(fn(conn) {
     upsert.upsert_hippo_by_name_and_date_of_birth(
       conn,
       name: name,
       date_of_birth: date_of_birth,
       gender: gender,
     )
-  }
+  })
 }
 
 pub fn upsert_many_hippo(
   conn: sqlight.Connection,
-  rows rows: List(
-    fn(sqlight.Connection) ->
-      Result(#(hippo_schema.Hippo, dsl.MagicFields), sqlight.Error),
-  ),
+  rows rows: List(HippoUpsertRow(by)),
 ) -> Result(List(#(hippo_schema.Hippo, dsl.MagicFields)), sqlight.Error) {
-  list.try_map(rows, fn(row) { row(conn) })
+  list.try_map(rows, fn(row) { run_hippo_upsert_row(row, conn) })
 }
 
 pub fn upsert_one_hippo(
   conn: sqlight.Connection,
-  row row: fn(sqlight.Connection) ->
-    Result(#(hippo_schema.Hippo, dsl.MagicFields), sqlight.Error),
+  row row: HippoUpsertRow(by),
 ) -> Result(#(hippo_schema.Hippo, dsl.MagicFields), sqlight.Error) {
-  row(conn)
+  run_hippo_upsert_row(row, conn)
 }

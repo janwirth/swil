@@ -1,3 +1,22 @@
+pub type FruitByName {
+  FruitByName
+}
+
+pub type FruitUpsertRow(by) {
+  FruitUpsertRow(
+    run: fn(sqlight.Connection) ->
+      Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error),
+  )
+}
+
+fn run_fruit_upsert_row(
+  row: FruitUpsertRow(by),
+  conn: sqlight.Connection,
+) -> Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error) {
+  let FruitUpsertRow(run:) = row
+  run(conn)
+}
+
 import case_studies/fruit_db/delete
 import case_studies/fruit_db/get
 import case_studies/fruit_db/migration
@@ -92,9 +111,8 @@ pub fn by_fruit_name(
   color color: option.Option(String),
   price price: option.Option(Float),
   quantity quantity: option.Option(Int),
-) -> fn(sqlight.Connection) ->
-  Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error) {
-  fn(conn) {
+) -> FruitUpsertRow(FruitByName) {
+  FruitUpsertRow(fn(conn) {
     upsert.upsert_fruit_by_name(
       conn,
       name: name,
@@ -102,23 +120,19 @@ pub fn by_fruit_name(
       price: price,
       quantity: quantity,
     )
-  }
+  })
 }
 
 pub fn upsert_many_fruit(
   conn: sqlight.Connection,
-  rows rows: List(
-    fn(sqlight.Connection) ->
-      Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error),
-  ),
+  rows rows: List(FruitUpsertRow(by)),
 ) -> Result(List(#(fruit_schema.Fruit, dsl.MagicFields)), sqlight.Error) {
-  list.try_map(rows, fn(row) { row(conn) })
+  list.try_map(rows, fn(row) { run_fruit_upsert_row(row, conn) })
 }
 
 pub fn upsert_one_fruit(
   conn: sqlight.Connection,
-  row row: fn(sqlight.Connection) ->
-    Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error),
+  row row: FruitUpsertRow(by),
 ) -> Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error) {
-  row(conn)
+  run_fruit_upsert_row(row, conn)
 }

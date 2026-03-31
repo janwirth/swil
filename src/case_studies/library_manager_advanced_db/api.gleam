@@ -1,3 +1,107 @@
+pub type ImportedtrackByTitleAndArtist {
+  ImportedtrackByTitleAndArtist
+}
+
+pub type ImportedtrackByFilePath {
+  ImportedtrackByFilePath
+}
+
+pub type ImportedtrackUpsertRow(by) {
+  ImportedtrackUpsertRow(
+    run: fn(sqlight.Connection) ->
+      Result(
+        #(library_manager_advanced_schema.ImportedTrack, dsl.MagicFields),
+        sqlight.Error,
+      ),
+  )
+}
+
+fn run_importedtrack_upsert_row(
+  row: ImportedtrackUpsertRow(by),
+  conn: sqlight.Connection,
+) -> Result(
+  #(library_manager_advanced_schema.ImportedTrack, dsl.MagicFields),
+  sqlight.Error,
+) {
+  let ImportedtrackUpsertRow(run:) = row
+  run(conn)
+}
+
+pub type TagByTagLabel {
+  TagByTagLabel
+}
+
+pub type TagUpsertRow(by) {
+  TagUpsertRow(
+    run: fn(sqlight.Connection) ->
+      Result(
+        #(library_manager_advanced_schema.Tag, dsl.MagicFields),
+        sqlight.Error,
+      ),
+  )
+}
+
+fn run_tag_upsert_row(
+  row: TagUpsertRow(by),
+  conn: sqlight.Connection,
+) -> Result(
+  #(library_manager_advanced_schema.Tag, dsl.MagicFields),
+  sqlight.Error,
+) {
+  let TagUpsertRow(run:) = row
+  run(conn)
+}
+
+pub type TrackbucketByBucketTitleAndArtist {
+  TrackbucketByBucketTitleAndArtist
+}
+
+pub type TrackbucketUpsertRow(by) {
+  TrackbucketUpsertRow(
+    run: fn(sqlight.Connection) ->
+      Result(
+        #(library_manager_advanced_schema.TrackBucket, dsl.MagicFields),
+        sqlight.Error,
+      ),
+  )
+}
+
+fn run_trackbucket_upsert_row(
+  row: TrackbucketUpsertRow(by),
+  conn: sqlight.Connection,
+) -> Result(
+  #(library_manager_advanced_schema.TrackBucket, dsl.MagicFields),
+  sqlight.Error,
+) {
+  let TrackbucketUpsertRow(run:) = row
+  run(conn)
+}
+
+pub type TabByTabLabel {
+  TabByTabLabel
+}
+
+pub type TabUpsertRow(by) {
+  TabUpsertRow(
+    run: fn(sqlight.Connection) ->
+      Result(
+        #(library_manager_advanced_schema.Tab, dsl.MagicFields),
+        sqlight.Error,
+      ),
+  )
+}
+
+fn run_tab_upsert_row(
+  row: TabUpsertRow(by),
+  conn: sqlight.Connection,
+) -> Result(
+  #(library_manager_advanced_schema.Tab, dsl.MagicFields),
+  sqlight.Error,
+) {
+  let TabUpsertRow(run:) = row
+  run(conn)
+}
+
 import case_studies/library_manager_advanced_db/delete
 import case_studies/library_manager_advanced_db/get
 import case_studies/library_manager_advanced_db/migration
@@ -167,46 +271,35 @@ pub fn by_tab_tab_label(
   view_config view_config: option.Option(
     library_manager_advanced_schema.ViewConfigScalar,
   ),
-) -> fn(sqlight.Connection) ->
-  Result(#(library_manager_advanced_schema.Tab, dsl.MagicFields), sqlight.Error) {
-  fn(conn) {
+) -> TabUpsertRow(TabByTabLabel) {
+  TabUpsertRow(fn(conn) {
     upsert.upsert_tab_by_tab_label(
       conn,
       label: label,
       order: order,
       view_config: view_config,
     )
-  }
+  })
 }
 
 pub fn upsert_many_tab(
   conn: sqlight.Connection,
-  rows rows: List(
-    fn(sqlight.Connection) ->
-      Result(
-        #(library_manager_advanced_schema.Tab, dsl.MagicFields),
-        sqlight.Error,
-      ),
-  ),
+  rows rows: List(TabUpsertRow(by)),
 ) -> Result(
   List(#(library_manager_advanced_schema.Tab, dsl.MagicFields)),
   sqlight.Error,
 ) {
-  list.try_map(rows, fn(row) { row(conn) })
+  list.try_map(rows, fn(row) { run_tab_upsert_row(row, conn) })
 }
 
 pub fn upsert_one_tab(
   conn: sqlight.Connection,
-  row row: fn(sqlight.Connection) ->
-    Result(
-      #(library_manager_advanced_schema.Tab, dsl.MagicFields),
-      sqlight.Error,
-    ),
+  row row: TabUpsertRow(by),
 ) -> Result(
   #(library_manager_advanced_schema.Tab, dsl.MagicFields),
   sqlight.Error,
 ) {
-  row(conn)
+  run_tab_upsert_row(row, conn)
 }
 
 pub fn update_trackbucket_by_id(
@@ -266,48 +359,34 @@ pub fn get_trackbucket_by_bucket_title_and_artist(
 pub fn by_trackbucket_bucket_title_and_artist(
   title title: String,
   artist artist: String,
-) -> fn(sqlight.Connection) ->
-  Result(
-    #(library_manager_advanced_schema.TrackBucket, dsl.MagicFields),
-    sqlight.Error,
-  ) {
-  fn(conn) {
+) -> TrackbucketUpsertRow(TrackbucketByBucketTitleAndArtist) {
+  TrackbucketUpsertRow(fn(conn) {
     upsert.upsert_trackbucket_by_bucket_title_and_artist(
       conn,
       title: title,
       artist: artist,
     )
-  }
+  })
 }
 
 pub fn upsert_many_trackbucket(
   conn: sqlight.Connection,
-  rows rows: List(
-    fn(sqlight.Connection) ->
-      Result(
-        #(library_manager_advanced_schema.TrackBucket, dsl.MagicFields),
-        sqlight.Error,
-      ),
-  ),
+  rows rows: List(TrackbucketUpsertRow(by)),
 ) -> Result(
   List(#(library_manager_advanced_schema.TrackBucket, dsl.MagicFields)),
   sqlight.Error,
 ) {
-  list.try_map(rows, fn(row) { row(conn) })
+  list.try_map(rows, fn(row) { run_trackbucket_upsert_row(row, conn) })
 }
 
 pub fn upsert_one_trackbucket(
   conn: sqlight.Connection,
-  row row: fn(sqlight.Connection) ->
-    Result(
-      #(library_manager_advanced_schema.TrackBucket, dsl.MagicFields),
-      sqlight.Error,
-    ),
+  row row: TrackbucketUpsertRow(by),
 ) -> Result(
   #(library_manager_advanced_schema.TrackBucket, dsl.MagicFields),
   sqlight.Error,
 ) {
-  row(conn)
+  run_trackbucket_upsert_row(row, conn)
 }
 
 pub fn update_tag_by_id(
@@ -353,39 +432,30 @@ pub fn get_tag_by_tag_label(
 pub fn by_tag_tag_label(
   label label: String,
   emoji emoji: option.Option(String),
-) -> fn(sqlight.Connection) ->
-  Result(#(library_manager_advanced_schema.Tag, dsl.MagicFields), sqlight.Error) {
-  fn(conn) { upsert.upsert_tag_by_tag_label(conn, label: label, emoji: emoji) }
+) -> TagUpsertRow(TagByTagLabel) {
+  TagUpsertRow(fn(conn) {
+    upsert.upsert_tag_by_tag_label(conn, label: label, emoji: emoji)
+  })
 }
 
 pub fn upsert_many_tag(
   conn: sqlight.Connection,
-  rows rows: List(
-    fn(sqlight.Connection) ->
-      Result(
-        #(library_manager_advanced_schema.Tag, dsl.MagicFields),
-        sqlight.Error,
-      ),
-  ),
+  rows rows: List(TagUpsertRow(by)),
 ) -> Result(
   List(#(library_manager_advanced_schema.Tag, dsl.MagicFields)),
   sqlight.Error,
 ) {
-  list.try_map(rows, fn(row) { row(conn) })
+  list.try_map(rows, fn(row) { run_tag_upsert_row(row, conn) })
 }
 
 pub fn upsert_one_tag(
   conn: sqlight.Connection,
-  row row: fn(sqlight.Connection) ->
-    Result(
-      #(library_manager_advanced_schema.Tag, dsl.MagicFields),
-      sqlight.Error,
-    ),
+  row row: TagUpsertRow(by),
 ) -> Result(
   #(library_manager_advanced_schema.Tag, dsl.MagicFields),
   sqlight.Error,
 ) {
-  row(conn)
+  run_tag_upsert_row(row, conn)
 }
 
 pub fn update_importedtrack_by_id(
@@ -447,19 +517,15 @@ pub fn by_importedtrack_file_path(
   file_path file_path: String,
   title title: option.Option(String),
   artist artist: option.Option(String),
-) -> fn(sqlight.Connection) ->
-  Result(
-    #(library_manager_advanced_schema.ImportedTrack, dsl.MagicFields),
-    sqlight.Error,
-  ) {
-  fn(conn) {
+) -> ImportedtrackUpsertRow(ImportedtrackByFilePath) {
+  ImportedtrackUpsertRow(fn(conn) {
     upsert.upsert_importedtrack_by_file_path(
       conn,
       file_path: file_path,
       title: title,
       artist: artist,
     )
-  }
+  })
 }
 
 pub fn delete_importedtrack_by_title_and_artist(
@@ -508,47 +574,33 @@ pub fn by_importedtrack_title_and_artist(
   title title: String,
   artist artist: String,
   file_path file_path: option.Option(String),
-) -> fn(sqlight.Connection) ->
-  Result(
-    #(library_manager_advanced_schema.ImportedTrack, dsl.MagicFields),
-    sqlight.Error,
-  ) {
-  fn(conn) {
+) -> ImportedtrackUpsertRow(ImportedtrackByTitleAndArtist) {
+  ImportedtrackUpsertRow(fn(conn) {
     upsert.upsert_importedtrack_by_title_and_artist(
       conn,
       title: title,
       artist: artist,
       file_path: file_path,
     )
-  }
+  })
 }
 
 pub fn upsert_many_importedtrack(
   conn: sqlight.Connection,
-  rows rows: List(
-    fn(sqlight.Connection) ->
-      Result(
-        #(library_manager_advanced_schema.ImportedTrack, dsl.MagicFields),
-        sqlight.Error,
-      ),
-  ),
+  rows rows: List(ImportedtrackUpsertRow(by)),
 ) -> Result(
   List(#(library_manager_advanced_schema.ImportedTrack, dsl.MagicFields)),
   sqlight.Error,
 ) {
-  list.try_map(rows, fn(row) { row(conn) })
+  list.try_map(rows, fn(row) { run_importedtrack_upsert_row(row, conn) })
 }
 
 pub fn upsert_one_importedtrack(
   conn: sqlight.Connection,
-  row row: fn(sqlight.Connection) ->
-    Result(
-      #(library_manager_advanced_schema.ImportedTrack, dsl.MagicFields),
-      sqlight.Error,
-    ),
+  row row: ImportedtrackUpsertRow(by),
 ) -> Result(
   #(library_manager_advanced_schema.ImportedTrack, dsl.MagicFields),
   sqlight.Error,
 ) {
-  row(conn)
+  run_importedtrack_upsert_row(row, conn)
 }

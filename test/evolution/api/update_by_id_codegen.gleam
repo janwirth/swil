@@ -42,7 +42,18 @@ pub fn update_by_id_emitted_for_all_entities_test() {
   assert string.contains(out.api, "pub fn upsert_one_tag(")
   assert string.contains(out.api, "pub fn upsert_many_tag(")
   assert string.contains(out.api, "pub fn by_tag_tag_label(")
-  assert string.contains(out.api, "list.try_map(rows, fn(row) { row(conn) })")
+  assert string.contains(
+    out.api,
+    "rows rows: List(TagUpsertRow(by))",
+  )
+  assert string.contains(out.api, "pub type TagByTagLabel {")
+  assert string.contains(out.api, ") -> TagUpsertRow(TagByTagLabel)")
+  assert string.contains(out.api, "pub type ImportedtrackByFilePath {")
+  assert string.contains(out.api, "pub type ImportedtrackByTitleAndArtist {")
+  assert string.contains(
+    out.api,
+    "rows rows: List(ImportedtrackUpsertRow(by))",
+  )
   assert !string.contains(out.api, "pub fn upsert_tag_by_tag_label(")
   assert !string.contains(out.api, "pub fn upsert_many_tag_by_tag_label(")
 }
