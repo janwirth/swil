@@ -63,25 +63,34 @@ fn not_found_fruit_id_error(op: String) -> sqlight.Error {
 }
 
 /// Upsert many fruit rows by the `ByName` identity (one SQL upsert per item).
-/// Pass the single-row `upsert_fruit_by_name` as the last argument to `each` and call it with labelled fields from `item`.
+/// `conn` is only an argument here — `each` gets `item` and `upsert_row` (same labelled fields as `upsert_fruit_by_name`, but no connection parameter; the outer `conn` is used automatically).
 pub fn upsert_many_fruit_by_name(
   conn: sqlight.Connection,
   items items: List(a),
   each each: fn(
-    sqlight.Connection,
     a,
-    fn(
-      sqlight.Connection,
-      String,
-      option.Option(String),
-      option.Option(Float),
-      option.Option(Int),
-    ) ->
+    fn(String, option.Option(String), option.Option(Float), option.Option(Int)) ->
       Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error),
   ) ->
     Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error),
 ) -> Result(List(#(fruit_schema.Fruit, dsl.MagicFields)), sqlight.Error) {
-  list.try_map(items, fn(item) { each(conn, item, upsert_fruit_by_name) })
+  list.try_map(items, fn(item) {
+    let upsert_row = fn(
+      name: String,
+      color: option.Option(String),
+      price: option.Option(Float),
+      quantity: option.Option(Int),
+    ) {
+      upsert_fruit_by_name(
+        conn,
+        name: name,
+        color: color,
+        price: price,
+        quantity: quantity,
+      )
+    }
+    each(item, upsert_row)
+  })
 }
 
 /// Update a fruit by the `ByName` identity.

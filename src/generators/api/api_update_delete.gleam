@@ -1,4 +1,5 @@
 import generators/api/api_decoders as dec
+import generators/api/api_params as aparam
 import generators/api/api_sql
 import generators/gleamgen_emit
 import generators/sql_types
@@ -231,11 +232,30 @@ pub fn upsert_fn_body(
   <> case_rows
 }
 
-pub fn upsert_many_fn_body(entity_snake: String, id_snake: String) -> String {
+pub fn upsert_many_fn_body(
+  entity: EntityDefinition,
+  variant: IdentityVariantDefinition,
+  entity_snake: String,
+  id_snake: String,
+  ctx: dec.TypeCtx,
+) -> String {
   let fn_name = "upsert_" <> entity_snake <> "_by_" <> id_snake
-  "list.try_map(items, fn(item) {\n    each(conn, item, "
+  let ordered = aparam.upsert_ordered_data_fields(entity, variant)
+  let inner_params =
+    list.map(ordered, fn(f) {
+      f.label <> ": " <> dec.render_type(f.type_, ctx)
+    })
+    |> string.join(", ")
+  let forward_args =
+    list.map(ordered, fn(f) { f.label <> ": " <> f.label })
+    |> string.join(", ")
+  "list.try_map(items, fn(item) {\n    let upsert_row = fn("
+  <> inner_params
+  <> ") { "
   <> fn_name
-  <> ")\n  })"
+  <> "(conn, "
+  <> forward_args
+  <> ") }\n    each(item, upsert_row)\n  })"
 }
 
 pub fn delete_fn_body(

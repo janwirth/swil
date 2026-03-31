@@ -124,16 +124,24 @@ pub fn upsert_module_fn_chunks(
             <> " rows by the `"
             <> variant.variant_name
             <> "` identity (one SQL upsert per item).\n/// "
-            <> "Pass the single-row `upsert_"
+            <> "`conn` is only an argument here — `each` gets `item` and `upsert_row` (same labelled fields as `upsert_"
             <> entity_snake
             <> "_by_"
             <> id_snake
-            <> "` as the last argument to `each` and call it with labelled fields from `item`.\n",
+            <> "`, but no connection parameter; the outer `conn` is used automatically).\n",
           ),
         gfun.new_raw(
           many_params,
           gtypes.result(gtypes.list(row_t), sql_err),
-          fn(_) { gexpr.raw(ud.upsert_many_fn_body(entity_snake, id_snake)) },
+          fn(_) {
+            gexpr.raw(ud.upsert_many_fn_body(
+              entity,
+              variant,
+              entity_snake,
+              id_snake,
+              ctx,
+            ))
+          },
         )
           |> gfun.to_dynamic,
       ),

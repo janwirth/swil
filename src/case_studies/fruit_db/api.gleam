@@ -90,15 +90,8 @@ pub fn upsert_many_fruit_by_name(
   conn: sqlight.Connection,
   items items: List(a),
   each each: fn(
-    sqlight.Connection,
     a,
-    fn(
-      sqlight.Connection,
-      String,
-      option.Option(String),
-      option.Option(Float),
-      option.Option(Int),
-    ) ->
+    fn(String, option.Option(String), option.Option(Float), option.Option(Int)) ->
       Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error),
   ) ->
     Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error),

@@ -68,19 +68,23 @@ fn not_found_human_id_error(op: String) -> sqlight.Error {
 }
 
 /// Upsert many human rows by the `ByEmail` identity (one SQL upsert per item).
-/// Pass the single-row `upsert_human_by_email` as the last argument to `each` and call it with labelled fields from `item`.
+/// `conn` is only an argument here — `each` gets `item` and `upsert_row` (same labelled fields as `upsert_human_by_email`, but no connection parameter; the outer `conn` is used automatically).
 pub fn upsert_many_human_by_email(
   conn: sqlight.Connection,
   items items: List(a),
   each each: fn(
-    sqlight.Connection,
     a,
-    fn(sqlight.Connection, String, option.Option(String)) ->
+    fn(String, option.Option(String)) ->
       Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error),
   ) ->
     Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error),
 ) -> Result(List(#(hippo_schema.Human, dsl.MagicFields)), sqlight.Error) {
-  list.try_map(items, fn(item) { each(conn, item, upsert_human_by_email) })
+  list.try_map(items, fn(item) {
+    let upsert_row = fn(email: String, name: option.Option(String)) {
+      upsert_human_by_email(conn, email: email, name: name)
+    }
+    each(item, upsert_row)
+  })
 }
 
 /// Update a human by the `ByEmail` identity.
@@ -186,25 +190,31 @@ fn not_found_hippo_id_error(op: String) -> sqlight.Error {
 }
 
 /// Upsert many hippo rows by the `ByNameAndDateOfBirth` identity (one SQL upsert per item).
-/// Pass the single-row `upsert_hippo_by_name_and_date_of_birth` as the last argument to `each` and call it with labelled fields from `item`.
+/// `conn` is only an argument here — `each` gets `item` and `upsert_row` (same labelled fields as `upsert_hippo_by_name_and_date_of_birth`, but no connection parameter; the outer `conn` is used automatically).
 pub fn upsert_many_hippo_by_name_and_date_of_birth(
   conn: sqlight.Connection,
   items items: List(a),
   each each: fn(
-    sqlight.Connection,
     a,
-    fn(
-      sqlight.Connection,
-      String,
-      calendar.Date,
-      option.Option(hippo_schema.GenderScalar),
-    ) ->
+    fn(String, calendar.Date, option.Option(hippo_schema.GenderScalar)) ->
       Result(#(hippo_schema.Hippo, dsl.MagicFields), sqlight.Error),
   ) ->
     Result(#(hippo_schema.Hippo, dsl.MagicFields), sqlight.Error),
 ) -> Result(List(#(hippo_schema.Hippo, dsl.MagicFields)), sqlight.Error) {
   list.try_map(items, fn(item) {
-    each(conn, item, upsert_hippo_by_name_and_date_of_birth)
+    let upsert_row = fn(
+      name: String,
+      date_of_birth: calendar.Date,
+      gender: option.Option(hippo_schema.GenderScalar),
+    ) {
+      upsert_hippo_by_name_and_date_of_birth(
+        conn,
+        name: name,
+        date_of_birth: date_of_birth,
+        gender: gender,
+      )
+    }
+    each(item, upsert_row)
   })
 }
 

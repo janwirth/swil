@@ -117,9 +117,8 @@ pub fn upsert_many_human_by_email(
   conn: sqlight.Connection,
   items items: List(a),
   each each: fn(
-    sqlight.Connection,
     a,
-    fn(sqlight.Connection, String, option.Option(String)) ->
+    fn(String, option.Option(String)) ->
       Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error),
   ) ->
     Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error),
@@ -196,14 +195,8 @@ pub fn upsert_many_hippo_by_name_and_date_of_birth(
   conn: sqlight.Connection,
   items items: List(a),
   each each: fn(
-    sqlight.Connection,
     a,
-    fn(
-      sqlight.Connection,
-      String,
-      calendar.Date,
-      option.Option(hippo_schema.GenderScalar),
-    ) ->
+    fn(String, calendar.Date, option.Option(hippo_schema.GenderScalar)) ->
       Result(#(hippo_schema.Hippo, dsl.MagicFields), sqlight.Error),
   ) ->
     Result(#(hippo_schema.Hippo, dsl.MagicFields), sqlight.Error),

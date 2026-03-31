@@ -106,15 +106,13 @@ fn not_found_tab_id_error(op: String) -> sqlight.Error {
 }
 
 /// Upsert many tab rows by the `ByTabLabel` identity (one SQL upsert per item).
-/// Pass the single-row `upsert_tab_by_tab_label` as the last argument to `each` and call it with labelled fields from `item`.
+/// `conn` is only an argument here — `each` gets `item` and `upsert_row` (same labelled fields as `upsert_tab_by_tab_label`, but no connection parameter; the outer `conn` is used automatically).
 pub fn upsert_many_tab_by_tab_label(
   conn: sqlight.Connection,
   items items: List(a),
   each each: fn(
-    sqlight.Connection,
     a,
     fn(
-      sqlight.Connection,
       String,
       option.Option(Float),
       option.Option(library_manager_advanced_schema.ViewConfigScalar),
@@ -132,7 +130,23 @@ pub fn upsert_many_tab_by_tab_label(
   List(#(library_manager_advanced_schema.Tab, dsl.MagicFields)),
   sqlight.Error,
 ) {
-  list.try_map(items, fn(item) { each(conn, item, upsert_tab_by_tab_label) })
+  list.try_map(items, fn(item) {
+    let upsert_row = fn(
+      label: String,
+      order: option.Option(Float),
+      view_config: option.Option(
+        library_manager_advanced_schema.ViewConfigScalar,
+      ),
+    ) {
+      upsert_tab_by_tab_label(
+        conn,
+        label: label,
+        order: order,
+        view_config: view_config,
+      )
+    }
+    each(item, upsert_row)
+  })
 }
 
 /// Update a tab by the `ByTabLabel` identity.
@@ -246,14 +260,13 @@ fn not_found_trackbucket_id_error(op: String) -> sqlight.Error {
 }
 
 /// Upsert many trackbucket rows by the `ByBucketTitleAndArtist` identity (one SQL upsert per item).
-/// Pass the single-row `upsert_trackbucket_by_bucket_title_and_artist` as the last argument to `each` and call it with labelled fields from `item`.
+/// `conn` is only an argument here — `each` gets `item` and `upsert_row` (same labelled fields as `upsert_trackbucket_by_bucket_title_and_artist`, but no connection parameter; the outer `conn` is used automatically).
 pub fn upsert_many_trackbucket_by_bucket_title_and_artist(
   conn: sqlight.Connection,
   items items: List(a),
   each each: fn(
-    sqlight.Connection,
     a,
-    fn(sqlight.Connection, String, String) ->
+    fn(String, String) ->
       Result(
         #(library_manager_advanced_schema.TrackBucket, dsl.MagicFields),
         sqlight.Error,
@@ -268,7 +281,14 @@ pub fn upsert_many_trackbucket_by_bucket_title_and_artist(
   sqlight.Error,
 ) {
   list.try_map(items, fn(item) {
-    each(conn, item, upsert_trackbucket_by_bucket_title_and_artist)
+    let upsert_row = fn(title: String, artist: String) {
+      upsert_trackbucket_by_bucket_title_and_artist(
+        conn,
+        title: title,
+        artist: artist,
+      )
+    }
+    each(item, upsert_row)
   })
 }
 
@@ -378,14 +398,13 @@ fn not_found_tag_id_error(op: String) -> sqlight.Error {
 }
 
 /// Upsert many tag rows by the `ByTagLabel` identity (one SQL upsert per item).
-/// Pass the single-row `upsert_tag_by_tag_label` as the last argument to `each` and call it with labelled fields from `item`.
+/// `conn` is only an argument here — `each` gets `item` and `upsert_row` (same labelled fields as `upsert_tag_by_tag_label`, but no connection parameter; the outer `conn` is used automatically).
 pub fn upsert_many_tag_by_tag_label(
   conn: sqlight.Connection,
   items items: List(a),
   each each: fn(
-    sqlight.Connection,
     a,
-    fn(sqlight.Connection, String, option.Option(String)) ->
+    fn(String, option.Option(String)) ->
       Result(
         #(library_manager_advanced_schema.Tag, dsl.MagicFields),
         sqlight.Error,
@@ -399,7 +418,12 @@ pub fn upsert_many_tag_by_tag_label(
   List(#(library_manager_advanced_schema.Tag, dsl.MagicFields)),
   sqlight.Error,
 ) {
-  list.try_map(items, fn(item) { each(conn, item, upsert_tag_by_tag_label) })
+  list.try_map(items, fn(item) {
+    let upsert_row = fn(label: String, emoji: option.Option(String)) {
+      upsert_tag_by_tag_label(conn, label: label, emoji: emoji)
+    }
+    each(item, upsert_row)
+  })
 }
 
 /// Update a tag by the `ByTagLabel` identity.
@@ -508,14 +532,13 @@ fn not_found_importedtrack_id_error(op: String) -> sqlight.Error {
 }
 
 /// Upsert many importedtrack rows by the `ByFilePath` identity (one SQL upsert per item).
-/// Pass the single-row `upsert_importedtrack_by_file_path` as the last argument to `each` and call it with labelled fields from `item`.
+/// `conn` is only an argument here — `each` gets `item` and `upsert_row` (same labelled fields as `upsert_importedtrack_by_file_path`, but no connection parameter; the outer `conn` is used automatically).
 pub fn upsert_many_importedtrack_by_file_path(
   conn: sqlight.Connection,
   items items: List(a),
   each each: fn(
-    sqlight.Connection,
     a,
-    fn(sqlight.Connection, String, option.Option(String), option.Option(String)) ->
+    fn(String, option.Option(String), option.Option(String)) ->
       Result(
         #(library_manager_advanced_schema.ImportedTrack, dsl.MagicFields),
         sqlight.Error,
@@ -530,7 +553,19 @@ pub fn upsert_many_importedtrack_by_file_path(
   sqlight.Error,
 ) {
   list.try_map(items, fn(item) {
-    each(conn, item, upsert_importedtrack_by_file_path)
+    let upsert_row = fn(
+      file_path: String,
+      title: option.Option(String),
+      artist: option.Option(String),
+    ) {
+      upsert_importedtrack_by_file_path(
+        conn,
+        file_path: file_path,
+        title: title,
+        artist: artist,
+      )
+    }
+    each(item, upsert_row)
   })
 }
 
@@ -612,14 +647,13 @@ fn not_found_importedtrack_file_path_error(op: String) -> sqlight.Error {
 }
 
 /// Upsert many importedtrack rows by the `ByTitleAndArtist` identity (one SQL upsert per item).
-/// Pass the single-row `upsert_importedtrack_by_title_and_artist` as the last argument to `each` and call it with labelled fields from `item`.
+/// `conn` is only an argument here — `each` gets `item` and `upsert_row` (same labelled fields as `upsert_importedtrack_by_title_and_artist`, but no connection parameter; the outer `conn` is used automatically).
 pub fn upsert_many_importedtrack_by_title_and_artist(
   conn: sqlight.Connection,
   items items: List(a),
   each each: fn(
-    sqlight.Connection,
     a,
-    fn(sqlight.Connection, String, String, option.Option(String)) ->
+    fn(String, String, option.Option(String)) ->
       Result(
         #(library_manager_advanced_schema.ImportedTrack, dsl.MagicFields),
         sqlight.Error,
@@ -634,7 +668,19 @@ pub fn upsert_many_importedtrack_by_title_and_artist(
   sqlight.Error,
 ) {
   list.try_map(items, fn(item) {
-    each(conn, item, upsert_importedtrack_by_title_and_artist)
+    let upsert_row = fn(
+      title: String,
+      artist: String,
+      file_path: option.Option(String),
+    ) {
+      upsert_importedtrack_by_title_and_artist(
+        conn,
+        title: title,
+        artist: artist,
+        file_path: file_path,
+      )
+    }
+    each(item, upsert_row)
   })
 }
 

@@ -137,10 +137,8 @@ pub fn upsert_many_tab_by_tab_label(
   conn: sqlight.Connection,
   items items: List(a),
   each each: fn(
-    sqlight.Connection,
     a,
     fn(
-      sqlight.Connection,
       String,
       option.Option(Float),
       option.Option(library_manager_schema.ViewConfigScalar),
@@ -226,9 +224,8 @@ pub fn upsert_many_trackbucket_by_bucket_title_and_artist(
   conn: sqlight.Connection,
   items items: List(a),
   each each: fn(
-    sqlight.Connection,
     a,
-    fn(sqlight.Connection, String, String) ->
+    fn(String, String) ->
       Result(
         #(library_manager_schema.TrackBucket, dsl.MagicFields),
         sqlight.Error,
@@ -302,9 +299,8 @@ pub fn upsert_many_tag_by_tag_label(
   conn: sqlight.Connection,
   items items: List(a),
   each each: fn(
-    sqlight.Connection,
     a,
-    fn(sqlight.Connection, String, option.Option(String)) ->
+    fn(String, option.Option(String)) ->
       Result(#(library_manager_schema.Tag, dsl.MagicFields), sqlight.Error),
   ) ->
     Result(#(library_manager_schema.Tag, dsl.MagicFields), sqlight.Error),
@@ -377,9 +373,8 @@ pub fn upsert_many_importedtrack_by_file_path(
   conn: sqlight.Connection,
   items items: List(a),
   each each: fn(
-    sqlight.Connection,
     a,
-    fn(sqlight.Connection, String, option.Option(String), option.Option(String)) ->
+    fn(String, option.Option(String), option.Option(String)) ->
       Result(
         #(library_manager_schema.ImportedTrack, dsl.MagicFields),
         sqlight.Error,
@@ -457,9 +452,8 @@ pub fn upsert_many_importedtrack_by_title_and_artist(
   conn: sqlight.Connection,
   items items: List(a),
   each each: fn(
-    sqlight.Connection,
     a,
-    fn(sqlight.Connection, String, String, option.Option(String)) ->
+    fn(String, String, option.Option(String)) ->
       Result(
         #(library_manager_schema.ImportedTrack, dsl.MagicFields),
         sqlight.Error,

@@ -60,21 +60,18 @@ pub fn upsert_many_gparams(
 ) -> List(gparam.Parameter(gtypes.Dynamic)) {
   let ordered = upsert_ordered_data_fields(entity, variant)
   let row_pair = dec.entity_row_tuple_type(ctx, entity_type_name)
-  let upsert_one_arg_types =
-    list.flatten([
-      ["sqlight.Connection"],
-      list.map(ordered, fn(f) { dec.render_type(f.type_, ctx) }),
-    ])
+  let upsert_row_arg_types =
+    list.map(ordered, fn(f) { dec.render_type(f.type_, ctx) })
     |> string.join(", ")
-  let upsert_one_fn =
+  let upsert_row_fn =
     "fn("
-    <> upsert_one_arg_types
+    <> upsert_row_arg_types
     <> ") -> Result("
     <> row_pair
     <> ", sqlight.Error)"
   let each_fn =
-    "fn(sqlight.Connection, a, "
-    <> upsert_one_fn
+    "fn(a, "
+    <> upsert_row_fn
     <> ") -> Result("
     <> row_pair
     <> ", sqlight.Error)"
