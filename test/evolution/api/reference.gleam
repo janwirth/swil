@@ -1,25 +1,11 @@
-type MyDataType = #(String, String)
-fn makerow_example(label: String, value: String) -> MyDataType {
-    #(label, value)
+pub opaque type Identified(by) {}
+
+pub opaque type ByName {}
+
+pub opaque type ByFruit {}
+
+pub opaque type MyFruit(id) {}
+
+pub fn insert(fruit: MyFruit(Identified(id))) {
+
 }
-
-fn insert_many_example(items: List(a), cb: fn(label: String, value: String) -> MyDataType) -> List(MyDataType) {
-  let rows = list.map(items, fn(item) {
-    cb(item)
-  })
-  rows
-}
-
-
-fn makerow_by_label_and_value(label: String, value: String) -> fn(label: String, value: String) -> MyDataType {
-    fn(label, value) {
-        #(label, value)
-    }
-}
-
-type Identified(by) = {}
-
-type ByName = {}
-
-type ByFruit = {}
-

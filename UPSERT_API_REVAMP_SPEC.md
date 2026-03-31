@@ -23,25 +23,23 @@ api.upsert_many(conn, items)
 - All public generated function args remain labelled (except existing intentional exceptions like unlabelled `conn`).
 - Keep implementation generic from schema/IR (no module-specific branching).
 
-## Open Questions
+## Decisions
 
 - Should `upsert_many` execute one statement per row, or emit grouped multi-row SQL by identity variant?
   - multi-row insert into value statements
 - Should `upsert_many` be fully atomic (single transaction) by default?
   - yes
 - If mixed identity variants are passed in one list, do we allow it or require homogeneous batches?
-  - allow only one, because only then it works with on conflict targeting a specific index. use phantom types to enforec
+  - allow only one, because only then it works with on conflict targeting a specific index. use phantom types to enforce
 - Do we expose one shared row type per entity, or one row constructor type per identity variant?
   - one per identity variant
 - Should old `upsert_*_by_*` APIs be removed immediately, or temporarily forwarded with deprecation?
   - kill it with fire.
 
-More open questions:
-
 - How do we chunk very large `upsert_many` batches to avoid SQLite parameter limits?
   - out of scope
 - What is the expected return ordering for `upsert_many` when using batched SQL (`RETURNING` ordering guarantees)?
-  - count
+  - count only (ordering not guaranteed)
 - How should duplicate identities inside one batch behave (last wins, first wins, or explicit error)?
   - out of scope
 - Do we expose conflict policy knobs now (upsert/update-only/insert-only), or keep a single default behavior?
@@ -53,17 +51,17 @@ More open questions:
 
 ```gleam
 // phantom type example
-type Identified(by) = {}
+pub opaque type ByName {}
 
-type ByName = {}
+pub opaque type ByFruit {}
 
-type ByFruit = {}
-
-type MyFruit(id) {}
+pub opaque type MyFruit(id) {}
 
 pub fn insert(fruit: MyFruit(Identified(id))) {
 
 }
+
+
 ```
 
 ## Test Requirements
@@ -86,15 +84,14 @@ E2E tests (required):
 
 ## Todo (implementation order)
 
-1. Finalize open questions that affect type design (batch chunking, duplicate semantics, ordering).
-2. Define new schema IR/codegen model for identity-specific upsert input types.
-3. Implement generator output for:
+1. Define new schema IR/codegen model for identity-specific upsert input types.
+2. Implement generator output for:
    - `upsert_one`
    - `upsert_many`
    - `by_<identity>` constructors
-4. Remove legacy `upsert_*_by_*` exports from generated `upsert` and `api` modules.
-5. Implement batched multi-row SQL generation and single-transaction execution for `upsert_many`.
-6. Add/upgrade codegen tests for API surface, constructors, and emitted SQL.
-7. Add/upgrade e2e tests in at least one case-study module with 3+ row batch coverage and rollback checks.
-8. Regenerate all case-study outputs and update snapshots/fixtures.
-9. Run full `gleam test` and ensure no warnings on build.
+3. Remove legacy `upsert_*_by_*` exports from generated `upsert` and `api` modules.
+4. Implement batched multi-row SQL generation and single-transaction execution for `upsert_many`.
+5. Add/upgrade codegen tests for API surface, constructors, and emitted SQL.
+6. Add/upgrade e2e tests in at least one case-study module with 3+ row batch coverage and rollback checks.
+7. Regenerate all case-study outputs and update snapshots/fixtures.
+8. Run full `gleam test` and ensure no warnings on build.
