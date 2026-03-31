@@ -20,6 +20,7 @@ Source of truth
 Documentation
 
 - Prefer self-documenting code: names, types, and structure should carry intent thoroughly. Do not add separate markdown docs for routine changes; the code is the documentation.
+- Public functions must use labelled arguments for all consumer-facing parameters (except intentionally unlabelled ones such as `conn` where established).
 
 Migrations
 
