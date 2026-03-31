@@ -2,8 +2,8 @@ import case_studies/library_manager_db/row
 import case_studies/library_manager_schema
 import gleam/option
 import gleam/result
-import swil/dsl/dsl
 import sqlight
+import swil/dsl/dsl
 
 const select_tab_by_id_sql = "select \"label\", \"order\", \"view_config\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"tab\" where \"id\" = ? and \"deleted_at\" is null;"
 

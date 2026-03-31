@@ -124,7 +124,11 @@ pub fn upsert_fn_body(
                   <> f.label
                   <> ")\n"
                 "Int" ->
-                  "  let " <> v <> " = api_help.opt_int_for_db(" <> f.label <> ")\n"
+                  "  let "
+                  <> v
+                  <> " = api_help.opt_int_for_db("
+                  <> f.label
+                  <> ")\n"
                 _ ->
                   "  let "
                   <> v
@@ -374,7 +378,11 @@ pub fn update_by_id_fn_body(
                   <> f.label
                   <> ")\n"
                 "Int" ->
-                  "  let " <> v <> " = api_help.opt_int_for_db(" <> f.label <> ")\n"
+                  "  let "
+                  <> v
+                  <> " = api_help.opt_int_for_db("
+                  <> f.label
+                  <> ")\n"
                 _ ->
                   "  let "
                   <> v

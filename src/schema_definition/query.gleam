@@ -15,7 +15,6 @@
 //// Supported shapes are detected structurally (for example
 //// `LtMissingFieldAsc` for `exclude_if_missing` + float threshold + ascending `order` on the same field).
 
-import swil/dsl/dsl
 import glance
 import gleam/list
 import gleam/option.{type Option, None, Some, from_result, then}
@@ -25,6 +24,7 @@ import schema_definition/parse_error.{
   type ParseError, UnsupportedSchema, hint_public_function_prefixes,
 }
 import schema_definition/schema_definition as sd
+import swil/dsl/dsl
 
 /// Extracted metadata for a public `query_*` function: its name, parameter list, and parsed query.
 pub type QuerySpecDefinition {

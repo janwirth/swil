@@ -125,7 +125,10 @@ fn query_spec_forward_chunk(
         },
         fn(p) {
           let n = api_query.schema_query_param_name(p)
-          api_params.consumer_param(n, gtypes.raw(dec.render_type(p.type_, ctx)))
+          api_params.consumer_param(
+            n,
+            gtypes.raw(dec.render_type(p.type_, ctx)),
+          )
         },
       ),
     )
@@ -160,7 +163,10 @@ fn complex_query_forward_chunk(
         },
         fn(p) {
           let n = api_query.schema_query_param_name(p)
-          api_params.consumer_param(n, gtypes.raw(dec.render_type(p.type_, ctx)))
+          api_params.consumer_param(
+            n,
+            gtypes.raw(dec.render_type(p.type_, ctx)),
+          )
         },
       ),
     )
@@ -209,7 +215,8 @@ pub fn facade_fn_chunks(
               api_params.identity_gparams(variant),
             )
           let row_t = gtypes.raw(dec.entity_row_tuple_type(ctx, e.type_name))
-          let row_opt = gtypes.raw(dec.option_entity_row_tuple(ctx, e.type_name))
+          let row_opt =
+            gtypes.raw(dec.option_entity_row_tuple(ctx, e.type_name))
           [
             forward_fn("upsert", upsert_name, upsert_params, row_t, sql_err),
             forward_fn(

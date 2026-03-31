@@ -3,9 +3,9 @@ import case_studies/fruit_schema
 import gleam/list
 import gleam/option
 import gleam/result
+import sqlight
 import swil/api_help
 import swil/dsl/dsl
-import sqlight
 
 const update_fruit_by_id_sql = "update \"fruit\" set \"name\" = ?, \"color\" = ?, \"price\" = ?, \"quantity\" = ?, \"updated_at\" = ? where \"id\" = ? and \"deleted_at\" is null returning \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
 

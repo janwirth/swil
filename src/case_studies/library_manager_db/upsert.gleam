@@ -4,9 +4,9 @@ import gleam/dynamic/decode
 import gleam/list
 import gleam/option
 import gleam/result
+import sqlight
 import swil/api_help
 import swil/dsl/dsl
-import sqlight
 
 const update_tab_by_id_sql = "update \"tab\" set \"label\" = ?, \"order\" = ?, \"view_config\" = ?, \"updated_at\" = ? where \"id\" = ? and \"deleted_at\" is null returning \"label\", \"order\", \"view_config\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
 

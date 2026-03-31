@@ -1,6 +1,6 @@
-import swil/dsl/dsl
 import glance
 import gleam/option.{type Option}
+import swil/dsl/dsl
 
 /// Parsed from a full schema module that may contain entities, identities, relationships,
 /// edge attributes, scalar types, and public query functions.

@@ -13,7 +13,6 @@ import case_studies/library_manager_advanced_db/api
 import case_studies/library_manager_advanced_db/query
 import case_studies/library_manager_advanced_db/upsert
 import case_studies/library_manager_advanced_schema as schema
-import swil/dsl/dsl
 import gleam/dynamic/decode
 import gleam/json
 import gleam/list
@@ -21,6 +20,7 @@ import gleam/option.{None, Some}
 import gleam/string
 import sql/pragma_assert
 import sqlight
+import swil/dsl/dsl
 
 // =============================================================================
 // Setup helpers
@@ -145,7 +145,8 @@ pub fn migration_indices_trackbucket_test() {
 
 pub fn migration_indices_trackbucket_tag_test() {
   let conn = open_db()
-  let assert Ok(got_list) = pragma_assert.index_list_tsv(conn, "trackbucket_tag")
+  let assert Ok(got_list) =
+    pragma_assert.index_list_tsv(conn, "trackbucket_tag")
   let assert True = got_list == expected_trackbucket_tag_index_list
   let assert Ok(got_perf) =
     pragma_assert.index_info_tsv(
@@ -214,7 +215,8 @@ pub fn has_matches_tagged_bucket_test() {
       value: None,
     )
   let filter = dsl.Predicate(schema.Has(tag_id: tag_id))
-  let assert Ok(results) = api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
+  let assert Ok(results) =
+    api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
   assert list.length(results) == 1
   let assert [#(tb, _)] = results
   assert tb.title == Some("Mellow Mix")
@@ -226,7 +228,8 @@ pub fn has_no_match_when_tag_absent_test() {
   let _tb_id = insert_trackbucket(conn, "Calm Vibes", "Various")
   // No junction row — bucket should NOT appear.
   let filter = dsl.Predicate(schema.Has(tag_id: tag_id))
-  let assert Ok(results) = api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
+  let assert Ok(results) =
+    api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
   assert results == []
 }
 
@@ -246,7 +249,8 @@ pub fn is_at_least_matches_when_value_ge_test() {
       value: Some(80),
     )
   let filter = dsl.Predicate(schema.IsAtLeast(tag_id: tag_id, value: 50))
-  let assert Ok(results) = api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
+  let assert Ok(results) =
+    api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
   assert list.length(results) == 1
 }
 
@@ -262,7 +266,8 @@ pub fn is_at_least_no_match_when_value_lt_test() {
       value: Some(20),
     )
   let filter = dsl.Predicate(schema.IsAtLeast(tag_id: tag_id, value: 50))
-  let assert Ok(results) = api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
+  let assert Ok(results) =
+    api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
   assert results == []
 }
 
@@ -282,7 +287,8 @@ pub fn is_at_most_matches_test() {
       value: Some(90),
     )
   let filter = dsl.Predicate(schema.IsAtMost(tag_id: tag_id, value: 100))
-  let assert Ok(results) = api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
+  let assert Ok(results) =
+    api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
   assert list.length(results) == 1
 }
 
@@ -298,7 +304,8 @@ pub fn is_at_most_no_match_test() {
       value: Some(150),
     )
   let filter = dsl.Predicate(schema.IsAtMost(tag_id: tag_id, value: 100))
-  let assert Ok(results) = api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
+  let assert Ok(results) =
+    api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
   assert results == []
 }
 
@@ -318,7 +325,8 @@ pub fn is_equal_to_matches_test() {
       value: Some(5),
     )
   let filter = dsl.Predicate(schema.IsEqualTo(tag_id: tag_id, value: 5))
-  let assert Ok(results) = api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
+  let assert Ok(results) =
+    api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
   assert list.length(results) == 1
 }
 
@@ -334,7 +342,8 @@ pub fn is_equal_to_no_match_test() {
       value: Some(4),
     )
   let filter = dsl.Predicate(schema.IsEqualTo(tag_id: tag_id, value: 5))
-  let assert Ok(results) = api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
+  let assert Ok(results) =
+    api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
   assert results == []
 }
 
@@ -366,7 +375,8 @@ pub fn and_matches_when_both_satisfied_test() {
       dsl.Predicate(schema.Has(tag_id: tag_a)),
       dsl.Predicate(schema.Has(tag_id: tag_b)),
     ])
-  let assert Ok(results) = api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
+  let assert Ok(results) =
+    api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
   assert list.length(results) == 1
 }
 
@@ -388,7 +398,8 @@ pub fn and_no_match_when_one_missing_test() {
       dsl.Predicate(schema.Has(tag_id: tag_a)),
       dsl.Predicate(schema.Has(tag_id: tag_b)),
     ])
-  let assert Ok(results) = api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
+  let assert Ok(results) =
+    api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
   assert results == []
 }
 
@@ -421,7 +432,8 @@ pub fn or_matches_when_either_satisfied_test() {
       dsl.Predicate(schema.Has(tag_id: tag_rock)),
       dsl.Predicate(schema.Has(tag_id: tag_pop)),
     ])
-  let assert Ok(results) = api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
+  let assert Ok(results) =
+    api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
   assert list.length(results) == 2
 }
 
@@ -443,7 +455,8 @@ pub fn not_excludes_tagged_bucket_test() {
       value: None,
     )
   let filter = dsl.Not(dsl.Predicate(schema.Has(tag_id: tag_nsfw)))
-  let assert Ok(results) = api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
+  let assert Ok(results) =
+    api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
   // Only "Clean Mix" passes the NOT filter
   assert list.length(results) == 1
   let assert [#(tb, _)] = results
@@ -469,7 +482,8 @@ pub fn is_at_least_excludes_null_value_test() {
     )
   let filter = dsl.Predicate(schema.IsAtLeast(tag_id: tag_id, value: 0))
   // NULL >= 0 is UNKNOWN in SQL 3VL → row excluded
-  let assert Ok(results) = api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
+  let assert Ok(results) =
+    api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
   assert results == []
 }
 
@@ -525,7 +539,8 @@ pub fn filter_returns_only_matching_rows_test() {
       value: None,
     )
   let filter = dsl.Predicate(schema.Has(tag_id: tag_id))
-  let assert Ok(results) = api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
+  let assert Ok(results) =
+    api.query_tracks_by_view_config(conn, complex_tag_filter_expression: filter)
   assert list.length(results) == 1
   let assert [#(tb, _)] = results
   assert tb.title == Some("Featured Album")

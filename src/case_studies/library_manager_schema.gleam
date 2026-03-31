@@ -1,5 +1,5 @@
-import swil/dsl/dsl
 import gleam/option
+import swil/dsl/dsl
 
 // id / created_at / updated_at / deleted_at come from `dsl.MagicFields`, not the schema type.
 pub type ImportedTrack {

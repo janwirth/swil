@@ -1,8 +1,8 @@
 import case_studies/hippo_db/row
 import case_studies/hippo_schema
 import gleam/option
-import swil/dsl/dsl
 import sqlight
+import swil/dsl/dsl
 
 const hippos_by_gender_sql = "select \"name\", \"gender\", \"date_of_birth\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"hippo\" where \"deleted_at\" is null and \"gender\" = ? order by \"name\" desc;"
 

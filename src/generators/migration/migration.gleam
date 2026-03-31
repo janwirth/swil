@@ -587,10 +587,7 @@ fn junction_expected_perf_index_info_tsv(spec: JunctionSpec) -> String {
 
 fn junction_expected_unique_index_info_tsv(spec: JunctionSpec) -> String {
   let #(root_fk, target_fk) = junction_fk_names(spec)
-  "seqno\tcid\tname\n0\t0\t"
-  <> root_fk
-  <> "\n1\t1\t"
-  <> target_fk
+  "seqno\tcid\tname\n0\t0\t" <> root_fk <> "\n1\t1\t" <> target_fk
 }
 
 fn junction_perf_index_const_name(spec: JunctionSpec) -> String {
@@ -633,24 +630,14 @@ fn junction_perf_index_gleam_block(spec: JunctionSpec) -> String {
   let auto_ix = junction_sqlite_autoindex_name(jt)
   string.join(
     [
-      "/// Seek `(…)` on junction `" <> jt <> "` for filter `EXISTS` subqueries.",
-      "const "
-        <> c_create
-        <> " = \""
-        <> gleam_escape_string(create_sql)
-        <> "\"",
+      "/// Seek `(…)` on junction `"
+        <> jt
+        <> "` for filter `EXISTS` subqueries.",
+      "const " <> c_create <> " = \"" <> gleam_escape_string(create_sql) <> "\"",
       "",
-      "const "
-        <> c_list
-        <> " = \""
-        <> gleam_escape_string(list_tsv)
-        <> "\"",
+      "const " <> c_list <> " = \"" <> gleam_escape_string(list_tsv) <> "\"",
       "",
-      "const "
-        <> c_perf
-        <> " = \""
-        <> gleam_escape_string(perf_info)
-        <> "\"",
+      "const " <> c_perf <> " = \"" <> gleam_escape_string(perf_info) <> "\"",
       "",
       "const "
         <> c_unique
@@ -661,7 +648,9 @@ fn junction_perf_index_gleam_block(spec: JunctionSpec) -> String {
       "fn "
         <> fn_drop
         <> "(\n  conn: sqlight.Connection,\n) -> Result(Nil, sqlight.Error) {",
-      "  use rows <- result.try(pragma_index_name_origin_rows(conn, \"" <> jt <> "\"))",
+      "  use rows <- result.try(pragma_index_name_origin_rows(conn, \""
+        <> jt
+        <> "\"))",
       "  list.try_each(rows, fn(pair) {",
       "    let #(name, origin) = pair",
       "    case origin == \"c\" && name != \"" <> perf <> "\" {",
@@ -746,11 +735,10 @@ fn generate_junction_table_appendage_inner(schema: SchemaDefinition) -> String {
             <> " =\n  \""
             <> gleam_escape_string(junction_ddl_sql(spec))
             <> "\""
-          let perf =
-            case spec.edge_fields {
-              [] -> ""
-              _ -> "\n\n" <> junction_perf_index_gleam_block(spec)
-            }
+          let perf = case spec.edge_fields {
+            [] -> ""
+            _ -> "\n\n" <> junction_perf_index_gleam_block(spec)
+          }
           consts <> perf
         })
       let create_fn = build_create_junction_tables_fn(specs)
@@ -760,7 +748,9 @@ fn generate_junction_table_appendage_inner(schema: SchemaDefinition) -> String {
 }
 
 /// Gleam source for junction upsert SQL constants and `pub fn upsert_*` (for `*_db/upsert` module).
-pub fn generate_junction_upserts_gleam_appendage(schema: SchemaDefinition) -> String {
+pub fn generate_junction_upserts_gleam_appendage(
+  schema: SchemaDefinition,
+) -> String {
   let specs = find_junction_specs(schema)
   case specs {
     [] -> ""

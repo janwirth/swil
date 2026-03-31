@@ -1,4 +1,3 @@
-import swil/dsl/dsl
 import gleam/int
 import gleam/option.{type Option, None, Some}
 import gleam/string
@@ -6,6 +5,7 @@ import gleam/time/calendar.{
   type Date, Date as CalDate, month_from_int, month_to_int,
 }
 import gleam/time/timestamp
+import swil/dsl/dsl
 
 fn pad2(n: Int) -> String {
   let s = int.to_string(n)

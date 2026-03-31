@@ -34,7 +34,8 @@ pub fn fruit_e2e_test() {
   // ensure the migration is not killing the data
   let assert Ok(Nil) = api.migrate(conn)
 
-  let assert Ok(Some(#(_apple, magic))) = api.get_fruit_by_name(conn, name: "apple")
+  let assert Ok(Some(#(_apple, magic))) =
+    api.get_fruit_by_name(conn, name: "apple")
   let assert True = magic.id > 0
   let assert Ok(Some(#(_apple_by_id, magic_by_id))) =
     api.get_fruit_by_id(conn, id: magic.id)

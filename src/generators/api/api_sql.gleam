@@ -127,8 +127,7 @@ pub fn update_by_row_id_sql(
   returning_cols: List(String),
 ) -> String {
   let data_sets = list.map(data_cols, fn(c) { q(c) <> " = ?" })
-  let set_parts =
-    list.append(data_sets, [q("updated_at") <> " = ?"])
+  let set_parts = list.append(data_sets, [q("updated_at") <> " = ?"])
   let set_clause = string.join(set_parts, ", ")
   "update "
   <> q(table)

@@ -3,9 +3,9 @@ import case_studies/hippo_schema
 import gleam/option
 import gleam/result
 import gleam/time/calendar
+import sqlight
 import swil/api_help
 import swil/dsl/dsl
-import sqlight
 
 const select_human_by_id_sql = "select \"name\", \"email\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"human\" where \"id\" = ? and \"deleted_at\" is null;"
 

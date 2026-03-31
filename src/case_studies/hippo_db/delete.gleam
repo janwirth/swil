@@ -1,8 +1,8 @@
 import gleam/dynamic/decode
 import gleam/result
 import gleam/time/calendar
-import swil/api_help
 import sqlight
+import swil/api_help
 
 const soft_delete_human_by_email_sql = "update \"human\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"email\" = ? and \"deleted_at\" is null returning \"email\";"
 

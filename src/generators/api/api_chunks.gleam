@@ -115,7 +115,9 @@ pub fn upsert_module_fn_chunks(
     ],
     [
       #(
-        gleamgen_emit.pub_def("upsert_many_" <> entity_snake <> "_by_" <> id_snake)
+        gleamgen_emit.pub_def(
+          "upsert_many_" <> entity_snake <> "_by_" <> id_snake,
+        )
           |> gdef.with_text_before(
             "/// Upsert many "
             <> entity_snake
@@ -128,9 +130,11 @@ pub fn upsert_module_fn_chunks(
             <> id_snake
             <> "` as the last argument to `each` and call it with labelled fields from `item`.\n",
           ),
-        gfun.new_raw(many_params, gtypes.result(gtypes.list(row_t), sql_err), fn(_) {
-          gexpr.raw(ud.upsert_many_fn_body(entity_snake, id_snake))
-        })
+        gfun.new_raw(
+          many_params,
+          gtypes.result(gtypes.list(row_t), sql_err),
+          fn(_) { gexpr.raw(ud.upsert_many_fn_body(entity_snake, id_snake)) },
+        )
           |> gfun.to_dynamic,
       ),
     ],

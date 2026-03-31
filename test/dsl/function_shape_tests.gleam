@@ -7,7 +7,6 @@
 /// Any other public function is rejected. Errors append
 /// [`hint_public_function_prefixes`](schema_definition/parse_error.html#hint_public_function_prefixes)
 /// (`query_` / `predicate_`).
-import swil/dsl/dsl
 import gleam/list
 import gleam/option.{Some}
 import gleam/string
@@ -15,6 +14,7 @@ import gleeunit
 import schema_definition/parser as schema_parser
 import schema_definition/schema_definition
 import simplifile
+import swil/dsl/dsl
 
 pub fn main() -> Nil {
   gleeunit.main()

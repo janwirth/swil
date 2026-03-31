@@ -1,7 +1,7 @@
 import case_studies/library_manager_db/row
 import case_studies/library_manager_schema
-import swil/dsl/dsl
 import sqlight
+import swil/dsl/dsl
 
 const last_100_tab_sql = "select \"label\", \"order\", \"view_config\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"tab\" where \"deleted_at\" is null order by \"updated_at\" desc limit 100;"
 

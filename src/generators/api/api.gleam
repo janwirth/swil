@@ -1,4 +1,3 @@
-import swil/dsl/dsl
 import generators/api/api_chunks
 import generators/api/api_decoders as dec
 import generators/api/api_facade as facade
@@ -10,8 +9,8 @@ import generators/api/api_sql
 import generators/api/api_update_delete as ud
 import generators/api/complex_filter_sql
 import generators/api/schema_context
-import generators/migration/migration as pragma_migration
 import generators/gleam_format_generated as gleam_fmt
+import generators/migration/migration as pragma_migration
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
@@ -24,10 +23,11 @@ import gleamgen/render as grender
 import gleamgen/types as gtypes
 import schema_definition/predicate_parser
 import schema_definition/schema_definition.{
-  type Query, type SchemaDefinition, AgeFn, Call, Compare,
-  ComplexRecursive, CustomOrder, Eq, ExcludeIfMissing, ExcludeIfMissingFn, Field,
-  Ge, Gt, Le, Lt, Ne, NullableFn, Param, Predicate, Query,
+  type Query, type SchemaDefinition, AgeFn, Call, Compare, ComplexRecursive,
+  CustomOrder, Eq, ExcludeIfMissing, ExcludeIfMissingFn, Field, Ge, Gt, Le, Lt,
+  Ne, NullableFn, Param, Predicate, Query,
 }
+import swil/dsl/dsl
 
 fn quote_ident(s: String) -> String {
   "\"" <> s <> "\""
@@ -424,7 +424,9 @@ pub fn generate_api_db_outputs(
       let returning_e = api_sql.full_row_columns(data_cols_e)
       let variant_sql =
         list.map(id_e.variants, fn(variant_e) {
-          let id_snake_e = case string.starts_with(variant_e.variant_name, "By") {
+          let id_snake_e = case
+            string.starts_with(variant_e.variant_name, "By")
+          {
             True ->
               api_naming.pascal_to_snake(string.drop_start(
                 variant_e.variant_name,
@@ -455,19 +457,12 @@ pub fn generate_api_db_outputs(
           ]
         })
         |> list.flatten
-      list.append(
-        variant_sql,
-        [
-          #(
-            "update_" <> entity_snake_e <> "_by_id_sql",
-            Some(api_sql.update_by_row_id_sql(
-              table_e,
-              data_cols_e,
-              returning_e,
-            )),
-          ),
-        ],
-      )
+      list.append(variant_sql, [
+        #(
+          "update_" <> entity_snake_e <> "_by_id_sql",
+          Some(api_sql.update_by_row_id_sql(table_e, data_cols_e, returning_e)),
+        ),
+      ])
     })
   let upsert_fn_chunks =
     list.flat_map(def.entities, fn(e) {
@@ -476,7 +471,9 @@ pub fn generate_api_db_outputs(
       let row_t_e = gtypes.raw(dec.entity_row_tuple_type(ctx, e.type_name))
       let variant_chunks =
         list.map(id_e.variants, fn(variant_e) {
-          let id_snake_e = case string.starts_with(variant_e.variant_name, "By") {
+          let id_snake_e = case
+            string.starts_with(variant_e.variant_name, "By")
+          {
             True ->
               api_naming.pascal_to_snake(string.drop_start(
                 variant_e.variant_name,
@@ -763,7 +760,8 @@ pub fn generate_api_db_outputs(
     |> ensure_dsl_import
     |> ensure_list_import
   let upsert_text =
-    upsert_text <> pragma_migration.generate_junction_upserts_gleam_appendage(def)
+    upsert_text
+    <> pragma_migration.generate_junction_upserts_gleam_appendage(def)
   let upsert_text = ensure_decode_import(upsert_text)
   let delete_text = ensure_api_help_import(render_module(delete_mod))
 

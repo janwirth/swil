@@ -1,9 +1,9 @@
+import gleam/option
+import gleam/time/calendar.{type Date}
 import swil/dsl/dsl.{
   type BacklinkWith, type BelongsTo, type Mutual, age, exclude_if_missing,
   nullable,
 }
-import gleam/option
-import gleam/time/calendar.{type Date}
 
 /// Example schema module.
 ///
