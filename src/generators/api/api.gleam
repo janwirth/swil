@@ -905,6 +905,7 @@ pub fn generate_api_db_outputs(
     render_module(api_mod)
     |> ensure_option_import
     |> ensure_dsl_import
+    |> ensure_list_import
   use row_text <- result.try(gleam_fmt.format_generated_source(row_text))
   use get_text <- result.try(gleam_fmt.format_generated_source(get_text))
   use upsert_text <- result.try(gleam_fmt.format_generated_source(upsert_text))

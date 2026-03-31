@@ -17,25 +17,31 @@ pub fn hippo_relationship_queries_e2e_test() {
   let dob_old = Date(1975, January, 1)
   let dob_young = Date(2022, January, 1)
   let assert Ok(_) =
-    hippo_api.upsert_hippo_by_name_and_date_of_birth(
+    hippo_api.upsert_one_hippo(
       conn,
-      name: "Oldie",
-      date_of_birth: dob_old,
-      gender: Some(Male),
+      row: hippo_api.by_hippo_name_and_date_of_birth(
+        name: "Oldie",
+        date_of_birth: dob_old,
+        gender: Some(Male),
+      ),
     )
   let assert Ok(_) =
-    hippo_api.upsert_hippo_by_name_and_date_of_birth(
+    hippo_api.upsert_one_hippo(
       conn,
-      name: "Youngin",
-      date_of_birth: dob_young,
-      gender: Some(Female),
+      row: hippo_api.by_hippo_name_and_date_of_birth(
+        name: "Youngin",
+        date_of_birth: dob_young,
+        gender: Some(Female),
+      ),
     )
   let assert Ok(_) =
-    hippo_api.upsert_hippo_by_name_and_date_of_birth(
+    hippo_api.upsert_one_hippo(
       conn,
-      name: "Zebra",
-      date_of_birth: dob_old,
-      gender: Some(Male),
+      row: hippo_api.by_hippo_name_and_date_of_birth(
+        name: "Zebra",
+        date_of_birth: dob_old,
+        gender: Some(Male),
+      ),
     )
 
   let assert Ok(old_rows) =

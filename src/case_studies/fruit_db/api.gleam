@@ -4,6 +4,7 @@ import case_studies/fruit_db/migration
 import case_studies/fruit_db/query
 import case_studies/fruit_db/upsert
 import case_studies/fruit_schema
+import gleam/list
 import gleam/option
 import sqlight
 import swil/dsl/dsl
@@ -86,31 +87,38 @@ pub fn get_fruit_by_name(
   get.get_fruit_by_name(conn, name: name)
 }
 
-pub fn upsert_many_fruit_by_name(
-  conn: sqlight.Connection,
-  items items: List(a),
-  each each: fn(
-    a,
-    fn(String, option.Option(String), option.Option(Float), option.Option(Int)) ->
-      Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error),
-  ) ->
-    Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error),
-) -> Result(List(#(fruit_schema.Fruit, dsl.MagicFields)), sqlight.Error) {
-  upsert.upsert_many_fruit_by_name(conn, items: items, each: each)
-}
-
-pub fn upsert_fruit_by_name(
-  conn: sqlight.Connection,
+pub fn by_fruit_name(
   name name: String,
   color color: option.Option(String),
   price price: option.Option(Float),
   quantity quantity: option.Option(Int),
+) -> fn(sqlight.Connection) ->
+  Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error) {
+  fn(conn) {
+    upsert.upsert_fruit_by_name(
+      conn,
+      name: name,
+      color: color,
+      price: price,
+      quantity: quantity,
+    )
+  }
+}
+
+pub fn upsert_many_fruit(
+  conn: sqlight.Connection,
+  rows rows: List(
+    fn(sqlight.Connection) ->
+      Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error),
+  ),
+) -> Result(List(#(fruit_schema.Fruit, dsl.MagicFields)), sqlight.Error) {
+  list.try_map(rows, fn(row) { row(conn) })
+}
+
+pub fn upsert_one_fruit(
+  conn: sqlight.Connection,
+  row row: fn(sqlight.Connection) ->
+    Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error),
 ) -> Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error) {
-  upsert.upsert_fruit_by_name(
-    conn,
-    name: name,
-    color: color,
-    price: price,
-    quantity: quantity,
-  )
+  row(conn)
 }

@@ -60,6 +60,12 @@ fn forward_fn_nil_result(
   )
 }
 
+fn row_op_type(row_t_str: String) -> gtypes.GeneratedType(r) {
+  gtypes.raw(
+    "fn(sqlight.Connection) -> Result(" <> row_t_str <> ", sqlight.Error)",
+  )
+}
+
 fn migrate_chunk(sql_err: gtypes.GeneratedType(e)) {
   #(
     gleamgen_emit.pub_def("migrate"),
@@ -187,6 +193,19 @@ pub fn facade_fn_chunks(
     list.flat_map(def.entities, fn(e) {
       let e_snake = string.lowercase(e.type_name)
       let id = schema_context.find_identity(def, e)
+      let row_t_str = dec.entity_row_tuple_type(ctx, e.type_name)
+      let row_t = gtypes.raw(row_t_str)
+      let row_op_t = row_op_type(row_t_str)
+      let upsert_one_name = "upsert_one_" <> e_snake
+      let upsert_many_new_name = "upsert_many_" <> e_snake
+      let upsert_one_params = [
+        api_params.conn_param(),
+        api_params.consumer_param("row", row_op_t),
+      ]
+      let upsert_many_new_params = [
+        api_params.conn_param(),
+        api_params.consumer_param("rows", gtypes.list(row_op_t)),
+      ]
       let variant_forwards =
         list.map(id.variants, fn(variant) {
           let id_snake = case string.starts_with(variant.variant_name, "By") {
@@ -198,7 +217,6 @@ pub fn facade_fn_chunks(
             False -> api_naming.pascal_to_snake(variant.variant_name)
           }
           let upsert_name = "upsert_" <> e_snake <> "_by_" <> id_snake
-          let upsert_many_name = "upsert_many_" <> e_snake <> "_by_" <> id_snake
           let get_name = "get_" <> e_snake <> "_by_" <> id_snake
           let update_name = "update_" <> e_snake <> "_by_" <> id_snake
           let delete_name = "delete_" <> e_snake <> "_by_" <> id_snake
@@ -207,24 +225,29 @@ pub fn facade_fn_chunks(
               [api_params.conn_param()],
               api_params.upsert_gparams(e, variant, ctx),
             )
-          let upsert_many_params =
-            api_params.upsert_many_gparams(e, variant, ctx, e.type_name)
           let get_params =
             list.append(
               [api_params.conn_param()],
               api_params.identity_gparams(variant),
             )
-          let row_t = gtypes.raw(dec.entity_row_tuple_type(ctx, e.type_name))
           let row_opt =
             gtypes.raw(dec.option_entity_row_tuple(ctx, e.type_name))
+          let by_name = "by_" <> e_snake <> "_" <> id_snake
+          let by_params = api_params.upsert_gparams(e, variant, ctx)
+          let by_args = param_call_args_csv(by_params)
           [
-            forward_fn("upsert", upsert_name, upsert_params, row_t, sql_err),
-            forward_fn(
-              "upsert",
-              upsert_many_name,
-              upsert_many_params,
-              gtypes.list(row_t),
-              sql_err,
+            #(
+              gleamgen_emit.pub_def(by_name),
+              gfun.new_raw(by_params, row_op_t, fn(_) {
+                gexpr.raw(
+                  "fn(conn) { upsert."
+                  <> upsert_name
+                  <> "(conn, "
+                  <> by_args
+                  <> ") }",
+                )
+              })
+                |> gfun.to_dynamic,
             ),
             forward_fn("get", get_name, get_params, row_opt, sql_err),
             forward_fn("upsert", update_name, upsert_params, row_t, sql_err),
@@ -232,6 +255,24 @@ pub fn facade_fn_chunks(
           ]
         })
         |> list.flatten
+      let new_upsert_api = [
+        #(
+          gleamgen_emit.pub_def(upsert_one_name),
+          gfun.new_raw(upsert_one_params, gtypes.result(row_t, sql_err), fn(_) {
+            gexpr.raw("row(conn)")
+          })
+            |> gfun.to_dynamic,
+        ),
+        #(
+          gleamgen_emit.pub_def(upsert_many_new_name),
+          gfun.new_raw(
+            upsert_many_new_params,
+            gtypes.result(gtypes.list(row_t), sql_err),
+            fn(_) { gexpr.raw("list.try_map(rows, fn(row) { row(conn) })") },
+          )
+            |> gfun.to_dynamic,
+        ),
+      ]
       let row_t = gtypes.raw(dec.entity_row_tuple_type(ctx, e.type_name))
       let update_by_id_params =
         list.append(
@@ -247,7 +288,7 @@ pub fn facade_fn_chunks(
           sql_err,
         ),
       ]
-      list.append(variant_forwards, update_by_id_forward)
+      list.flatten([new_upsert_api, variant_forwards, update_by_id_forward])
     })
   list.flatten([
     entity_operation_forwards,

@@ -5,6 +5,7 @@ import case_studies/hippo_db/query
 import case_studies/hippo_db/row
 import case_studies/hippo_db/upsert
 import case_studies/hippo_schema
+import gleam/list
 import gleam/option
 import gleam/time/calendar
 import sqlight
@@ -113,25 +114,30 @@ pub fn get_human_by_email(
   get.get_human_by_email(conn, email: email)
 }
 
-pub fn upsert_many_human_by_email(
-  conn: sqlight.Connection,
-  items items: List(a),
-  each each: fn(
-    a,
-    fn(String, option.Option(String)) ->
-      Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error),
-  ) ->
-    Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error),
-) -> Result(List(#(hippo_schema.Human, dsl.MagicFields)), sqlight.Error) {
-  upsert.upsert_many_human_by_email(conn, items: items, each: each)
-}
-
-pub fn upsert_human_by_email(
-  conn: sqlight.Connection,
+pub fn by_human_email(
   email email: String,
   name name: option.Option(String),
+) -> fn(sqlight.Connection) ->
+  Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error) {
+  fn(conn) { upsert.upsert_human_by_email(conn, email: email, name: name) }
+}
+
+pub fn upsert_many_human(
+  conn: sqlight.Connection,
+  rows rows: List(
+    fn(sqlight.Connection) ->
+      Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error),
+  ),
+) -> Result(List(#(hippo_schema.Human, dsl.MagicFields)), sqlight.Error) {
+  list.try_map(rows, fn(row) { row(conn) })
+}
+
+pub fn upsert_one_human(
+  conn: sqlight.Connection,
+  row row: fn(sqlight.Connection) ->
+    Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error),
 ) -> Result(#(hippo_schema.Human, dsl.MagicFields), sqlight.Error) {
-  upsert.upsert_human_by_email(conn, email: email, name: name)
+  row(conn)
 }
 
 pub fn update_hippo_by_id(
@@ -191,33 +197,36 @@ pub fn get_hippo_by_name_and_date_of_birth(
   )
 }
 
-pub fn upsert_many_hippo_by_name_and_date_of_birth(
-  conn: sqlight.Connection,
-  items items: List(a),
-  each each: fn(
-    a,
-    fn(String, calendar.Date, option.Option(hippo_schema.GenderScalar)) ->
-      Result(#(hippo_schema.Hippo, dsl.MagicFields), sqlight.Error),
-  ) ->
-    Result(#(hippo_schema.Hippo, dsl.MagicFields), sqlight.Error),
-) -> Result(List(#(hippo_schema.Hippo, dsl.MagicFields)), sqlight.Error) {
-  upsert.upsert_many_hippo_by_name_and_date_of_birth(
-    conn,
-    items: items,
-    each: each,
-  )
-}
-
-pub fn upsert_hippo_by_name_and_date_of_birth(
-  conn: sqlight.Connection,
+pub fn by_hippo_name_and_date_of_birth(
   name name: String,
   date_of_birth date_of_birth: calendar.Date,
   gender gender: option.Option(hippo_schema.GenderScalar),
+) -> fn(sqlight.Connection) ->
+  Result(#(hippo_schema.Hippo, dsl.MagicFields), sqlight.Error) {
+  fn(conn) {
+    upsert.upsert_hippo_by_name_and_date_of_birth(
+      conn,
+      name: name,
+      date_of_birth: date_of_birth,
+      gender: gender,
+    )
+  }
+}
+
+pub fn upsert_many_hippo(
+  conn: sqlight.Connection,
+  rows rows: List(
+    fn(sqlight.Connection) ->
+      Result(#(hippo_schema.Hippo, dsl.MagicFields), sqlight.Error),
+  ),
+) -> Result(List(#(hippo_schema.Hippo, dsl.MagicFields)), sqlight.Error) {
+  list.try_map(rows, fn(row) { row(conn) })
+}
+
+pub fn upsert_one_hippo(
+  conn: sqlight.Connection,
+  row row: fn(sqlight.Connection) ->
+    Result(#(hippo_schema.Hippo, dsl.MagicFields), sqlight.Error),
 ) -> Result(#(hippo_schema.Hippo, dsl.MagicFields), sqlight.Error) {
-  upsert.upsert_hippo_by_name_and_date_of_birth(
-    conn,
-    name: name,
-    date_of_birth: date_of_birth,
-    gender: gender,
-  )
+  row(conn)
 }

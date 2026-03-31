@@ -1,11 +1,7 @@
-import case_studies/fruit_db/api as fruit_api
 import generators/api/api
-import gleam/list
-import gleam/option
 import gleam/string
 import schema_definition/parser as schema_parser
 import simplifile
-import sqlight
 
 pub fn update_by_id_emitted_for_all_entities_test() {
   let assert Ok(schema_src) =
@@ -42,5 +38,12 @@ pub fn update_by_id_emitted_for_all_entities_test() {
 
   assert string.contains(out.upsert, "const update_importedtrack_by_id_sql")
   assert string.contains(out.upsert, "pub fn update_importedtrack_by_id(")
+
+  assert string.contains(out.api, "pub fn upsert_one_tag(")
+  assert string.contains(out.api, "pub fn upsert_many_tag(")
+  assert string.contains(out.api, "pub fn by_tag_tag_label(")
+  assert string.contains(out.api, "list.try_map(rows, fn(row) { row(conn) })")
+  assert !string.contains(out.api, "pub fn upsert_tag_by_tag_label(")
+  assert !string.contains(out.api, "pub fn upsert_many_tag_by_tag_label(")
 }
 

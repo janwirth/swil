@@ -10,21 +10,25 @@ pub fn library_manager_e2e_test() {
 
   // ImportedTrack writes through generated API.
   let assert Ok(#(first_track, _first_magic)) =
-    api.upsert_importedtrack_by_title_and_artist(
+    api.upsert_one_importedtrack(
       conn,
-      title: "One More Time",
-      artist: "Daft Punk",
-      file_path: Some("/music/daft/one_more_time.flac"),
+      row: api.by_importedtrack_title_and_artist(
+        title: "One More Time",
+        artist: "Daft Punk",
+        file_path: Some("/music/daft/one_more_time.flac"),
+      ),
     )
   let assert Some("One More Time") = first_track.title
   let assert Some("Daft Punk") = first_track.artist
 
   let assert Ok(#(_second_track, second_magic)) =
-    api.upsert_importedtrack_by_title_and_artist(
+    api.upsert_one_importedtrack(
       conn,
-      title: "Aerodynamic",
-      artist: "Daft Punk",
-      file_path: Some("/music/daft/aerodynamic.flac"),
+      row: api.by_importedtrack_title_and_artist(
+        title: "Aerodynamic",
+        artist: "Daft Punk",
+        file_path: Some("/music/daft/aerodynamic.flac"),
+      ),
     )
 
   let assert Ok(Some(#(fetched_by_id, _))) =
@@ -32,26 +36,33 @@ pub fn library_manager_e2e_test() {
   let assert Some("Aerodynamic") = fetched_by_id.title
 
   let assert Ok(#(tag_row, tag_magic)) =
-    api.upsert_tag_by_tag_label(conn, label: "Favorite", emoji: Some("star"))
+    api.upsert_one_tag(
+      conn,
+      row: api.by_tag_tag_label(label: "Favorite", emoji: Some("star")),
+    )
   let assert Some("Favorite") = tag_row.label
 
   let assert Ok(#(bucket_row, bucket_magic)) =
-    api.upsert_trackbucket_by_bucket_title_and_artist(
+    api.upsert_one_trackbucket(
       conn,
-      title: "Daft Punk",
-      artist: "Daft Punk",
+      row: api.by_trackbucket_bucket_title_and_artist(
+        title: "Daft Punk",
+        artist: "Daft Punk",
+      ),
     )
   let assert Some("Daft Punk") = bucket_row.title
 
   let assert Ok(#(tab_row, tab_magic)) =
-    api.upsert_tab_by_tab_label(
+    api.upsert_one_tab(
       conn,
-      label: "Main",
-      order: Some(1.0),
-      view_config: Some(ViewConfigScalar(
-        filter_config: Some("genre:electronic"),
-        source_selector: Some("all"),
-      )),
+      row: api.by_tab_tab_label(
+        label: "Main",
+        order: Some(1.0),
+        view_config: Some(ViewConfigScalar(
+          filter_config: Some("genre:electronic"),
+          source_selector: Some("all"),
+        )),
+      ),
     )
   let assert Some("Main") = tab_row.label
   let assert Some(ViewConfigScalar(filter_config:, source_selector:)) =

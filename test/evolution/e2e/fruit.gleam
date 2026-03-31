@@ -23,12 +23,14 @@ pub fn fruit_e2e_test() {
   list.each(fruits, fn(row) {
     let #(name, color, price, qty) = row
     let assert Ok(_) =
-      api.upsert_fruit_by_name(
+      api.upsert_one_fruit(
         conn,
-        name: name,
-        color: Some(color),
-        price: Some(price),
-        quantity: Some(qty),
+        row: api.by_fruit_name(
+          name: name,
+          color: Some(color),
+          price: Some(price),
+          quantity: Some(qty),
+        ),
       )
   })
   // ensure the migration is not killing the data
@@ -59,6 +61,40 @@ pub fn fruit_e2e_test() {
     #("elderberry", 5.0),
   ]
   let assert True = names_and_prices == expected
+
+  let assert Ok(Nil) = sqlight.close(conn)
+}
+
+pub fn fruit_new_upsert_api_e2e_test() {
+  let assert Ok(conn) = sqlight.open(":memory:")
+  let assert Ok(Nil) = api.migrate(conn)
+
+  let rows = [
+    api.by_fruit_name(
+      name: "kiwi",
+      color: Some("green"),
+      price: Some(11.0),
+      quantity: Some(11),
+    ),
+    api.by_fruit_name(
+      name: "lemon",
+      color: Some("yellow"),
+      price: Some(12.0),
+      quantity: Some(12),
+    ),
+    api.by_fruit_name(
+      name: "mango",
+      color: Some("orange"),
+      price: Some(13.0),
+      quantity: Some(13),
+    ),
+  ]
+
+  let assert Ok(inserted) = api.upsert_many_fruit(conn, rows: rows)
+  let assert 3 = list.length(inserted)
+
+  let assert Ok(Some(#(kiwi, _))) = api.get_fruit_by_name(conn, name: "kiwi")
+  let assert Some("kiwi") = kiwi.name
 
   let assert Ok(Nil) = sqlight.close(conn)
 }
