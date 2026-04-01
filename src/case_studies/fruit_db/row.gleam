@@ -9,8 +9,8 @@ pub fn fruit_with_magic_row_decoder() -> decode.Decoder(
 ) {
   use name <- decode.field(0, decode.string)
   use color <- decode.field(1, decode.string)
-  use price <- decode.field(2, decode.float)
-  use quantity <- decode.field(3, decode.int)
+  use price <- decode.field(2, decode.optional(decode.float))
+  use quantity <- decode.field(3, decode.optional(decode.int))
   use id <- decode.field(4, decode.int)
   use created_at <- decode.field(5, decode.int)
   use updated_at <- decode.field(6, decode.int)
@@ -19,8 +19,8 @@ pub fn fruit_with_magic_row_decoder() -> decode.Decoder(
     fruit_schema.Fruit(
       name: option.Some(name),
       color: api_help.opt_string_from_db(color),
-      price: option.Some(price),
-      quantity: option.Some(quantity),
+      price: price,
+      quantity: quantity,
       identities: fruit_schema.ByName(name:),
     )
   decode.success(#(

@@ -83,7 +83,7 @@ pub fn tab_with_magic_row_decoder() -> decode.Decoder(
   #(library_manager_advanced_schema.Tab, dsl.MagicFields),
 ) {
   use label <- decode.field(0, decode.string)
-  use order <- decode.field(1, decode.float)
+  use order <- decode.field(1, decode.optional(decode.float))
   use view_config <- decode.field(
     2,
     decode.then(decode.string, fn(s) {
@@ -101,7 +101,7 @@ pub fn tab_with_magic_row_decoder() -> decode.Decoder(
   let tab =
     library_manager_advanced_schema.Tab(
       label: option.Some(label),
-      order: option.Some(order),
+      order: order,
       view_config: view_config,
       tracks: [],
       identities: library_manager_advanced_schema.ByTabLabel(label:),

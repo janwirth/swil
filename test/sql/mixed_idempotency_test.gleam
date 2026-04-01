@@ -86,6 +86,34 @@ pub fn hippo_pragma_codegen_matches_disk_test() {
   assert_diff(hippo_expected, hippo_gleam)
 }
 
+pub fn additive_item_v1_pragma_codegen_matches_disk_test() {
+  let assert Ok(src) =
+    simplifile.read("src/case_studies/additive_item_v1_schema.gleam")
+  let assert Ok(expected) =
+    simplifile.read("src/case_studies/additive_item_v1_db/migration.gleam")
+  let assert Ok(def) = schema_parser.parse_module(src)
+  let assert Ok(gleam) =
+    migration.generate_pragma_migration_module(
+      def,
+      "case_studies/additive_item_v1_db/migration",
+    )
+  assert_diff(expected, gleam)
+}
+
+pub fn additive_item_v2_pragma_codegen_matches_disk_test() {
+  let assert Ok(src) =
+    simplifile.read("src/case_studies/additive_item_v2_schema.gleam")
+  let assert Ok(expected) =
+    simplifile.read("src/case_studies/additive_item_v2_db/migration.gleam")
+  let assert Ok(def) = schema_parser.parse_module(src)
+  let assert Ok(gleam) =
+    migration.generate_pragma_migration_module(
+      def,
+      "case_studies/additive_item_v2_db/migration",
+    )
+  assert_diff(expected, gleam)
+}
+
 pub fn idempotent_migration_test() {
   let assert Ok(conn) = sqlight.open(":memory:")
 

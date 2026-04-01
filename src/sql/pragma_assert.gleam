@@ -112,9 +112,50 @@ pub fn index_info_tsv(
   Ok(format_index_info_tsv(rows))
 }
 
+/// Sorts `pragma table_info` body rows by column name and renumbers `cid` 0..n-1 so
+/// `ALTER TABLE … ADD COLUMN` (always appends in SQLite) still matches the logical shape
+/// from `CREATE TABLE` (canonical column order in fixtures).
+fn normalize_table_info_tsv(tsv: String) -> String {
+  let lines = string.split(tsv, "\n")
+  case lines {
+    [] -> tsv
+    [header, ..rest] -> {
+      let parsed =
+        list.filter_map(rest, fn(line) {
+          case string.split(line, "\t") {
+            [_cid, name, typ, notnull, dflt, pk] ->
+              Ok(#(name, typ, notnull, dflt, pk))
+            _ -> Error(Nil)
+          }
+        })
+      let sorted =
+        list.sort(parsed, fn(a, b) { string.compare(a.0, b.0) })
+      let body =
+        list.index_map(sorted, fn(row, i) {
+          let #(name, typ, notnull, dflt, pk) = row
+          int.to_string(i)
+          <> "\t"
+          <> name
+          <> "\t"
+          <> typ
+          <> "\t"
+          <> notnull
+          <> "\t"
+          <> dflt
+          <> "\t"
+          <> pk
+        })
+      string.join([header, ..body], "\n")
+    }
+  }
+}
+
 /// Asserts the DB has exactly these user tables (no more, no less), then checks
 /// `table_info`, `index_list`, and `index_info` for [table] / [unique_index_name] with
 /// exact TSV equality (no trimming).
+///
+/// `table_info` is compared in **normalized** form (rows sorted by column name, `cid`
+/// reassigned) so additive `ADD COLUMN` migrations match fixtures built for `CREATE TABLE`.
 pub fn assert_pragma_snapshot(
   conn: sqlight.Connection,
   exact_user_tables: List(String),
@@ -131,7 +172,8 @@ pub fn assert_pragma_snapshot(
   let assert Ok(got_info) = table_info_tsv(conn, table)
   let assert Ok(got_list) = index_list_tsv(conn, table)
   let assert Ok(got_ix) = index_info_tsv(conn, unique_index_name)
-  let assert True = got_info == expected_table_info
+  let assert True =
+    normalize_table_info_tsv(got_info) == normalize_table_info_tsv(expected_table_info)
   let assert True = got_list == expected_indexes
   let assert True = got_ix == expected_index_info
   Nil

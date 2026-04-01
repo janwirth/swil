@@ -456,6 +456,41 @@ fn row_decoder_expr_for_named(name: String, ctx: TypeCtx) -> String {
   }
 }
 
+/// Decoders for `Option(Int|Float|Bool)` columns that are not identity keys (nullable in SQLite).
+fn row_decoder_expr_optional_primitive_entity_field(
+  f: FieldDefinition,
+  ctx: TypeCtx,
+) -> String {
+  case f.type_ {
+    glance.NamedType(_, "Option", _, [glance.NamedType(_, n, _, [])]) ->
+      case n {
+        "Int" -> "decode.optional(decode.int)"
+        "Float" -> "decode.optional(decode.float)"
+        "Bool" ->
+          "decode.optional(decode.map(decode.int, fn(i) { i != 0 }))"
+        _ -> row_decoder_expr(f.type_, ctx)
+      }
+    _ -> row_decoder_expr(f.type_, ctx)
+  }
+}
+
+/// Identity-key columns must decode as non-null primitives so `ByNameAndAge(name:, age:)` types match.
+fn row_decoder_expr_for_entity_data_field(
+  f: FieldDefinition,
+  identity_labels: List(String),
+  ctx: TypeCtx,
+) -> String {
+  case list.contains(identity_labels, f.label) {
+    True ->
+      case f.type_ {
+        glance.NamedType(_, "Option", _, [glance.NamedType(_, n, _, [])]) ->
+          row_decoder_expr_for_named(n, ctx)
+        _ -> row_decoder_expr(f.type_, ctx)
+      }
+    False -> row_decoder_expr_optional_primitive_entity_field(f, ctx)
+  }
+}
+
 fn row_decoder_expr(field_type: glance.Type, ctx: TypeCtx) -> String {
   case field_type {
     glance.NamedType(_, "Option", _, [glance.NamedType(_, "Timestamp", _, [])]) ->
@@ -567,7 +602,16 @@ fn field_to_constructor_arg(
         True, _, _, _ -> var
         False, True, True, _ -> var
         False, True, False, True -> "api_help.opt_string_from_db(" <> var <> ")"
-        False, True, False, False -> "option.Some(" <> var <> ")"
+        False, True, False, False ->
+          case f.type_ {
+            glance.NamedType(_, "Option", _, [glance.NamedType(_, "Int", _, [])]) ->
+              var
+            glance.NamedType(_, "Option", _, [glance.NamedType(_, "Float", _, [])]) ->
+              var
+            glance.NamedType(_, "Option", _, [glance.NamedType(_, "Bool", _, [])]) ->
+              var
+            _ -> "option.Some(" <> var <> ")"
+          }
         False, False, _, _ -> var
       }
   }
@@ -592,7 +636,7 @@ fn entity_simple_magic_decoder_fn(
       <> " <- decode.field("
       <> int.to_string(i)
       <> ", "
-      <> row_decoder_expr(f.type_, ctx)
+      <> row_decoder_expr_for_entity_data_field(f, ids, ctx)
       <> ")"
     })
     |> string.join("\n")
