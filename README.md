@@ -6,7 +6,6 @@ _a cute squeal_
 <img src="bree.png" alt="unexpected BREEE" width="150" />
 </a>
 
-
 SQLite from Gleam types + small query functions → generated `*_db` (migrate, get, upsert, delete, query, api). Full case study: [`hippo_schema.gleam`](src/case_studies/hippo_schema.gleam).
 
 **WARNING: Migrations have not been tested thoroughly yet, could lead to data loss / unexpected consequences**
@@ -43,6 +42,8 @@ pub type Hippo {
 pub type GenderScalar {
   Male
   Female
+  Inbetween
+  Beyond
 }
 
 
@@ -50,6 +51,20 @@ pub type GenderScalar {
 pub type HippoIdentities {
   ByNameAndDateOfBirth(name: String, date_of_birth: Date)
 }
+
+/// Query input spec for "hippos by gender".
+pub fn query_hippos_by_gender(
+  hippo: Hippo,
+  _magic_fields: dsl.MagicFields,
+  gender_to_match: GenderScalar,
+) {
+  dsl.query(hippo)
+  |> dsl.shape(hippo)
+  |> dsl.filter_bool(exclude_if_missing(hippo.gender) == gender_to_match)
+  |> dsl.order(hippo.name, dsl.Desc)
+}
+
+
 ```
 
 This gives you the following nicely typed api:
@@ -110,6 +125,7 @@ pub fn example(conn: sqlight.Connection) {
 ## Relationships
 
 You care about your relationships?
+Let's define some
 
 ```gleam
 // continuing hippo_schema.gleam
@@ -133,7 +149,11 @@ pub type FriendshipAttributes {
   // yeeeah we are old friends :))
   FriendshipAttributes(since: option.Option(Date))
 }
+```
 
+This gives you first-class querying on relationships.
+
+```gleam
 pub type Human {
   Human(
     name: option.Option(String),
@@ -183,15 +203,4 @@ pub fn query_old_hippos_owner_names(
   |> dsl.order(age(exclude_if_missing(hippo.date_of_birth)), dsl.Desc)
 }
 
-/// Query input spec for "hippos by gender".
-pub fn query_hippos_by_gender(
-  hippo: Hippo,
-  _magic_fields: dsl.MagicFields,
-  gender_to_match: GenderScalar,
-) {
-  dsl.query(hippo)
-  |> dsl.shape(hippo)
-  |> dsl.filter_bool(exclude_if_missing(hippo.gender) == gender_to_match)
-  |> dsl.order(hippo.name, dsl.Desc)
-}
 ```

@@ -367,5 +367,9 @@ pub type QuerySimpleType {
 /// ```
 pub type ParseError {
   GlanceError(glance.Error)
-  UnsupportedSchema(span: Option(glance.Span), message: String)
+  UnsupportedSchema(
+    span: Option(glance.Span),
+    related: List(#(glance.Span, String)),
+    message: String,
+  )
 }

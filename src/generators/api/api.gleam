@@ -315,7 +315,7 @@ fn ensure_string_import(text: String) -> String {
 fn format_parse_error(e: schema_definition.ParseError) -> String {
   case e {
     schema_definition.GlanceError(_) -> "glance parse error in predicate"
-    schema_definition.UnsupportedSchema(_, msg) ->
+    schema_definition.UnsupportedSchema(_, _, msg) ->
       "unsupported predicate schema: " <> msg
   }
 }

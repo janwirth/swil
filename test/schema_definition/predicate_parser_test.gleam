@@ -257,7 +257,7 @@ pub fn error_missing_return_annotation_test() {
       )
   }
 }"
-  let assert Error(sd.UnsupportedSchema(_, msg)) =
+  let assert Error(sd.UnsupportedSchema(_, _, msg)) =
     schema_parser.parse_module(src)
   // The error should mention the function name
   assert string.contains(msg, "predicate_no_return")

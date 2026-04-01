@@ -58,6 +58,7 @@ fn render_type_plain_field(t: glance.Type, scalar_names: List(String)) -> String
     glance.NamedType(_, "Int", None, []) -> "Int"
     glance.NamedType(_, "Float", None, []) -> "Float"
     glance.NamedType(_, "String", None, []) -> "String"
+    glance.NamedType(_, "Timestamp", _, []) -> "Timestamp"
     glance.NamedType(_, name, _, []) ->
       case list.contains(scalar_names, name) {
         True -> name
@@ -128,6 +129,12 @@ pub fn upsert_fn_body(
                   "  let "
                   <> v
                   <> " = api_help.opt_int_for_db("
+                  <> f.label
+                  <> ")\n"
+                "Timestamp" ->
+                  "  let "
+                  <> v
+                  <> " = api_help.opt_timestamp_for_db("
                   <> f.label
                   <> ")\n"
                 _ ->
@@ -401,6 +408,12 @@ pub fn update_by_id_fn_body(
                   "  let "
                   <> v
                   <> " = api_help.opt_int_for_db("
+                  <> f.label
+                  <> ")\n"
+                "Timestamp" ->
+                  "  let "
+                  <> v
+                  <> " = api_help.opt_timestamp_for_db("
                   <> f.label
                   <> ")\n"
                 _ ->

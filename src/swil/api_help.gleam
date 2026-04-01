@@ -78,6 +78,28 @@ pub fn opt_int_for_db(o: Option(Int)) -> Int {
   }
 }
 
+/// Store `Option(Timestamp)` as Unix seconds; `0` means absent (matches `opt_timestamp_from_db`).
+pub fn opt_timestamp_for_db(o: Option(timestamp.Timestamp)) -> Int {
+  case o {
+    Some(t) -> {
+      let #(s, _) = timestamp.to_unix_seconds_and_nanoseconds(t)
+      s
+    }
+    None -> 0
+  }
+}
+
+pub fn opt_timestamp_from_db(seconds: Int) -> Option(timestamp.Timestamp) {
+  case seconds {
+    0 -> None
+    s -> Some(timestamp.from_unix_seconds(s))
+  }
+}
+
+pub fn timestamp_from_db_unix(seconds: Int) -> timestamp.Timestamp {
+  timestamp.from_unix_seconds(seconds)
+}
+
 pub fn opt_string_from_db(s: String) -> Option(String) {
   case s {
     "" -> None

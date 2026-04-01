@@ -57,6 +57,20 @@ fn exposing_items(s: String) -> List(gimport.ExposedItem) {
   |> list.map(parse_exposing_piece)
 }
 
+fn with_gleam_timestamp_type_if_needed(
+  def: SchemaDefinition,
+  inner: fn() -> gmod.Module,
+) -> gmod.Module {
+  case schema_context.schema_uses_timestamp(def) {
+    True ->
+      gmod.with_import(
+        import_pre_exposing(["gleam", "time", "timestamp"], "type Timestamp"),
+        fn(_) { inner() },
+      )
+    False -> inner()
+  }
+}
+
 pub fn with_api_imports(
   migration_path: String,
   schema_path: String,
@@ -68,11 +82,11 @@ pub fn with_api_imports(
   let sch_parts = string.split(schema_path, "/")
   let after_result = fn() -> gmod.Module {
     case schema_context.schema_uses_calendar_date(def) {
-      False -> {
-        use _ <- gmod.with_import(import_pre(["gleam", "time", "timestamp"]))
-        use _ <- gmod.with_import(import_pre(["sqlight"]))
-        inner()
-      }
+      False ->
+        with_gleam_timestamp_type_if_needed(def, fn() {
+          use _ <- gmod.with_import(import_pre(["sqlight"]))
+          inner()
+        })
       True -> {
         use _ <- gmod.with_import(import_pre(["gleam", "int"]))
         use _ <- gmod.with_import(import_pre(["gleam", "string"]))
@@ -82,9 +96,10 @@ pub fn with_api_imports(
             "type Date, Date as CalDate, month_from_int, month_to_int",
           ),
         )
-        use _ <- gmod.with_import(import_pre(["gleam", "time", "timestamp"]))
-        use _ <- gmod.with_import(import_pre(["sqlight"]))
-        inner()
+        with_gleam_timestamp_type_if_needed(def, fn() {
+          use _ <- gmod.with_import(import_pre(["sqlight"]))
+          inner()
+        })
       }
     }
   }
@@ -149,7 +164,10 @@ pub fn with_upsert_module_imports(
       case schema_context.schema_uses_timestamp(def) {
         True ->
           gmod.with_import(
-            import_pre(["gleam", "time", "timestamp"]),
+            import_pre_exposing(
+              ["gleam", "time", "timestamp"],
+              "type Timestamp",
+            ),
             fn(_) { inner() },
           )
         False -> inner()
@@ -159,7 +177,17 @@ pub fn with_upsert_module_imports(
       use _ <- gmod.with_import(
         import_pre(["gleam", "time", "calendar"]),
       )
-      inner()
+      case schema_context.schema_uses_timestamp(def) {
+        True ->
+          gmod.with_import(
+            import_pre_exposing(
+              ["gleam", "time", "timestamp"],
+              "type Timestamp",
+            ),
+            fn(_) { inner() },
+          )
+        False -> inner()
+      }
     }
   }
 }
@@ -265,12 +293,13 @@ pub fn with_facade_module_imports(
     use _ <- gmod.with_import(import_pre(["gleam", "option"]))
     use _ <- gmod.with_import(import_pre(["sqlight"]))
     case schema_context.schema_uses_calendar_date(def) {
-      False -> inner()
+      False ->
+        with_gleam_timestamp_type_if_needed(def, fn() { inner() })
       True -> {
         use _ <- gmod.with_import(
           import_pre(["gleam", "time", "calendar"]),
         )
-        inner()
+        with_gleam_timestamp_type_if_needed(def, fn() { inner() })
       }
     }
   }

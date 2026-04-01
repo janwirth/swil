@@ -50,7 +50,7 @@ pub fn type_is_unwrapped_primitive(t: glance.Type) -> Bool {
   case t {
     glance.NamedType(_, name, _, []) ->
       case name {
-        "String" | "Int" | "Float" | "Bool" | "Date" -> True
+        "String" | "Int" | "Float" | "Bool" | "Date" | "Timestamp" -> True
         _ -> False
       }
     _ -> False
@@ -74,6 +74,7 @@ pub fn require_no_magic_field_labels(
           True ->
             Error(UnsupportedSchema(
               Some(location),
+              [],
               "field `"
                 <> field.label
                 <> "` on "
@@ -100,6 +101,7 @@ pub fn require_no_unwrapped_primitive_fields(
           True ->
             Error(UnsupportedSchema(
               Some(location),
+              [],
               "field `"
                 <> field.label
                 <> "` on "

@@ -25,6 +25,7 @@ pub fn parse(
         False ->
           Error(UnsupportedSchema(
             Some(ct.location),
+            [],
             "*Relationships type "
               <> ct.name
               <> " must use a single variant of the same name",
@@ -34,6 +35,7 @@ pub fn parse(
             False ->
               Error(UnsupportedSchema(
                 Some(ct.location),
+                [],
                 "*Relationships " <> ct.name <> " must use only labelled fields",
               ))
             True -> {
@@ -52,6 +54,7 @@ pub fn parse(
     _ ->
       Error(UnsupportedSchema(
         Some(ct.location),
+        [],
         "*Relationships type " <> ct.name <> " must have exactly one variant",
       ))
   }

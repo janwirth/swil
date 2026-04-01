@@ -32,6 +32,7 @@ pub fn parse(
     [] ->
       Error(UnsupportedSchema(
         Some(ct.location),
+        [],
         "identities type " <> ct.name <> " must declare at least one variant",
       ))
     variants -> {
@@ -41,6 +42,7 @@ pub fn parse(
             True ->
               Error(UnsupportedSchema(
                 Some(ct.location),
+                [],
                 "identity variant ById in "
                   <> ct.name
                   <> " is reserved for internal row id lookup; choose a different identity name",
@@ -50,6 +52,7 @@ pub fn parse(
                 False ->
                   Error(UnsupportedSchema(
                     Some(ct.location),
+                    [],
                     "identity variant "
                       <> v.name
                       <> " in "
@@ -61,6 +64,7 @@ pub fn parse(
                     False ->
                       Error(UnsupportedSchema(
                         Some(ct.location),
+                        [],
                         "identity variant "
                           <> v.name
                           <> " must use only labelled fields",

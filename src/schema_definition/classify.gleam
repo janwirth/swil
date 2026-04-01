@@ -51,7 +51,10 @@ fn name_suffix(name: String) -> NameSuffix {
 /// Classify a public custom type by **name suffix**. `*Identities`, `*Relationships`, `*Attributes`,
 /// and `*Scalar` are handled explicitly; anything else is parsed as an **entity** (aggregate with
 /// `identities`, optional `relationships`).
-pub fn classify_strict(ct: glance.CustomType) -> Result(Classified, ParseError) {
+pub fn classify_strict(
+  source: String,
+  ct: glance.CustomType,
+) -> Result(Classified, ParseError) {
   use _ <- result.try(require_no_type_parameters(ct))
   use _ <- result.try(require_at_least_one_variant(ct))
   case name_suffix(ct.name) {
@@ -62,19 +65,21 @@ pub fn classify_strict(ct: glance.CustomType) -> Result(Classified, ParseError) 
     SuffixAttributes ->
       edge_attributes.parse(ct) |> result.map(EdgeAttributesBucket)
     SuffixScalar -> Ok(ScalarBucket(scalar.from_custom_type(ct)))
-    SuffixEntity -> classify_entity_default(ct)
+    SuffixEntity -> classify_entity_default(source, ct)
   }
 }
 
 fn classify_entity_default(
+  source: String,
   ct: glance.CustomType,
 ) -> Result(Classified, ParseError) {
-  case entity.try_parse(ct) {
+  case entity.try_parse(source, ct) {
     Ok(Some(e)) -> Ok(EntityBucket(e))
     Error(e) -> Error(e)
     Ok(None) ->
       Error(UnsupportedSchema(
         Some(ct.location),
+        [],
         "public type "
           <> ct.name
           <> " is not a swil entity (expected a single record variant named like the type with a labelled `identities` field); for other shapes use a recognised type name suffix. "
@@ -89,6 +94,7 @@ fn require_no_type_parameters(ct: glance.CustomType) -> Result(Nil, ParseError) 
     _ ->
       Error(UnsupportedSchema(
         Some(ct.location),
+        [],
         "type "
           <> ct.name
           <> " must not have generic parameters in a swil schema module",
@@ -103,6 +109,7 @@ fn require_at_least_one_variant(
     [] ->
       Error(UnsupportedSchema(
         Some(ct.location),
+        [],
         "public type "
           <> ct.name
           <> " has no variants; add at least one (for example empty variants for a scalar enum) or make the type `private` until it is defined",

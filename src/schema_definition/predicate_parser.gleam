@@ -724,5 +724,5 @@ fn param_name_string(name: glance.AssignmentName) -> String {
 }
 
 fn err(f: glance.Function, message: String) -> Result(a, ParseError) {
-  Error(UnsupportedSchema(Some(f.location), message))
+  Error(UnsupportedSchema(Some(f.location), [], message))
 }

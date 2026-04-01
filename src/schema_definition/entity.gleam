@@ -9,6 +9,7 @@ import schema_definition/fields.{
 }
 import schema_definition/parse_error.{
   type ParseError, UnsupportedSchema, hint_public_type_suffixes_or_entity,
+  span_for_record_constructor_name,
 }
 
 /// Parses custom types into entity definitions used by schema generation.
@@ -39,10 +40,11 @@ pub type EntityDefinition {
 /// Example parse:
 /// `type Size { Small Int, Large Int }` returns `Ok(None)`.
 pub fn try_parse(
+  source: String,
   ct: glance.CustomType,
 ) -> Result(Option(EntityDefinition), ParseError) {
   case ct.variants {
-    [variant] -> parse_single_variant(ct, variant)
+    [variant] -> parse_single_variant(source, ct, variant)
     _ -> Ok(None)
   }
 }
@@ -53,6 +55,7 @@ pub fn try_parse(
 /// `Variant("Cat", [identities: CatIdentities, age: Age], _)` with type `Cat`
 /// returns `Ok(Some(EntityDefinition("Cat", "Cat", [...], "CatIdentities")))`.
 fn parse_single_variant(
+  source: String,
   ct: glance.CustomType,
   variant: glance.Variant,
 ) -> Result(Option(EntityDefinition), ParseError) {
@@ -60,7 +63,7 @@ fn parse_single_variant(
 
   use _ <- result.try(require_variant_name_matches(ct, vname))
   use _ <- result.try(require_all_fields_labelled(ct, vfields))
-  use id_name <- result.try(parse_identities_type_name(ct, vfields))
+  use id_name <- result.try(parse_identities_type_name(source, ct, vfields))
   use _ <- result.try(require_relationships_type_name_matches(ct, vfields))
 
   let fields = variant_fields_to_defs(vfields)
@@ -90,6 +93,7 @@ fn require_variant_name_matches(
           <> "` (found `"
           <> variant_name
           <> "`); rename the variant to match the type for a table row",
+        [],
       ))
   }
 }
@@ -111,6 +115,7 @@ fn require_all_fields_labelled(
         "entity "
           <> ct.name
           <> " must use only labelled fields on its record variant",
+        [],
       ))
   }
 }
@@ -122,17 +127,33 @@ fn require_all_fields_labelled(
 /// `identities: Int` returns
 /// `Error(UnsupportedSchema(... "must reference a *Identities type"))`.
 fn parse_identities_type_name(
+  source: String,
   ct: glance.CustomType,
   vfields: List(_),
 ) -> Result(String, ParseError) {
   case find_labelled_field(vfields, "identities") {
-    None ->
-      Error(unsupported(
-        ct,
-        ct.name
-          <> " has a record variant named like the type but no `identities` field; add `identities` pointing at a `*Identities` type. "
-          <> hint_public_type_suffixes_or_entity(),
+    None -> {
+      let ident = ct.name <> "Identities"
+      let related =
+        case span_for_record_constructor_name(source, ct.name, ct.location) {
+          Some(sp) -> [
+            #(
+              sp,
+              "constructor `"
+                <> ct.name
+                <> "`; add labelled field `identities: "
+                <> ident
+                <> "` on this variant",
+            ),
+          ]
+          None -> []
+        }
+      Error(UnsupportedSchema(
+        Some(ct.location),
+        related,
+        entity_missing_identities_message(ct.name),
       ))
+    }
     Some(#(_, id_type)) ->
       case type_named_type_name(id_type) {
         None ->
@@ -141,6 +162,7 @@ fn parse_identities_type_name(
             "entity "
               <> ct.name
               <> " identities field must be a simple type name",
+            [],
           ))
         Some(id_name) ->
           case string.ends_with(id_name, "Identities") {
@@ -151,10 +173,27 @@ fn parse_identities_type_name(
                 "entity "
                   <> ct.name
                   <> " identities field must reference a *Identities type",
+                [],
               ))
           }
       }
   }
+}
+
+fn entity_missing_identities_message(type_name: String) -> String {
+  let id = type_name <> "Identities"
+  type_name
+  <> " has a record variant named like the type but no labelled `identities` field.\n\n"
+  <> "For example:\n\npub type "
+  <> type_name
+  <> " {\n  "
+  <> type_name
+  <> "(\n    name: option.Option(String),\n    identities: "
+  <> id
+  <> ",\n  )\n}\n\npub type "
+  <> id
+  <> " {\n  ByName(name: String)\n}\n\n"
+  <> hint_public_type_suffixes_or_entity()
 }
 
 /// Validates the optional `relationships` field naming and shape.
@@ -177,6 +216,7 @@ fn require_relationships_type_name_matches(
             "entity "
               <> ct.name
               <> " relationships field must be a simple type name",
+            [],
           ))
         Some(rel_name) ->
           case string.ends_with(rel_name, "Relationships") {
@@ -190,6 +230,7 @@ fn require_relationships_type_name_matches(
                   <> ct.name
                   <> "Relationships`. "
                   <> "The Relationships type name must match the entity name.",
+                [],
               ))
             True ->
               case rel_name == ct.name <> "Relationships" {
@@ -203,6 +244,7 @@ fn require_relationships_type_name_matches(
                       <> ct.name
                       <> "Relationships`. "
                       <> "The Relationships type name must match the entity name.",
+                    [],
                   ))
               }
           }
@@ -238,7 +280,11 @@ fn validate_non_magic_fields(
 ///
 /// Example parse:
 /// for type `Cat` at its source location, `unsupported(ct, "bad shape")` returns
-/// `UnsupportedSchema(Some(ct.location), "bad shape")`.
-fn unsupported(ct: glance.CustomType, message: String) -> ParseError {
-  UnsupportedSchema(Some(ct.location), message)
+/// `UnsupportedSchema(Some(ct.location), [], "bad shape")`.
+fn unsupported(
+  ct: glance.CustomType,
+  message: String,
+  related: List(#(glance.Span, String)),
+) -> ParseError {
+  UnsupportedSchema(Some(ct.location), related, message)
 }

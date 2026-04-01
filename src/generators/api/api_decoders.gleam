@@ -1,5 +1,6 @@
 import generators/api/api_sql
 import generators/gleamgen_emit
+import generators/sql_types as sql_t
 import glance
 import gleam/int
 import gleam/list
@@ -252,6 +253,13 @@ fn data_field_raw_decode_name(f: FieldDefinition) -> String {
   }
 }
 
+fn rich_row_data_field_decode_subexpr(f: FieldDefinition) -> String {
+  case sql_t.type_stored_as_unix_int(f.type_) {
+    True -> "decode.int"
+    False -> "decode.string"
+  }
+}
+
 fn rich_decode_lets(data_fields: List(FieldDefinition), ctx: TypeCtx) -> String {
   let raw = data_field_raw_decode_name
   list.map(data_fields, fn(f) {
@@ -270,6 +278,12 @@ fn rich_decode_lets(data_fields: List(FieldDefinition), ctx: TypeCtx) -> String 
             <> " = case "
             <> raw(f)
             <> " {\n    \"\" -> option.None\n    s -> option.Some(api_help.date_from_db_string(s))\n  }"
+          glance.NamedType(_, "Timestamp", _, []) ->
+            "  let "
+            <> f.label
+            <> " = api_help.opt_timestamp_from_db("
+            <> raw(f)
+            <> ")"
           glance.NamedType(_, n, _, []) ->
             case list.contains(ctx.enum_scalar_names, n) {
               True ->
@@ -295,6 +309,12 @@ fn rich_decode_lets(data_fields: List(FieldDefinition), ctx: TypeCtx) -> String 
             <> ")"
         }
       }
+      glance.NamedType(_, "Timestamp", _, []) ->
+        "  let "
+        <> f.label
+        <> " = api_help.timestamp_from_db_unix("
+        <> raw(f)
+        <> ")"
       _ ->
         "  let "
         <> f.label
@@ -324,7 +344,9 @@ fn entity_rich_row_decoder_fn(
       <> data_field_raw_decode_name(f)
       <> " <- decode.field("
       <> int.to_string(i)
-      <> ", decode.string)"
+      <> ", "
+      <> rich_row_data_field_decode_subexpr(f)
+      <> ")"
     })
     |> string.join("\n")
   let n = list.length(data_fields)
@@ -415,6 +437,8 @@ fn row_decoder_expr_for_named(name: String, ctx: TypeCtx) -> String {
     "Float" -> "decode.float"
     "String" -> "decode.string"
     "Bool" -> "decode.map(decode.int, fn(i) { i != 0 })"
+    "Timestamp" ->
+      "decode.map(decode.int, fn(i) { api_help.timestamp_from_db_unix(i) })"
     _ ->
       case list.contains(ctx.enum_scalar_names, name) {
         True ->
@@ -434,6 +458,8 @@ fn row_decoder_expr_for_named(name: String, ctx: TypeCtx) -> String {
 
 fn row_decoder_expr(field_type: glance.Type, ctx: TypeCtx) -> String {
   case field_type {
+    glance.NamedType(_, "Option", _, [glance.NamedType(_, "Timestamp", _, [])]) ->
+      "decode.map(decode.int, fn(i) { api_help.opt_timestamp_from_db(i) })"
     glance.NamedType(_, "Option", _, [glance.NamedType(_, n, _, [])]) ->
       case
         list.contains(ctx.scalar_names, n),
@@ -474,6 +500,14 @@ fn type_is_option_string(t: glance.Type) -> Bool {
 fn type_is_option(t: glance.Type) -> Bool {
   case t {
     glance.NamedType(_, "Option", _, _) -> True
+    _ -> False
+  }
+}
+
+fn field_is_timestamp_option(f: FieldDefinition) -> Bool {
+  case f.type_ {
+    glance.NamedType(_, "Option", _, [glance.NamedType(_, "Timestamp", _, [])]) ->
+      True
     _ -> False
   }
 }
@@ -527,12 +561,14 @@ fn field_to_constructor_arg(
       case
         is_option_non_enum_scalar_field(f, ctx),
         type_is_option(f.type_),
+        field_is_timestamp_option(f),
         type_is_option_string(f.type_)
       {
-        True, _, _ -> var
-        False, True, True -> "api_help.opt_string_from_db(" <> var <> ")"
-        False, True, False -> "option.Some(" <> var <> ")"
-        False, False, _ -> var
+        True, _, _, _ -> var
+        False, True, True, _ -> var
+        False, True, False, True -> "api_help.opt_string_from_db(" <> var <> ")"
+        False, True, False, False -> "option.Some(" <> var <> ")"
+        False, False, _, _ -> var
       }
   }
 }

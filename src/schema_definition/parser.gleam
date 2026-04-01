@@ -1,7 +1,5 @@
 import glance
-import glance_armstrong
 import gleam/list
-import gleam/option.{None, Some}
 import gleam/result
 import schema_definition/edge_attributes as edge_attributes_mod
 import schema_definition/entity as entity_mod
@@ -29,11 +27,12 @@ pub fn format_parse_error(
 ) -> String {
   case error {
     schema_definition.GlanceError(e) ->
-      glance_armstrong.format_glance_parse_error(source, e)
-    schema_definition.UnsupportedSchema(None, message) ->
-      glance_armstrong.format_diagnostic_without_span(message)
-    schema_definition.UnsupportedSchema(Some(span), message) ->
-      glance_armstrong.format_source_diagnostic(source, span, message)
+      parse_error_mod.format_parse_error(source, parse_error_mod.GlanceError(e))
+    schema_definition.UnsupportedSchema(span, related, message) ->
+      parse_error_mod.format_parse_error(
+        source,
+        parse_error_mod.UnsupportedSchema(span, related, message),
+      )
   }
 }
 
@@ -41,7 +40,7 @@ fn parse_module_strict(
   source: String,
 ) -> Result(schema_aggregate_mod.SchemaDefinition, parse_error_mod.ParseError) {
   case glance.module(source) {
-    Ok(parsed) -> module_builder.build_schema_strict(parsed)
+    Ok(parsed) -> module_builder.build_schema_strict(source, parsed)
     Error(e) -> Error(parse_error_mod.GlanceError(e))
   }
 }
@@ -191,7 +190,7 @@ fn from_parse_error_mod(
 ) -> schema_definition.ParseError {
   case error {
     parse_error_mod.GlanceError(err) -> schema_definition.GlanceError(err)
-    parse_error_mod.UnsupportedSchema(span: span, message: message) ->
-      schema_definition.UnsupportedSchema(span:, message:)
+    parse_error_mod.UnsupportedSchema(span:, related:, message:) ->
+      schema_definition.UnsupportedSchema(span:, related:, message:)
   }
 }

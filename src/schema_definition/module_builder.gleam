@@ -15,6 +15,7 @@ import schema_definition/schema_aggregate.{
 }
 
 pub fn build_schema_strict(
+  source: String,
   parsed: glance.Module,
 ) -> Result(SchemaDefinition, ParseError) {
   let custom_types_ordered = list.reverse(parsed.custom_types)
@@ -22,7 +23,7 @@ pub fn build_schema_strict(
   use buckets <- result.try(
     list.try_fold(custom_types_ordered, buckets.initial(), fn(acc, def) {
       case def {
-        glance.Definition(_, ct) -> insert_custom_type_strict(acc, ct)
+        glance.Definition(_, ct) -> insert_custom_type_strict(source, acc, ct)
       }
     }),
   )
@@ -46,13 +47,14 @@ pub fn build_schema_strict(
 }
 
 fn insert_custom_type_strict(
+  source: String,
   acc: buckets.Buckets,
   ct: glance.CustomType,
 ) -> Result(buckets.Buckets, ParseError) {
   case ct.publicity {
     glance.Private -> Ok(acc)
     glance.Public ->
-      case classify.classify_strict(ct) {
+      case classify.classify_strict(source, ct) {
         Ok(classified) -> Ok(buckets.insert_classified(acc, classified))
         Error(e) -> Error(e)
       }
@@ -73,6 +75,7 @@ fn validate_identity_types_linked_to_entities(
         False ->
           Error(UnsupportedSchema(
             None,
+            [],
             "*Identities type "
               <> id.type_name
               <> " must be the `identities` field on a public entity in this module (or use a `*Scalar` enum for standalone sum types without an entity). "
@@ -89,6 +92,7 @@ fn validate_identity_types_linked_to_entities(
       False ->
         Error(UnsupportedSchema(
           None,
+          [],
           "entity "
             <> entity.type_name
             <> " references "

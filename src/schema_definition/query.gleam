@@ -63,6 +63,7 @@ pub fn extract_from_functions(
               True ->
                 Error(UnsupportedSchema(
                   Some(f.location),
+                  [],
                   "public function "
                     <> f.name
                     <> " must not contain `let` statements; use a single expression pipeline",
@@ -74,6 +75,7 @@ pub fn extract_from_functions(
                       False ->
                         Error(UnsupportedSchema(
                           Some(f.location),
+                          [],
                           "public query function "
                             <> f.name
                             <> " must start with `query_`. "
@@ -93,6 +95,7 @@ pub fn extract_from_functions(
                           False ->
                             Error(UnsupportedSchema(
                               Some(f.location),
+                              [],
                               "public BooleanFilter helper "
                                 <> f.name
                                 <> " must start with `predicate_`. "
@@ -102,6 +105,7 @@ pub fn extract_from_functions(
                       False ->
                         Error(UnsupportedSchema(
                           Some(f.location),
+                          [],
                           "public function "
                             <> f.name
                             <> " is not allowed in a swil schema module. "
@@ -133,6 +137,7 @@ fn query_spec_from_function_strict(
       None ->
         Error(UnsupportedSchema(
           Some(f.location),
+          [],
           "public query " <> f.name <> " parameters must have type annotations",
         ))
       Some(t) ->
@@ -171,6 +176,7 @@ fn validate_query_parameters_strict(
         _, _, _ ->
           Error(UnsupportedSchema(
             Some(f.location),
+            [],
             "public query "
               <> f.name
               <> " parameters must be `(entity, dsl.MagicFields, simple)` where simple is "
@@ -180,6 +186,7 @@ fn validate_query_parameters_strict(
     _ ->
       Error(UnsupportedSchema(
         Some(f.location),
+        [],
         "public query "
           <> f.name
           <> " must have exactly 3 parameters: `(entity, dsl.MagicFields, simple)`",
@@ -208,6 +215,7 @@ fn infer_query(f: glance.Function) -> Result(sd.Query, ParseError) {
     None ->
       Error(UnsupportedSchema(
         Some(f.location),
+        [],
         "query " <> f.name <> " must end with a query pipeline expression",
       ))
     Some(tail) ->
@@ -215,6 +223,7 @@ fn infer_query(f: glance.Function) -> Result(sd.Query, ParseError) {
         None ->
           Error(UnsupportedSchema(
             Some(f.location),
+            [],
             "query "
               <> f.name
               <> " must match `query |> shape |> [dsl.filter | dsl.filter_bool | dsl.filter_complex]? |> dsl.order(field, direction)`",
@@ -249,6 +258,7 @@ fn parse_filter_complex(
     False ->
       Error(UnsupportedSchema(
         Some(expression_span(normalize_expr(pred_expr))),
+        [],
         "filter_complex second argument must reference a `predicate_*` function",
       ))
     True -> Ok(Nil)
@@ -259,6 +269,7 @@ fn parse_filter_complex(
     False ->
       Error(UnsupportedSchema(
         Some(expression_span(normalize_expr(spec_expr))),
+        [],
         "filter_complex first argument must be a query parameter name",
       ))
     True -> Ok(Nil)
@@ -280,6 +291,7 @@ fn reference_name_strict(
     None ->
       Error(UnsupportedSchema(
         Some(expression_span(normalize_expr(expr))),
+        [],
         "query "
           <> f.name
           <> " filter_complex arguments must be simple name references",
@@ -320,6 +332,7 @@ fn parse_shape_expr(
     _ ->
       Error(UnsupportedSchema(
         Some(f.location),
+        [],
         "query " <> f.name <> " shape must be the entity or a tuple projection",
       ))
   }
@@ -341,6 +354,7 @@ fn parse_shape_item(
         None ->
           Error(UnsupportedSchema(
             Some(f.location),
+            [],
             "query "
               <> f.name
               <> " shape field alias is required for ambiguous expressions",
@@ -424,6 +438,7 @@ fn parse_pred(
       let at = expression_span(normalize_expr(expr))
       Error(UnsupportedSchema(
         Some(at),
+        [],
         "in `"
           <> f.name
           <> "`, the expression passed to `dsl.filter_bool` / `dsl.filter` (see span above) is not a structured predicate "
@@ -470,17 +485,20 @@ fn parse_expr(
         Ok(name) ->
           Error(UnsupportedSchema(
             Some(f.location),
+            [],
             "query " <> f.name <> " uses unsupported function " <> name,
           ))
         Error(Nil) ->
           Error(UnsupportedSchema(
             Some(f.location),
+            [],
             "query " <> f.name <> " contains unsupported call expression",
           ))
       }
     _ ->
       Error(UnsupportedSchema(
         Some(f.location),
+        [],
         "query " <> f.name <> " contains unsupported expression",
       ))
   }
@@ -499,6 +517,7 @@ fn parse_call_with_single_arg(
     None ->
       Error(UnsupportedSchema(
         Some(f.location),
+        [],
         "query " <> f.name <> " call must have one unlabelled argument",
       ))
   }
@@ -522,6 +541,7 @@ fn operator_from_binary(
     _ ->
       Error(UnsupportedSchema(
         Some(f.location),
+        [],
         "query " <> f.name <> " uses unsupported comparison operator",
       ))
   }
@@ -540,6 +560,7 @@ fn infer_missing_behavior(
         Error(Nil) ->
           Error(UnsupportedSchema(
             Some(f.location),
+            [],
             "query "
               <> f.name
               <> " filter must use exclude_if_missing(...) or nullable(...)",
@@ -548,6 +569,7 @@ fn infer_missing_behavior(
     _ ->
       Error(UnsupportedSchema(
         Some(f.location),
+        [],
         "query "
           <> f.name
           <> " filter must use exclude_if_missing(...) or nullable(...)",
@@ -585,6 +607,7 @@ fn parse_field_access_expr(
         _ ->
           Error(UnsupportedSchema(
             Some(f.location),
+            [],
             "query "
               <> f.name
               <> " contains unsupported field access expression",
@@ -594,6 +617,7 @@ fn parse_field_access_expr(
     _ ->
       Error(UnsupportedSchema(
         Some(f.location),
+        [],
         "query " <> f.name <> " contains unsupported field access expression",
       ))
   }
@@ -619,6 +643,7 @@ fn order_direction(
     _ ->
       Error(UnsupportedSchema(
         Some(f.location),
+        [],
         "query " <> f.name <> " order direction must be dsl.Asc or dsl.Desc",
       ))
   }

@@ -87,7 +87,19 @@ pub type Row {
 "
   case schema_parser.parse_module(input) {
     Ok(_) -> panic as "expected entity without identities field to be rejected"
-    Error(_) -> Nil
+    Error(e) -> {
+      let out = schema_parser.format_parse_error(input, e)
+      assert string.contains(out, "Row has a record variant")
+      assert string.contains(out, "no labelled `identities` field")
+      assert string.contains(out, "pub type Row {")
+      assert string.contains(out, "identities: RowIdentities")
+      assert string.contains(out, "pub type RowIdentities {")
+      assert string.contains(out, "ByName(name: String)")
+      assert string.contains(out, "constructor `Row`")
+      assert string.contains(out, "   3 |")
+      assert string.contains(out, "   4 |")
+      assert string.contains(out, "   5 |")
+    }
   }
 }
 

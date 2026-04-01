@@ -19,6 +19,8 @@ fn to_generated_type(
       gleamgen_types.bool |> gleamgen_types.to_dynamic
     glance.NamedType(_, "Date", None, []) ->
       gleamgen_types.raw("calendar.Date") |> gleamgen_types.to_dynamic
+    glance.NamedType(_, "Timestamp", _, []) ->
+      gleamgen_types.raw("timestamp.Timestamp") |> gleamgen_types.to_dynamic
     glance.NamedType(_, "Nil", None, []) ->
       gleamgen_types.nil |> gleamgen_types.to_dynamic
     glance.NamedType(_, name, module, params) ->
@@ -63,21 +65,34 @@ fn normalized_rendered(type_: glance.Type) -> String {
   }
 }
 
+/// True when the column is stored as SQLite `integer` (Unix seconds for `Timestamp` / `Option(Timestamp)`).
+pub fn type_stored_as_unix_int(t: glance.Type) -> Bool {
+  case t {
+    glance.NamedType(_, "Timestamp", _, []) -> True
+    glance.NamedType(_, "Option", _, [inner]) -> type_stored_as_unix_int(inner)
+    _ -> False
+  }
+}
+
 pub fn sql_type(type_: glance.Type) -> String {
-  case normalized_rendered(type_) {
-    "Int" -> "int"
-    "Float" -> "real"
-    "Bool" -> "int"
-    "String" -> "text"
-    rendered ->
-      case string.starts_with(rendered, "Option(") {
-        False -> "text"
-        True ->
-          case rendered {
-            "Option(Int)" -> "int"
-            "Option(Float)" -> "real"
-            "Option(Bool)" -> "int"
-            _ -> "text"
+  case type_stored_as_unix_int(type_) {
+    True -> "int"
+    False ->
+      case normalized_rendered(type_) {
+        "Int" -> "int"
+        "Float" -> "real"
+        "Bool" -> "int"
+        "String" -> "text"
+        rendered ->
+          case string.starts_with(rendered, "Option(") {
+            False -> "text"
+            True ->
+              case rendered {
+                "Option(Int)" -> "int"
+                "Option(Float)" -> "real"
+                "Option(Bool)" -> "int"
+                _ -> "text"
+              }
           }
       }
   }

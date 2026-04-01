@@ -3,6 +3,7 @@ import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
+import schema_definition/parser as schema_parser
 import schema_definition/schema_definition
 
 fn nth_line(source: String, line_no: Int) -> String {
@@ -43,7 +44,7 @@ pub fn entity_error_suggests_constructor_hint(
 ) -> Bool {
   case err {
     schema_definition.GlanceError(_) -> False
-    schema_definition.UnsupportedSchema(_, message) ->
+    schema_definition.UnsupportedSchema(_, _, message) ->
       string.contains(
         does: message,
         contain: "must use a variant constructor named",
@@ -54,7 +55,7 @@ pub fn entity_error_suggests_constructor_hint(
       )
       || string.contains(
         does: message,
-        contain: "has a record variant named like the type but no `identities` field",
+        contain: "no labelled `identities` field",
       )
   }
 }
@@ -79,18 +80,7 @@ fn print_parse_error_diagnostic(
   source: String,
   err: schema_definition.ParseError,
 ) -> Nil {
-  case err {
-    schema_definition.GlanceError(e) ->
-      io.println(glance_armstrong.format_glance_parse_error(source, e))
-    schema_definition.UnsupportedSchema(Some(span), message) ->
-      io.println(glance_armstrong.format_source_diagnostic(
-        source,
-        span,
-        message,
-      ))
-    schema_definition.UnsupportedSchema(None, message) ->
-      io.println(glance_armstrong.format_diagnostic_without_span(message))
-  }
+  io.println(schema_parser.format_parse_error(source, err))
 }
 
 /// Prints a titled banner, the primary diagnostic, optional entity hint, an extra
