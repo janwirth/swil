@@ -240,7 +240,13 @@ fn ensure_animal_table(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   use tables <- result.try(sqlite_pragma_assert.user_table_names(conn))
   case list.contains(tables, "animal") {
     False -> sqlight.exec(create_animal_table_sql, conn)
-    True -> reconcile_animal_columns_loop(conn, 0)
+    True -> {
+      use _ <- result.try(sqlight.exec(
+        "drop index if exists animal_by_name;",
+        conn,
+      ))
+      reconcile_animal_columns_loop(conn, 0)
+    }
   }
 }
 

@@ -250,7 +250,13 @@ fn ensure_importedtrack_table(
   use tables <- result.try(sqlite_pragma_assert.user_table_names(conn))
   case list.contains(tables, "importedtrack") {
     False -> sqlight.exec(create_importedtrack_table_sql, conn)
-    True -> reconcile_importedtrack_columns_loop(conn, 0)
+    True -> {
+      use _ <- result.try(sqlight.exec(
+        "drop index if exists importedtrack_by_title_artist;",
+        conn,
+      ))
+      reconcile_importedtrack_columns_loop(conn, 0)
+    }
   }
 }
 
@@ -488,7 +494,13 @@ fn ensure_tab_table(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   use tables <- result.try(sqlite_pragma_assert.user_table_names(conn))
   case list.contains(tables, "tab") {
     False -> sqlight.exec(create_tab_table_sql, conn)
-    True -> reconcile_tab_columns_loop(conn, 0)
+    True -> {
+      use _ <- result.try(sqlight.exec(
+        "drop index if exists tab_by_label;",
+        conn,
+      ))
+      reconcile_tab_columns_loop(conn, 0)
+    }
   }
 }
 
@@ -721,7 +733,13 @@ fn ensure_tag_table(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   use tables <- result.try(sqlite_pragma_assert.user_table_names(conn))
   case list.contains(tables, "tag") {
     False -> sqlight.exec(create_tag_table_sql, conn)
-    True -> reconcile_tag_columns_loop(conn, 0)
+    True -> {
+      use _ <- result.try(sqlight.exec(
+        "drop index if exists tag_by_label;",
+        conn,
+      ))
+      reconcile_tag_columns_loop(conn, 0)
+    }
   }
 }
 
@@ -967,7 +985,13 @@ fn ensure_trackbucket_table(
   use tables <- result.try(sqlite_pragma_assert.user_table_names(conn))
   case list.contains(tables, "trackbucket") {
     False -> sqlight.exec(create_trackbucket_table_sql, conn)
-    True -> reconcile_trackbucket_columns_loop(conn, 0)
+    True -> {
+      use _ <- result.try(sqlight.exec(
+        "drop index if exists trackbucket_by_title_artist;",
+        conn,
+      ))
+      reconcile_trackbucket_columns_loop(conn, 0)
+    }
   }
 }
 

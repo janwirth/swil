@@ -238,7 +238,13 @@ fn ensure_hippo_table(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   use tables <- result.try(sqlite_pragma_assert.user_table_names(conn))
   case list.contains(tables, "hippo") {
     False -> sqlight.exec(create_hippo_table_sql, conn)
-    True -> reconcile_hippo_columns_loop(conn, 0)
+    True -> {
+      use _ <- result.try(sqlight.exec(
+        "drop index if exists hippo_by_name_date_of_birth;",
+        conn,
+      ))
+      reconcile_hippo_columns_loop(conn, 0)
+    }
   }
 }
 
@@ -471,7 +477,13 @@ fn ensure_human_table(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   use tables <- result.try(sqlite_pragma_assert.user_table_names(conn))
   case list.contains(tables, "human") {
     False -> sqlight.exec(create_human_table_sql, conn)
-    True -> reconcile_human_columns_loop(conn, 0)
+    True -> {
+      use _ <- result.try(sqlight.exec(
+        "drop index if exists human_by_email;",
+        conn,
+      ))
+      reconcile_human_columns_loop(conn, 0)
+    }
   }
 }
 

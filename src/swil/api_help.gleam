@@ -96,6 +96,17 @@ pub fn opt_timestamp_from_db(seconds: Int) -> Option(timestamp.Timestamp) {
   }
 }
 
+/// Row decoder helper: SQL `NULL` or `0` → `None`; otherwise Unix seconds → `Some`.
+pub fn option_timestamp_from_optional_unix(
+  raw: Option(Int),
+) -> Option(timestamp.Timestamp) {
+  case raw {
+    None -> None
+    Some(0) -> None
+    Some(s) -> Some(timestamp.from_unix_seconds(s))
+  }
+}
+
 pub fn timestamp_from_db_unix(seconds: Int) -> timestamp.Timestamp {
   timestamp.from_unix_seconds(seconds)
 }

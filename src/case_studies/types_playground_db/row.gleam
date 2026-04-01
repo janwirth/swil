@@ -7,10 +7,7 @@ import swil/dsl/dsl
 pub fn mytrack_with_magic_row_decoder() -> decode.Decoder(
   #(types_playground_schema.MyTrack, dsl.MagicFields),
 ) {
-  use added_to_playlist_at <- decode.field(
-    0,
-    decode.map(decode.int, fn(i) { api_help.opt_timestamp_from_db(i) }),
-  )
+  use added_to_playlist_at <- decode.field(0, decode.optional(decode.int))
   use name <- decode.field(1, decode.string)
   use id <- decode.field(2, decode.int)
   use created_at <- decode.field(3, decode.int)
@@ -18,7 +15,9 @@ pub fn mytrack_with_magic_row_decoder() -> decode.Decoder(
   use deleted_at_raw <- decode.field(5, decode.optional(decode.int))
   let mytrack =
     types_playground_schema.MyTrack(
-      added_to_playlist_at: added_to_playlist_at,
+      added_to_playlist_at: api_help.option_timestamp_from_optional_unix(
+        added_to_playlist_at,
+      ),
       name: option.Some(name),
       identities: types_playground_schema.ByName(name:),
     )
