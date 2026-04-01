@@ -252,36 +252,41 @@ fn build(data: PragmaMigrationData) -> gmod.Module {
 
 fn with_all_imports(inner: fn() -> gmod.Module) -> gmod.Module {
   // Only referenced from `gexpr.raw` strings; gleamgen skips normal imports otherwise.
+  let pragma_assert_import =
+    gimport.new(["sql", "pragma_assert"])
+    |> gimport.with_alias("sqlite_pragma_assert")
+    |> gimport.with_exposing([gimport.exposed_type("TableInfoRow")])
+    |> gimport.with_predefined(True)
   gmod.with_import(
-    gimport.new_predefined(["gleam", "dynamic", "decode"]),
+    gimport.new(["gleam", "dynamic", "decode"])
+      |> gimport.with_predefined(True),
     fn(_d) {
-      gmod.with_import(gimport.new_predefined(["gleam", "list"]), fn(_l) {
-        gmod.with_import(
-          gimport.new_with_exposing(
-            ["gleam", "option"],
-            "type Option, None, Some",
-          ),
-          fn(_o) {
-            gmod.with_import(
-              gimport.new_predefined(["gleam", "result"]),
-              fn(_r) {
-                gmod.with_import(gimport.new(["gleam", "string"]), fn(_s) {
-                  gmod.with_import(gimport.new(["sqlight"]), fn(_sql) {
-                    gmod.with_import(
-                      gimport.new_with_alias_and_exposing(
-                        ["sql", "pragma_assert"],
-                        "sqlite_pragma_assert",
-                        "type TableInfoRow",
-                      ),
-                      fn(_p) { inner() },
-                    )
+      gmod.with_import(
+        gimport.new(["gleam", "list"]) |> gimport.with_predefined(True),
+        fn(_l) {
+          gmod.with_import(
+            gimport.new(["gleam", "option"])
+              |> gimport.with_exposing([
+                gimport.exposed_type("Option"),
+                gimport.exposed_value("None"),
+                gimport.exposed_value("Some"),
+              ])
+              |> gimport.with_predefined(True),
+            fn(_o) {
+              gmod.with_import(
+                gimport.new(["gleam", "result"]) |> gimport.with_predefined(True),
+                fn(_r) {
+                  gmod.with_import(gimport.new(["gleam", "string"]), fn(_s) {
+                    gmod.with_import(gimport.new(["sqlight"]), fn(_sql) {
+                      gmod.with_import(pragma_assert_import, fn(_p) { inner() })
+                    })
                   })
-                })
-              },
-            )
-          },
-        )
-      })
+                },
+              )
+            },
+          )
+        },
+      )
     },
   )
 }

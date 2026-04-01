@@ -5,6 +5,58 @@ import gleamgen/import_ as gimport
 import gleamgen/module as gmod
 import schema_definition/schema_definition.{type SchemaDefinition}
 
+fn import_pre(path: List(String)) -> gimport.ImportedModule {
+  gimport.new(path)
+  |> gimport.with_predefined(True)
+}
+
+fn import_pre_alias(path: List(String), alias: String) -> gimport.ImportedModule {
+  gimport.new(path)
+  |> gimport.with_alias(alias)
+  |> gimport.with_predefined(True)
+}
+
+fn import_pre_exposing(path: List(String), exposing: String) -> gimport.ImportedModule {
+  gimport.new(path)
+  |> gimport.with_exposing(exposing_items(exposing))
+  |> gimport.with_predefined(True)
+}
+
+fn first_grapheme_is_uppercase(s: String) -> Bool {
+  case string.first(s) {
+    Error(Nil) -> False
+    Ok(g) -> g == string.uppercase(g) && g != string.lowercase(g)
+  }
+}
+
+fn parse_exposing_piece(piece: String) -> gimport.ExposedItem {
+  let t = string.trim(piece)
+  case string.starts_with(t, "type ") {
+    True -> {
+      let rest = string.drop_start(t, 5)
+      case string.split_once(rest, " as ") {
+        Ok(#(name, alias)) ->
+          gimport.exposed_type_as(string.trim(name), string.trim(alias))
+        Error(Nil) -> gimport.exposed_type(string.trim(rest))
+      }
+    }
+    False ->
+      case string.split_once(t, " as ") {
+        Ok(#(left, right)) ->
+          case first_grapheme_is_uppercase(left) {
+            True -> gimport.exposed_type_as(left, right)
+            False -> gimport.exposed_value_as(left, right)
+          }
+        Error(Nil) -> gimport.exposed_value(t)
+      }
+  }
+}
+
+fn exposing_items(s: String) -> List(gimport.ExposedItem) {
+  string.split(s, ", ")
+  |> list.map(parse_exposing_piece)
+}
+
 pub fn with_api_imports(
   migration_path: String,
   schema_path: String,
@@ -17,42 +69,34 @@ pub fn with_api_imports(
   let after_result = fn() -> gmod.Module {
     case schema_context.schema_uses_calendar_date(def) {
       False -> {
-        use _ <- gmod.with_import(
-          gimport.new_predefined(["gleam", "time", "timestamp"]),
-        )
-        use _ <- gmod.with_import(gimport.new_predefined(["sqlight"]))
+        use _ <- gmod.with_import(import_pre(["gleam", "time", "timestamp"]))
+        use _ <- gmod.with_import(import_pre(["sqlight"]))
         inner()
       }
       True -> {
-        use _ <- gmod.with_import(gimport.new_predefined(["gleam", "int"]))
-        use _ <- gmod.with_import(gimport.new_predefined(["gleam", "string"]))
-        use _ <- gmod.with_import(gimport.new_with_exposing(
-          ["gleam", "time", "calendar"],
-          "type Date, Date as CalDate, month_from_int, month_to_int",
-        ))
+        use _ <- gmod.with_import(import_pre(["gleam", "int"]))
+        use _ <- gmod.with_import(import_pre(["gleam", "string"]))
         use _ <- gmod.with_import(
-          gimport.new_predefined(["gleam", "time", "timestamp"]),
+          import_pre_exposing(
+            ["gleam", "time", "calendar"],
+            "type Date, Date as CalDate, month_from_int, month_to_int",
+          ),
         )
-        use _ <- gmod.with_import(gimport.new_predefined(["sqlight"]))
+        use _ <- gmod.with_import(import_pre(["gleam", "time", "timestamp"]))
+        use _ <- gmod.with_import(import_pre(["sqlight"]))
         inner()
       }
     }
   }
   use _ <- gmod.with_import(gimport.new(mig_parts))
-  use _ <- gmod.with_import(gimport.new_predefined(["swil", "api_help"]))
-  use _ <- gmod.with_import(gimport.new_with_exposing(sch_parts, exposing))
-  use _ <- gmod.with_import(gimport.new_with_alias(
-    ["swil", "dsl", "dsl"],
-    "dsl",
-  ))
+  use _ <- gmod.with_import(import_pre(["swil", "api_help"]))
+  use _ <- gmod.with_import(import_pre_exposing(sch_parts, exposing))
+  use _ <- gmod.with_import(import_pre_alias(["swil", "dsl", "dsl"], "dsl"))
+  use _ <- gmod.with_import(import_pre(["gleam", "dynamic", "decode"]))
   use _ <- gmod.with_import(
-    gimport.new_predefined(["gleam", "dynamic", "decode"]),
+    import_pre_exposing(["gleam", "option"], "type Option, None, Some"),
   )
-  use _ <- gmod.with_import(gimport.new_with_exposing(
-    ["gleam", "option"],
-    "type Option, None, Some",
-  ))
-  use _ <- gmod.with_import(gimport.new_predefined(["gleam", "result"]))
+  use _ <- gmod.with_import(import_pre(["gleam", "result"]))
   after_result()
 }
 
@@ -64,20 +108,17 @@ pub fn with_row_module_imports(
   inner: fn() -> gmod.Module,
 ) -> gmod.Module {
   let sch_parts = string.split(schema_path, "/")
-  use _ <- gmod.with_import(gimport.new_predefined(["swil", "api_help"]))
-  use _ <- gmod.with_import(gimport.new_predefined(sch_parts))
-  use _ <- gmod.with_import(gimport.new_with_alias(
-    ["swil", "dsl", "dsl"],
-    "dsl",
-  ))
+  use _ <- gmod.with_import(import_pre(["swil", "api_help"]))
+  use _ <- gmod.with_import(import_pre(sch_parts))
+  use _ <- gmod.with_import(import_pre_alias(["swil", "dsl", "dsl"], "dsl"))
   use _ <- gmod.with_import(
-    gimport.new_predefined(["gleam", "dynamic", "decode"]),
+    import_pre(["gleam", "dynamic", "decode"]),
   )
-  use _ <- gmod.with_import(gimport.new_predefined(["gleam", "option"]))
+  use _ <- gmod.with_import(import_pre(["gleam", "option"]))
   let with_optional_json = fn() {
     case schema_context.schema_uses_non_enum_scalars(def) {
       True ->
-        gmod.with_import(gimport.new_predefined(["gleam", "json"]), fn(_) {
+        gmod.with_import(import_pre(["gleam", "json"]), fn(_) {
           inner()
         })
       False -> inner()
@@ -96,22 +137,19 @@ pub fn with_upsert_module_imports(
   let sch_parts = string.split(schema_path, "/")
   let db_parts = string.split(db_module_path, "/")
   let row_parts = list.append(db_parts, ["row"])
-  use _ <- gmod.with_import(gimport.new_predefined(row_parts))
-  use _ <- gmod.with_import(gimport.new_predefined(["swil", "api_help"]))
-  use _ <- gmod.with_import(gimport.new_predefined(sch_parts))
-  use _ <- gmod.with_import(gimport.new_with_alias(
-    ["swil", "dsl", "dsl"],
-    "dsl",
-  ))
-  use _ <- gmod.with_import(gimport.new_predefined(["gleam", "option"]))
-  use _ <- gmod.with_import(gimport.new_predefined(["gleam", "result"]))
-  use _ <- gmod.with_import(gimport.new_predefined(["sqlight"]))
+  use _ <- gmod.with_import(import_pre(row_parts))
+  use _ <- gmod.with_import(import_pre(["swil", "api_help"]))
+  use _ <- gmod.with_import(import_pre(sch_parts))
+  use _ <- gmod.with_import(import_pre_alias(["swil", "dsl", "dsl"], "dsl"))
+  use _ <- gmod.with_import(import_pre(["gleam", "option"]))
+  use _ <- gmod.with_import(import_pre(["gleam", "result"]))
+  use _ <- gmod.with_import(import_pre(["sqlight"]))
   case schema_context.schema_uses_calendar_date(def) {
     False -> {
       case schema_context.schema_uses_timestamp(def) {
         True ->
           gmod.with_import(
-            gimport.new_predefined(["gleam", "time", "timestamp"]),
+            import_pre(["gleam", "time", "timestamp"]),
             fn(_) { inner() },
           )
         False -> inner()
@@ -119,7 +157,7 @@ pub fn with_upsert_module_imports(
     }
     True -> {
       use _ <- gmod.with_import(
-        gimport.new_predefined(["gleam", "time", "calendar"]),
+        import_pre(["gleam", "time", "calendar"]),
       )
       inner()
     }
@@ -133,17 +171,17 @@ pub fn with_delete_module_imports(
   _exposing: String,
   inner: fn() -> gmod.Module,
 ) -> gmod.Module {
-  use _ <- gmod.with_import(gimport.new_predefined(["swil", "api_help"]))
+  use _ <- gmod.with_import(import_pre(["swil", "api_help"]))
   use _ <- gmod.with_import(
-    gimport.new_predefined(["gleam", "dynamic", "decode"]),
+    import_pre(["gleam", "dynamic", "decode"]),
   )
-  use _ <- gmod.with_import(gimport.new_predefined(["gleam", "result"]))
-  use _ <- gmod.with_import(gimport.new_predefined(["sqlight"]))
+  use _ <- gmod.with_import(import_pre(["gleam", "result"]))
+  use _ <- gmod.with_import(import_pre(["sqlight"]))
   case schema_context.schema_uses_calendar_date(def) {
     False -> inner()
     True -> {
       use _ <- gmod.with_import(
-        gimport.new_predefined(["gleam", "time", "calendar"]),
+        import_pre(["gleam", "time", "calendar"]),
       )
       inner()
     }
@@ -160,14 +198,11 @@ pub fn with_query_module_imports(
   let sch_parts = string.split(schema_path, "/")
   let db_parts = string.split(db_module_path, "/")
   let row_parts = list.append(db_parts, ["row"])
-  use _ <- gmod.with_import(gimport.new_predefined(row_parts))
-  use _ <- gmod.with_import(gimport.new_predefined(sch_parts))
-  use _ <- gmod.with_import(gimport.new_with_alias(
-    ["swil", "dsl", "dsl"],
-    "dsl",
-  ))
-  use _ <- gmod.with_import(gimport.new_predefined(["gleam", "option"]))
-  use _ <- gmod.with_import(gimport.new_predefined(["sqlight"]))
+  use _ <- gmod.with_import(import_pre(row_parts))
+  use _ <- gmod.with_import(import_pre(sch_parts))
+  use _ <- gmod.with_import(import_pre_alias(["swil", "dsl", "dsl"], "dsl"))
+  use _ <- gmod.with_import(import_pre(["gleam", "option"]))
+  use _ <- gmod.with_import(import_pre(["sqlight"]))
   inner()
 }
 
@@ -182,20 +217,17 @@ pub fn with_get_module_imports(
   let db_parts = string.split(db_module_path, "/")
   let row_parts = list.append(db_parts, ["row"])
   let finish = fn() {
-    use _ <- gmod.with_import(gimport.new_predefined(row_parts))
-    use _ <- gmod.with_import(gimport.new_predefined(sch_parts))
-    use _ <- gmod.with_import(gimport.new_with_alias(
-      ["swil", "dsl", "dsl"],
-      "dsl",
-    ))
-    use _ <- gmod.with_import(gimport.new_predefined(["gleam", "option"]))
-    use _ <- gmod.with_import(gimport.new_predefined(["gleam", "result"]))
-    use _ <- gmod.with_import(gimport.new_predefined(["sqlight"]))
+    use _ <- gmod.with_import(import_pre(row_parts))
+    use _ <- gmod.with_import(import_pre(sch_parts))
+    use _ <- gmod.with_import(import_pre_alias(["swil", "dsl", "dsl"], "dsl"))
+    use _ <- gmod.with_import(import_pre(["gleam", "option"]))
+    use _ <- gmod.with_import(import_pre(["gleam", "result"]))
+    use _ <- gmod.with_import(import_pre(["sqlight"]))
     case schema_context.schema_uses_calendar_date(def) {
       False -> inner()
       True -> {
         use _ <- gmod.with_import(
-          gimport.new_predefined(["gleam", "time", "calendar"]),
+          import_pre(["gleam", "time", "calendar"]),
         )
         inner()
       }
@@ -203,7 +235,7 @@ pub fn with_get_module_imports(
   }
   case schema_context.schema_uses_calendar_date(def) {
     True ->
-      gmod.with_import(gimport.new_predefined(["swil", "api_help"]), fn(_) {
+      gmod.with_import(import_pre(["swil", "api_help"]), fn(_) {
         finish()
       })
     False -> finish()
@@ -228,34 +260,31 @@ pub fn with_facade_module_imports(
   let query_parts = list.append(db_parts, ["query"])
   let needs_row = schema_context.api_facade_imports_row_module(def)
   let after_submodules = fn() {
-    use _ <- gmod.with_import(gimport.new_predefined(sch_parts))
-    use _ <- gmod.with_import(gimport.new_with_alias(
-      ["swil", "dsl", "dsl"],
-      "dsl",
-    ))
-    use _ <- gmod.with_import(gimport.new_predefined(["gleam", "option"]))
-    use _ <- gmod.with_import(gimport.new_predefined(["sqlight"]))
+    use _ <- gmod.with_import(import_pre(sch_parts))
+    use _ <- gmod.with_import(import_pre_alias(["swil", "dsl", "dsl"], "dsl"))
+    use _ <- gmod.with_import(import_pre(["gleam", "option"]))
+    use _ <- gmod.with_import(import_pre(["sqlight"]))
     case schema_context.schema_uses_calendar_date(def) {
       False -> inner()
       True -> {
         use _ <- gmod.with_import(
-          gimport.new_predefined(["gleam", "time", "calendar"]),
+          import_pre(["gleam", "time", "calendar"]),
         )
         inner()
       }
     }
   }
   let after_row_optional = fn() {
-    use _ <- gmod.with_import(gimport.new_predefined(get_parts))
-    use _ <- gmod.with_import(gimport.new_predefined(upsert_parts))
-    use _ <- gmod.with_import(gimport.new_predefined(delete_parts))
-    use _ <- gmod.with_import(gimport.new_predefined(query_parts))
+    use _ <- gmod.with_import(import_pre(get_parts))
+    use _ <- gmod.with_import(import_pre(upsert_parts))
+    use _ <- gmod.with_import(import_pre(delete_parts))
+    use _ <- gmod.with_import(import_pre(query_parts))
     after_submodules()
   }
   use _ <- gmod.with_import(gimport.new(mig_parts))
   case needs_row {
     True ->
-      gmod.with_import(gimport.new_predefined(row_parts), fn(_) {
+      gmod.with_import(import_pre(row_parts), fn(_) {
         after_row_optional()
       })
     False -> after_row_optional()
