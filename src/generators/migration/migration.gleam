@@ -204,7 +204,11 @@ pub fn build_pragma_migration_data_for_entity(
     list.flatten([
       [#("id", "INTEGER", 1, 1)],
       list.map(data_fields, fn(f) {
-        #(f.label, migration_sql.pragma_affinity_upper(f.type_), 1, 0)
+        let notnull = case migration_sql.type_is_option(f.type_) {
+          True -> 0
+          False -> 1
+        }
+        #(f.label, migration_sql.pragma_affinity_upper(f.type_), notnull, 0)
       }),
       [
         #("created_at", "INTEGER", 1, 0),

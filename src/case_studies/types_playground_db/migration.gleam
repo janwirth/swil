@@ -14,8 +14,8 @@ import sqlight
 
 const create_mytrack_table_sql = "create table \"mytrack\" (
   \"id\" integer primary key autoincrement not null,
-  \"added_to_playlist_at\" integer not null,
-  \"name\" text not null,
+  \"added_to_playlist_at\" integer,
+  \"name\" text,
   \"created_at\" integer not null,
   \"updated_at\" integer not null,
   \"deleted_at\" integer
@@ -25,8 +25,8 @@ const create_mytrack_by_name_index_sql = "create unique index mytrack_by_name on
 
 const expected_table_info = "cid	name	type	notnull	dflt_value	pk
 0	id	INTEGER	1	NULL	1
-1	added_to_playlist_at	INTEGER	1	NULL	0
-2	name	TEXT	1	NULL	0
+1	added_to_playlist_at	INTEGER	0	NULL	0
+2	name	TEXT	0	NULL	0
 3	created_at	INTEGER	1	NULL	0
 4	updated_at	INTEGER	1	NULL	0
 5	deleted_at	INTEGER	0	NULL	0"
@@ -43,8 +43,8 @@ type MyTrackCol {
 
 const mytrack_columns_wanted = [
   MyTrackCol("id", "INTEGER", 1, 1),
-  MyTrackCol("added_to_playlist_at", "INTEGER", 1, 0),
-  MyTrackCol("name", "TEXT", 1, 0),
+  MyTrackCol("added_to_playlist_at", "INTEGER", 0, 0),
+  MyTrackCol("name", "TEXT", 0, 0),
   MyTrackCol("created_at", "INTEGER", 1, 0),
   MyTrackCol("updated_at", "INTEGER", 1, 0),
   MyTrackCol("deleted_at", "INTEGER", 0, 0),

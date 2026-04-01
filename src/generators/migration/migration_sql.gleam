@@ -47,6 +47,21 @@ pub fn type_is_list(t: glance.Type) -> Bool {
   }
 }
 
+/// True for `option.Option(_)`: stored nullable so `ADD COLUMN` works on non-empty tables.
+pub fn type_is_option(t: glance.Type) -> Bool {
+  case t {
+    glance.NamedType(_, "Option", _, [_]) -> True
+    _ -> False
+  }
+}
+
+fn data_field_sqlite_not_null_suffix(type_: glance.Type) -> String {
+  case type_is_option(type_) {
+    True -> ""
+    False -> " not null"
+  }
+}
+
 /// Maps a field type to SQLite DDL spellings; normalizes `int` to `integer` so
 /// `PRAGMA table_info` affinity checks stay consistent with introspection.
 fn ddl_sql_type(type_: glance.Type) -> String {
@@ -73,7 +88,10 @@ fn entity_ddl(schema: SchemaDefinition, entity: EntityDefinition) -> String {
     })
   let column_lines =
     list.map(data_fields, fn(f) {
-      quote_ident(f.label) <> " " <> ddl_sql_type(f.type_) <> " not null"
+      quote_ident(f.label)
+      <> " "
+      <> ddl_sql_type(f.type_)
+      <> data_field_sqlite_not_null_suffix(f.type_)
     })
   let all_columns =
     list.flatten([
@@ -125,7 +143,10 @@ pub fn build_create_table_sql(
 ) -> String {
   let col_lines =
     list.map(data_fields, fn(f) {
-      quote_ident(f.label) <> " " <> ddl_sql_type(f.type_) <> " not null"
+      quote_ident(f.label)
+      <> " "
+      <> ddl_sql_type(f.type_)
+      <> data_field_sqlite_not_null_suffix(f.type_)
     })
   let all_lines =
     list.flatten([

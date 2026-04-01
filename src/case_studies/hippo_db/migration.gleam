@@ -14,9 +14,9 @@ import sqlight
 
 const create_hippo_table_sql = "create table \"hippo\" (
   \"id\" integer primary key autoincrement not null,
-  \"name\" text not null,
-  \"gender\" text not null,
-  \"date_of_birth\" text not null,
+  \"name\" text,
+  \"gender\" text,
+  \"date_of_birth\" text,
   \"created_at\" integer not null,
   \"updated_at\" integer not null,
   \"owner_human_id\" integer,
@@ -27,9 +27,9 @@ const create_hippo_by_name_date_of_birth_index_sql = "create unique index hippo_
 
 const expected_hippo_table_info = "cid	name	type	notnull	dflt_value	pk
 0	id	INTEGER	1	NULL	1
-1	name	TEXT	1	NULL	0
-2	gender	TEXT	1	NULL	0
-3	date_of_birth	TEXT	1	NULL	0
+1	name	TEXT	0	NULL	0
+2	gender	TEXT	0	NULL	0
+3	date_of_birth	TEXT	0	NULL	0
 4	created_at	INTEGER	1	NULL	0
 5	updated_at	INTEGER	1	NULL	0
 6	owner_human_id	INTEGER	0	NULL	0
@@ -48,9 +48,9 @@ type HippoCol {
 
 const hippo_columns_wanted = [
   HippoCol("id", "INTEGER", 1, 1),
-  HippoCol("name", "TEXT", 1, 0),
-  HippoCol("gender", "TEXT", 1, 0),
-  HippoCol("date_of_birth", "TEXT", 1, 0),
+  HippoCol("name", "TEXT", 0, 0),
+  HippoCol("gender", "TEXT", 0, 0),
+  HippoCol("date_of_birth", "TEXT", 0, 0),
   HippoCol("created_at", "INTEGER", 1, 0),
   HippoCol("updated_at", "INTEGER", 1, 0),
   HippoCol("owner_human_id", "INTEGER", 0, 0),
@@ -274,8 +274,8 @@ fn ensure_hippo_indexes(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) 
 
 const create_human_table_sql = "create table \"human\" (
   \"id\" integer primary key autoincrement not null,
-  \"name\" text not null,
-  \"email\" text not null,
+  \"name\" text,
+  \"email\" text,
   \"created_at\" integer not null,
   \"updated_at\" integer not null,
   \"deleted_at\" integer
@@ -285,8 +285,8 @@ const create_human_by_email_index_sql = "create unique index human_by_email on \
 
 const expected_human_table_info = "cid	name	type	notnull	dflt_value	pk
 0	id	INTEGER	1	NULL	1
-1	name	TEXT	1	NULL	0
-2	email	TEXT	1	NULL	0
+1	name	TEXT	0	NULL	0
+2	email	TEXT	0	NULL	0
 3	created_at	INTEGER	1	NULL	0
 4	updated_at	INTEGER	1	NULL	0
 5	deleted_at	INTEGER	0	NULL	0"
@@ -303,8 +303,8 @@ type HumanCol {
 
 const human_columns_wanted = [
   HumanCol("id", "INTEGER", 1, 1),
-  HumanCol("name", "TEXT", 1, 0),
-  HumanCol("email", "TEXT", 1, 0),
+  HumanCol("name", "TEXT", 0, 0),
+  HumanCol("email", "TEXT", 0, 0),
   HumanCol("created_at", "INTEGER", 1, 0),
   HumanCol("updated_at", "INTEGER", 1, 0),
   HumanCol("deleted_at", "INTEGER", 0, 0),

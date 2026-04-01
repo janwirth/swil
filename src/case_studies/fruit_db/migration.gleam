@@ -14,10 +14,10 @@ import sqlight
 
 const create_fruit_table_sql = "create table \"fruit\" (
   \"id\" integer primary key autoincrement not null,
-  \"name\" text not null,
-  \"color\" text not null,
-  \"price\" real not null,
-  \"quantity\" integer not null,
+  \"name\" text,
+  \"color\" text,
+  \"price\" real,
+  \"quantity\" integer,
   \"created_at\" integer not null,
   \"updated_at\" integer not null,
   \"deleted_at\" integer
@@ -27,10 +27,10 @@ const create_fruit_by_name_index_sql = "create unique index fruit_by_name on \"f
 
 const expected_table_info = "cid	name	type	notnull	dflt_value	pk
 0	id	INTEGER	1	NULL	1
-1	name	TEXT	1	NULL	0
-2	color	TEXT	1	NULL	0
-3	price	REAL	1	NULL	0
-4	quantity	INTEGER	1	NULL	0
+1	name	TEXT	0	NULL	0
+2	color	TEXT	0	NULL	0
+3	price	REAL	0	NULL	0
+4	quantity	INTEGER	0	NULL	0
 5	created_at	INTEGER	1	NULL	0
 6	updated_at	INTEGER	1	NULL	0
 7	deleted_at	INTEGER	0	NULL	0"
@@ -47,10 +47,10 @@ type FruitCol {
 
 const fruit_columns_wanted = [
   FruitCol("id", "INTEGER", 1, 1),
-  FruitCol("name", "TEXT", 1, 0),
-  FruitCol("color", "TEXT", 1, 0),
-  FruitCol("price", "REAL", 1, 0),
-  FruitCol("quantity", "INTEGER", 1, 0),
+  FruitCol("name", "TEXT", 0, 0),
+  FruitCol("color", "TEXT", 0, 0),
+  FruitCol("price", "REAL", 0, 0),
+  FruitCol("quantity", "INTEGER", 0, 0),
   FruitCol("created_at", "INTEGER", 1, 0),
   FruitCol("updated_at", "INTEGER", 1, 0),
   FruitCol("deleted_at", "INTEGER", 0, 0),

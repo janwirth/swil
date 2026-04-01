@@ -14,9 +14,9 @@ import sqlight
 
 const create_importedtrack_table_sql = "create table \"importedtrack\" (
   \"id\" integer primary key autoincrement not null,
-  \"title\" text not null,
-  \"artist\" text not null,
-  \"file_path\" text not null,
+  \"title\" text,
+  \"artist\" text,
+  \"file_path\" text,
   \"created_at\" integer not null,
   \"updated_at\" integer not null,
   \"deleted_at\" integer
@@ -26,9 +26,9 @@ const create_importedtrack_by_title_artist_index_sql = "create unique index impo
 
 const expected_importedtrack_table_info = "cid	name	type	notnull	dflt_value	pk
 0	id	INTEGER	1	NULL	1
-1	title	TEXT	1	NULL	0
-2	artist	TEXT	1	NULL	0
-3	file_path	TEXT	1	NULL	0
+1	title	TEXT	0	NULL	0
+2	artist	TEXT	0	NULL	0
+3	file_path	TEXT	0	NULL	0
 4	created_at	INTEGER	1	NULL	0
 5	updated_at	INTEGER	1	NULL	0
 6	deleted_at	INTEGER	0	NULL	0"
@@ -46,9 +46,9 @@ type ImportedTrackCol {
 
 const importedtrack_columns_wanted = [
   ImportedTrackCol("id", "INTEGER", 1, 1),
-  ImportedTrackCol("title", "TEXT", 1, 0),
-  ImportedTrackCol("artist", "TEXT", 1, 0),
-  ImportedTrackCol("file_path", "TEXT", 1, 0),
+  ImportedTrackCol("title", "TEXT", 0, 0),
+  ImportedTrackCol("artist", "TEXT", 0, 0),
+  ImportedTrackCol("file_path", "TEXT", 0, 0),
   ImportedTrackCol("created_at", "INTEGER", 1, 0),
   ImportedTrackCol("updated_at", "INTEGER", 1, 0),
   ImportedTrackCol("deleted_at", "INTEGER", 0, 0),
@@ -288,9 +288,9 @@ fn ensure_importedtrack_indexes(
 
 const create_tab_table_sql = "create table \"tab\" (
   \"id\" integer primary key autoincrement not null,
-  \"label\" text not null,
-  \"order\" real not null,
-  \"view_config\" text not null,
+  \"label\" text,
+  \"order\" real,
+  \"view_config\" text,
   \"created_at\" integer not null,
   \"updated_at\" integer not null,
   \"deleted_at\" integer
@@ -300,9 +300,9 @@ const create_tab_by_label_index_sql = "create unique index tab_by_label on \"tab
 
 const expected_tab_table_info = "cid	name	type	notnull	dflt_value	pk
 0	id	INTEGER	1	NULL	1
-1	label	TEXT	1	NULL	0
-2	order	REAL	1	NULL	0
-3	view_config	TEXT	1	NULL	0
+1	label	TEXT	0	NULL	0
+2	order	REAL	0	NULL	0
+3	view_config	TEXT	0	NULL	0
 4	created_at	INTEGER	1	NULL	0
 5	updated_at	INTEGER	1	NULL	0
 6	deleted_at	INTEGER	0	NULL	0"
@@ -319,9 +319,9 @@ type TabCol {
 
 const tab_columns_wanted = [
   TabCol("id", "INTEGER", 1, 1),
-  TabCol("label", "TEXT", 1, 0),
-  TabCol("order", "REAL", 1, 0),
-  TabCol("view_config", "TEXT", 1, 0),
+  TabCol("label", "TEXT", 0, 0),
+  TabCol("order", "REAL", 0, 0),
+  TabCol("view_config", "TEXT", 0, 0),
   TabCol("created_at", "INTEGER", 1, 0),
   TabCol("updated_at", "INTEGER", 1, 0),
   TabCol("deleted_at", "INTEGER", 0, 0),
@@ -524,8 +524,8 @@ fn ensure_tab_indexes(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
 
 const create_tag_table_sql = "create table \"tag\" (
   \"id\" integer primary key autoincrement not null,
-  \"label\" text not null,
-  \"emoji\" text not null,
+  \"label\" text,
+  \"emoji\" text,
   \"created_at\" integer not null,
   \"updated_at\" integer not null,
   \"deleted_at\" integer
@@ -535,8 +535,8 @@ const create_tag_by_label_index_sql = "create unique index tag_by_label on \"tag
 
 const expected_tag_table_info = "cid	name	type	notnull	dflt_value	pk
 0	id	INTEGER	1	NULL	1
-1	label	TEXT	1	NULL	0
-2	emoji	TEXT	1	NULL	0
+1	label	TEXT	0	NULL	0
+2	emoji	TEXT	0	NULL	0
 3	created_at	INTEGER	1	NULL	0
 4	updated_at	INTEGER	1	NULL	0
 5	deleted_at	INTEGER	0	NULL	0"
@@ -553,8 +553,8 @@ type TagCol {
 
 const tag_columns_wanted = [
   TagCol("id", "INTEGER", 1, 1),
-  TagCol("label", "TEXT", 1, 0),
-  TagCol("emoji", "TEXT", 1, 0),
+  TagCol("label", "TEXT", 0, 0),
+  TagCol("emoji", "TEXT", 0, 0),
   TagCol("created_at", "INTEGER", 1, 0),
   TagCol("updated_at", "INTEGER", 1, 0),
   TagCol("deleted_at", "INTEGER", 0, 0),
@@ -757,8 +757,8 @@ fn ensure_tag_indexes(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
 
 const create_trackbucket_table_sql = "create table \"trackbucket\" (
   \"id\" integer primary key autoincrement not null,
-  \"title\" text not null,
-  \"artist\" text not null,
+  \"title\" text,
+  \"artist\" text,
   \"created_at\" integer not null,
   \"updated_at\" integer not null,
   \"deleted_at\" integer
@@ -768,8 +768,8 @@ const create_trackbucket_by_title_artist_index_sql = "create unique index trackb
 
 const expected_trackbucket_table_info = "cid	name	type	notnull	dflt_value	pk
 0	id	INTEGER	1	NULL	1
-1	title	TEXT	1	NULL	0
-2	artist	TEXT	1	NULL	0
+1	title	TEXT	0	NULL	0
+2	artist	TEXT	0	NULL	0
 3	created_at	INTEGER	1	NULL	0
 4	updated_at	INTEGER	1	NULL	0
 5	deleted_at	INTEGER	0	NULL	0"
@@ -787,8 +787,8 @@ type TrackBucketCol {
 
 const trackbucket_columns_wanted = [
   TrackBucketCol("id", "INTEGER", 1, 1),
-  TrackBucketCol("title", "TEXT", 1, 0),
-  TrackBucketCol("artist", "TEXT", 1, 0),
+  TrackBucketCol("title", "TEXT", 0, 0),
+  TrackBucketCol("artist", "TEXT", 0, 0),
   TrackBucketCol("created_at", "INTEGER", 1, 0),
   TrackBucketCol("updated_at", "INTEGER", 1, 0),
   TrackBucketCol("deleted_at", "INTEGER", 0, 0),
