@@ -1,27 +1,38 @@
 //// `ByServiceAndSourceId` index must be dropped before `ALTER TABLE … DROP COLUMN`;
 //// v2 adds `added_to_library_at` (`Option(Timestamp)`).
+//// v0 → v1 adds `external_source_url`; chain is v0 → v1 → v2.
+import case_studies/imported_track_evolution_v0_db/api as track_v0
+import case_studies/imported_track_evolution_v0_db/cmd as track_v0_cmd
 import case_studies/imported_track_evolution_v1_db/api as track_v1
-import case_studies/imported_track_evolution_v1_db/cmd as track_v1_cmd
 import case_studies/imported_track_evolution_v2_db/api as track_v2
 import case_studies/imported_track_evolution_v2_db/cmd as track_v2_cmd
 import gleam/option.{None, Some}
 import gleam/time/timestamp
 import sqlight
 
-pub fn imported_track_v1_to_v2_migration_e2e_test() {
+pub fn imported_track_v0_to_v2_migration_e2e_test() {
   let assert Ok(conn) = sqlight.open(":memory:")
-  let assert Ok(Nil) = track_v1.migrate(conn)
+  let assert Ok(Nil) = track_v0.migrate(conn)
 
   let assert Ok(Nil) =
-    track_v1.execute_importedtrack_cmds(conn, [
-      track_v1_cmd.UpsertImportedTrackByServiceAndSourceId(
+    track_v0.execute_importedtrack_cmds(conn, [
+      track_v0_cmd.UpsertImportedTrackByServiceAndSourceId(
         service: "spotify",
         source_id: "track-1",
         title: Some("Song A"),
         artist: Some("Artist A"),
-        external_source_url: None,
       ),
     ])
+  let assert Ok(Some(#(row_v0, _))) =
+    track_v0.get_importedtrack_by_service_and_source_id(
+      conn,
+      service: "spotify",
+      source_id: "track-1",
+    )
+  let assert Some("Song A") = row_v0.title
+
+  let assert Ok(Nil) = track_v1.migrate(conn)
+
   let assert Ok(Some(#(row_v1, _))) =
     track_v1.get_importedtrack_by_service_and_source_id(
       conn,
@@ -29,6 +40,7 @@ pub fn imported_track_v1_to_v2_migration_e2e_test() {
       source_id: "track-1",
     )
   let assert Some("Song A") = row_v1.title
+  let assert True = row_v1.external_source_url == None
 
   let assert Ok(Nil) = track_v2.migrate(conn)
 

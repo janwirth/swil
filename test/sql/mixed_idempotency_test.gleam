@@ -114,6 +114,22 @@ pub fn additive_item_v2_pragma_codegen_matches_disk_test() {
   assert_diff(expected, gleam)
 }
 
+pub fn imported_track_evolution_v0_pragma_codegen_matches_disk_test() {
+  let assert Ok(src) =
+    simplifile.read("src/case_studies/imported_track_evolution_v0_schema.gleam")
+  let assert Ok(expected) =
+    simplifile.read(
+      "src/case_studies/imported_track_evolution_v0_db/migration.gleam",
+    )
+  let assert Ok(def) = schema_parser.parse_module(src)
+  let assert Ok(gleam) =
+    migration.generate_pragma_migration_module(
+      def,
+      "case_studies/imported_track_evolution_v0_db/migration",
+    )
+  assert_diff(expected, gleam)
+}
+
 pub fn imported_track_evolution_v1_pragma_codegen_matches_disk_test() {
   let assert Ok(src) =
     simplifile.read("src/case_studies/imported_track_evolution_v1_schema.gleam")

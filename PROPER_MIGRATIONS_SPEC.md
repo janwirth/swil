@@ -26,7 +26,7 @@ Migrations must be **ordered, one-way steps** on a real database state: after ea
    Tests and docs must not assume double-`migrate` is the definition of correct; correctness is **first-time forward migration with live data and queries at every step**.
 
 4. **E2E is mandatory**  
-   One test per evolution path that mirrors production order: open DB → migrate v1 → insert → migrate v2 → query → … (see `imported_track_evolution_migration_e2e_test` pattern).
+   One test per evolution path that mirrors production order: open DB → migrate v0 → insert → migrate v1 → query → migrate v2 → query → … (see `imported_track_evolution_migration_e2e_test` / `imported_track_v0_to_v2_migration_e2e_test`).
 
 ## Success criteria
 
