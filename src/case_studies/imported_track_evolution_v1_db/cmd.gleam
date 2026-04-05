@@ -1,7 +1,9 @@
 /// Commands-as-pure-data for this schema's entities.
 /// Generated — do not edit by hand.
 /// Execute via `execute_<entity>_cmds`; see `swil/cmd_runner` for batching.
+import gleam/list
 import gleam/option
+import gleam/string
 import sqlight
 import swil/api_help
 import swil/cmd_runner
@@ -15,8 +17,16 @@ pub type ImportedTrackCommand {
     artist: option.Option(String),
     external_source_url: option.Option(String),
   )
-  /// Update by `ByServiceAndSourceId` identity.
+  /// Update by `ByServiceAndSourceId` identity (every non-id column is written; `option.None` uses sentinel / empty DB encoding).
   UpdateImportedTrackByServiceAndSourceId(
+    service: String,
+    source_id: String,
+    title: option.Option(String),
+    artist: option.Option(String),
+    external_source_url: option.Option(String),
+  )
+  /// Partial update by `ByServiceAndSourceId` (`option.None` leaves that column unchanged in SQL).
+  PatchImportedTrackByServiceAndSourceId(
     service: String,
     source_id: String,
     title: option.Option(String),
@@ -25,8 +35,17 @@ pub type ImportedTrackCommand {
   )
   /// Soft-delete by `ByServiceAndSourceId` identity.
   DeleteImportedTrackByServiceAndSourceId(service: String, source_id: String)
-  /// Update all scalar columns by row `id`.
+  /// Update all scalar columns by row `id` (same sentinel rules as identity `Update`).
   UpdateImportedTrackById(
+    id: Int,
+    title: option.Option(String),
+    artist: option.Option(String),
+    service: option.Option(String),
+    source_id: option.Option(String),
+    external_source_url: option.Option(String),
+  )
+  /// Partial update by row `id` (`option.None` leaves that column unchanged).
+  PatchImportedTrackById(
     id: Int,
     title: option.Option(String),
     artist: option.Option(String),
@@ -85,6 +104,54 @@ fn plan_importedtrack(
       sqlight.text(service),
       sqlight.text(source_id),
     ])
+    PatchImportedTrackByServiceAndSourceId(
+      service:,
+      source_id:,
+      title:,
+      artist:,
+      external_source_url:,
+    ) -> {
+      let #(set_parts, binds) = #([], [])
+      let #(set_parts, binds) = case title {
+        option.None -> #(set_parts, binds)
+        option.Some(title_pv) -> #(["\"title\" = ?", ..set_parts], [
+          sqlight.text(title_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = case artist {
+        option.None -> #(set_parts, binds)
+        option.Some(artist_pv) -> #(["\"artist\" = ?", ..set_parts], [
+          sqlight.text(artist_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = case external_source_url {
+        option.None -> #(set_parts, binds)
+        option.Some(external_source_url_pv) -> #(
+          ["\"external_source_url\" = ?", ..set_parts],
+          [sqlight.text(external_source_url_pv), ..binds],
+        )
+      }
+      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
+        sqlight.int(now),
+        ..binds
+      ])
+      let set_sql = string.join(list.reverse(set_parts), ", ")
+      let sql =
+        "update \"importedtrack\" set "
+        <> set_sql
+        <> " where \"service\" = ? and \"source_id\" = ? and \"deleted_at\" is null;"
+      let binds =
+        list.flatten([
+          list.reverse(binds),
+          [
+            sqlight.text(service),
+            sqlight.text(source_id),
+          ],
+        ])
+      #(sql, binds)
+    }
     DeleteImportedTrackByServiceAndSourceId(service:, source_id:) -> #(
       importedtrack_delete_by_service_and_source_id_sql,
       [
@@ -94,6 +161,62 @@ fn plan_importedtrack(
         sqlight.text(source_id),
       ],
     )
+    PatchImportedTrackById(
+      id:,
+      title:,
+      artist:,
+      service:,
+      source_id:,
+      external_source_url:,
+    ) -> {
+      let #(set_parts, binds) = #([], [])
+      let #(set_parts, binds) = case title {
+        option.None -> #(set_parts, binds)
+        option.Some(title_pv) -> #(["\"title\" = ?", ..set_parts], [
+          sqlight.text(title_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = case artist {
+        option.None -> #(set_parts, binds)
+        option.Some(artist_pv) -> #(["\"artist\" = ?", ..set_parts], [
+          sqlight.text(artist_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = case service {
+        option.None -> #(set_parts, binds)
+        option.Some(service_pv) -> #(["\"service\" = ?", ..set_parts], [
+          sqlight.text(service_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = case source_id {
+        option.None -> #(set_parts, binds)
+        option.Some(source_id_pv) -> #(["\"source_id\" = ?", ..set_parts], [
+          sqlight.text(source_id_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = case external_source_url {
+        option.None -> #(set_parts, binds)
+        option.Some(external_source_url_pv) -> #(
+          ["\"external_source_url\" = ?", ..set_parts],
+          [sqlight.text(external_source_url_pv), ..binds],
+        )
+      }
+      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
+        sqlight.int(now),
+        ..binds
+      ])
+      let set_sql = string.join(list.reverse(set_parts), ", ")
+      let sql =
+        "update \"importedtrack\" set "
+        <> set_sql
+        <> " where \"id\" = ? and \"deleted_at\" is null;"
+      let binds = list.flatten([list.reverse(binds), [sqlight.int(id)]])
+      #(sql, binds)
+    }
     UpdateImportedTrackById(
       id:,
       title:,
@@ -117,8 +240,10 @@ fn importedtrack_variant_tag(cmd: ImportedTrackCommand) -> Int {
   case cmd {
     UpsertImportedTrackByServiceAndSourceId(..) -> 0
     UpdateImportedTrackByServiceAndSourceId(..) -> 1
-    DeleteImportedTrackByServiceAndSourceId(..) -> 2
-    UpdateImportedTrackById(..) -> 3
+    PatchImportedTrackByServiceAndSourceId(..) -> 2
+    DeleteImportedTrackByServiceAndSourceId(..) -> 3
+    PatchImportedTrackById(..) -> 4
+    UpdateImportedTrackById(..) -> 5
   }
 }
 

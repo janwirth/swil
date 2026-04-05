@@ -35,6 +35,10 @@ fn comma_join_q(xs: List(String)) -> String {
 
 /// Same as [`upsert_sql`] but no `RETURNING` clause — for command executors that
 /// only need `Result(Nil, _)`.
+///
+/// `ON CONFLICT` targets [id_cols] only. Optional model fields are bound via sentinels
+/// (`api_help.opt_*_for_db`), not SQL `NULL`, so conflict resolution stays aligned with SQLite
+/// unique-index semantics (see `OPTION_NONE_NULL_UNIQUE_SPEC.md`).
 pub fn upsert_sql_exec(
   table: String,
   data_cols: List(String),

@@ -1,7 +1,9 @@
 /// Commands-as-pure-data for this schema's entities.
 /// Generated — do not edit by hand.
 /// Execute via `execute_<entity>_cmds`; see `swil/cmd_runner` for batching.
+import gleam/list
 import gleam/option
+import gleam/string
 import sqlight
 import swil/api_help
 import swil/cmd_runner
@@ -14,8 +16,15 @@ pub type FruitCommand {
     price: option.Option(Float),
     quantity: option.Option(Int),
   )
-  /// Update by `ByName` identity.
+  /// Update by `ByName` identity (every non-id column is written; `option.None` uses sentinel / empty DB encoding).
   UpdateFruitByName(
+    name: String,
+    color: option.Option(String),
+    price: option.Option(Float),
+    quantity: option.Option(Int),
+  )
+  /// Partial update by `ByName` (`option.None` leaves that column unchanged in SQL).
+  PatchFruitByName(
     name: String,
     color: option.Option(String),
     price: option.Option(Float),
@@ -23,8 +32,16 @@ pub type FruitCommand {
   )
   /// Soft-delete by `ByName` identity.
   DeleteFruitByName(name: String)
-  /// Update all scalar columns by row `id`.
+  /// Update all scalar columns by row `id` (same sentinel rules as identity `Update`).
   UpdateFruitById(
+    id: Int,
+    name: option.Option(String),
+    color: option.Option(String),
+    price: option.Option(Float),
+    quantity: option.Option(Int),
+  )
+  /// Partial update by row `id` (`option.None` leaves that column unchanged).
+  PatchFruitById(
     id: Int,
     name: option.Option(String),
     color: option.Option(String),
@@ -71,11 +88,94 @@ fn plan_fruit(cmd: FruitCommand, now: Int) -> #(String, List(sqlight.Value)) {
         sqlight.text(name),
       ],
     )
+    PatchFruitByName(name:, color:, price:, quantity:) -> {
+      let #(set_parts, binds) = #([], [])
+      let #(set_parts, binds) = case color {
+        option.None -> #(set_parts, binds)
+        option.Some(color_pv) -> #(["\"color\" = ?", ..set_parts], [
+          sqlight.text(color_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = case price {
+        option.None -> #(set_parts, binds)
+        option.Some(price_pv) -> #(["\"price\" = ?", ..set_parts], [
+          sqlight.float(price_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = case quantity {
+        option.None -> #(set_parts, binds)
+        option.Some(quantity_pv) -> #(["\"quantity\" = ?", ..set_parts], [
+          sqlight.int(quantity_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
+        sqlight.int(now),
+        ..binds
+      ])
+      let set_sql = string.join(list.reverse(set_parts), ", ")
+      let sql =
+        "update \"fruit\" set "
+        <> set_sql
+        <> " where \"name\" = ? and \"deleted_at\" is null;"
+      let binds =
+        list.flatten([
+          list.reverse(binds),
+          [
+            sqlight.text(name),
+          ],
+        ])
+      #(sql, binds)
+    }
     DeleteFruitByName(name:) -> #(fruit_delete_by_name_sql, [
       sqlight.int(now),
       sqlight.int(now),
       sqlight.text(name),
     ])
+    PatchFruitById(id:, name:, color:, price:, quantity:) -> {
+      let #(set_parts, binds) = #([], [])
+      let #(set_parts, binds) = case name {
+        option.None -> #(set_parts, binds)
+        option.Some(name_pv) -> #(["\"name\" = ?", ..set_parts], [
+          sqlight.text(name_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = case color {
+        option.None -> #(set_parts, binds)
+        option.Some(color_pv) -> #(["\"color\" = ?", ..set_parts], [
+          sqlight.text(color_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = case price {
+        option.None -> #(set_parts, binds)
+        option.Some(price_pv) -> #(["\"price\" = ?", ..set_parts], [
+          sqlight.float(price_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = case quantity {
+        option.None -> #(set_parts, binds)
+        option.Some(quantity_pv) -> #(["\"quantity\" = ?", ..set_parts], [
+          sqlight.int(quantity_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
+        sqlight.int(now),
+        ..binds
+      ])
+      let set_sql = string.join(list.reverse(set_parts), ", ")
+      let sql =
+        "update \"fruit\" set "
+        <> set_sql
+        <> " where \"id\" = ? and \"deleted_at\" is null;"
+      let binds = list.flatten([list.reverse(binds), [sqlight.int(id)]])
+      #(sql, binds)
+    }
     UpdateFruitById(id:, name:, color:, price:, quantity:) -> #(
       fruit_update_by_id_sql,
       [
@@ -94,8 +194,10 @@ fn fruit_variant_tag(cmd: FruitCommand) -> Int {
   case cmd {
     UpsertFruitByName(..) -> 0
     UpdateFruitByName(..) -> 1
-    DeleteFruitByName(..) -> 2
-    UpdateFruitById(..) -> 3
+    PatchFruitByName(..) -> 2
+    DeleteFruitByName(..) -> 3
+    PatchFruitById(..) -> 4
+    UpdateFruitById(..) -> 5
   }
 }
 

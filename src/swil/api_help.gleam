@@ -57,6 +57,10 @@ pub fn unix_seconds_now() -> Int {
   s
 }
 
+/// Wire encoding for **Upsert** and **Update** command bindings: `None` is never SQL `NULL`.
+/// Sentinels (`""`, `0`, `0.0`) keep `ON CONFLICT` targets and unique indexes predictable in SQLite
+/// (multiple `NULL`s do not violate `UNIQUE`). For **Patch** commands, omitted columns are left
+/// unchanged in SQL instead of calling these helpers for those fields.
 pub fn opt_text_for_db(o: Option(String)) -> String {
   case o {
     Some(s) -> s

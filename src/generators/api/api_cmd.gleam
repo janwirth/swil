@@ -4,6 +4,7 @@ import generators/api/api_params as aparam
 import generators/api/api_sql
 import generators/api/api_update_delete as ud
 import generators/api/schema_context
+import generators/migration/migration_sql
 import glance
 import gleam/int
 import gleam/list
@@ -125,6 +126,191 @@ fn cmd_bind_non_id_data_field(
           }
       }
   }
+}
+
+fn type_root_is_option(t: glance.Type) -> Bool {
+  case t {
+    glance.NamedType(_, "Option", _, _) -> True
+    _ -> False
+  }
+}
+
+/// SQL `col = ?` fragment as contents of a Gleam string literal (escaped).
+fn patch_set_assignment_string_literal(label: String) -> String {
+  let frag = migration_sql.quote_ident(label) <> " = ?"
+  escape_gleam_string_body(frag)
+}
+
+/// Bind expression for the inner value after `Some(...)` in a Patch (non-NULL wire encoding).
+fn patch_some_bind(
+  f: FieldDefinition,
+  inner_var: String,
+  scalar_names: List(String),
+) -> String {
+  case is_option_scalar(f, scalar_names) {
+    True -> {
+      let scalar = scalar_name_from_option_field(f)
+      "sqlight.text(row."
+      <> dec.scalar_to_db_fn_name(scalar)
+      <> "(option.Some("
+      <> inner_var
+      <> ")))"
+    }
+    False ->
+      case dec.field_is_calendar_date(f) {
+        True ->
+          "sqlight.text(api_help.date_to_db_string(" <> inner_var <> "))"
+        False ->
+          case render_type_plain(f, scalar_names) {
+            "Float" -> "sqlight.float(" <> inner_var <> ")"
+            "Int" -> "sqlight.int(" <> inner_var <> ")"
+            "Timestamp" ->
+              "sqlight.int({ let #(s, _) = timestamp.to_unix_seconds_and_nanoseconds("
+              <> inner_var
+              <> ") s })"
+            _ -> "sqlight.text(" <> inner_var <> ")"
+          }
+      }
+  }
+}
+
+fn patch_sql_prefix_lit(table: String) -> String {
+  escape_gleam_string_body(
+    "update " <> migration_sql.quote_ident(table) <> " set ",
+  )
+}
+
+fn patch_option_field_block(
+  f: FieldDefinition,
+  ref: String,
+  scalar_names: List(String),
+) -> String {
+  let inner = ref <> "_pv"
+  let lit = patch_set_assignment_string_literal(f.label)
+  let bind = patch_some_bind(f, inner, scalar_names)
+  "      let #(set_parts, binds) = case "
+  <> ref
+  <> " {\n        option.None -> #(set_parts, binds)\n        option.Some("
+  <> inner
+  <> ") -> #([\""
+  <> lit
+  <> "\", ..set_parts], ["
+  <> bind
+  <> ", ..binds])\n      }\n"
+}
+
+fn patch_non_option_field_line(
+  f: FieldDefinition,
+  ref: String,
+  scalar_names: List(String),
+) -> String {
+  let lit = patch_set_assignment_string_literal(f.label)
+  let bind = cmd_bind_non_id_data_field(f, ref, scalar_names)
+  "      let #(set_parts, binds) = #([\""
+  <> lit
+  <> "\", ..set_parts], ["
+  <> bind
+  <> ", ..binds])\n"
+}
+
+fn patch_where_sql_suffix_lit(id_cols: List(String)) -> String {
+  let where_id =
+    id_cols
+    |> list.map(fn(c) { migration_sql.quote_ident(c) <> " = ?" })
+    |> string.join(" and ")
+  " where "
+  <> where_id
+  <> " and "
+  <> migration_sql.quote_ident("deleted_at")
+  <> " is null;"
+}
+
+fn patch_identity_plan_case_body(
+  entity: EntityDefinition,
+  variant: IdentityVariantDefinition,
+  scalar_names: List(String),
+  field_qualifier: String,
+) -> String {
+  let table = string.lowercase(entity.type_name)
+  let id_cols = list.map(variant.fields, fn(f) { f.label })
+  let labels = dec.id_labels_list(variant)
+  let data_fields = api_sql.entity_data_fields(entity)
+  let non_id =
+    list.filter(data_fields, fn(f) { !list.contains(labels, f.label) })
+  let field_blocks =
+    list.map(non_id, fn(f) {
+      let ref = field_qualifier <> f.label
+      case type_root_is_option(f.type_) {
+        True -> patch_option_field_block(f, ref, scalar_names)
+        False -> patch_non_option_field_line(f, ref, scalar_names)
+      }
+    })
+    |> string.concat
+  let ut_lit = patch_set_assignment_string_literal("updated_at")
+  let sql_prefix_esc = patch_sql_prefix_lit(table)
+  let where_esc = escape_gleam_string_body(patch_where_sql_suffix_lit(id_cols))
+  let where_binds =
+    list.map(variant.fields, fn(f) {
+      "          "
+      <> cmd_bind_typed_value(f, field_qualifier <> f.label)
+      <> ","
+    })
+    |> string.join("\n")
+  "      let #(set_parts, binds) = #([], [])\n"
+  <> field_blocks
+  <> "      let #(set_parts, binds) = #([\""
+  <> ut_lit
+  <> "\", ..set_parts], [sqlight.int(now), ..binds])\n"
+  <> "      let set_sql = string.join(list.reverse(set_parts), \", \")\n"
+  <> "      let sql = \""
+  <> sql_prefix_esc
+  <> "\" <> set_sql <> \""
+  <> where_esc
+  <> "\"\n"
+  <> "      let binds = list.flatten([list.reverse(binds), [\n"
+  <> where_binds
+  <> "\n      ]])\n"
+  <> "      #(sql, binds)\n"
+}
+
+fn patch_by_id_plan_case_body(
+  entity: EntityDefinition,
+  scalar_names: List(String),
+) -> String {
+  let table = string.lowercase(entity.type_name)
+  let data_fields = api_sql.entity_data_fields(entity)
+  let field_blocks =
+    list.map(data_fields, fn(f) {
+      let ref = f.label
+      case type_root_is_option(f.type_) {
+        True -> patch_option_field_block(f, ref, scalar_names)
+        False -> patch_non_option_field_line(f, ref, scalar_names)
+      }
+    })
+    |> string.concat
+  let ut_lit = patch_set_assignment_string_literal("updated_at")
+  let sql_prefix_esc = patch_sql_prefix_lit(table)
+  let where_esc =
+    escape_gleam_string_body(
+      " where "
+      <> migration_sql.quote_ident("id")
+      <> " = ? and "
+      <> migration_sql.quote_ident("deleted_at")
+      <> " is null;",
+    )
+  "      let #(set_parts, binds) = #([], [])\n"
+  <> field_blocks
+  <> "      let #(set_parts, binds) = #([\""
+  <> ut_lit
+  <> "\", ..set_parts], [sqlight.int(now), ..binds])\n"
+  <> "      let set_sql = string.join(list.reverse(set_parts), \", \")\n"
+  <> "      let sql = \""
+  <> sql_prefix_esc
+  <> "\" <> set_sql <> \""
+  <> where_esc
+  <> "\"\n"
+  <> "      let binds = list.flatten([list.reverse(binds), [sqlight.int(id)]])\n"
+  <> "      #(sql, binds)\n"
 }
 
 fn upsert_binding_lines(
@@ -293,8 +479,14 @@ fn generate_entity_blocks(
       <> record_fields_type_lines(up_fields, ctx)
       <> "\n  )\n  /// Update by `"
       <> v.variant_name
-      <> "` identity.\n  "
+      <> "` identity (every non-id column is written; `option.None` uses sentinel / empty DB encoding).\n  "
       <> op_variant_name("Update", entity_type, v)
+      <> "(\n"
+      <> record_fields_type_lines(up_fields, ctx)
+      <> "\n  )\n  /// Partial update by `"
+      <> v.variant_name
+      <> "` (`option.None` leaves that column unchanged in SQL).\n  "
+      <> op_variant_name("Patch", entity_type, v)
       <> "(\n"
       <> record_fields_type_lines(up_fields, ctx)
       <> "\n  )\n  /// Soft-delete by `"
@@ -307,7 +499,14 @@ fn generate_entity_blocks(
     })
     |> string.join("\n  ")
   let update_by_id_variant =
-    "  /// Update all scalar columns by row `id`.\n  Update"
+    "  /// Update all scalar columns by row `id` (same sentinel rules as identity `Update`).\n  Update"
+    <> entity_type
+    <> "ById(\n    id: Int,\n"
+    <> list.map(api_sql.entity_data_fields(entity), fn(f) {
+      "    " <> f.label <> ": " <> dec.render_type(f.type_, ctx) <> ","
+    })
+    |> string.join("\n")
+    <> "\n  )\n  /// Partial update by row `id` (`option.None` leaves that column unchanged).\n  Patch"
     <> entity_type
     <> "ById(\n    id: Int,\n"
     <> list.map(api_sql.entity_data_fields(entity), fn(f) {
@@ -381,6 +580,7 @@ fn generate_entity_blocks(
       let pat = variant_pattern_labels(up_fields)
       let upsert_name = op_variant_name("Upsert", entity_type, v)
       let update_name = op_variant_name("Update", entity_type, v)
+      let patch_name = op_variant_name("Patch", entity_type, v)
       let delete_name = op_variant_name("Delete", entity_type, v)
       let upsert_sql_const =
         table <> "_upsert_by_" <> id_snake <> "_sql"
@@ -389,6 +589,7 @@ fn generate_entity_blocks(
       let upsert_binds = upsert_binding_lines(entity, v, scalar_names, "")
       let update_binds =
         update_by_identity_binding_lines(entity, v, scalar_names, "")
+      let patch_plan = patch_identity_plan_case_body(entity, v, scalar_names, "")
       let delete_binds = delete_binding_lines(v)
       "    "
       <> upsert_name
@@ -407,6 +608,12 @@ fn generate_entity_blocks(
       <> ",\n      [\n"
       <> update_binds
       <> "\n      ],\n    )\n    "
+      <> patch_name
+      <> "("
+      <> pat
+      <> ") -> {\n"
+      <> patch_plan
+      <> "    }\n    "
       <> delete_name
       <> "("
       <> variant_pattern_labels(v.fields)
@@ -421,9 +628,16 @@ fn generate_entity_blocks(
     "id:, "
     <> variant_pattern_labels(api_sql.entity_data_fields(entity))
   let by_id_binds = update_by_id_binding_lines(entity, scalar_names)
+  let patch_by_id_body = patch_by_id_plan_case_body(entity, scalar_names)
   let plan_body =
     plan_cases
-    <> "\n    Update"
+    <> "\n    Patch"
+    <> entity_type
+    <> "ById("
+    <> update_by_id_pat
+    <> ") -> {\n"
+    <> patch_by_id_body
+    <> "    }\n    Update"
     <> entity_type
     <> "ById("
     <> update_by_id_pat
@@ -438,6 +652,7 @@ fn generate_entity_blocks(
       let #(n, text) = acc
       let upsert_name = op_variant_name("Upsert", entity_type, v)
       let update_name = op_variant_name("Update", entity_type, v)
+      let patch_name = op_variant_name("Patch", entity_type, v)
       let delete_name = op_variant_name("Delete", entity_type, v)
       let chunk =
         text
@@ -450,11 +665,15 @@ fn generate_entity_blocks(
         <> "(..) -> "
         <> int.to_string(n + 1)
         <> "\n    "
-        <> delete_name
+        <> patch_name
         <> "(..) -> "
         <> int.to_string(n + 2)
+        <> "\n    "
+        <> delete_name
+        <> "(..) -> "
+        <> int.to_string(n + 3)
         <> "\n"
-      #(n + 3, chunk)
+      #(n + 4, chunk)
     })
   let tag_block =
     "fn "
@@ -463,10 +682,14 @@ fn generate_entity_blocks(
     <> command_type_name
     <> ") -> Int {\n  case cmd {\n"
     <> tag_middle
-    <> "    Update"
+    <> "    Patch"
     <> entity_type
     <> "ById(..) -> "
     <> int.to_string(n_after_variants)
+    <> "\n    Update"
+    <> entity_type
+    <> "ById(..) -> "
+    <> int.to_string(n_after_variants + 1)
     <> "\n  }\n}\n"
 
   let plan_fn =
@@ -536,7 +759,7 @@ pub fn generate_cmd_module(
     False -> ""
   }
 
-  "/// Commands-as-pure-data for this schema's entities.\n/// Generated — do not edit by hand.\n/// Execute via `execute_<entity>_cmds`; see `swil/cmd_runner` for batching.\nimport gleam/option\n"
+  "/// Commands-as-pure-data for this schema's entities.\n/// Generated — do not edit by hand.\n/// Execute via `execute_<entity>_cmds`; see `swil/cmd_runner` for batching.\nimport gleam/list\nimport gleam/option\nimport gleam/string\n"
   <> cal_import
   <> ts_import
   <> row_import
