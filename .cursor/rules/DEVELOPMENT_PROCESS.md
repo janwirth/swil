@@ -22,6 +22,10 @@ Documentation
 - Prefer self-documenting code: names, types, and structure should carry intent thoroughly. Do not add separate markdown docs for routine changes; the code is the documentation.
 - Public functions must use labelled arguments for all consumer-facing parameters (except intentionally unlabelled ones such as `conn` where established).
 
+Control flow
+
+- Avoid deep callback nesting: prefer the **`use` continuation style** for sequential steps that would otherwise be `f(fn() { g(fn() { h(...) }) })`. Examples: `use x <- result.try(expr)` for `Result` pipelines (see `src/swil.gleam` `generate_from_schema_path`), and `use _ <- gmod.with_import(...)` / `use _ <- gmod.with_function(...)` when assembling gleamgen modules. Extract a named helper when a block needs both `use` and non-trivial logic.
+
 Migrations
 
 - No migration versioning.

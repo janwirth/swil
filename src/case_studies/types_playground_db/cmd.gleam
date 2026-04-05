@@ -1,6 +1,3 @@
-/// Commands-as-pure-data for this schema's entities.
-/// Generated — do not edit by hand.
-/// Execute via `execute_<entity>_cmds`; see `swil/cmd_runner` for batching.
 import gleam/list
 import gleam/option
 import gleam/string
@@ -9,31 +6,28 @@ import sqlight
 import swil/api_help
 import swil/cmd_runner
 
+/// Commands-as-pure-data for this schema's entities.
+/// Generated — do not edit by hand.
+/// Execute via `execute_<entity>_cmds`; see `swil/cmd_runner` for batching.
 pub type MyTrackCommand {
-  /// Upsert by `ByName` identity.
   UpsertMyTrackByName(
     name: String,
     added_to_playlist_at: option.Option(Timestamp),
   )
-  /// Update by `ByName` identity (every non-id column is written; `option.None` uses sentinel / empty DB encoding).
   UpdateMyTrackByName(
     name: String,
     added_to_playlist_at: option.Option(Timestamp),
   )
-  /// Partial update by `ByName` (`option.None` leaves that column unchanged in SQL).
   PatchMyTrackByName(
     name: String,
     added_to_playlist_at: option.Option(Timestamp),
   )
-  /// Soft-delete by `ByName` identity.
   DeleteMyTrackByName(name: String)
-  /// Update all scalar columns by row `id` (same sentinel rules as identity `Update`).
   UpdateMyTrackById(
     id: Int,
     added_to_playlist_at: option.Option(Timestamp),
     name: option.Option(String),
   )
-  /// Partial update by row `id` (`option.None` leaves that column unchanged).
   PatchMyTrackById(
     id: Int,
     added_to_playlist_at: option.Option(Timestamp),
@@ -54,7 +48,28 @@ const mytrack_delete_by_name_sql = "update \"mytrack\" set \"deleted_at\" = ?, \
 
 const mytrack_update_by_id_sql = "update \"mytrack\" set \"added_to_playlist_at\" = ?, \"name\" = ?, \"updated_at\" = ? where \"id\" = ? and \"deleted_at\" is null;"
 
-fn plan_mytrack(cmd: MyTrackCommand, now: Int) -> #(String, List(sqlight.Value)) {
+pub fn execute_mytrack_cmds(
+  conn conn: sqlight.Connection,
+  commands commands: List(MyTrackCommand),
+) -> Result(Nil, #(Int, sqlight.Error)) {
+  cmd_runner.run_cmds(conn, commands, mytrack_variant_tag, plan_mytrack)
+}
+
+fn mytrack_variant_tag(cmd cmd: MyTrackCommand) -> Int {
+  case cmd {
+    UpsertMyTrackByName(..) -> 0
+    UpdateMyTrackByName(..) -> 1
+    PatchMyTrackByName(..) -> 2
+    DeleteMyTrackByName(..) -> 3
+    PatchMyTrackById(..) -> 4
+    UpdateMyTrackById(..) -> 5
+  }
+}
+
+fn plan_mytrack(
+  cmd cmd: MyTrackCommand,
+  now now: Int,
+) -> #(String, List(sqlight.Value)) {
   case cmd {
     UpsertMyTrackByName(name:, added_to_playlist_at:) -> #(
       mytrack_upsert_by_name_sql,
@@ -161,22 +176,4 @@ fn plan_mytrack(cmd: MyTrackCommand, now: Int) -> #(String, List(sqlight.Value))
       ],
     )
   }
-}
-
-fn mytrack_variant_tag(cmd: MyTrackCommand) -> Int {
-  case cmd {
-    UpsertMyTrackByName(..) -> 0
-    UpdateMyTrackByName(..) -> 1
-    PatchMyTrackByName(..) -> 2
-    DeleteMyTrackByName(..) -> 3
-    PatchMyTrackById(..) -> 4
-    UpdateMyTrackById(..) -> 5
-  }
-}
-
-pub fn execute_mytrack_cmds(
-  conn: sqlight.Connection,
-  commands: List(MyTrackCommand),
-) -> Result(Nil, #(Int, sqlight.Error)) {
-  cmd_runner.run_cmds(conn, commands, mytrack_variant_tag, plan_mytrack)
 }

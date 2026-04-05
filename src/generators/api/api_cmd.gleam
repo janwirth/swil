@@ -4,11 +4,22 @@ import generators/api/api_params as aparam
 import generators/api/api_sql
 import generators/api/api_update_delete as ud
 import generators/api/schema_context
+import generators/gleamgen_emit
 import generators/migration/migration_sql
 import glance
 import gleam/int
 import gleam/list
+import gleam/option
 import gleam/string
+import gleamgen/expression as gexpr
+import gleamgen/function as gfun
+import gleamgen/import_ as gimport
+import gleamgen/module as gmod
+import gleamgen/module/definition as gdef
+import gleamgen/parameter as gparam
+import gleamgen/types as gtypes
+import gleamgen/types/custom as gcustom
+import gleamgen/types/variant as gvariant
 import schema_definition/schema_definition.{
   type EntityDefinition, type FieldDefinition, type IdentityVariantDefinition,
   type SchemaDefinition,
@@ -390,16 +401,6 @@ fn ordered_upsert_fields(
   aparam.upsert_ordered_data_fields(entity, variant)
 }
 
-fn record_fields_type_lines(
-  fields: List(FieldDefinition),
-  ctx: dec.TypeCtx,
-) -> String {
-  list.map(fields, fn(f) {
-    "    " <> f.label <> ": " <> dec.render_type(f.type_, ctx) <> ","
-  })
-  |> string.join("\n")
-}
-
 fn variant_pattern_labels(fields: List(FieldDefinition)) -> String {
   list.map(fields, fn(f) { f.label <> ":" })
   |> string.join(", ")
@@ -452,126 +453,114 @@ fn cmd_module_needs_schema(ctx: dec.TypeCtx, def: SchemaDefinition) -> Bool {
   })
 }
 
-fn generate_entity_blocks(
+fn command_variant_fields(
+  fields: List(FieldDefinition),
+  ctx: dec.TypeCtx,
+) -> List(#(option.Option(String), gtypes.GeneratedType(gtypes.Dynamic))) {
+  list.map(fields, fn(f) {
+    #(
+      option.Some(f.label),
+      gtypes.raw(dec.render_type(f.type_, ctx)) |> gtypes.to_dynamic,
+    )
+  })
+}
+
+fn build_command_custom_type(
+  entity: EntityDefinition,
+  def: SchemaDefinition,
+  ctx: dec.TypeCtx,
+) -> gcustom.CustomTypeBuilder(#(), gtypes.Dynamic, #()) {
+  let id_def = schema_context.find_identity(def, entity)
+  let entity_type = entity.type_name
+  let identity_variants =
+    list.flat_map(id_def.variants, fn(v) {
+      let up_fields = ordered_upsert_fields(entity, v)
+      let up_args = command_variant_fields(up_fields, ctx)
+      let del_args = command_variant_fields(v.fields, ctx)
+      [
+        gvariant.new(op_variant_name("Upsert", entity_type, v))
+          |> gvariant.with_arguments_dynamic(up_args),
+        gvariant.new(op_variant_name("Update", entity_type, v))
+          |> gvariant.with_arguments_dynamic(up_args),
+        gvariant.new(op_variant_name("Patch", entity_type, v))
+          |> gvariant.with_arguments_dynamic(up_args),
+        gvariant.new(op_variant_name("Delete", entity_type, v))
+          |> gvariant.with_arguments_dynamic(del_args),
+      ]
+    })
+  let data_fields = api_sql.entity_data_fields(entity)
+  let by_id_args =
+    list.append(
+      [#(option.Some("id"), gtypes.int |> gtypes.to_dynamic)],
+      command_variant_fields(data_fields, ctx),
+    )
+  let by_id_variants = [
+    gvariant.new("Update" <> entity_type <> "ById")
+      |> gvariant.with_arguments_dynamic(by_id_args),
+    gvariant.new("Patch" <> entity_type <> "ById")
+      |> gvariant.with_arguments_dynamic(by_id_args),
+  ]
+  let ordered_for_file = list.append(identity_variants, by_id_variants)
+  gcustom.new(#())
+  |> gcustom.with_dynamic_variants(fn(_) { ordered_for_file })
+}
+
+fn entity_sql_constant_entries(
+  entity: EntityDefinition,
+  def: SchemaDefinition,
+) -> List(#(String, String)) {
+  let id_def = schema_context.find_identity(def, entity)
+  let table = string.lowercase(entity.type_name)
+  let data_cols =
+    api_sql.entity_data_fields(entity)
+    |> list.map(fn(f) { f.label })
+  let per_variant =
+    list.flat_map(id_def.variants, fn(v) {
+      let id_snake = variant_id_snake(v)
+      let id_cols = list.map(v.fields, fn(f) { f.label })
+      [
+        #(
+          table <> "_upsert_by_" <> id_snake <> "_sql",
+          api_sql.upsert_sql_exec(table, data_cols, id_cols),
+        ),
+        #(
+          table <> "_update_by_" <> id_snake <> "_sql",
+          api_sql.update_by_identity_sql_exec(table, data_cols, id_cols),
+        ),
+        #(
+          table <> "_delete_by_" <> id_snake <> "_sql",
+          api_sql.soft_delete_by_identity_sql_exec(table, id_cols),
+        ),
+      ]
+    })
+  list.append(per_variant, [
+    #(
+      table <> "_update_by_id_sql",
+      api_sql.update_by_row_id_sql_exec(table, data_cols),
+    ),
+  ])
+}
+
+fn generate_entity_cmd_piece(
   def: SchemaDefinition,
   entity: EntityDefinition,
   ctx: dec.TypeCtx,
   scalar_names: List(String),
-) -> #(String, String, String, String, String) {
+) -> #(
+  String,
+  String,
+  gcustom.CustomTypeBuilder(#(), gtypes.Dynamic, #()),
+  List(#(String, String)),
+  String,
+  String,
+) {
   let id_def = schema_context.find_identity(def, entity)
   let table = string.lowercase(entity.type_name)
   let entity_type = entity.type_name
   let entity_snake = string.lowercase(entity.type_name)
-  let data_cols =
-    api_sql.entity_data_fields(entity)
-    |> list.map(fn(f) { f.label })
   let command_type_name = entity_type <> "Command"
-
-  let type_body =
-    list.map(id_def.variants, fn(v) {
-      let op_base = op_variant_name("Upsert", entity_type, v)
-      let up_fields = ordered_upsert_fields(entity, v)
-      "  /// Upsert by `"
-      <> v.variant_name
-      <> "` identity.\n  "
-      <> op_base
-      <> "(\n"
-      <> record_fields_type_lines(up_fields, ctx)
-      <> "\n  )\n  /// Update by `"
-      <> v.variant_name
-      <> "` identity (every non-id column is written; `option.None` uses sentinel / empty DB encoding).\n  "
-      <> op_variant_name("Update", entity_type, v)
-      <> "(\n"
-      <> record_fields_type_lines(up_fields, ctx)
-      <> "\n  )\n  /// Partial update by `"
-      <> v.variant_name
-      <> "` (`option.None` leaves that column unchanged in SQL).\n  "
-      <> op_variant_name("Patch", entity_type, v)
-      <> "(\n"
-      <> record_fields_type_lines(up_fields, ctx)
-      <> "\n  )\n  /// Soft-delete by `"
-      <> v.variant_name
-      <> "` identity.\n  "
-      <> op_variant_name("Delete", entity_type, v)
-      <> "(\n"
-      <> record_fields_type_lines(v.fields, ctx)
-      <> "\n  )"
-    })
-    |> string.join("\n  ")
-  let update_by_id_variant =
-    "  /// Update all scalar columns by row `id` (same sentinel rules as identity `Update`).\n  Update"
-    <> entity_type
-    <> "ById(\n    id: Int,\n"
-    <> list.map(api_sql.entity_data_fields(entity), fn(f) {
-      "    " <> f.label <> ": " <> dec.render_type(f.type_, ctx) <> ","
-    })
-    |> string.join("\n")
-    <> "\n  )\n  /// Partial update by row `id` (`option.None` leaves that column unchanged).\n  Patch"
-    <> entity_type
-    <> "ById(\n    id: Int,\n"
-    <> list.map(api_sql.entity_data_fields(entity), fn(f) {
-      "    " <> f.label <> ": " <> dec.render_type(f.type_, ctx) <> ","
-    })
-    |> string.join("\n")
-    <> "\n  )"
-  let type_block =
-    "pub type "
-    <> command_type_name
-    <> " {\n"
-    <> type_body
-    <> "\n  "
-    <> update_by_id_variant
-    <> "\n}\n"
-
-  let const_block =
-    list.map(id_def.variants, fn(v) {
-      let id_snake = variant_id_snake(v)
-      let id_cols = list.map(v.fields, fn(f) { f.label })
-      [
-        "const "
-        <> table
-        <> "_upsert_by_"
-        <> id_snake
-        <> "_sql = \""
-        <> escape_gleam_string_body(api_sql.upsert_sql_exec(
-          table,
-          data_cols,
-          id_cols,
-        ))
-        <> "\"\n",
-        "const "
-        <> table
-        <> "_update_by_"
-        <> id_snake
-        <> "_sql = \""
-        <> escape_gleam_string_body(api_sql.update_by_identity_sql_exec(
-          table,
-          data_cols,
-          id_cols,
-        ))
-        <> "\"\n",
-        "const "
-        <> table
-        <> "_delete_by_"
-        <> id_snake
-        <> "_sql = \""
-        <> escape_gleam_string_body(api_sql.soft_delete_by_identity_sql_exec(
-          table,
-          id_cols,
-        ))
-        <> "\"\n",
-      ]
-      |> string.concat
-    })
-    |> string.concat
-    <> "const "
-    <> table
-    <> "_update_by_id_sql = \""
-    <> escape_gleam_string_body(api_sql.update_by_row_id_sql_exec(
-      table,
-      data_cols,
-    ))
-    <> "\"\n"
+  let type_builder = build_command_custom_type(entity, def, ctx)
+  let const_entries = entity_sql_constant_entries(entity, def)
 
   let plan_cases =
     list.map(id_def.variants, fn(v) {
@@ -675,13 +664,8 @@ fn generate_entity_blocks(
         <> "\n"
       #(n + 4, chunk)
     })
-  let tag_block =
-    "fn "
-    <> entity_snake
-    <> "_variant_tag(cmd: "
-    <> command_type_name
-    <> ") -> Int {\n  case cmd {\n"
-    <> tag_middle
+  let tag_case_inner =
+    tag_middle
     <> "    Patch"
     <> entity_type
     <> "ById(..) -> "
@@ -690,29 +674,15 @@ fn generate_entity_blocks(
     <> entity_type
     <> "ById(..) -> "
     <> int.to_string(n_after_variants + 1)
-    <> "\n  }\n}\n"
 
-  let plan_fn =
-    "fn plan_"
-    <> entity_snake
-    <> "(cmd: "
-    <> command_type_name
-    <> ", now: Int) -> #(String, List(sqlight.Value)) {\n  case cmd {\n"
-    <> plan_body
-    <> "\n  }\n}\n"
-
-  let exec_fn =
-    "pub fn execute_"
-    <> entity_snake
-    <> "_cmds(\n  conn: sqlight.Connection,\n  commands: List("
-    <> command_type_name
-    <> "),\n) -> Result(Nil, #(Int, sqlight.Error)) {\n  cmd_runner.run_cmds(conn, commands, "
-    <> entity_snake
-    <> "_variant_tag, plan_"
-    <> entity_snake
-    <> ")\n}\n"
-
-  #(type_block, const_block, plan_fn, tag_block, exec_fn)
+  #(
+    command_type_name,
+    entity_snake,
+    type_builder,
+    const_entries,
+    plan_body,
+    tag_case_inner,
+  )
 }
 
 /// Double-quoted Gleam string body: escape `\` and `"` so SQL can span lines.
@@ -722,6 +692,209 @@ fn escape_gleam_string_body(s: String) -> String {
   |> string.replace(each: "\"", with: "\\\"")
 }
 
+fn cmd_module_uses_timestamp(def: SchemaDefinition, ctx: dec.TypeCtx) -> Bool {
+  case schema_context.schema_uses_timestamp(def) {
+    True -> True
+    False ->
+      list.any(def.entities, fn(e) {
+        let id = schema_context.find_identity(def, e)
+        let all_fields =
+          list.append(
+            api_sql.entity_data_fields(e),
+            list.flatten(list.map(id.variants, fn(v) { v.fields })),
+          )
+        list.any(all_fields, fn(f) {
+          string.contains(dec.render_type(f.type_, ctx), "Timestamp")
+        })
+      })
+  }
+}
+
+fn import_pre(path: List(String)) -> gimport.ImportedModule {
+  gimport.new(path)
+  |> gimport.with_predefined(True)
+}
+
+/// Plan, variant-tag, and execute functions for one entity (gleamgen `use` chain).
+fn entity_cmd_fns_module(
+  command_type_name: String,
+  entity_snake: String,
+  plan_body: String,
+  tag_case_inner: String,
+  rest: gmod.Module,
+) -> gmod.Module {
+  use _ <- gmod.with_function(
+    gleamgen_emit.pub_def("execute_" <> entity_snake <> "_cmds"),
+    gfun.new2(
+      gparam.new("conn", gtypes.raw("sqlight.Connection"))
+        |> gparam.with_label("conn"),
+      gparam.new(
+        "commands",
+        gtypes.raw("List(" <> command_type_name <> ")"),
+      )
+        |> gparam.with_label("commands"),
+      gtypes.raw("Result(Nil, #(Int, sqlight.Error))"),
+      fn(_conn, _commands) {
+        gexpr.raw(
+          "cmd_runner.run_cmds(conn, commands, "
+          <> entity_snake
+          <> "_variant_tag, plan_"
+          <> entity_snake
+          <> ")",
+        )
+      },
+    ),
+  )
+  use _ <- gmod.with_function(
+    gdef.new(entity_snake <> "_variant_tag"),
+    gfun.new1(
+      gparam.new("cmd", gtypes.raw(command_type_name))
+        |> gparam.with_label("cmd"),
+      gtypes.int,
+      fn(_cmd) {
+        gexpr.raw("case cmd {\n" <> tag_case_inner <> "\n  }")
+      },
+    ),
+  )
+  use _ <- gmod.with_function(
+    gdef.new("plan_" <> entity_snake),
+    gfun.new2(
+      gparam.new("cmd", gtypes.raw(command_type_name))
+        |> gparam.with_label("cmd"),
+      gparam.new("now", gtypes.int) |> gparam.with_label("now"),
+      gtypes.raw("#(String, List(sqlight.Value))"),
+      fn(_cmd, _now) {
+        gexpr.raw("case cmd {\n" <> plan_body <> "\n  }")
+      },
+    ),
+  )
+  rest
+}
+
+fn prepend_entity_cmd_module(
+  def: SchemaDefinition,
+  entity: EntityDefinition,
+  ctx: dec.TypeCtx,
+  scalar_names: List(String),
+  entity_index: Int,
+  rest: gmod.Module,
+) -> gmod.Module {
+  let #(
+    command_type_name,
+    entity_snake,
+    type_builder,
+    const_entries,
+    plan_body,
+    tag_case_inner,
+  ) = generate_entity_cmd_piece(def, entity, ctx, scalar_names)
+  let type_def = case entity_index {
+    0 ->
+      gleamgen_emit.pub_def(command_type_name)
+      |> gdef.with_text_before(
+        "/// Commands-as-pure-data for this schema's entities.\n/// Generated — do not edit by hand.\n/// Execute via `execute_<entity>_cmds`; see `swil/cmd_runner` for batching.\n",
+      )
+    _ -> gleamgen_emit.pub_def(command_type_name)
+  }
+  let fn_tail =
+    entity_cmd_fns_module(
+      command_type_name,
+      entity_snake,
+      plan_body,
+      tag_case_inner,
+      rest,
+    )
+  let with_consts =
+    list.fold_right(const_entries, fn_tail, fn(acc, entry) {
+      let #(name, sql) = entry
+      gmod.with_constant(gdef.new(name), gexpr.string(sql), fn(_) { acc })
+    })
+  gmod.with_custom_type_dynamic(type_def, type_builder, fn(_, _) {
+    with_consts
+  })
+}
+
+fn apply_optional_cmd_imports(
+  def: SchemaDefinition,
+  ctx: dec.TypeCtx,
+  scalar_names: List(String),
+  sch_parts: List(String),
+  row_parts: List(String),
+  inner: fn() -> gmod.Module,
+) -> gmod.Module {
+  let k = inner
+  let k = case cmd_module_needs_schema(ctx, def) {
+    True ->
+      fn() {
+        gmod.with_import(gimport.new(sch_parts) |> gimport.with_predefined(True), fn(_) {
+          k()
+        })
+      }
+    False -> k
+  }
+  let k = case cmd_module_needs_row(def, scalar_names) {
+    True ->
+      fn() {
+        gmod.with_import(gimport.new(row_parts) |> gimport.with_predefined(True), fn(_) {
+          k()
+        })
+      }
+    False -> k
+  }
+  let k = case cmd_module_uses_timestamp(def, ctx) {
+    True ->
+      fn() {
+        gmod.with_import(
+          gimport.new(["gleam", "time", "timestamp"])
+            |> gimport.with_exposing([gimport.exposed_type("Timestamp")])
+            |> gimport.with_predefined(True),
+          fn(_) { k() },
+        )
+      }
+    False -> k
+  }
+  let k = case schema_needs_calendar(def) {
+    True ->
+      fn() {
+        gmod.with_import(
+          gimport.new(["gleam", "time", "calendar"])
+            |> gimport.with_predefined(True),
+          fn(_) { k() },
+        )
+      }
+    False -> k
+  }
+  k()
+}
+
+fn chain_cmd_module_imports(
+  schema_path: String,
+  def: SchemaDefinition,
+  ctx: dec.TypeCtx,
+  scalar_names: List(String),
+  build: fn() -> gmod.Module,
+) -> gmod.Module {
+  let sch_parts = string.split(schema_path, "/")
+  let db_path = schema_context.db_module_path_from_schema(schema_path)
+  let db_parts = string.split(db_path, "/")
+  let row_parts = list.append(db_parts, ["row"])
+  use _ <- gmod.with_import(import_pre(["gleam", "list"]))
+  use _ <- gmod.with_import(import_pre(["gleam", "option"]))
+  use _ <- gmod.with_import(import_pre(["gleam", "string"]))
+  apply_optional_cmd_imports(
+    def,
+    ctx,
+    scalar_names,
+    sch_parts,
+    row_parts,
+    fn() {
+      use _ <- gmod.with_import(import_pre(["sqlight"]))
+      use _ <- gmod.with_import(import_pre(["swil", "api_help"]))
+      use _ <- gmod.with_import(import_pre(["swil", "cmd_runner"]))
+      build()
+    },
+  )
+}
+
 /// Emit `cmd.gleam`: per-entity command ADTs, private SQL, planners, and
 /// `execute_<entity>_cmds` entry points (see `OPERATIONS_PURE_DATA_SPEC.md`).
 pub fn generate_cmd_module(
@@ -729,47 +902,12 @@ pub fn generate_cmd_module(
   def: SchemaDefinition,
 ) -> String {
   let ctx = dec.type_ctx(schema_path, def)
-  let db_path = schema_context.db_module_path_from_schema(schema_path)
   let scalar_names = list.map(def.scalars, fn(s) { s.type_name })
-  let blocks =
-    list.map(def.entities, fn(e) { generate_entity_blocks(def, e, ctx, scalar_names) })
-  let types = list.map(blocks, fn(b) { b.0 }) |> string.concat
-  let consts = list.map(blocks, fn(b) { b.1 }) |> string.concat
-  let plans = list.map(blocks, fn(b) { b.2 }) |> string.concat
-  let tags = list.map(blocks, fn(b) { b.3 }) |> string.concat
-  let execs = list.map(blocks, fn(b) { b.4 }) |> string.concat
-
-  let cal_import = case schema_needs_calendar(def) {
-    True -> "import gleam/time/calendar\n"
-    False -> ""
-  }
-  let ts_import = case
-    schema_context.schema_uses_timestamp(def)
-    || string.contains(types, "Timestamp")
-  {
-    True -> "import gleam/time/timestamp.{type Timestamp}\n"
-    False -> ""
-  }
-  let row_import = case cmd_module_needs_row(def, scalar_names) {
-    True -> "import " <> db_path <> "/row\n"
-    False -> ""
-  }
-  let schema_import = case cmd_module_needs_schema(ctx, def) {
-    True -> "import " <> schema_path <> "\n"
-    False -> ""
-  }
-
-  "/// Commands-as-pure-data for this schema's entities.\n/// Generated — do not edit by hand.\n/// Execute via `execute_<entity>_cmds`; see `swil/cmd_runner` for batching.\nimport gleam/list\nimport gleam/option\nimport gleam/string\n"
-  <> cal_import
-  <> ts_import
-  <> row_import
-  <> schema_import
-  <> "import sqlight\nimport swil/api_help\nimport swil/cmd_runner\n\n"
-  <> types
-  <> "\n"
-  <> consts
-  <> "\n"
-  <> plans
-  <> tags
-  <> execs
+  let mod =
+    chain_cmd_module_imports(schema_path, def, ctx, scalar_names, fn() {
+      list.index_fold(def.entities, gmod.eof(), fn(acc, entity, i) {
+        prepend_entity_cmd_module(def, entity, ctx, scalar_names, i, acc)
+      })
+    })
+  gleamgen_emit.render_module(mod)
 }

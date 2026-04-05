@@ -1,6 +1,3 @@
-/// Commands-as-pure-data for this schema's entities.
-/// Generated — do not edit by hand.
-/// Execute via `execute_<entity>_cmds`; see `swil/cmd_runner` for batching.
 import gleam/list
 import gleam/option
 import gleam/string
@@ -8,8 +5,10 @@ import sqlight
 import swil/api_help
 import swil/cmd_runner
 
+/// Commands-as-pure-data for this schema's entities.
+/// Generated — do not edit by hand.
+/// Execute via `execute_<entity>_cmds`; see `swil/cmd_runner` for batching.
 pub type ImportedTrackCommand {
-  /// Upsert by `ByServiceAndSourceId` identity.
   UpsertImportedTrackByServiceAndSourceId(
     service: String,
     source_id: String,
@@ -17,7 +16,6 @@ pub type ImportedTrackCommand {
     artist: option.Option(String),
     external_source_url: option.Option(String),
   )
-  /// Update by `ByServiceAndSourceId` identity (every non-id column is written; `option.None` uses sentinel / empty DB encoding).
   UpdateImportedTrackByServiceAndSourceId(
     service: String,
     source_id: String,
@@ -25,7 +23,6 @@ pub type ImportedTrackCommand {
     artist: option.Option(String),
     external_source_url: option.Option(String),
   )
-  /// Partial update by `ByServiceAndSourceId` (`option.None` leaves that column unchanged in SQL).
   PatchImportedTrackByServiceAndSourceId(
     service: String,
     source_id: String,
@@ -33,9 +30,7 @@ pub type ImportedTrackCommand {
     artist: option.Option(String),
     external_source_url: option.Option(String),
   )
-  /// Soft-delete by `ByServiceAndSourceId` identity.
   DeleteImportedTrackByServiceAndSourceId(service: String, source_id: String)
-  /// Update all scalar columns by row `id` (same sentinel rules as identity `Update`).
   UpdateImportedTrackById(
     id: Int,
     title: option.Option(String),
@@ -44,7 +39,6 @@ pub type ImportedTrackCommand {
     source_id: option.Option(String),
     external_source_url: option.Option(String),
   )
-  /// Partial update by row `id` (`option.None` leaves that column unchanged).
   PatchImportedTrackById(
     id: Int,
     title: option.Option(String),
@@ -70,9 +64,32 @@ const importedtrack_delete_by_service_and_source_id_sql = "update \"importedtrac
 
 const importedtrack_update_by_id_sql = "update \"importedtrack\" set \"title\" = ?, \"artist\" = ?, \"service\" = ?, \"source_id\" = ?, \"external_source_url\" = ?, \"updated_at\" = ? where \"id\" = ? and \"deleted_at\" is null;"
 
+pub fn execute_importedtrack_cmds(
+  conn conn: sqlight.Connection,
+  commands commands: List(ImportedTrackCommand),
+) -> Result(Nil, #(Int, sqlight.Error)) {
+  cmd_runner.run_cmds(
+    conn,
+    commands,
+    importedtrack_variant_tag,
+    plan_importedtrack,
+  )
+}
+
+fn importedtrack_variant_tag(cmd cmd: ImportedTrackCommand) -> Int {
+  case cmd {
+    UpsertImportedTrackByServiceAndSourceId(..) -> 0
+    UpdateImportedTrackByServiceAndSourceId(..) -> 1
+    PatchImportedTrackByServiceAndSourceId(..) -> 2
+    DeleteImportedTrackByServiceAndSourceId(..) -> 3
+    PatchImportedTrackById(..) -> 4
+    UpdateImportedTrackById(..) -> 5
+  }
+}
+
 fn plan_importedtrack(
-  cmd: ImportedTrackCommand,
-  now: Int,
+  cmd cmd: ImportedTrackCommand,
+  now now: Int,
 ) -> #(String, List(sqlight.Value)) {
   case cmd {
     UpsertImportedTrackByServiceAndSourceId(
@@ -234,27 +251,4 @@ fn plan_importedtrack(
       sqlight.int(id),
     ])
   }
-}
-
-fn importedtrack_variant_tag(cmd: ImportedTrackCommand) -> Int {
-  case cmd {
-    UpsertImportedTrackByServiceAndSourceId(..) -> 0
-    UpdateImportedTrackByServiceAndSourceId(..) -> 1
-    PatchImportedTrackByServiceAndSourceId(..) -> 2
-    DeleteImportedTrackByServiceAndSourceId(..) -> 3
-    PatchImportedTrackById(..) -> 4
-    UpdateImportedTrackById(..) -> 5
-  }
-}
-
-pub fn execute_importedtrack_cmds(
-  conn: sqlight.Connection,
-  commands: List(ImportedTrackCommand),
-) -> Result(Nil, #(Int, sqlight.Error)) {
-  cmd_runner.run_cmds(
-    conn,
-    commands,
-    importedtrack_variant_tag,
-    plan_importedtrack,
-  )
 }

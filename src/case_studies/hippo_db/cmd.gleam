@@ -1,6 +1,3 @@
-/// Commands-as-pure-data for this schema's entities.
-/// Generated — do not edit by hand.
-/// Execute via `execute_<entity>_cmds`; see `swil/cmd_runner` for batching.
 import case_studies/hippo_db/row
 import case_studies/hippo_schema
 import gleam/list
@@ -11,63 +8,170 @@ import sqlight
 import swil/api_help
 import swil/cmd_runner
 
+pub type HumanCommand {
+  UpsertHumanByEmail(email: String, name: option.Option(String))
+  UpdateHumanByEmail(email: String, name: option.Option(String))
+  PatchHumanByEmail(email: String, name: option.Option(String))
+  DeleteHumanByEmail(email: String)
+  UpdateHumanById(
+    id: Int,
+    name: option.Option(String),
+    email: option.Option(String),
+  )
+  PatchHumanById(
+    id: Int,
+    name: option.Option(String),
+    email: option.Option(String),
+  )
+}
+
+const human_upsert_by_email_sql = "insert into \"human\" (\"name\", \"email\", \"created_at\", \"updated_at\", \"deleted_at\")
+values (?, ?, ?, ?, null)
+on conflict(\"email\") do update set
+  \"name\" = excluded.\"name\",
+  \"updated_at\" = excluded.\"updated_at\",
+  \"deleted_at\" = null;"
+
+const human_update_by_email_sql = "update \"human\" set \"name\" = ?, \"updated_at\" = ? where \"email\" = ? and \"deleted_at\" is null;"
+
+const human_delete_by_email_sql = "update \"human\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"email\" = ? and \"deleted_at\" is null;"
+
+const human_update_by_id_sql = "update \"human\" set \"name\" = ?, \"email\" = ?, \"updated_at\" = ? where \"id\" = ? and \"deleted_at\" is null;"
+
+pub fn execute_human_cmds(
+  conn conn: sqlight.Connection,
+  commands commands: List(HumanCommand),
+) -> Result(Nil, #(Int, sqlight.Error)) {
+  cmd_runner.run_cmds(conn, commands, human_variant_tag, plan_human)
+}
+
+fn human_variant_tag(cmd cmd: HumanCommand) -> Int {
+  case cmd {
+    UpsertHumanByEmail(..) -> 0
+    UpdateHumanByEmail(..) -> 1
+    PatchHumanByEmail(..) -> 2
+    DeleteHumanByEmail(..) -> 3
+    PatchHumanById(..) -> 4
+    UpdateHumanById(..) -> 5
+  }
+}
+
+fn plan_human(
+  cmd cmd: HumanCommand,
+  now now: Int,
+) -> #(String, List(sqlight.Value)) {
+  case cmd {
+    UpsertHumanByEmail(email:, name:) -> #(human_upsert_by_email_sql, [
+      sqlight.text(api_help.opt_text_for_db(name)),
+      sqlight.text(email),
+      sqlight.int(now),
+      sqlight.int(now),
+    ])
+    UpdateHumanByEmail(email:, name:) -> #(human_update_by_email_sql, [
+      sqlight.text(api_help.opt_text_for_db(name)),
+      sqlight.int(now),
+      sqlight.text(email),
+    ])
+    PatchHumanByEmail(email:, name:) -> {
+      let #(set_parts, binds) = #([], [])
+      let #(set_parts, binds) = case name {
+        option.None -> #(set_parts, binds)
+        option.Some(name_pv) -> #(["\"name\" = ?", ..set_parts], [
+          sqlight.text(name_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
+        sqlight.int(now),
+        ..binds
+      ])
+      let set_sql = string.join(list.reverse(set_parts), ", ")
+      let sql =
+        "update \"human\" set "
+        <> set_sql
+        <> " where \"email\" = ? and \"deleted_at\" is null;"
+      let binds =
+        list.flatten([
+          list.reverse(binds),
+          [
+            sqlight.text(email),
+          ],
+        ])
+      #(sql, binds)
+    }
+    DeleteHumanByEmail(email:) -> #(human_delete_by_email_sql, [
+      sqlight.int(now),
+      sqlight.int(now),
+      sqlight.text(email),
+    ])
+    PatchHumanById(id:, name:, email:) -> {
+      let #(set_parts, binds) = #([], [])
+      let #(set_parts, binds) = case name {
+        option.None -> #(set_parts, binds)
+        option.Some(name_pv) -> #(["\"name\" = ?", ..set_parts], [
+          sqlight.text(name_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = case email {
+        option.None -> #(set_parts, binds)
+        option.Some(email_pv) -> #(["\"email\" = ?", ..set_parts], [
+          sqlight.text(email_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
+        sqlight.int(now),
+        ..binds
+      ])
+      let set_sql = string.join(list.reverse(set_parts), ", ")
+      let sql =
+        "update \"human\" set "
+        <> set_sql
+        <> " where \"id\" = ? and \"deleted_at\" is null;"
+      let binds = list.flatten([list.reverse(binds), [sqlight.int(id)]])
+      #(sql, binds)
+    }
+    UpdateHumanById(id:, name:, email:) -> #(human_update_by_id_sql, [
+      sqlight.text(api_help.opt_text_for_db(name)),
+      sqlight.text(api_help.opt_text_for_db(email)),
+      sqlight.int(now),
+      sqlight.int(id),
+    ])
+  }
+}
+
+/// Commands-as-pure-data for this schema's entities.
+/// Generated — do not edit by hand.
+/// Execute via `execute_<entity>_cmds`; see `swil/cmd_runner` for batching.
 pub type HippoCommand {
-  /// Upsert by `ByNameAndDateOfBirth` identity.
   UpsertHippoByNameAndDateOfBirth(
     name: String,
     date_of_birth: calendar.Date,
     gender: option.Option(hippo_schema.GenderScalar),
   )
-  /// Update by `ByNameAndDateOfBirth` identity (every non-id column is written; `option.None` uses sentinel / empty DB encoding).
   UpdateHippoByNameAndDateOfBirth(
     name: String,
     date_of_birth: calendar.Date,
     gender: option.Option(hippo_schema.GenderScalar),
   )
-  /// Partial update by `ByNameAndDateOfBirth` (`option.None` leaves that column unchanged in SQL).
   PatchHippoByNameAndDateOfBirth(
     name: String,
     date_of_birth: calendar.Date,
     gender: option.Option(hippo_schema.GenderScalar),
   )
-  /// Soft-delete by `ByNameAndDateOfBirth` identity.
   DeleteHippoByNameAndDateOfBirth(name: String, date_of_birth: calendar.Date)
-  /// Update all scalar columns by row `id` (same sentinel rules as identity `Update`).
   UpdateHippoById(
     id: Int,
     name: option.Option(String),
     gender: option.Option(hippo_schema.GenderScalar),
     date_of_birth: option.Option(calendar.Date),
   )
-  /// Partial update by row `id` (`option.None` leaves that column unchanged).
   PatchHippoById(
     id: Int,
     name: option.Option(String),
     gender: option.Option(hippo_schema.GenderScalar),
     date_of_birth: option.Option(calendar.Date),
-  )
-}
-
-pub type HumanCommand {
-  /// Upsert by `ByEmail` identity.
-  UpsertHumanByEmail(email: String, name: option.Option(String))
-  /// Update by `ByEmail` identity (every non-id column is written; `option.None` uses sentinel / empty DB encoding).
-  UpdateHumanByEmail(email: String, name: option.Option(String))
-  /// Partial update by `ByEmail` (`option.None` leaves that column unchanged in SQL).
-  PatchHumanByEmail(email: String, name: option.Option(String))
-  /// Soft-delete by `ByEmail` identity.
-  DeleteHumanByEmail(email: String)
-  /// Update all scalar columns by row `id` (same sentinel rules as identity `Update`).
-  UpdateHumanById(
-    id: Int,
-    name: option.Option(String),
-    email: option.Option(String),
-  )
-  /// Partial update by row `id` (`option.None` leaves that column unchanged).
-  PatchHumanById(
-    id: Int,
-    name: option.Option(String),
-    email: option.Option(String),
   )
 }
 
@@ -84,20 +188,28 @@ const hippo_delete_by_name_and_date_of_birth_sql = "update \"hippo\" set \"delet
 
 const hippo_update_by_id_sql = "update \"hippo\" set \"name\" = ?, \"gender\" = ?, \"date_of_birth\" = ?, \"updated_at\" = ? where \"id\" = ? and \"deleted_at\" is null;"
 
-const human_upsert_by_email_sql = "insert into \"human\" (\"name\", \"email\", \"created_at\", \"updated_at\", \"deleted_at\")
-values (?, ?, ?, ?, null)
-on conflict(\"email\") do update set
-  \"name\" = excluded.\"name\",
-  \"updated_at\" = excluded.\"updated_at\",
-  \"deleted_at\" = null;"
+pub fn execute_hippo_cmds(
+  conn conn: sqlight.Connection,
+  commands commands: List(HippoCommand),
+) -> Result(Nil, #(Int, sqlight.Error)) {
+  cmd_runner.run_cmds(conn, commands, hippo_variant_tag, plan_hippo)
+}
 
-const human_update_by_email_sql = "update \"human\" set \"name\" = ?, \"updated_at\" = ? where \"email\" = ? and \"deleted_at\" is null;"
+fn hippo_variant_tag(cmd cmd: HippoCommand) -> Int {
+  case cmd {
+    UpsertHippoByNameAndDateOfBirth(..) -> 0
+    UpdateHippoByNameAndDateOfBirth(..) -> 1
+    PatchHippoByNameAndDateOfBirth(..) -> 2
+    DeleteHippoByNameAndDateOfBirth(..) -> 3
+    PatchHippoById(..) -> 4
+    UpdateHippoById(..) -> 5
+  }
+}
 
-const human_delete_by_email_sql = "update \"human\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"email\" = ? and \"deleted_at\" is null;"
-
-const human_update_by_id_sql = "update \"human\" set \"name\" = ?, \"email\" = ?, \"updated_at\" = ? where \"id\" = ? and \"deleted_at\" is null;"
-
-fn plan_hippo(cmd: HippoCommand, now: Int) -> #(String, List(sqlight.Value)) {
+fn plan_hippo(
+  cmd cmd: HippoCommand,
+  now now: Int,
+) -> #(String, List(sqlight.Value)) {
   case cmd {
     UpsertHippoByNameAndDateOfBirth(name:, date_of_birth:, gender:) -> #(
       hippo_upsert_by_name_and_date_of_birth_sql,
@@ -204,122 +316,4 @@ fn plan_hippo(cmd: HippoCommand, now: Int) -> #(String, List(sqlight.Value)) {
       ],
     )
   }
-}
-
-fn plan_human(cmd: HumanCommand, now: Int) -> #(String, List(sqlight.Value)) {
-  case cmd {
-    UpsertHumanByEmail(email:, name:) -> #(human_upsert_by_email_sql, [
-      sqlight.text(api_help.opt_text_for_db(name)),
-      sqlight.text(email),
-      sqlight.int(now),
-      sqlight.int(now),
-    ])
-    UpdateHumanByEmail(email:, name:) -> #(human_update_by_email_sql, [
-      sqlight.text(api_help.opt_text_for_db(name)),
-      sqlight.int(now),
-      sqlight.text(email),
-    ])
-    PatchHumanByEmail(email:, name:) -> {
-      let #(set_parts, binds) = #([], [])
-      let #(set_parts, binds) = case name {
-        option.None -> #(set_parts, binds)
-        option.Some(name_pv) -> #(["\"name\" = ?", ..set_parts], [
-          sqlight.text(name_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
-        sqlight.int(now),
-        ..binds
-      ])
-      let set_sql = string.join(list.reverse(set_parts), ", ")
-      let sql =
-        "update \"human\" set "
-        <> set_sql
-        <> " where \"email\" = ? and \"deleted_at\" is null;"
-      let binds =
-        list.flatten([
-          list.reverse(binds),
-          [
-            sqlight.text(email),
-          ],
-        ])
-      #(sql, binds)
-    }
-    DeleteHumanByEmail(email:) -> #(human_delete_by_email_sql, [
-      sqlight.int(now),
-      sqlight.int(now),
-      sqlight.text(email),
-    ])
-    PatchHumanById(id:, name:, email:) -> {
-      let #(set_parts, binds) = #([], [])
-      let #(set_parts, binds) = case name {
-        option.None -> #(set_parts, binds)
-        option.Some(name_pv) -> #(["\"name\" = ?", ..set_parts], [
-          sqlight.text(name_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = case email {
-        option.None -> #(set_parts, binds)
-        option.Some(email_pv) -> #(["\"email\" = ?", ..set_parts], [
-          sqlight.text(email_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
-        sqlight.int(now),
-        ..binds
-      ])
-      let set_sql = string.join(list.reverse(set_parts), ", ")
-      let sql =
-        "update \"human\" set "
-        <> set_sql
-        <> " where \"id\" = ? and \"deleted_at\" is null;"
-      let binds = list.flatten([list.reverse(binds), [sqlight.int(id)]])
-      #(sql, binds)
-    }
-    UpdateHumanById(id:, name:, email:) -> #(human_update_by_id_sql, [
-      sqlight.text(api_help.opt_text_for_db(name)),
-      sqlight.text(api_help.opt_text_for_db(email)),
-      sqlight.int(now),
-      sqlight.int(id),
-    ])
-  }
-}
-
-fn hippo_variant_tag(cmd: HippoCommand) -> Int {
-  case cmd {
-    UpsertHippoByNameAndDateOfBirth(..) -> 0
-    UpdateHippoByNameAndDateOfBirth(..) -> 1
-    PatchHippoByNameAndDateOfBirth(..) -> 2
-    DeleteHippoByNameAndDateOfBirth(..) -> 3
-    PatchHippoById(..) -> 4
-    UpdateHippoById(..) -> 5
-  }
-}
-
-fn human_variant_tag(cmd: HumanCommand) -> Int {
-  case cmd {
-    UpsertHumanByEmail(..) -> 0
-    UpdateHumanByEmail(..) -> 1
-    PatchHumanByEmail(..) -> 2
-    DeleteHumanByEmail(..) -> 3
-    PatchHumanById(..) -> 4
-    UpdateHumanById(..) -> 5
-  }
-}
-
-pub fn execute_hippo_cmds(
-  conn: sqlight.Connection,
-  commands: List(HippoCommand),
-) -> Result(Nil, #(Int, sqlight.Error)) {
-  cmd_runner.run_cmds(conn, commands, hippo_variant_tag, plan_hippo)
-}
-
-pub fn execute_human_cmds(
-  conn: sqlight.Connection,
-  commands: List(HumanCommand),
-) -> Result(Nil, #(Int, sqlight.Error)) {
-  cmd_runner.run_cmds(conn, commands, human_variant_tag, plan_human)
 }

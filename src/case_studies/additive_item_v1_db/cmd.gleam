@@ -1,6 +1,3 @@
-/// Commands-as-pure-data for this schema's entities.
-/// Generated — do not edit by hand.
-/// Execute via `execute_<entity>_cmds`; see `swil/cmd_runner` for batching.
 import gleam/list
 import gleam/option
 import gleam/string
@@ -8,18 +5,15 @@ import sqlight
 import swil/api_help
 import swil/cmd_runner
 
+/// Commands-as-pure-data for this schema's entities.
+/// Generated — do not edit by hand.
+/// Execute via `execute_<entity>_cmds`; see `swil/cmd_runner` for batching.
 pub type ItemCommand {
-  /// Upsert by `ByNameAndAge` identity.
   UpsertItemByNameAndAge(name: String, age: Int)
-  /// Update by `ByNameAndAge` identity (every non-id column is written; `option.None` uses sentinel / empty DB encoding).
   UpdateItemByNameAndAge(name: String, age: Int)
-  /// Partial update by `ByNameAndAge` (`option.None` leaves that column unchanged in SQL).
   PatchItemByNameAndAge(name: String, age: Int)
-  /// Soft-delete by `ByNameAndAge` identity.
   DeleteItemByNameAndAge(name: String, age: Int)
-  /// Update all scalar columns by row `id` (same sentinel rules as identity `Update`).
   UpdateItemById(id: Int, name: option.Option(String), age: option.Option(Int))
-  /// Partial update by row `id` (`option.None` leaves that column unchanged).
   PatchItemById(id: Int, name: option.Option(String), age: option.Option(Int))
 }
 
@@ -35,7 +29,28 @@ const item_delete_by_name_and_age_sql = "update \"item\" set \"deleted_at\" = ?,
 
 const item_update_by_id_sql = "update \"item\" set \"name\" = ?, \"age\" = ?, \"updated_at\" = ? where \"id\" = ? and \"deleted_at\" is null;"
 
-fn plan_item(cmd: ItemCommand, now: Int) -> #(String, List(sqlight.Value)) {
+pub fn execute_item_cmds(
+  conn conn: sqlight.Connection,
+  commands commands: List(ItemCommand),
+) -> Result(Nil, #(Int, sqlight.Error)) {
+  cmd_runner.run_cmds(conn, commands, item_variant_tag, plan_item)
+}
+
+fn item_variant_tag(cmd cmd: ItemCommand) -> Int {
+  case cmd {
+    UpsertItemByNameAndAge(..) -> 0
+    UpdateItemByNameAndAge(..) -> 1
+    PatchItemByNameAndAge(..) -> 2
+    DeleteItemByNameAndAge(..) -> 3
+    PatchItemById(..) -> 4
+    UpdateItemById(..) -> 5
+  }
+}
+
+fn plan_item(
+  cmd cmd: ItemCommand,
+  now now: Int,
+) -> #(String, List(sqlight.Value)) {
   case cmd {
     UpsertItemByNameAndAge(name:, age:) -> #(item_upsert_by_name_and_age_sql, [
       sqlight.text(name),
@@ -110,22 +125,4 @@ fn plan_item(cmd: ItemCommand, now: Int) -> #(String, List(sqlight.Value)) {
       sqlight.int(id),
     ])
   }
-}
-
-fn item_variant_tag(cmd: ItemCommand) -> Int {
-  case cmd {
-    UpsertItemByNameAndAge(..) -> 0
-    UpdateItemByNameAndAge(..) -> 1
-    PatchItemByNameAndAge(..) -> 2
-    DeleteItemByNameAndAge(..) -> 3
-    PatchItemById(..) -> 4
-    UpdateItemById(..) -> 5
-  }
-}
-
-pub fn execute_item_cmds(
-  conn: sqlight.Connection,
-  commands: List(ItemCommand),
-) -> Result(Nil, #(Int, sqlight.Error)) {
-  cmd_runner.run_cmds(conn, commands, item_variant_tag, plan_item)
 }
