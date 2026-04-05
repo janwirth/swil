@@ -1,8 +1,8 @@
 import gleam/dynamic/decode
 import gleam/option
 import guide/foundations_01/schema
-import swil/api_help
 import swil/dsl/dsl
+import swil/runtime/api_help
 
 pub fn guide01item_with_magic_row_decoder() -> decode.Decoder(
   #(schema.Guide01Item, dsl.MagicFields),

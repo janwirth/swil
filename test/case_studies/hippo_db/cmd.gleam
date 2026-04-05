@@ -5,8 +5,8 @@ import gleam/option
 import gleam/string
 import gleam/time/calendar
 import sqlight
-import swil/api_help
-import swil/cmd_runner
+import swil/runtime/api_help
+import swil/runtime/cmd_runner
 
 pub type HumanCommand {
   UpsertHumanByEmail(email: String, name: option.Option(String))
@@ -143,7 +143,7 @@ fn plan_human(
 
 /// Commands-as-pure-data for this schema's entities.
 /// Generated — do not edit by hand.
-/// Execute via `execute_<entity>_cmds`; see `swil/cmd_runner` for batching.
+/// Execute via `execute_<entity>_cmds`; see `swil/runtime/cmd_runner` for batching.
 pub type HippoCommand {
   UpsertHippoByNameAndDateOfBirth(
     name: String,

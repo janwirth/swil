@@ -1,8 +1,8 @@
 import case_studies/imported_track_evolution_v2_schema
 import gleam/dynamic/decode
 import gleam/option
-import swil/api_help
 import swil/dsl/dsl
+import swil/runtime/api_help
 
 pub fn importedtrack_with_magic_row_decoder() -> decode.Decoder(
   #(imported_track_evolution_v2_schema.ImportedTrack, dsl.MagicFields),

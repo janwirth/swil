@@ -1,10 +1,10 @@
 /// Commands-as-pure-data for this schema's entities.
 /// Generated — do not edit by hand.
-/// Execute via `execute_<entity>_cmds`; see `swil/cmd_runner` for batching.
+/// Execute via `execute_<entity>_cmds`; see `swil/runtime/cmd_runner` for batching.
 import gleam/option
 import sqlight
-import swil/api_help
-import swil/cmd_runner
+import swil/runtime/api_help
+import swil/runtime/cmd_runner
 
 pub type Guide01ItemCommand {
   /// Upsert by `ByName` identity.

@@ -104,7 +104,7 @@ pub fn with_api_imports(
     }
   }
   use _ <- gmod.with_import(gimport.new(mig_parts))
-  use _ <- gmod.with_import(import_pre(["swil", "api_help"]))
+  use _ <- gmod.with_import(import_pre(["swil", "runtime", "api_help"]))
   use _ <- gmod.with_import(import_pre_exposing(sch_parts, exposing))
   use _ <- gmod.with_import(import_pre_alias(["swil", "dsl", "dsl"], "dsl"))
   use _ <- gmod.with_import(import_pre(["gleam", "dynamic", "decode"]))
@@ -123,7 +123,7 @@ pub fn with_row_module_imports(
   inner: fn() -> gmod.Module,
 ) -> gmod.Module {
   let sch_parts = string.split(schema_path, "/")
-  use _ <- gmod.with_import(import_pre(["swil", "api_help"]))
+  use _ <- gmod.with_import(import_pre(["swil", "runtime", "api_help"]))
   use _ <- gmod.with_import(import_pre(sch_parts))
   use _ <- gmod.with_import(import_pre_alias(["swil", "dsl", "dsl"], "dsl"))
   use _ <- gmod.with_import(
@@ -189,7 +189,7 @@ pub fn with_get_module_imports(
   }
   case schema_context.schema_uses_calendar_date(def) {
     True ->
-      gmod.with_import(import_pre(["swil", "api_help"]), fn(_) {
+      gmod.with_import(import_pre(["swil", "runtime", "api_help"]), fn(_) {
         finish()
       })
     False -> finish()

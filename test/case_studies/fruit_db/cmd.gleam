@@ -2,12 +2,12 @@ import gleam/list
 import gleam/option
 import gleam/string
 import sqlight
-import swil/api_help
-import swil/cmd_runner
+import swil/runtime/api_help
+import swil/runtime/cmd_runner
 
 /// Commands-as-pure-data for this schema's entities.
 /// Generated — do not edit by hand.
-/// Execute via `execute_<entity>_cmds`; see `swil/cmd_runner` for batching.
+/// Execute via `execute_<entity>_cmds`; see `swil/runtime/cmd_runner` for batching.
 pub type FruitCommand {
   UpsertFruitByName(
     name: String,

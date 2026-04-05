@@ -7,7 +7,7 @@ import gleam/dynamic/decode
 import gleam/list
 import gleam/result
 import sqlight
-import swil/api_help
+import swil/runtime/api_help
 
 // ── Grouping helpers ──────────────────────────────────────────────────────────
 

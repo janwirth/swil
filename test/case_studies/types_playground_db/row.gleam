@@ -1,8 +1,8 @@
 import case_studies/types_playground_schema
 import gleam/dynamic/decode
 import gleam/option
-import swil/api_help
 import swil/dsl/dsl
+import swil/runtime/api_help
 
 pub fn mytrack_with_magic_row_decoder() -> decode.Decoder(
   #(types_playground_schema.MyTrack, dsl.MagicFields),
