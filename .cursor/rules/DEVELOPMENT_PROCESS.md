@@ -26,8 +26,12 @@ Migrations
 
 - No migration versioning.
 
+Code generation
+
+- **gleamgen** is the default mode: build Gleam source through the gleamgen AST and renderer. New or refactored emitters use gleamgen; do not introduce ad hoc string-concatenation generators unless the task explicitly requires it.
+
 Ensure the following
 
 1. **Regen and stability** — For every case-study module, run `gleam run -- src/case_studies/<module>`, then `gleam test`. Stable means: working tree has **zero diff** after regeneration, all tests pass, and the build emits **no warnings**.
 2. **Speed** — `gleam test` must finish in **under 500ms** wall time. New tests must not push the suite over that budget.
-3. **Generators** — No module-specific hard-coding; abstract over module name and drive behavior from schema / shared IR, not ad hoc branches for one case study.
+3. **Generators** — Follow the gleamgen default (above). No module-specific hard-coding; abstract over module name and drive behavior from schema / shared IR, not ad hoc branches for one case study.
