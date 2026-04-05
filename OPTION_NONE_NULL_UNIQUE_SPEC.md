@@ -64,6 +64,7 @@ Out of scope unless later amended: changing database vendors; chunking large bat
 - [ ] Choose **upsert insert** encoding per field kind (`NULL` vs sentinel vs omit).
   - See previous
 - [ ] Decide: codegen **reject** optional columns on unique keys vs fix encoding for conflicts.
+  - Allow null as non-conflict. When one is null it's not a nother conflict. We solve this with identity constraints in upsert function, not on DB level
 
 ### Phase 1 — Tests first
 
