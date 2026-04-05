@@ -14,9 +14,9 @@ Work proceeds in **three named stages** before any broad codegen rollout:
 
 1. **Fruit** — **Start by reading** [`src/case_studies/fruit_schema.gleam`](src/case_studies/fruit_schema.gleam) (that file is the first schema you design against). Then implement against [`fruit_db`](src/case_studies/fruit_db/) as generated today. Smallest surface: prove `FruitCommand` + a **single** public executor `execute_fruit_cmds` (see **API sketch**).
 2. **Hippos** — Same flow: **read** [`src/case_studies/hippo_schema.gleam`](src/case_studies/hippo_schema.gleam) first, then [`hippo_db`](src/case_studies/hippo_db/). Second entity with relationships and richer options; validates that the pattern holds beyond fruit.
-3. **Human review** — Stop and review fruit + hippo APIs, naming, and tests **before** wiring the generator for every case study or expanding scope (chunking, serialization, etc.).
+3. **Human review** — Review fruit + hippo public APIs, naming, and tests; explicit sign-off (or issue list) before treating the command surface as frozen for consumers outside this repo.
 
-After stage 3, a follow-up step may **generalize** (codegen commands for all entities, docs). That step is intentionally not started until review is done.
+**Status:** Stages 1–2 are done (fruit + hippo pilots + tests). **Generalize** (codegen `cmd.gleam` for all case studies, `upsert`/`delete` delegating to `execute_*_cmds`) has already landed in the codebase; stage 3 is still the checkpoint for naming and any API tweaks before hardening alignment with other specs.
 
 ## Principles
 
@@ -101,11 +101,13 @@ The important part is: **commands are pure data**; **one executor** per entity; 
 
 ## Test requirements
 
+Implemented for fruit and hippo in [`test/case_studies/fruit_cmd_test.gleam`](test/case_studies/fruit_cmd_test.gleam) and [`test/case_studies/hippo_cmd_test.gleam`](test/case_studies/hippo_cmd_test.gleam) unless noted.
+
 - **Pure construction**: build a list of commands without a database; assert on equality or structural shape where useful.
 - **Round-trip**: `execute_*_cmds` then read back via existing query APIs matches expectations for at least one case study entity.
 - **Batch**: interleaved command types (`A, B, A` style) keep cross-type order; consecutive same-type ops (`A, A, A`) match repeated `execute_*_cmds(conn, [x])` vs one `execute_*_cmds(conn, [A, A, A])`.
 - **Error index**: a failing command at index `N` returns `Error(#(N, _))`; for a batch of same-variant ops the index points to the first command of the failing batch. Preceding commands remain committed (no rollback).
-- **Throughput**: benchmark `execute_fruit_cmds(conn, [A, A, A])` vs three separate `execute_fruit_cmds(conn, [A])` calls; the batched form must be measurably faster (validates per-group `BEGIN`/`COMMIT`).
+- **Throughput**: benchmark `execute_fruit_cmds(conn, [A, A, A])` vs three separate `execute_fruit_cmds(conn, [A])` calls; the batched form must be measurably faster (validates per-group `BEGIN`/`COMMIT`). *Automated benchmark not in CI yet — see **Later / follow-up**.*
 
 ## Decisions (locked)
 
@@ -134,27 +136,40 @@ These are clear enough to implement: commands model **what** to change, not **wh
 
 Pilot the full vertical slice on the smallest case study. **Read `fruit_schema.gleam` first**; commands must cover **every** generated op shape, including **`<Op>FruitById`** as well as **`ByName`** identity ops.
 
-- [ ] `FruitCommand` (or codegen output): variants for identity-keyed APIs **and** row-`id` APIs (see **Command coverage (fruit example)**).
-- [ ] Private planner (not public): map each variant to statement + bindings; inject timestamps here, not on command values.
-- [ ] `execute_fruit_cmds(conn, commands)` — only public executor; contiguous same-variant batching inside; order preserved across variants; single op via `[cmd]`.
-- [ ] Tests: pure construction, round-trip, batch equivalence, interleaved variants (see **Test requirements**).
+- [x] `FruitCommand` (codegen): variants for identity-keyed APIs **and** row-`id` APIs — see generated [`src/case_studies/fruit_db/cmd.gleam`](src/case_studies/fruit_db/cmd.gleam) (`generators/api/api_cmd.gleam`).
+- [x] Private planner: `plan_fruit` maps each variant to SQL + bindings; `now` injected at execution time via `cmd_runner.run_cmds`.
+- [x] `execute_fruit_cmds(conn, commands)` — public executor; contiguous same-variant batching in [`src/swil/cmd_runner.gleam`](src/swil/cmd_runner.gleam); single op via `[cmd]`.
+- [x] Tests: [`test/case_studies/fruit_cmd_test.gleam`](test/case_studies/fruit_cmd_test.gleam) — pure construction, round-trip (upsert / delete / update-by-name / update-by-id), batch vs sequential equivalence, interleaved variants, error index (0 and non-zero). Snapshot: [`test/evolution/api/fruit.gleam`](test/evolution/api/fruit.gleam) asserts generated `cmd.gleam`.
 
 ### Step 2 — Hippos (`hippo_schema.gleam` → `hippo_db`)
 
 **Read `hippo_schema.gleam` first**, then repeat the same pattern on a richer schema (relationships, more optionals). Include **identity-keyed** variants **and** any **`<Op>HippoById` (or magic-key)** shapes the generator emits, same rule as fruit.
 
-- [ ] `HippoCommand` + private planner + `execute_hippo_cmds(conn, commands)` only (same surface as fruit).
-- [ ] Tests mirroring fruit; add at least one scenario that stresses ordering or shape differences vs fruit (e.g. multiple op variants, FK-related ordering if applicable).
+- [x] Per-entity commands + planners + `execute_hippo_cmds` / `execute_human_cmds` — generated [`src/case_studies/hippo_db/cmd.gleam`](src/case_studies/hippo_db/cmd.gleam) (two entities, calendar/date shapes).
+- [x] Tests: [`test/case_studies/hippo_cmd_test.gleam`](test/case_studies/hippo_cmd_test.gleam) mirror fruit (batch, interleave, error index, round-trips for hippo + human). Snapshot: [`test/evolution/api/hippo.gleam`](test/evolution/api/hippo.gleam).
 
 ### Step 3 — Human review
 
-- [ ] Review fruit + hippo public API names, module layout, and test coverage.
-- [ ] Explicit sign-off (or issue list) before **Step 4**.
+- [ ] Review fruit + hippo public API names, module layout, and test coverage (and whether generated `cmd.gleam` across case studies matches expectations).
+- [ ] Explicit sign-off (or issue list) — gate for treating the command API as stable and for follow-up alignment work (other specs).
 
 ### Step 4 — Generalize (after review)
 
 - [x] Extend code generation so other case studies / entities get commands without hand-copying the fruit/hippo pilot. (`swil` now emits `cmd.gleam` next to other `*_db` modules; see `generators/api/api_cmd.gleam` and `api_sql` exec-only SQL helpers.)
 - [x] Refactor existing `conn`-first APIs to build a command and delegate to `execute_*_cmds` where desired. (Generated `upsert.gleam` / `delete.gleam`: mutations call `cmd.execute_<entity>_cmds([...])`, then `get.*` reloads rows and preserves not-found semantics; see `generators/api/api_update_delete.gleam`.)
-- [ ] Short developer note (README or guide): pass one command as `[cmd]` vs many; batching is automatic inside `execute_*_cmds`.
-- [ ] Track out-of-scope items (parameter-limit chunking, serialization) for a later spec if needed.
+- [x] Developer note (this doc — **Using `execute_*_cmds`** below).
+- [x] Out-of-scope tracking (**Later / follow-up** below).
+
+## Using `execute_*_cmds` (developer note)
+
+Each schema’s `*_db/cmd.gleam` defines a **per-entity** command ADT (e.g. `FruitCommand`) and **`execute_<entity>_cmds(conn, commands)`**. Pass a single operation as a one-element list: `execute_fruit_cmds(conn, [cmd])`. Pass many commands in **list order**; the implementation groups **consecutive** commands that share the same variant (same SQL shape) and runs each group inside one `BEGIN`/`COMMIT` for throughput (`cmd_runner`). Cross-type order in the input list is preserved. On `Error(#(index, err))`, `index` is the 0-based position of the first command in the failing batch; earlier batches stay committed.
+
+## Later / follow-up (not in this spec)
+
+| Item | Notes |
+|------|--------|
+| **SQLite parameter-limit chunking** | Large same-variant batches may need splitting; not implemented in `cmd_runner`. |
+| **Command log serialization** | JSON / file replay formats once types are stable. |
+| **Throughput benchmark in CI** | **Test requirements** mention timing `execute_fruit_cmds(conn, [A,A,A])` vs three single-op calls; correctness is covered by batch-equivalence tests; an automated perf check is optional follow-up. |
+| **Alignment with `UPSERT_API_REVAMP_SPEC.md` / `OPTION_NONE_NULL_UNIQUE_SPEC.md`** | Deferred per prerequisites note; pilots may differ until Step 4 hardening. |
 
