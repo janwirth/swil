@@ -8,8 +8,8 @@ import gleam/string
 import gleam/time/calendar.{Date, January}
 import sqlight
 
-/// End-to-end checks for [`hippo_schema.old_hippos_owner_emails`](src/case_studies/hippo_schema.gleam)
-/// and [`hippo_schema.hippos_by_gender`](src/case_studies/hippo_schema.gleam): owner `BelongsTo` join,
+/// End-to-end checks for [`hippo_schema.old_hippos_owner_emails`](test/case_studies/hippo_schema.gleam)
+/// and [`hippo_schema.hippos_by_gender`](test/case_studies/hippo_schema.gleam): owner `BelongsTo` join,
 /// age filter, gender filter, and name ordering.
 pub fn hippo_relationship_queries_e2e_test() {
   let assert Ok(conn) = sqlight.open(":memory:")

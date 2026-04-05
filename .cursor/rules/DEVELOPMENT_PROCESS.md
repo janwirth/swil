@@ -10,7 +10,7 @@ Development process
    - one e2e test
    - a DB structural test
    - DSL / parser coverage for the language constructs involved
-   Skip layers that are not relevant to the change.
+     Skip layers that are not relevant to the change.
 3. Implement the requirement along the same pipeline as today (parser, schema types, migrations, generators)—only the parts the spec touches.
 
 Source of truth
@@ -36,6 +36,6 @@ Code generation
 
 Ensure the following
 
-1. **Regen and stability** — For every case-study module, run `gleam run -- src/case_studies/<module>`, then `gleam test`. Stable means: working tree has **zero diff** after regeneration, all tests pass, and the build emits **no warnings**.
+1. **Regen and stability** — For every case-study module, run `gleam run -- test/case_studies/<module>`, then `gleam test`. Stable means: working tree has **zero diff** after regeneration, all tests pass, and the build emits **no warnings**.
 2. **Speed** — `gleam test` must finish in **under 500ms** wall time. New tests must not push the suite over that budget.
 3. **Generators** — Follow the gleamgen default (above). No module-specific hard-coding; abstract over module name and drive behavior from schema / shared IR, not ad hoc branches for one case study.

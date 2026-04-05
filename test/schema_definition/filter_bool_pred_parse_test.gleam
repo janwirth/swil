@@ -35,7 +35,7 @@ fn assert_some_predicate(
 
 /// `fruit_schema`: `dsl.exclude_if_missing(fruit.price) <. max_price`
 pub fn filter_bool_fruit_cheap_price_parse_test() {
-  let assert Ok(src) = simplifile.read("src/case_studies/fruit_schema.gleam")
+  let assert Ok(src) = simplifile.read("test/case_studies/fruit_schema.gleam")
   let assert Ok(def) = schema_parser.parse_module(src)
   let q = get_query_by_name(def, "query_cheap_fruit")
   assert_some_predicate(q.query.filter, fn(pred) {
@@ -51,7 +51,7 @@ pub fn filter_bool_fruit_cheap_price_parse_test() {
 
 /// `hippo_schema`: `exclude_if_missing(hippo.gender) == gender_to_match` (imported `exclude_if_missing`)
 pub fn filter_bool_hippo_gender_eq_parse_test() {
-  let assert Ok(src) = simplifile.read("src/case_studies/hippo_schema.gleam")
+  let assert Ok(src) = simplifile.read("test/case_studies/hippo_schema.gleam")
   let assert Ok(def) = schema_parser.parse_module(src)
   let q = get_query_by_name(def, "query_hippos_by_gender")
   assert_some_predicate(q.query.filter, fn(pred) {
@@ -67,7 +67,7 @@ pub fn filter_bool_hippo_gender_eq_parse_test() {
 
 /// `hippo_schema`: `age(exclude_if_missing(hippo.date_of_birth)) > min_age`
 pub fn filter_bool_hippo_age_gt_parse_test() {
-  let assert Ok(src) = simplifile.read("src/case_studies/hippo_schema.gleam")
+  let assert Ok(src) = simplifile.read("test/case_studies/hippo_schema.gleam")
   let assert Ok(def) = schema_parser.parse_module(src)
   let q = get_query_by_name(def, "query_old_hippos_owner_emails")
   assert_some_predicate(q.query.filter, fn(pred) {

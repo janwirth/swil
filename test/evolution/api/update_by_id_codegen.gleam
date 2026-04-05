@@ -5,7 +5,7 @@ import simplifile
 
 pub fn update_by_id_emitted_for_all_entities_test() {
   let assert Ok(schema_src) =
-    simplifile.read("src/case_studies/library_manager_advanced_schema.gleam")
+    simplifile.read("test/case_studies/library_manager_advanced_schema.gleam")
   let assert Ok(def) = schema_parser.parse_module(schema_src)
   let assert Ok(out) =
     api.generate_api_db_outputs(

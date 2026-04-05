@@ -6,16 +6,16 @@ _a cute squeal_
 <img src="bree.png" alt="unexpected BREEE" width="150" />
 </a>
 
-SQLite from Gleam types + small query functions → generated `*_db` (migrate, get, upsert, delete, query, api). Full case study: [`hippo_schema.gleam`](src/case_studies/hippo_schema.gleam).
+SQLite from Gleam types + small query functions → generated `*_db` (migrate, get, upsert, delete, query, api). Full case study: [`hippo_schema.gleam`](test/case_studies/hippo_schema.gleam).
 
 **WARNING: Migrations have not been tested thoroughly yet, could lead to data loss / unexpected consequences**
 
 ## Basic usage
 
-Create a schema module (for example under `src/case_studies/`), then regenerate the sibling `*_db` package from the repo root:
+Create a schema module (for example under `test/case_studies/`), then regenerate the sibling `*_db` package from the repo root:
 
 ```sh
-gleam run -- src/case_studies/hippo_schema.gleam
+gleam run -- test/case_studies/hippo_schema.gleam
 ```
 
 The first argument is the schema file path (with or without `.gleam`). Paths without a leading `src/` or `/` are resolved under `src/`, matching [`swil.gleam`](src/swil.gleam).
@@ -184,7 +184,7 @@ pub type HumanIdentities {
 
 In `query_*` bodies, **traverse related entities in `dsl.shape` and `dsl.filter_bool`** the same way you read fields on the schema types. For an optional `BelongsTo`, wrap the edge in `nullable(...)` and use `.item.<field>` for the foreign row (the generator turns this into the appropriate join).
 
-Example from [`hippo_schema.gleam`](src/case_studies/hippo_schema.gleam):
+Example from [`hippo_schema.gleam`](test/case_studies/hippo_schema.gleam):
 
 ```gleam
 /// Query input spec for "old hippos" with owner email in the row shape.
@@ -203,7 +203,7 @@ pub fn query_old_hippos_owner_emails(
 }
 ```
 
-After `gleam run -- src/case_studies/hippo_schema.gleam`, call the generated API with **only** the extra parameter from the query spec (plus `conn`):
+After `gleam run -- test/case_studies/hippo_schema.gleam`, call the generated API with **only** the extra parameter from the query spec (plus `conn`):
 
 ```gleam
 import hippo_db/api as hippo_api

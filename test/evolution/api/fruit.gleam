@@ -13,7 +13,7 @@ fn collapse_extra_blank_lines(s: String) -> String {
 
 pub fn fruit_api_generation_test() {
   let assert Ok(schema_src) =
-    simplifile.read("src/case_studies/fruit_schema.gleam")
+    simplifile.read("test/case_studies/fruit_schema.gleam")
   let assert Ok(def) = schema_parser.parse_module(schema_src)
   let assert Ok(out) =
     api.generate_api_db_outputs("case_studies/fruit_schema", def)
@@ -26,9 +26,9 @@ pub fn fruit_api_generation_test() {
     let assert Ok(s) = simplifile.read(path)
     norm(s)
   }
-  assert_diff(read("src/case_studies/fruit_db/api.gleam"), norm(out.api))
-  assert_diff(read("src/case_studies/fruit_db/row.gleam"), norm(out.row))
-  assert_diff(read("src/case_studies/fruit_db/get.gleam"), norm(out.get))
-  assert_diff(read("src/case_studies/fruit_db/query.gleam"), norm(out.query))
-  assert_diff(read("src/case_studies/fruit_db/cmd.gleam"), norm(out.cmd))
+  assert_diff(read("test/case_studies/fruit_db/api.gleam"), norm(out.api))
+  assert_diff(read("test/case_studies/fruit_db/row.gleam"), norm(out.row))
+  assert_diff(read("test/case_studies/fruit_db/get.gleam"), norm(out.get))
+  assert_diff(read("test/case_studies/fruit_db/query.gleam"), norm(out.query))
+  assert_diff(read("test/case_studies/fruit_db/cmd.gleam"), norm(out.cmd))
 }
