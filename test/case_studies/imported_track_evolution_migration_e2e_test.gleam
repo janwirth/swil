@@ -52,5 +52,15 @@ pub fn imported_track_v1_to_v2_migration_e2e_test() {
   let #(got_sec, _) = timestamp.to_unix_seconds_and_nanoseconds(lib_at)
   let assert True = got_sec == unix
 
+  // `last_100_edited_*` must decode nullable text columns (SQL NULL), not only "".
+  let assert Ok(Nil) =
+    sqlight.exec(
+      "update \"importedtrack\" set \"title\" = null, \"artist\" = null where \"service\" = 'spotify';",
+      conn,
+    )
+  let assert Ok(recent) = track_v2.last_100_edited_importedtrack(conn)
+  let assert [#(with_nulls, _), ..] = recent
+  let assert True = with_nulls.title == None && with_nulls.artist == None
+
   let assert Ok(Nil) = sqlight.close(conn)
 }

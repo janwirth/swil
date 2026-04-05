@@ -117,3 +117,12 @@ pub fn opt_string_from_db(s: String) -> Option(String) {
     _ -> Some(s)
   }
 }
+
+/// Row decoder helper: SQL `NULL` → `None`; empty string → `None`.
+pub fn option_string_from_optional_db(raw: Option(String)) -> Option(String) {
+  case raw {
+    None -> None
+    Some("") -> None
+    Some(s) -> Some(s)
+  }
+}

@@ -80,7 +80,7 @@ pub fn tab_with_magic_row_decoder() -> decode.Decoder(
   #(library_manager_schema.Tab, dsl.MagicFields),
 ) {
   use label <- decode.field(0, decode.string)
-  use order <- decode.field(1, decode.float)
+  use order <- decode.field(1, decode.optional(decode.float))
   use view_config <- decode.field(
     2,
     decode.then(decode.string, fn(s) {
@@ -98,7 +98,7 @@ pub fn tab_with_magic_row_decoder() -> decode.Decoder(
   let tab =
     library_manager_schema.Tab(
       label: option.Some(label),
-      order: option.Some(order),
+      order: order,
       view_config: view_config,
       tracks: [],
       identities: library_manager_schema.ByTabLabel(label:),
@@ -141,7 +141,7 @@ pub fn tag_with_magic_row_decoder() -> decode.Decoder(
   #(library_manager_schema.Tag, dsl.MagicFields),
 ) {
   use label <- decode.field(0, decode.string)
-  use emoji <- decode.field(1, decode.string)
+  use emoji <- decode.field(1, decode.optional(decode.string))
   use id <- decode.field(2, decode.int)
   use created_at <- decode.field(3, decode.int)
   use updated_at <- decode.field(4, decode.int)
@@ -149,7 +149,7 @@ pub fn tag_with_magic_row_decoder() -> decode.Decoder(
   let tag =
     library_manager_schema.Tag(
       label: option.Some(label),
-      emoji: api_help.opt_string_from_db(emoji),
+      emoji: api_help.option_string_from_optional_db(emoji),
       identities: library_manager_schema.ByTagLabel(label:),
     )
   decode.success(#(
@@ -163,7 +163,7 @@ pub fn importedtrack_with_magic_row_decoder() -> decode.Decoder(
 ) {
   use title <- decode.field(0, decode.string)
   use artist <- decode.field(1, decode.string)
-  use file_path <- decode.field(2, decode.string)
+  use file_path <- decode.field(2, decode.optional(decode.string))
   use id <- decode.field(3, decode.int)
   use created_at <- decode.field(4, decode.int)
   use updated_at <- decode.field(5, decode.int)
@@ -172,7 +172,7 @@ pub fn importedtrack_with_magic_row_decoder() -> decode.Decoder(
     library_manager_schema.ImportedTrack(
       title: option.Some(title),
       artist: option.Some(artist),
-      file_path: api_help.opt_string_from_db(file_path),
+      file_path: api_help.option_string_from_optional_db(file_path),
       tags: [],
       identities: library_manager_schema.ByTitleAndArtist(title:, artist:),
     )

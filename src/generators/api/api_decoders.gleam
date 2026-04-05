@@ -466,6 +466,7 @@ fn row_decoder_expr_optional_primitive_entity_field(
       "decode.optional(decode.int)"
     glance.NamedType(_, "Option", _, [glance.NamedType(_, n, _, [])]) ->
       case n {
+        "String" -> "decode.optional(decode.string)"
         "Int" -> "decode.optional(decode.int)"
         "Float" -> "decode.optional(decode.float)"
         "Bool" ->
@@ -604,7 +605,8 @@ fn field_to_constructor_arg(
         True, _, _, _ -> var
         False, True, True, _ ->
           "api_help.option_timestamp_from_optional_unix(" <> var <> ")"
-        False, True, False, True -> "api_help.opt_string_from_db(" <> var <> ")"
+        False, True, False, True ->
+          "api_help.option_string_from_optional_db(" <> var <> ")"
         False, True, False, False ->
           case f.type_ {
             glance.NamedType(_, "Option", _, [glance.NamedType(_, "Int", _, [])]) ->

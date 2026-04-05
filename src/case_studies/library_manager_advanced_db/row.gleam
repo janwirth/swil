@@ -146,7 +146,7 @@ pub fn tag_with_magic_row_decoder() -> decode.Decoder(
   #(library_manager_advanced_schema.Tag, dsl.MagicFields),
 ) {
   use label <- decode.field(0, decode.string)
-  use emoji <- decode.field(1, decode.string)
+  use emoji <- decode.field(1, decode.optional(decode.string))
   use id <- decode.field(2, decode.int)
   use created_at <- decode.field(3, decode.int)
   use updated_at <- decode.field(4, decode.int)
@@ -154,7 +154,7 @@ pub fn tag_with_magic_row_decoder() -> decode.Decoder(
   let tag =
     library_manager_advanced_schema.Tag(
       label: option.Some(label),
-      emoji: api_help.opt_string_from_db(emoji),
+      emoji: api_help.option_string_from_optional_db(emoji),
       identities: library_manager_advanced_schema.ByTagLabel(label:),
     )
   decode.success(#(
@@ -168,7 +168,7 @@ pub fn importedtrack_with_magic_row_decoder() -> decode.Decoder(
 ) {
   use title <- decode.field(0, decode.string)
   use artist <- decode.field(1, decode.string)
-  use file_path <- decode.field(2, decode.string)
+  use file_path <- decode.field(2, decode.optional(decode.string))
   use id <- decode.field(3, decode.int)
   use created_at <- decode.field(4, decode.int)
   use updated_at <- decode.field(5, decode.int)
@@ -177,7 +177,7 @@ pub fn importedtrack_with_magic_row_decoder() -> decode.Decoder(
     library_manager_advanced_schema.ImportedTrack(
       title: option.Some(title),
       artist: option.Some(artist),
-      file_path: api_help.opt_string_from_db(file_path),
+      file_path: api_help.option_string_from_optional_db(file_path),
       tags: [],
       identities: library_manager_advanced_schema.ByTitleAndArtist(
         title:,
