@@ -7,11 +7,6 @@ import sqlight
 import swil/api_help
 import swil/cmd_runner
 
-/// Upsert/update payload for `ByName` identity on `MyTrack`.
-pub type MyTrackByName {
-  MyTrackByName(name: String, added_to_playlist_at: option.Option(Timestamp))
-}
-
 pub type MyTrackCommand {
   /// Upsert by `ByName` identity.
   UpsertMyTrackByName(

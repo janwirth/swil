@@ -3,7 +3,7 @@
 //// Uses a real in-memory SQLite database.  Exercises:
 ////   0. Post-migration `pragma index_list` / `pragma index_info` — core unique indexes; `trackbucket_tag` has perf index `(trackbucket_id, tag_id, value)` plus implicit UNIQUE on `(trackbucket_id, tag_id)`.
 ////   1. `api.migrate` — runs pragma migration (including `trackbucket_tag` DDL and indexes).
-////   2. `upsert.upsert_trackbucket_tag` — inserts junction rows with edge attributes.
+////   2. `cmd.upsert_trackbucket_tag` — inserts junction rows with edge attributes.
 ////   3. `query.query_tracks_by_view_config` — filters via `BooleanFilter(TagExpressionScalar)`.
 ////   4. Boolean combinators: `And`, `Or`, `Not`, `Predicate`.
 ////   5. All four leaf constructors: `Has`, `IsAtLeast`, `IsAtMost`, `IsEqualTo`.
@@ -11,7 +11,7 @@
 
 import case_studies/library_manager_advanced_db/api
 import case_studies/library_manager_advanced_db/query
-import case_studies/library_manager_advanced_db/upsert
+import case_studies/library_manager_advanced_db/cmd as junction_cmd
 import case_studies/library_manager_advanced_schema as schema
 import gleam/dynamic/decode
 import gleam/json
@@ -208,7 +208,7 @@ pub fn has_matches_tagged_bucket_test() {
   let tag_id = insert_tag(conn, "chill")
   let tb_id = insert_trackbucket(conn, "Mellow Mix", "Various")
   let assert Ok(Nil) =
-    upsert.upsert_trackbucket_tag(
+    junction_cmd.upsert_trackbucket_tag(
       conn,
       trackbucket_id: tb_id,
       tag_id: tag_id,
@@ -242,7 +242,7 @@ pub fn is_at_least_matches_when_value_ge_test() {
   let tag_id = insert_tag(conn, "priority")
   let tb_id = insert_trackbucket(conn, "Top Picks", "Curator")
   let assert Ok(Nil) =
-    upsert.upsert_trackbucket_tag(
+    junction_cmd.upsert_trackbucket_tag(
       conn,
       trackbucket_id: tb_id,
       tag_id: tag_id,
@@ -259,7 +259,7 @@ pub fn is_at_least_no_match_when_value_lt_test() {
   let tag_id = insert_tag(conn, "priority2")
   let tb_id = insert_trackbucket(conn, "Low Prio", "Curator")
   let assert Ok(Nil) =
-    upsert.upsert_trackbucket_tag(
+    junction_cmd.upsert_trackbucket_tag(
       conn,
       trackbucket_id: tb_id,
       tag_id: tag_id,
@@ -280,7 +280,7 @@ pub fn is_at_most_matches_test() {
   let tag_id = insert_tag(conn, "bpm")
   let tb_id = insert_trackbucket(conn, "Slow Jams", "DJ Mellow")
   let assert Ok(Nil) =
-    upsert.upsert_trackbucket_tag(
+    junction_cmd.upsert_trackbucket_tag(
       conn,
       trackbucket_id: tb_id,
       tag_id: tag_id,
@@ -297,7 +297,7 @@ pub fn is_at_most_no_match_test() {
   let tag_id = insert_tag(conn, "bpm_high")
   let tb_id = insert_trackbucket(conn, "Fast Bangers", "DJ Speed")
   let assert Ok(Nil) =
-    upsert.upsert_trackbucket_tag(
+    junction_cmd.upsert_trackbucket_tag(
       conn,
       trackbucket_id: tb_id,
       tag_id: tag_id,
@@ -318,7 +318,7 @@ pub fn is_equal_to_matches_test() {
   let tag_id = insert_tag(conn, "rating")
   let tb_id = insert_trackbucket(conn, "Gold", "Label")
   let assert Ok(Nil) =
-    upsert.upsert_trackbucket_tag(
+    junction_cmd.upsert_trackbucket_tag(
       conn,
       trackbucket_id: tb_id,
       tag_id: tag_id,
@@ -335,7 +335,7 @@ pub fn is_equal_to_no_match_test() {
   let tag_id = insert_tag(conn, "rating2")
   let tb_id = insert_trackbucket(conn, "Silver", "Label")
   let assert Ok(Nil) =
-    upsert.upsert_trackbucket_tag(
+    junction_cmd.upsert_trackbucket_tag(
       conn,
       trackbucket_id: tb_id,
       tag_id: tag_id,
@@ -357,14 +357,14 @@ pub fn and_matches_when_both_satisfied_test() {
   let tag_b = insert_tag(conn, "study")
   let tb_id = insert_trackbucket(conn, "Study Lofi", "Playlist")
   let assert Ok(Nil) =
-    upsert.upsert_trackbucket_tag(
+    junction_cmd.upsert_trackbucket_tag(
       conn,
       trackbucket_id: tb_id,
       tag_id: tag_a,
       value: None,
     )
   let assert Ok(Nil) =
-    upsert.upsert_trackbucket_tag(
+    junction_cmd.upsert_trackbucket_tag(
       conn,
       trackbucket_id: tb_id,
       tag_id: tag_b,
@@ -386,7 +386,7 @@ pub fn and_no_match_when_one_missing_test() {
   let tag_b = insert_tag(conn, "blues")
   let tb_id = insert_trackbucket(conn, "Jazz Only", "Playlist")
   let assert Ok(Nil) =
-    upsert.upsert_trackbucket_tag(
+    junction_cmd.upsert_trackbucket_tag(
       conn,
       trackbucket_id: tb_id,
       tag_id: tag_a,
@@ -414,14 +414,14 @@ pub fn or_matches_when_either_satisfied_test() {
   let tb_rock = insert_trackbucket(conn, "Rock Anthology", "Label")
   let tb_pop = insert_trackbucket(conn, "Pop Hits", "Label")
   let assert Ok(Nil) =
-    upsert.upsert_trackbucket_tag(
+    junction_cmd.upsert_trackbucket_tag(
       conn,
       trackbucket_id: tb_rock,
       tag_id: tag_rock,
       value: None,
     )
   let assert Ok(Nil) =
-    upsert.upsert_trackbucket_tag(
+    junction_cmd.upsert_trackbucket_tag(
       conn,
       trackbucket_id: tb_pop,
       tag_id: tag_pop,
@@ -448,7 +448,7 @@ pub fn not_excludes_tagged_bucket_test() {
   let tb_clean = insert_trackbucket(conn, "Clean Mix", "Label")
   // Only "Adult Mix" is tagged; "Clean Mix" is not.
   let assert Ok(Nil) =
-    upsert.upsert_trackbucket_tag(
+    junction_cmd.upsert_trackbucket_tag(
       conn,
       trackbucket_id: tb_flagged,
       tag_id: tag_nsfw,
@@ -474,7 +474,7 @@ pub fn is_at_least_excludes_null_value_test() {
   let tb_id = insert_trackbucket(conn, "Unweighted", "Various")
   // value is NULL
   let assert Ok(Nil) =
-    upsert.upsert_trackbucket_tag(
+    junction_cmd.upsert_trackbucket_tag(
       conn,
       trackbucket_id: tb_id,
       tag_id: tag_id,
@@ -532,7 +532,7 @@ pub fn filter_returns_only_matching_rows_test() {
   let tb_yes = insert_trackbucket(conn, "Featured Album", "Artist A")
   let _tb_no = insert_trackbucket(conn, "Regular Album", "Artist B")
   let assert Ok(Nil) =
-    upsert.upsert_trackbucket_tag(
+    junction_cmd.upsert_trackbucket_tag(
       conn,
       trackbucket_id: tb_yes,
       tag_id: tag_id,

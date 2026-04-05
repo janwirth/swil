@@ -339,7 +339,7 @@ fn find_junction_specs(schema: SchemaDefinition) -> List(JunctionSpec) {
   })
 }
 
-/// True when junction `upsert_*` helpers are appended to `*_db/upsert.gleam`.
+/// True when junction `upsert_*` helpers are appended to `*_db/cmd.gleam`.
 pub fn schema_has_junction_upserts(schema: SchemaDefinition) -> Bool {
   case find_junction_specs(schema) {
     [] -> False
@@ -759,7 +759,7 @@ fn generate_junction_table_appendage_inner(schema: SchemaDefinition) -> String {
   }
 }
 
-/// Gleam source for junction upsert SQL constants and `pub fn upsert_*` (for `*_db/upsert` module).
+/// Gleam source for junction upsert SQL constants and `pub fn upsert_*` (appended to `*_db/cmd.gleam`).
 pub fn generate_junction_upserts_gleam_appendage(
   schema: SchemaDefinition,
 ) -> String {

@@ -6,20 +6,6 @@ import sqlight
 import swil/api_help
 import swil/cmd_runner
 
-/// Upsert/update payload for `ByName` identity on `Item`.
-pub type ItemByName {
-  ItemByName(
-    name: String,
-    age: option.Option(Int),
-    height: option.Option(Float),
-  )
-}
-
-/// Upsert/update payload for `ByNameAndAge` identity on `Item`.
-pub type ItemByNameAndAge {
-  ItemByNameAndAge(name: String, age: Int, height: option.Option(Float))
-}
-
 pub type ItemCommand {
   /// Upsert by `ByName` identity.
   UpsertItemByName(

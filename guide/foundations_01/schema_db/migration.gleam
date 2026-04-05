@@ -236,7 +236,13 @@ fn ensure_guide01item_table(
   use tables <- result.try(sqlite_pragma_assert.user_table_names(conn))
   case list.contains(tables, "guide01item") {
     False -> sqlight.exec(create_guide01item_table_sql, conn)
-    True -> reconcile_guide01item_columns_loop(conn, 0)
+    True -> {
+      use _ <- result.try(sqlight.exec(
+        "drop index if exists guide01item_by_name;",
+        conn,
+      ))
+      reconcile_guide01item_columns_loop(conn, 0)
+    }
   }
 }
 

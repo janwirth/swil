@@ -1,4 +1,5 @@
 import case_studies/library_manager_db/api
+import case_studies/library_manager_db/cmd as lm_cmd
 import case_studies/library_manager_schema.{ViewConfigScalar}
 import gleam/list
 import gleam/option.{Some}
@@ -8,54 +9,66 @@ pub fn library_manager_e2e_test() {
   let assert Ok(conn) = sqlight.open(":memory:")
   let assert Ok(Nil) = api.migrate(conn)
 
-  // ImportedTrack writes through generated API.
-  let assert Ok(#(first_track, _first_magic)) =
-    api.upsert_one_importedtrack(
-      conn,
-      row: api.by_importedtrack_title_and_artist(
+  let assert Ok(Nil) =
+    api.execute_importedtrack_cmds(conn, [
+      lm_cmd.UpsertImportedTrackByTitleAndArtist(
         title: "One More Time",
         artist: "Daft Punk",
         file_path: Some("/music/daft/one_more_time.flac"),
       ),
+    ])
+  let assert Ok(Some(#(first_track, _))) =
+    api.get_importedtrack_by_title_and_artist(
+      conn,
+      title: "One More Time",
+      artist: "Daft Punk",
     )
   let assert Some("One More Time") = first_track.title
   let assert Some("Daft Punk") = first_track.artist
 
-  let assert Ok(#(_second_track, second_magic)) =
-    api.upsert_one_importedtrack(
-      conn,
-      row: api.by_importedtrack_title_and_artist(
+  let assert Ok(Nil) =
+    api.execute_importedtrack_cmds(conn, [
+      lm_cmd.UpsertImportedTrackByTitleAndArtist(
         title: "Aerodynamic",
         artist: "Daft Punk",
         file_path: Some("/music/daft/aerodynamic.flac"),
       ),
-    )
+    ])
 
   let assert Ok(Some(#(fetched_by_id, _))) =
-    api.get_importedtrack_by_id(conn, id: second_magic.id)
+    api.get_importedtrack_by_title_and_artist(
+      conn,
+      title: "Aerodynamic",
+      artist: "Daft Punk",
+    )
   let assert Some("Aerodynamic") = fetched_by_id.title
 
-  let assert Ok(#(tag_row, tag_magic)) =
-    api.upsert_one_tag(
-      conn,
-      row: api.by_tag_tag_label(label: "Favorite", emoji: Some("star")),
-    )
+  let assert Ok(Nil) =
+    api.execute_tag_cmds(conn, [
+      lm_cmd.UpsertTagByTagLabel(label: "Favorite", emoji: Some("star")),
+    ])
+  let assert Ok(Some(#(tag_row, tag_magic))) =
+    api.get_tag_by_tag_label(conn, label: "Favorite")
   let assert Some("Favorite") = tag_row.label
 
-  let assert Ok(#(bucket_row, bucket_magic)) =
-    api.upsert_one_trackbucket(
-      conn,
-      row: api.by_trackbucket_bucket_title_and_artist(
+  let assert Ok(Nil) =
+    api.execute_trackbucket_cmds(conn, [
+      lm_cmd.UpsertTrackBucketByBucketTitleAndArtist(
         title: "Daft Punk",
         artist: "Daft Punk",
       ),
+    ])
+  let assert Ok(Some(#(bucket_row, bucket_magic))) =
+    api.get_trackbucket_by_bucket_title_and_artist(
+      conn,
+      title: "Daft Punk",
+      artist: "Daft Punk",
     )
   let assert Some("Daft Punk") = bucket_row.title
 
-  let assert Ok(#(tab_row, tab_magic)) =
-    api.upsert_one_tab(
-      conn,
-      row: api.by_tab_tab_label(
+  let assert Ok(Nil) =
+    api.execute_tab_cmds(conn, [
+      lm_cmd.UpsertTabByTabLabel(
         label: "Main",
         order: Some(1.0),
         view_config: Some(ViewConfigScalar(
@@ -63,7 +76,9 @@ pub fn library_manager_e2e_test() {
           source_selector: Some("all"),
         )),
       ),
-    )
+    ])
+  let assert Ok(Some(#(tab_row, tab_magic))) =
+    api.get_tab_by_tab_label(conn, label: "Main")
   let assert Some("Main") = tab_row.label
   let assert Some(ViewConfigScalar(filter_config:, source_selector:)) =
     tab_row.view_config
@@ -80,7 +95,6 @@ pub fn library_manager_e2e_test() {
     api.get_tab_by_id(conn, id: tab_magic.id)
   let assert Some("Main") = fetched_tab.label
 
-  // Query coverage (`last_100_*`) for all entities.
   let assert Ok(tag_rows) = api.last_100_edited_tag(conn)
   let assert True = list.length(tag_rows) >= 1
 

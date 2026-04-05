@@ -1,4 +1,5 @@
 import case_studies/hippo_db/api as hippo_api
+import case_studies/hippo_db/cmd as hippo_cmd
 import case_studies/hippo_schema.{Female, Male}
 import gleam/list
 import gleam/option.{Some}
@@ -16,33 +17,30 @@ pub fn hippo_relationship_queries_e2e_test() {
 
   let dob_old = Date(1975, January, 1)
   let dob_young = Date(2022, January, 1)
-  let assert Ok(_) =
-    hippo_api.upsert_one_hippo(
-      conn,
-      row: hippo_api.by_hippo_name_and_date_of_birth(
+  let assert Ok(Nil) =
+    hippo_api.execute_hippo_cmds(conn, [
+      hippo_cmd.UpsertHippoByNameAndDateOfBirth(
         name: "Oldie",
         date_of_birth: dob_old,
         gender: Some(Male),
       ),
-    )
-  let assert Ok(_) =
-    hippo_api.upsert_one_hippo(
-      conn,
-      row: hippo_api.by_hippo_name_and_date_of_birth(
+    ])
+  let assert Ok(Nil) =
+    hippo_api.execute_hippo_cmds(conn, [
+      hippo_cmd.UpsertHippoByNameAndDateOfBirth(
         name: "Youngin",
         date_of_birth: dob_young,
         gender: Some(Female),
       ),
-    )
-  let assert Ok(_) =
-    hippo_api.upsert_one_hippo(
-      conn,
-      row: hippo_api.by_hippo_name_and_date_of_birth(
+    ])
+  let assert Ok(Nil) =
+    hippo_api.execute_hippo_cmds(conn, [
+      hippo_cmd.UpsertHippoByNameAndDateOfBirth(
         name: "Zebra",
         date_of_birth: dob_old,
         gender: Some(Male),
       ),
-    )
+    ])
 
   let assert Ok(old_rows) =
     hippo_api.query_old_hippos_owner_emails(conn, min_age: 30)

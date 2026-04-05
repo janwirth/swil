@@ -1,7 +1,7 @@
 //// Guide 01 — foundations (schema)
 ////
 //// From repo root:
-////   gleam run -- src/guide/foundations_01/schema.gleam
+////   gleam run guide/foundations_01/schema
 //// Emits `schema_db/` next to this file.
 ////
 //// Identity columns must also appear as normal fields (here `name` + `ByName(name)`).

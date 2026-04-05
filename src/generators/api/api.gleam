@@ -7,7 +7,6 @@ import generators/api/api_naming
 import generators/api/api_params
 import generators/api/api_query
 import generators/api/api_sql
-import generators/api/api_update_delete as ud
 import generators/api/complex_filter_sql
 import generators/api/schema_context
 import generators/gleam_format_generated as gleam_fmt
@@ -159,15 +158,7 @@ fn custom_query_sql(
 }
 
 pub type ApiDbOutputs {
-  ApiDbOutputs(
-    row: String,
-    get: String,
-    upsert: String,
-    delete: String,
-    query: String,
-    api: String,
-    cmd: String,
-  )
+  ApiDbOutputs(row: String, get: String, query: String, api: String, cmd: String)
 }
 
 fn finalize_string(s: String) -> String {
@@ -314,6 +305,22 @@ fn ensure_string_import(text: String) -> String {
   }
 }
 
+fn ensure_result_import(text: String) -> String {
+  case
+    string.contains(text, "result.")
+    && !string.contains(text, "import gleam/result")
+  {
+    False -> text
+    True -> {
+      case string.split(text, "\n") {
+        [] -> text
+        [first, ..rest] ->
+          first <> "\nimport gleam/result\n" <> string.join(rest, "\n")
+      }
+    }
+  }
+}
+
 fn format_parse_error(e: schema_definition.ParseError) -> String {
   case e {
     schema_definition.GlanceError(_) -> "glance parse error in predicate"
@@ -327,78 +334,6 @@ fn render_module(m: gmod.Module) -> String {
   |> gmod.render(grender.default_context())
   |> grender.to_string()
   |> finalize_string
-}
-
-fn id_snake(variant_name: String) -> String {
-  case string.starts_with(variant_name, "By") {
-    True -> api_naming.pascal_to_snake(string.drop_start(variant_name, 2))
-    False -> api_naming.pascal_to_snake(variant_name)
-  }
-}
-
-fn pascal_from_snake(s: String) -> String {
-  string.split(s, "_")
-  |> list.map(fn(part) {
-    case string.length(part) == 0 {
-      True -> ""
-      False ->
-        string.uppercase(string.slice(at_index: 0, from: part, length: 1))
-        <> string.slice(
-          at_index: 1,
-          from: part,
-          length: string.length(part) - 1,
-        )
-    }
-  })
-  |> string.join("")
-}
-
-fn marker_type_name(entity_snake: String, id_snake: String) -> String {
-  pascal_from_snake(entity_snake) <> "By" <> pascal_from_snake(id_snake)
-}
-
-fn upsert_row_type_name(entity_snake: String) -> String {
-  pascal_from_snake(entity_snake) <> "UpsertRow"
-}
-
-fn run_upsert_row_fn_name(entity_snake: String) -> String {
-  "run_" <> entity_snake <> "_upsert_row"
-}
-
-fn facade_upsert_type_support(def: SchemaDefinition, ctx: dec.TypeCtx) -> String {
-  def.entities
-  |> list.map(fn(e) {
-    let e_snake = string.lowercase(e.type_name)
-    let id = schema_context.find_identity(def, e)
-    let markers =
-      id.variants
-      |> list.map(fn(v) {
-        "pub type "
-        <> marker_type_name(e_snake, id_snake(v.variant_name))
-        <> " {\n  "
-        <> marker_type_name(e_snake, id_snake(v.variant_name))
-        <> "\n}\n"
-      })
-      |> string.join("\n")
-    let row_t = dec.entity_row_tuple_type(ctx, e.type_name)
-    markers
-    <> "\npub type "
-    <> upsert_row_type_name(e_snake)
-    <> "(by) {\n  "
-    <> upsert_row_type_name(e_snake)
-    <> "(run: fn(sqlight.Connection) -> Result("
-    <> row_t
-    <> ", sqlight.Error))\n}\n\nfn "
-    <> run_upsert_row_fn_name(e_snake)
-    <> "(row: "
-    <> upsert_row_type_name(e_snake)
-    <> "(by), conn: sqlight.Connection) -> Result("
-    <> row_t
-    <> ", sqlight.Error) {\n  let "
-    <> upsert_row_type_name(e_snake)
-    <> "(run:) = row\n  run(conn)\n}\n"
-  })
-  |> string.join("\n")
 }
 
 fn fold_fn_chunks(
@@ -429,7 +364,7 @@ fn fold_constants(
   })
 }
 
-/// Emits `row`, `get`, `upsert`, `delete`, `query`, and `api` (facade) modules under `*_db/`.
+/// Emits `row`, `get`, `query`, `api` (facade), and `cmd` modules under `*_db/`.
 pub fn generate_api_db_outputs(
   schema_path: String,
   def: SchemaDefinition,
@@ -463,8 +398,6 @@ pub fn generate_api_db_outputs(
   let row_t = gtypes.raw(dec.entity_row_tuple_type(ctx, first_entity.type_name))
   let sql_err = gtypes.raw("sqlight.Error")
 
-  let scalar_names = list.map(def.scalars, fn(s) { s.type_name })
-
   let row_chunks =
     list.flat_map(def.entities, fn(e) {
       let id_e = schema_context.find_identity(def, e)
@@ -485,72 +418,6 @@ pub fn generate_api_db_outputs(
       def,
       exposing,
       fn() { fold_fn_chunks(row_chunks, gmod.eof()) },
-    )
-
-  // Entity upsert/update/delete SQL lives in `cmd.gleam` (exec-only); these
-  // APIs delegate to `execute_*_cmds` and reload rows via `get`.
-  let upsert_const_entries = []
-  let upsert_fn_chunks =
-    list.flat_map(def.entities, fn(e) {
-      let id_e = schema_context.find_identity(def, e)
-      let entity_snake_e = string.lowercase(e.type_name)
-      let row_t_e = gtypes.raw(dec.entity_row_tuple_type(ctx, e.type_name))
-      let variant_chunks =
-        list.map(id_e.variants, fn(variant_e) {
-          let id_snake_e = case
-            string.starts_with(variant_e.variant_name, "By")
-          {
-            True ->
-              api_naming.pascal_to_snake(string.drop_start(
-                variant_e.variant_name,
-                2,
-              ))
-            False -> api_naming.pascal_to_snake(variant_e.variant_name)
-          }
-          let upsert_params_e =
-            list.append(
-              [api_params.conn_param()],
-              api_params.upsert_gparams(e, variant_e, ctx),
-            )
-          api_chunks.upsert_module_fn_chunks(
-            e,
-            variant_e,
-            entity_snake_e,
-            id_snake_e,
-            upsert_params_e,
-            row_t_e,
-            sql_err,
-            scalar_names,
-            ctx,
-          )
-        })
-        |> list.flatten
-      let by_id_params_e =
-        list.append(
-          [api_params.conn_param()],
-          api_params.update_by_id_gparams(e, ctx),
-        )
-      let by_id_chunks =
-        api_chunks.update_by_id_fn_chunks(
-          e,
-          entity_snake_e,
-          by_id_params_e,
-          row_t_e,
-          sql_err,
-          scalar_names,
-        )
-      list.append(variant_chunks, by_id_chunks)
-    })
-  let upsert_mod =
-    api_imports.with_upsert_module_imports(
-      db_path,
-      schema_path,
-      def,
-      types_only_exposing,
-      fn() {
-        upsert_const_entries
-        |> fold_constants(fold_fn_chunks(upsert_fn_chunks, gmod.eof()))
-      },
     )
 
   let get_const_entries =
@@ -627,54 +494,6 @@ pub fn generate_api_db_outputs(
       fn() {
         get_const_entries
         |> fold_constants(fold_fn_chunks(get_fn_chunks, gmod.eof()))
-      },
-    )
-
-  let delete_const_entries = []
-  let delete_fn_chunks =
-    list.flat_map(def.entities, fn(e) {
-      let id_e = schema_context.find_identity(def, e)
-      let entity_snake_e = string.lowercase(e.type_name)
-      list.map(id_e.variants, fn(variant_e) {
-        let id_snake_e = case string.starts_with(variant_e.variant_name, "By") {
-          True ->
-            api_naming.pascal_to_snake(string.drop_start(
-              variant_e.variant_name,
-              2,
-            ))
-          False -> api_naming.pascal_to_snake(variant_e.variant_name)
-        }
-        let get_params_e =
-          list.append(
-            [api_params.conn_param()],
-            api_params.identity_gparams(variant_e),
-          )
-        let not_found_fn_name =
-          "not_found_" <> entity_snake_e <> "_" <> id_snake_e <> "_error"
-        [
-          api_chunks.not_found_private_chunk(entity_snake_e, not_found_fn_name),
-          ud.delete_fn_chunk(
-            e,
-            entity_snake_e,
-            id_snake_e,
-            variant_e,
-            get_params_e,
-            sql_err,
-            not_found_fn_name,
-          ),
-        ]
-      })
-      |> list.flatten
-    })
-  let delete_mod =
-    api_imports.with_delete_module_imports(
-      db_path,
-      schema_path,
-      def,
-      exposing,
-      fn() {
-        delete_const_entries
-        |> fold_constants(fold_fn_chunks(delete_fn_chunks, gmod.eof()))
       },
     )
 
@@ -757,16 +576,6 @@ pub fn generate_api_db_outputs(
   let row_text = ensure_dsl_import(row_text)
   let row_text = ensure_row_schema_entity_type_imports(row_text, def)
   let get_text = ensure_dsl_import(render_module(get_mod))
-  let upsert_text =
-    render_module(upsert_mod)
-    |> ensure_api_help_import
-    |> ensure_dsl_import
-    |> ensure_list_import
-  let upsert_text =
-    upsert_text
-    <> pragma_migration.generate_junction_upserts_gleam_appendage(def)
-  let upsert_text = ensure_decode_import(upsert_text)
-  let delete_text = ensure_api_help_import(render_module(delete_mod))
 
   // Build raw query text and append complex filter code.
   let raw_query_text =
@@ -909,26 +718,26 @@ pub fn generate_api_db_outputs(
     |> ensure_option_import
     |> ensure_dsl_import
     |> ensure_list_import
-  let api_text = facade_upsert_type_support(def, ctx) <> "\n" <> api_text
   use row_text <- result.try(gleam_fmt.format_generated_source(row_text))
   use get_text <- result.try(gleam_fmt.format_generated_source(get_text))
-  use upsert_text <- result.try(gleam_fmt.format_generated_source(upsert_text))
-  use delete_text <- result.try(
-    gleam_fmt.format_generated_source(delete_text)
-    |> result.map(strip_option_import_if_unused),
-  )
   use query_text <- result.try(
     gleam_fmt.format_generated_source(raw_query_text)
     |> result.map(strip_option_import_if_unused),
   )
   use api_text <- result.try(gleam_fmt.format_generated_source(api_text))
-  let cmd_raw = api_cmd.generate_cmd_module(schema_path, def)
-  use cmd_text <- result.try(gleam_fmt.format_generated_source(cmd_raw))
+  let junction_append = pragma_migration.generate_junction_upserts_gleam_appendage(
+    def,
+  )
+  let cmd_stitched =
+    api_cmd.generate_cmd_module(schema_path, def) <> junction_append
+  let cmd_stitched =
+    cmd_stitched
+    |> ensure_decode_import
+    |> ensure_result_import
+  use cmd_text <- result.try(gleam_fmt.format_generated_source(cmd_stitched))
   Ok(ApiDbOutputs(
     row: row_text,
     get: get_text,
-    upsert: upsert_text,
-    delete: delete_text,
     query: query_text,
     api: api_text,
     cmd: cmd_text,

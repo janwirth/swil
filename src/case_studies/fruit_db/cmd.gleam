@@ -6,16 +6,6 @@ import sqlight
 import swil/api_help
 import swil/cmd_runner
 
-/// Upsert/update payload for `ByName` identity on `Fruit`.
-pub type FruitByName {
-  FruitByName(
-    name: String,
-    color: option.Option(String),
-    price: option.Option(Float),
-    quantity: option.Option(Int),
-  )
-}
-
 pub type FruitCommand {
   /// Upsert by `ByName` identity.
   UpsertFruitByName(

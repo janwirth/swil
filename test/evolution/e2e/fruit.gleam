@@ -1,4 +1,5 @@
 import case_studies/fruit_db/api
+import case_studies/fruit_db/cmd
 import gleam/list
 import gleam/option.{Some}
 import sqlight
@@ -22,16 +23,15 @@ pub fn fruit_e2e_test() {
 
   list.each(fruits, fn(row) {
     let #(name, color, price, qty) = row
-    let assert Ok(_) =
-      api.upsert_one_fruit(
-        conn,
-        row: api.by_fruit_name(
+    let assert Ok(Nil) =
+      api.execute_fruit_cmds(conn, [
+        cmd.UpsertFruitByName(
           name: name,
           color: Some(color),
           price: Some(price),
           quantity: Some(qty),
         ),
-      )
+      ])
   })
   // ensure the migration is not killing the data
   let assert Ok(Nil) = api.migrate(conn)
@@ -65,24 +65,24 @@ pub fn fruit_e2e_test() {
   let assert Ok(Nil) = sqlight.close(conn)
 }
 
-pub fn fruit_new_upsert_api_e2e_test() {
+pub fn fruit_batch_cmds_e2e_test() {
   let assert Ok(conn) = sqlight.open(":memory:")
   let assert Ok(Nil) = api.migrate(conn)
 
-  let rows = [
-    api.by_fruit_name(
+  let cmds = [
+    cmd.UpsertFruitByName(
       name: "kiwi",
       color: Some("green"),
       price: Some(11.0),
       quantity: Some(11),
     ),
-    api.by_fruit_name(
+    cmd.UpsertFruitByName(
       name: "lemon",
       color: Some("yellow"),
       price: Some(12.0),
       quantity: Some(12),
     ),
-    api.by_fruit_name(
+    cmd.UpsertFruitByName(
       name: "mango",
       color: Some("orange"),
       price: Some(13.0),
@@ -90,8 +90,7 @@ pub fn fruit_new_upsert_api_e2e_test() {
     ),
   ]
 
-  let assert Ok(inserted) = api.upsert_many_fruit(conn, rows: rows)
-  let assert 3 = list.length(inserted)
+  let assert Ok(Nil) = api.execute_fruit_cmds(conn, cmds)
 
   let assert Ok(Some(#(kiwi, _))) = api.get_fruit_by_name(conn, name: "kiwi")
   let assert Some("kiwi") = kiwi.name

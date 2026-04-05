@@ -6,11 +6,6 @@ import sqlight
 import swil/api_help
 import swil/cmd_runner
 
-/// Upsert/update payload for `ByNameAndAge` identity on `Item`.
-pub type ItemByNameAndAge {
-  ItemByNameAndAge(name: String, age: Int)
-}
-
 pub type ItemCommand {
   /// Upsert by `ByNameAndAge` identity.
   UpsertItemByNameAndAge(name: String, age: Int)

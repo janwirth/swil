@@ -14,8 +14,7 @@ pub fn main() -> Nil {
 }
 
 /// Read [schema_path], emit `migration.gleam`, `row.gleam`, `get.gleam`,
-/// `upsert.gleam`, `delete.gleam`, `query.gleam`, `api.gleam`, and `cmd.gleam`
-/// under the sibling `*_db` directory.
+/// `query.gleam`, `api.gleam`, and `cmd.gleam` under the sibling `*_db` directory.
 pub fn run_generate(schema_path: String) -> Nil {
   case generate_from_schema_path(schema_path) {
     Ok(_) -> Nil
@@ -52,8 +51,6 @@ fn generate_from_schema_path(user_path: String) -> Result(Nil, String) {
   let migration_out = out_dir <> "/migration.gleam"
   let row_out = out_dir <> "/row.gleam"
   let get_out = out_dir <> "/get.gleam"
-  let upsert_out = out_dir <> "/upsert.gleam"
-  let delete_out = out_dir <> "/delete.gleam"
   let query_out = out_dir <> "/query.gleam"
   let api_out = out_dir <> "/api.gleam"
   let cmd_out = out_dir <> "/cmd.gleam"
@@ -63,8 +60,6 @@ fn generate_from_schema_path(user_path: String) -> Result(Nil, String) {
   ))
   use _ <- result.try(write_file(row_out, api_outputs.row))
   use _ <- result.try(write_file(get_out, api_outputs.get))
-  use _ <- result.try(write_file(upsert_out, api_outputs.upsert))
-  use _ <- result.try(write_file(delete_out, api_outputs.delete))
   use _ <- result.try(write_file(query_out, api_outputs.query))
   use _ <- result.try(write_file(api_out, api_outputs.api))
   use _ <- result.try(write_file(cmd_out, api_outputs.cmd))
@@ -77,8 +72,6 @@ fn generate_from_schema_path(user_path: String) -> Result(Nil, String) {
   use _ <- result.try(write_file(migration_out, migration_text))
   io.println("wrote " <> row_out)
   io.println("wrote " <> get_out)
-  io.println("wrote " <> upsert_out)
-  io.println("wrote " <> delete_out)
   io.println("wrote " <> query_out)
   io.println("wrote " <> api_out)
   io.println("wrote " <> cmd_out)
@@ -106,7 +99,9 @@ fn resolve_schema_file(path: String) -> Result(String, String) {
   let trimmed = string.trim(path)
   let with_ext = ensure_gleam_extension(trimmed)
   case
-    string.starts_with(with_ext, "/") || string.starts_with(with_ext, "src/")
+    string.starts_with(with_ext, "/")
+    || string.starts_with(with_ext, "src/")
+    || string.starts_with(with_ext, "guide/")
   {
     True -> Ok(with_ext)
     False -> Ok("src/" <> with_ext)
@@ -176,7 +171,7 @@ fn output_db_directory(schema_file: String) -> String {
 
 fn root_command() -> glint.Command(Nil) {
   use <- glint.command_help(
-    "Emit migration, row, get, upsert, delete, query, api, and cmd modules under the sibling *_db directory.",
+    "Emit migration, row, get, query, api, and cmd modules under the sibling *_db directory.",
   )
   use <- glint.unnamed_args(glint.EqArgs(1))
   use _n, unnamed, _f <- glint.command()

@@ -18,43 +18,21 @@ pub fn update_by_id_emitted_for_all_entities_test() {
     out.cmd,
     "set \\\"label\\\" = ?, \\\"emoji\\\" = ?, \\\"updated_at\\\" = ? where \\\"id\\\" = ?",
   )
-  assert string.contains(out.upsert, "cmd.execute_tag_cmds(conn, [")
-  assert string.contains(
-    out.upsert,
-    "cmd.UpdateTagById(id: id, label: label, emoji: emoji)",
-  )
-  assert string.contains(out.upsert, "pub fn update_tag_by_id(")
-  assert string.contains(
-    out.upsert,
-    "not_found_tag_id_error(\"update_tag_by_id\")",
-  )
-  assert string.contains(out.api, "pub fn update_tag_by_id(")
-  assert string.contains(
-    out.api,
-    "upsert.update_tag_by_id(conn, id: id, label: label, emoji: emoji)",
-  )
+  assert string.contains(out.cmd, "UpdateTagById(")
+  assert string.contains(out.cmd, "pub fn execute_tag_cmds(")
 
   assert string.contains(out.cmd, "const tab_update_by_id_sql")
-  assert string.contains(out.upsert, "pub fn update_tab_by_id(")
+  assert string.contains(out.cmd, "UpdateTabById(")
 
   assert string.contains(out.cmd, "const importedtrack_update_by_id_sql")
-  assert string.contains(out.upsert, "pub fn update_importedtrack_by_id(")
+  assert string.contains(out.cmd, "UpdateImportedTrackById(")
 
-  assert string.contains(out.api, "pub fn upsert_one_tag(")
-  assert string.contains(out.api, "pub fn upsert_many_tag(")
-  assert string.contains(out.api, "pub fn by_tag_tag_label(")
+  assert string.contains(out.api, "pub fn execute_tag_cmds(")
   assert string.contains(
     out.api,
-    "rows rows: List(TagUpsertRow(by))",
+    "cmd.execute_tag_cmds(conn, commands)",
   )
-  assert string.contains(out.api, "pub type TagByTagLabel {")
-  assert string.contains(out.api, ") -> TagUpsertRow(TagByTagLabel)")
-  assert string.contains(out.api, "pub type ImportedtrackByFilePath {")
-  assert string.contains(out.api, "pub type ImportedtrackByTitleAndArtist {")
-  assert string.contains(
-    out.api,
-    "rows rows: List(ImportedtrackUpsertRow(by))",
-  )
-  assert !string.contains(out.api, "pub fn upsert_tag_by_tag_label(")
-  assert !string.contains(out.api, "pub fn upsert_many_tag_by_tag_label(")
+  assert !string.contains(out.api, "pub type TagUpsertRow")
+  assert !string.contains(out.api, "pub fn upsert_one_tag(")
+  assert !string.contains(out.api, "by_tag_tag_label")
 }

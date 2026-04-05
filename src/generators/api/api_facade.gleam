@@ -7,6 +7,7 @@ import gleam/list
 import gleam/string
 import gleamgen/expression as gexpr
 import gleamgen/function as gfun
+import gleamgen/module/definition as gdef
 import gleamgen/parameter as gparam
 import gleamgen/types as gtypes
 import schema_definition/schema_definition.{
@@ -22,35 +23,6 @@ fn id_snake(variant_name: String) -> String {
     True -> api_naming.pascal_to_snake(string.drop_start(variant_name, 2))
     False -> api_naming.pascal_to_snake(variant_name)
   }
-}
-
-fn pascal_from_snake(s: String) -> String {
-  string.split(s, "_")
-  |> list.map(fn(part) {
-    case string.length(part) == 0 {
-      True -> ""
-      False ->
-        string.uppercase(string.slice(at_index: 0, from: part, length: 1))
-        <> string.slice(
-          at_index: 1,
-          from: part,
-          length: string.length(part) - 1,
-        )
-    }
-  })
-  |> string.join("")
-}
-
-fn marker_type_name(entity_snake: String, id_snake: String) -> String {
-  pascal_from_snake(entity_snake) <> "By" <> pascal_from_snake(id_snake)
-}
-
-fn upsert_row_type_name(entity_snake: String) -> String {
-  pascal_from_snake(entity_snake) <> "UpsertRow"
-}
-
-fn run_upsert_row_fn_name(entity_snake: String) -> String {
-  "run_" <> entity_snake <> "_upsert_row"
 }
 
 fn param_call_args_csv(params: List(gparam.Parameter(gtypes.Dynamic))) -> String {
@@ -78,26 +50,6 @@ fn forward_fn(
     })
       |> gfun.to_dynamic,
   )
-}
-
-fn forward_fn_nil_result(
-  submodule: String,
-  fn_name: String,
-  params: List(gparam.Parameter(gtypes.Dynamic)),
-  sql_err: gtypes.GeneratedType(e),
-) {
-  let names = param_call_args_csv(params)
-  #(
-    gleamgen_emit.pub_def(fn_name),
-    gfun.new_raw(params, gtypes.result(gtypes.nil, sql_err), fn(_) {
-      gexpr.raw(submodule <> "." <> fn_name <> "(" <> names <> ")")
-    })
-      |> gfun.to_dynamic,
-  )
-}
-
-fn row_op_type(entity_snake: String) -> gtypes.GeneratedType(r) {
-  gtypes.raw(upsert_row_type_name(entity_snake) <> "(by)")
 }
 
 fn migrate_chunk(sql_err: gtypes.GeneratedType(e)) {
@@ -213,6 +165,37 @@ fn complex_query_forward_chunk(
   forward_fn("query", spec.name, fn_params, gtypes.list(row_t), sql_err)
 }
 
+fn forward_execute_cmds(
+  entity_type: String,
+  entity_snake: String,
+) -> #(
+  gdef.Definition,
+  gfun.Function(gtypes.Dynamic, gtypes.Dynamic),
+) {
+  let cmd_t = entity_type <> "Command"
+  #(
+    gleamgen_emit.pub_def("execute_" <> entity_snake <> "_cmds"),
+    gfun.new_raw(
+      [
+        api_params.conn_param(),
+        api_params.consumer_param(
+          "commands",
+          gtypes.raw("List(cmd." <> cmd_t <> ")"),
+        ),
+      ],
+      gtypes.raw("Result(Nil, #(Int, sqlight.Error))"),
+      fn(_) {
+        gexpr.raw(
+          "cmd.execute_"
+          <> entity_snake
+          <> "_cmds(conn, commands)",
+        )
+      },
+    )
+      |> gfun.to_dynamic,
+  )
+}
+
 pub fn facade_fn_chunks(
   def: SchemaDefinition,
   sql_err,
@@ -227,106 +210,21 @@ pub fn facade_fn_chunks(
     list.flat_map(def.entities, fn(e) {
       let e_snake = string.lowercase(e.type_name)
       let id = schema_context.find_identity(def, e)
-      let row_t_str = dec.entity_row_tuple_type(ctx, e.type_name)
-      let row_t = gtypes.raw(row_t_str)
-      let row_op_t = row_op_type(e_snake)
-      let upsert_one_name = "upsert_one_" <> e_snake
-      let upsert_many_new_name = "upsert_many_" <> e_snake
-      let run_upsert_row = run_upsert_row_fn_name(e_snake)
-      let upsert_one_params = [
-        api_params.conn_param(),
-        api_params.consumer_param("row", row_op_t),
-      ]
-      let upsert_many_new_params = [
-        api_params.conn_param(),
-        api_params.consumer_param("rows", gtypes.list(row_op_t)),
-      ]
-      let variant_forwards =
+      let row_opt =
+        gtypes.raw(dec.option_entity_row_tuple(ctx, e.type_name))
+      let exec_chunk = [forward_execute_cmds(e.type_name, e_snake)]
+      let get_by_identity =
         list.map(id.variants, fn(variant) {
-          let id_snake = id_snake(variant.variant_name)
-          let upsert_name = "upsert_" <> e_snake <> "_by_" <> id_snake
-          let get_name = "get_" <> e_snake <> "_by_" <> id_snake
-          let update_name = "update_" <> e_snake <> "_by_" <> id_snake
-          let delete_name = "delete_" <> e_snake <> "_by_" <> id_snake
-          let upsert_params =
-            list.append(
-              [api_params.conn_param()],
-              api_params.upsert_gparams(e, variant, ctx),
-            )
+          let id_s = id_snake(variant.variant_name)
+          let get_name = "get_" <> e_snake <> "_by_" <> id_s
           let get_params =
             list.append(
               [api_params.conn_param()],
               api_params.identity_gparams(variant),
             )
-          let row_opt =
-            gtypes.raw(dec.option_entity_row_tuple(ctx, e.type_name))
-          let by_name = "by_" <> e_snake <> "_" <> id_snake
-          let by_params = api_params.upsert_gparams(e, variant, ctx)
-          let by_args = param_call_args_csv(by_params)
-          let marker_name = marker_type_name(e_snake, id_snake)
-          [
-            #(
-              gleamgen_emit.pub_def(by_name),
-              gfun.new_raw(
-                by_params,
-                gtypes.raw(upsert_row_type_name(e_snake) <> "(" <> marker_name <> ")"),
-                fn(_) {
-                gexpr.raw(
-                  upsert_row_type_name(e_snake)
-                  <> "(fn(conn) { upsert."
-                  <> upsert_name
-                  <> "(conn, "
-                  <> by_args
-                  <> ") })",
-                )
-              },
-              )
-                |> gfun.to_dynamic,
-            ),
-            forward_fn("get", get_name, get_params, row_opt, sql_err),
-            forward_fn("upsert", update_name, upsert_params, row_t, sql_err),
-            forward_fn_nil_result("delete", delete_name, get_params, sql_err),
-          ]
+          forward_fn("get", get_name, get_params, row_opt, sql_err)
         })
-        |> list.flatten
-      let new_upsert_api = [
-        #(
-          gleamgen_emit.pub_def(upsert_one_name),
-          gfun.new_raw(upsert_one_params, gtypes.result(row_t, sql_err), fn(_) {
-            gexpr.raw(run_upsert_row <> "(row, conn)")
-          })
-            |> gfun.to_dynamic,
-        ),
-        #(
-          gleamgen_emit.pub_def(upsert_many_new_name),
-          gfun.new_raw(
-            upsert_many_new_params,
-            gtypes.result(gtypes.list(row_t), sql_err),
-            fn(_) {
-              gexpr.raw(
-                "list.try_map(rows, fn(row) { " <> run_upsert_row <> "(row, conn) })",
-              )
-            },
-          )
-            |> gfun.to_dynamic,
-        ),
-      ]
-      let row_t = gtypes.raw(dec.entity_row_tuple_type(ctx, e.type_name))
-      let update_by_id_params =
-        list.append(
-          [api_params.conn_param()],
-          api_params.update_by_id_gparams(e, ctx),
-        )
-      let update_by_id_forward = [
-        forward_fn(
-          "upsert",
-          "update_" <> e_snake <> "_by_id",
-          update_by_id_params,
-          row_t,
-          sql_err,
-        ),
-      ]
-      list.flatten([new_upsert_api, variant_forwards, update_by_id_forward])
+      list.flatten([exec_chunk, get_by_identity])
     })
   list.flatten([
     entity_operation_forwards,

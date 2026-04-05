@@ -281,25 +281,6 @@ fn generate_entity_blocks(
     |> list.map(fn(f) { f.label })
   let command_type_name = entity_type <> "Command"
 
-  let payload_blocks =
-    list.map(id_def.variants, fn(v) {
-      let up_fields = ordered_upsert_fields(entity, v)
-      let payload_name =
-        api_naming.identity_payload_type_name(entity_type, v.variant_name)
-      "/// Upsert/update payload for `"
-      <> v.variant_name
-      <> "` identity on `"
-      <> entity_type
-      <> "`.\npub type "
-      <> payload_name
-      <> " {\n  "
-      <> payload_name
-      <> "(\n"
-      <> record_fields_type_lines(up_fields, ctx)
-      <> "\n  )\n}\n\n"
-    })
-    |> string.concat
-
   let type_body =
     list.map(id_def.variants, fn(v) {
       let op_base = op_variant_name("Upsert", entity_type, v)
@@ -335,8 +316,7 @@ fn generate_entity_blocks(
     |> string.join("\n")
     <> "\n  )"
   let type_block =
-    payload_blocks
-    <> "pub type "
+    "pub type "
     <> command_type_name
     <> " {\n"
     <> type_body

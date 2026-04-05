@@ -8,7 +8,7 @@ pub fn guide01item_with_magic_row_decoder() -> decode.Decoder(
   #(schema.Guide01Item, dsl.MagicFields),
 ) {
   use name <- decode.field(0, decode.string)
-  use note <- decode.field(1, decode.string)
+  use note <- decode.field(1, decode.optional(decode.string))
   use id <- decode.field(2, decode.int)
   use created_at <- decode.field(3, decode.int)
   use updated_at <- decode.field(4, decode.int)
@@ -16,7 +16,7 @@ pub fn guide01item_with_magic_row_decoder() -> decode.Decoder(
   let guide01item =
     schema.Guide01Item(
       name: option.Some(name),
-      note: api_help.opt_string_from_db(note),
+      note: api_help.option_string_from_optional_db(note),
       identities: schema.ByName(name:),
     )
   decode.success(#(

@@ -34,7 +34,17 @@ Work proceeds in **three named stages** before any broad codegen rollout:
    Command types are generated per schema (or per entity) alongside today’s `conn`-first APIs. Public fields remain labelled where the rest of the generated API uses labels.
 
 5. **Compatibility**  
-   Existing `fn(Connection) -> Result(...)` entry points may stay as thin wrappers that construct one command and call `execute_*_cmds(conn, [cmd])`, so current callers do not break in the first iteration.
+   Deprecated: per-operation `upsert_*` / `delete_*` / `update_*` modules and phantom `By…` / `UpsertRow(by)` facade types are **removed**. Mutations are **only** via `execute_*_cmds` (re-exported from `api` for convenience). Reads stay on `get` / `query`.
+
+## Cmd-only surface (no legacy mutation paths)
+
+**Locked direction:**
+
+- **No separate `By…` payload types** (e.g. `FruitByName`, `TagByTagLabel`) in generated `cmd.gleam` or elsewhere. Command variants carry **plain labelled fields** only; there is no second type mirroring the same field set.
+- **No `UpsertRow(by)`**, no `by_<entity>_<identity>` row builders, no `upsert_one_*` / `upsert_many_*` on the facade.
+- **No generated `upsert.gleam` or `delete.gleam`** under `*_db`. All entity mutations go through **`cmd.execute_<entity>_cmds(conn, commands)`** (and the facade may forward the same function for a single import path). Junction helpers (e.g. `upsert_trackbucket_tag`) live **appended to `cmd.gleam`**, not a separate upsert module.
+- **Codegen goal:** keep **`row`**, **`get`**, **`query`**, **`api`** (facade: migrate, reads, queries, scalar codecs, **`execute_*_cmds` forwards**), and **`cmd`** — nothing else for CRUD.
+- **Tests and guides** must use **commands + `get`/`query`** (or `api.execute_*_cmds` + `get`) instead of removed APIs.
 
 ## Batch optimization (non-goals vs goals)
 
@@ -97,7 +107,7 @@ The important part is: **commands are pure data**; **one executor** per entity; 
 ## Relation to other specs
 
 - **`OPTION_NONE_NULL_UNIQUE_SPEC.md`**: encoding of `Option` in command payloads must match the same NULL/sentinel/omit rules as direct APIs.
-- **`UPSERT_API_REVAMP_SPEC.md`**: `by_<identity>(...)` row types are natural payloads inside upsert commands; phantom types for homogeneous batches should compose with command lists.
+- **`UPSERT_API_REVAMP_SPEC.md`**: Historical note — that doc assumed phantom `By…` row types; **this spec supersedes that for generated output**. Homogeneous batches are **`List(EntityCommand)`** with repeated variants, not `UpsertRow(by)`.
 
 ## Test requirements
 
@@ -156,13 +166,13 @@ Pilot the full vertical slice on the smallest case study. **Read `fruit_schema.g
 ### Step 4 — Generalize (after review)
 
 - [x] Extend code generation so other case studies / entities get commands without hand-copying the fruit/hippo pilot. (`swil` now emits `cmd.gleam` next to other `*_db` modules; see `generators/api/api_cmd.gleam` and `api_sql` exec-only SQL helpers.)
-- [x] Refactor existing `conn`-first APIs to build a command and delegate to `execute_*_cmds` where desired. (Generated `upsert.gleam` / `delete.gleam`: mutations call `cmd.execute_<entity>_cmds([...])`, then `get.*` reloads rows and preserves not-found semantics; see `generators/api/api_update_delete.gleam`.)
+- [x] **Cmd-only mutations** — removed `upsert.gleam` / `delete.gleam`, `By…` / `UpsertRow(by)` facade types, and all `upsert_*` / `delete_*` / `update_*` forwards; **`api` forwards `execute_*_cmds` only**; junction SQL helpers append to **`cmd.gleam`**.
 - [x] Developer note (this doc — **Using `execute_*_cmds`** below).
 - [x] Out-of-scope tracking (**Later / follow-up** below).
 
 ## Using `execute_*_cmds` (developer note)
 
-Each schema’s `*_db/cmd.gleam` defines a **per-entity** command ADT (e.g. `FruitCommand`) and **`execute_<entity>_cmds(conn, commands)`**. Pass a single operation as a one-element list: `execute_fruit_cmds(conn, [cmd])`. Pass many commands in **list order**; the implementation groups **consecutive** commands that share the same variant (same SQL shape) and runs each group inside one `BEGIN`/`COMMIT` for throughput (`cmd_runner`). Cross-type order in the input list is preserved. On `Error(#(index, err))`, `index` is the 0-based position of the first command in the failing batch; earlier batches stay committed.
+Each schema’s `*_db/cmd.gleam` defines a **per-entity** command ADT (e.g. `FruitCommand`) and **`execute_<entity>_cmds(conn, commands)`**. The **`api`** module forwards the same function so you can `import …/api` and call `api.execute_fruit_cmds(conn, commands)` with `cmd.FruitCommand` values from `import …/cmd as cmd` (or import `cmd` unqualified). Pass a single operation as a one-element list. Pass many commands in **list order**; the implementation groups **consecutive** commands that share the same variant (same SQL shape) and runs each group inside one `BEGIN`/`COMMIT` for throughput (`cmd_runner`). Cross-type order in the input list is preserved. On `Error(#(index, err))`, `index` is the 0-based position of the first command in the failing batch; earlier batches stay committed. **There are no `upsert.gleam` / `delete.gleam` modules** — reload rows with `get_*` after mutations when you need the tuple.
 
 ## Later / follow-up (not in this spec)
 

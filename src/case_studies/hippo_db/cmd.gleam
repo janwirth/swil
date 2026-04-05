@@ -9,15 +9,6 @@ import sqlight
 import swil/api_help
 import swil/cmd_runner
 
-/// Upsert/update payload for `ByNameAndDateOfBirth` identity on `Hippo`.
-pub type HippoByNameAndDateOfBirth {
-  HippoByNameAndDateOfBirth(
-    name: String,
-    date_of_birth: calendar.Date,
-    gender: option.Option(hippo_schema.GenderScalar),
-  )
-}
-
 pub type HippoCommand {
   /// Upsert by `ByNameAndDateOfBirth` identity.
   UpsertHippoByNameAndDateOfBirth(
@@ -40,11 +31,6 @@ pub type HippoCommand {
     gender: option.Option(hippo_schema.GenderScalar),
     date_of_birth: option.Option(calendar.Date),
   )
-}
-
-/// Upsert/update payload for `ByEmail` identity on `Human`.
-pub type HumanByEmail {
-  HumanByEmail(email: String, name: option.Option(String))
 }
 
 pub type HumanCommand {

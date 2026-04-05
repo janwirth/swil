@@ -1,12 +1,6 @@
 import gleam/list
 import gleam/string
 
-/// Name of the pure-data payload type for upsert/update-by-identity commands.
-/// Always [`entity_type`][`variant_name`] (e.g. `FruitByName`, `ImportedTrackByFilePath`).
-pub fn identity_payload_type_name(entity_type: String, variant_name: String) -> String {
-  entity_type <> variant_name
-}
-
 pub fn pascal_to_snake(s: String) -> String {
   let cps = string.to_utf_codepoints(s)
   let out =

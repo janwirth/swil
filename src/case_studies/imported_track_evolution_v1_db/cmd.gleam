@@ -6,17 +6,6 @@ import sqlight
 import swil/api_help
 import swil/cmd_runner
 
-/// Upsert/update payload for `ByServiceAndSourceId` identity on `ImportedTrack`.
-pub type ImportedTrackByServiceAndSourceId {
-  ImportedTrackByServiceAndSourceId(
-    service: String,
-    source_id: String,
-    title: option.Option(String),
-    artist: option.Option(String),
-    external_source_url: option.Option(String),
-  )
-}
-
 pub type ImportedTrackCommand {
   /// Upsert by `ByServiceAndSourceId` identity.
   UpsertImportedTrackByServiceAndSourceId(

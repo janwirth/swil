@@ -3,28 +3,12 @@
 /// Execute via `execute_<entity>_cmds`; see `swil/cmd_runner` for batching.
 import case_studies/library_manager_advanced_db/row
 import case_studies/library_manager_advanced_schema
+import gleam/dynamic/decode
 import gleam/option
+import gleam/result
 import sqlight
 import swil/api_help
 import swil/cmd_runner
-
-/// Upsert/update payload for `ByTitleAndArtist` identity on `ImportedTrack`.
-pub type ImportedTrackByTitleAndArtist {
-  ImportedTrackByTitleAndArtist(
-    title: String,
-    artist: String,
-    file_path: option.Option(String),
-  )
-}
-
-/// Upsert/update payload for `ByFilePath` identity on `ImportedTrack`.
-pub type ImportedTrackByFilePath {
-  ImportedTrackByFilePath(
-    file_path: String,
-    title: option.Option(String),
-    artist: option.Option(String),
-  )
-}
 
 pub type ImportedTrackCommand {
   /// Upsert by `ByTitleAndArtist` identity.
@@ -64,11 +48,6 @@ pub type ImportedTrackCommand {
   )
 }
 
-/// Upsert/update payload for `ByTagLabel` identity on `Tag`.
-pub type TagByTagLabel {
-  TagByTagLabel(label: String, emoji: option.Option(String))
-}
-
 pub type TagCommand {
   /// Upsert by `ByTagLabel` identity.
   UpsertTagByTagLabel(label: String, emoji: option.Option(String))
@@ -84,11 +63,6 @@ pub type TagCommand {
   )
 }
 
-/// Upsert/update payload for `ByBucketTitleAndArtist` identity on `TrackBucket`.
-pub type TrackBucketByBucketTitleAndArtist {
-  TrackBucketByBucketTitleAndArtist(title: String, artist: String)
-}
-
 pub type TrackBucketCommand {
   /// Upsert by `ByBucketTitleAndArtist` identity.
   UpsertTrackBucketByBucketTitleAndArtist(title: String, artist: String)
@@ -101,15 +75,6 @@ pub type TrackBucketCommand {
     id: Int,
     title: option.Option(String),
     artist: option.Option(String),
-  )
-}
-
-/// Upsert/update payload for `ByTabLabel` identity on `Tab`.
-pub type TabByTabLabel {
-  TabByTabLabel(
-    label: String,
-    order: option.Option(Float),
-    view_config: option.Option(library_manager_advanced_schema.ViewConfigScalar),
   )
 }
 
@@ -450,4 +415,28 @@ pub fn execute_tab_cmds(
   commands: List(TabCommand),
 ) -> Result(Nil, #(Int, sqlight.Error)) {
   cmd_runner.run_cmds(conn, commands, tab_variant_tag, plan_tab)
+}
+
+const upsert_trackbucket_tag_sql = "insert into \"trackbucket_tag\" (\"trackbucket_id\", \"tag_id\", \"value\") values (?, ?, ?) on conflict (\"trackbucket_id\", \"tag_id\") do update set \"value\" = excluded.\"value\";"
+
+pub fn upsert_trackbucket_tag(
+  conn: sqlight.Connection,
+  trackbucket_id trackbucket_id: Int,
+  tag_id tag_id: Int,
+  value value: option.Option(Int),
+) -> Result(Nil, sqlight.Error) {
+  sqlight.query(
+    upsert_trackbucket_tag_sql,
+    on: conn,
+    with: [
+      sqlight.int(trackbucket_id),
+      sqlight.int(tag_id),
+      case value {
+        option.Some(v) -> sqlight.int(v)
+        option.None -> sqlight.null()
+      },
+    ],
+    expecting: decode.success(Nil),
+  )
+  |> result.map(fn(_) { Nil })
 }
