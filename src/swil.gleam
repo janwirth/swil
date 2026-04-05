@@ -101,6 +101,7 @@ fn resolve_schema_file(path: String) -> Result(String, String) {
   case
     string.starts_with(with_ext, "/")
     || string.starts_with(with_ext, "src/")
+    || string.starts_with(with_ext, "test/")
     || string.starts_with(with_ext, "guide/")
   {
     True -> Ok(with_ext)
@@ -122,16 +123,20 @@ fn gleam_import_path(schema_file: String) -> String {
   }
   case string.starts_with(without_ext, "src/") {
     True -> string.drop_start(without_ext, string.length("src/"))
-    False -> {
-      let parts = string.split(without_ext, "/src/")
-      case list.length(parts) > 1 {
-        True -> {
-          let assert Ok(after_src) = list.last(parts)
-          after_src
+    False ->
+      case string.starts_with(without_ext, "test/") {
+        True -> string.drop_start(without_ext, string.length("test/"))
+        False -> {
+          let parts = string.split(without_ext, "/src/")
+          case list.length(parts) > 1 {
+            True -> {
+              let assert Ok(after_src) = list.last(parts)
+              after_src
+            }
+            False -> without_ext
+          }
         }
-        False -> without_ext
       }
-    }
   }
 }
 
