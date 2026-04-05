@@ -1,9 +1,8 @@
-import gleam/dynamic/decode
+import case_studies/imported_track_evolution_v2_db/cmd
+import case_studies/imported_track_evolution_v2_db/get
+import gleam/option
 import gleam/result
 import sqlight
-import swil/api_help
-
-const soft_delete_importedtrack_by_service_and_source_id_sql = "update \"importedtrack\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"service\" = ? and \"source_id\" = ? and \"deleted_at\" is null returning \"service\", \"source_id\";"
 
 /// Delete a importedtrack by the `ByServiceAndSourceId` identity.
 pub fn delete_importedtrack_by_service_and_source_id(
@@ -11,29 +10,29 @@ pub fn delete_importedtrack_by_service_and_source_id(
   service service: String,
   source_id source_id: String,
 ) -> Result(Nil, sqlight.Error) {
-  let now = api_help.unix_seconds_now()
-  use rows <- result.try(
-    sqlight.query(
-      soft_delete_importedtrack_by_service_and_source_id_sql,
-      on: conn,
-      with: [
-        sqlight.int(now),
-        sqlight.int(now),
-        sqlight.text(service),
-        sqlight.text(source_id),
-      ],
-      expecting: {
-        use _n <- decode.field(0, decode.string)
-        decode.success(Nil)
-      },
-    ),
-  )
-  case rows {
-    [Nil, ..] -> Ok(Nil)
-    [] ->
+  use existing <- result.try(get.get_importedtrack_by_service_and_source_id(
+    conn,
+    service: service,
+    source_id: source_id,
+  ))
+  case existing {
+    option.None ->
       Error(not_found_importedtrack_service_and_source_id_error(
         "delete_importedtrack_by_service_and_source_id",
       ))
+    option.Some(_) -> {
+      case
+        cmd.execute_importedtrack_cmds(conn, [
+          cmd.DeleteImportedTrackByServiceAndSourceId(
+            service: service,
+            source_id: source_id,
+          ),
+        ])
+      {
+        Ok(Nil) -> Ok(Nil)
+        Error(#(_, e)) -> Error(e)
+      }
+    }
   }
 }
 

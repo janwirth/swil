@@ -1,30 +1,23 @@
-import gleam/dynamic/decode
+import case_studies/fruit_db/cmd
+import case_studies/fruit_db/get
+import gleam/option
 import gleam/result
 import sqlight
-import swil/api_help
-
-const soft_delete_fruit_by_name_sql = "update \"fruit\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"name\" = ? and \"deleted_at\" is null returning \"name\";"
 
 /// Delete a fruit by the `ByName` identity.
 pub fn delete_fruit_by_name(
   conn: sqlight.Connection,
   name name: String,
 ) -> Result(Nil, sqlight.Error) {
-  let now = api_help.unix_seconds_now()
-  use rows <- result.try(
-    sqlight.query(
-      soft_delete_fruit_by_name_sql,
-      on: conn,
-      with: [sqlight.int(now), sqlight.int(now), sqlight.text(name)],
-      expecting: {
-        use _n <- decode.field(0, decode.string)
-        decode.success(Nil)
-      },
-    ),
-  )
-  case rows {
-    [Nil, ..] -> Ok(Nil)
-    [] -> Error(not_found_fruit_name_error("delete_fruit_by_name"))
+  use existing <- result.try(get.get_fruit_by_name(conn, name: name))
+  case existing {
+    option.None -> Error(not_found_fruit_name_error("delete_fruit_by_name"))
+    option.Some(_) -> {
+      case cmd.execute_fruit_cmds(conn, [cmd.DeleteFruitByName(name: name)]) {
+        Ok(Nil) -> Ok(Nil)
+        Error(#(_, e)) -> Error(e)
+      }
+    }
   }
 }
 

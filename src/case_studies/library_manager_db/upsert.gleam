@@ -1,71 +1,12 @@
-import case_studies/library_manager_db/row
+import case_studies/library_manager_db/cmd
+import case_studies/library_manager_db/get
 import case_studies/library_manager_schema
 import gleam/dynamic/decode
 import gleam/list
 import gleam/option
 import gleam/result
 import sqlight
-import swil/api_help
 import swil/dsl/dsl
-
-const update_tab_by_id_sql = "update \"tab\" set \"label\" = ?, \"order\" = ?, \"view_config\" = ?, \"updated_at\" = ? where \"id\" = ? and \"deleted_at\" is null returning \"label\", \"order\", \"view_config\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
-
-const update_tab_by_tab_label_sql = "update \"tab\" set \"order\" = ?, \"view_config\" = ?, \"updated_at\" = ? where \"label\" = ? and \"deleted_at\" is null returning \"label\", \"order\", \"view_config\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
-
-const upsert_tab_by_tab_label_sql = "insert into \"tab\" (\"label\", \"order\", \"view_config\", \"created_at\", \"updated_at\", \"deleted_at\")
-values (?, ?, ?, ?, ?, null)
-on conflict(\"label\") do update set
-  \"order\" = excluded.\"order\",
-  \"view_config\" = excluded.\"view_config\",
-  \"updated_at\" = excluded.\"updated_at\",
-  \"deleted_at\" = null
-returning \"label\", \"order\", \"view_config\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
-
-const update_trackbucket_by_id_sql = "update \"trackbucket\" set \"title\" = ?, \"artist\" = ?, \"updated_at\" = ? where \"id\" = ? and \"deleted_at\" is null returning \"title\", \"artist\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
-
-const update_trackbucket_by_bucket_title_and_artist_sql = "update \"trackbucket\" set \"updated_at\" = ? where \"title\" = ? and \"artist\" = ? and \"deleted_at\" is null returning \"title\", \"artist\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
-
-const upsert_trackbucket_by_bucket_title_and_artist_sql = "insert into \"trackbucket\" (\"title\", \"artist\", \"created_at\", \"updated_at\", \"deleted_at\")
-values (?, ?, ?, ?, null)
-on conflict(\"title\", \"artist\") do update set
-  \"updated_at\" = excluded.\"updated_at\",
-  \"deleted_at\" = null
-returning \"title\", \"artist\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
-
-const update_tag_by_id_sql = "update \"tag\" set \"label\" = ?, \"emoji\" = ?, \"updated_at\" = ? where \"id\" = ? and \"deleted_at\" is null returning \"label\", \"emoji\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
-
-const update_tag_by_tag_label_sql = "update \"tag\" set \"emoji\" = ?, \"updated_at\" = ? where \"label\" = ? and \"deleted_at\" is null returning \"label\", \"emoji\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
-
-const upsert_tag_by_tag_label_sql = "insert into \"tag\" (\"label\", \"emoji\", \"created_at\", \"updated_at\", \"deleted_at\")
-values (?, ?, ?, ?, null)
-on conflict(\"label\") do update set
-  \"emoji\" = excluded.\"emoji\",
-  \"updated_at\" = excluded.\"updated_at\",
-  \"deleted_at\" = null
-returning \"label\", \"emoji\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
-
-const update_importedtrack_by_id_sql = "update \"importedtrack\" set \"title\" = ?, \"artist\" = ?, \"file_path\" = ?, \"updated_at\" = ? where \"id\" = ? and \"deleted_at\" is null returning \"title\", \"artist\", \"file_path\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
-
-const update_importedtrack_by_file_path_sql = "update \"importedtrack\" set \"title\" = ?, \"artist\" = ?, \"updated_at\" = ? where \"file_path\" = ? and \"deleted_at\" is null returning \"title\", \"artist\", \"file_path\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
-
-const upsert_importedtrack_by_file_path_sql = "insert into \"importedtrack\" (\"title\", \"artist\", \"file_path\", \"created_at\", \"updated_at\", \"deleted_at\")
-values (?, ?, ?, ?, ?, null)
-on conflict(\"file_path\") do update set
-  \"title\" = excluded.\"title\",
-  \"artist\" = excluded.\"artist\",
-  \"updated_at\" = excluded.\"updated_at\",
-  \"deleted_at\" = null
-returning \"title\", \"artist\", \"file_path\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
-
-const update_importedtrack_by_title_and_artist_sql = "update \"importedtrack\" set \"file_path\" = ?, \"updated_at\" = ? where \"title\" = ? and \"artist\" = ? and \"deleted_at\" is null returning \"title\", \"artist\", \"file_path\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
-
-const upsert_importedtrack_by_title_and_artist_sql = "insert into \"importedtrack\" (\"title\", \"artist\", \"file_path\", \"created_at\", \"updated_at\", \"deleted_at\")
-values (?, ?, ?, ?, ?, null)
-on conflict(\"title\", \"artist\") do update set
-  \"file_path\" = excluded.\"file_path\",
-  \"updated_at\" = excluded.\"updated_at\",
-  \"deleted_at\" = null
-returning \"title\", \"artist\", \"file_path\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
 
 /// Update a tab by row id (all scalar columns, including natural-key fields).
 pub fn update_tab_by_id(
@@ -77,24 +18,30 @@ pub fn update_tab_by_id(
     library_manager_schema.ViewConfigScalar,
   ),
 ) -> Result(#(library_manager_schema.Tab, dsl.MagicFields), sqlight.Error) {
-  let now = api_help.unix_seconds_now()
-  let db_label = api_help.opt_text_for_db(label)
-  let db_order = api_help.opt_float_for_db(order)
-  use rows <- result.try(sqlight.query(
-    update_tab_by_id_sql,
-    on: conn,
-    with: [
-      sqlight.text(db_label),
-      sqlight.float(db_order),
-      sqlight.text(row.view_config_scalar_to_db_string(view_config)),
-      sqlight.int(now),
-      sqlight.int(id),
-    ],
-    expecting: row.tab_with_magic_row_decoder(),
-  ))
-  case rows {
-    [r, ..] -> Ok(r)
-    [] -> Error(not_found_tab_id_error("update_tab_by_id"))
+  use existing <- result.try(get.get_tab_by_id(conn, id))
+  case existing {
+    option.None -> Error(not_found_tab_id_error("update_tab_by_id"))
+    option.Some(_) -> {
+      case
+        cmd.execute_tab_cmds(conn, [
+          cmd.UpdateTabById(
+            id: id,
+            label: label,
+            order: order,
+            view_config: view_config,
+          ),
+        ])
+      {
+        Error(#(_, e)) -> Error(e)
+        Ok(Nil) -> {
+          use row_opt <- result.try(get.get_tab_by_id(conn, id))
+          case row_opt {
+            option.Some(r) -> Ok(r)
+            option.None -> Error(not_found_tab_id_error("update_tab_by_id"))
+          }
+        }
+      }
+    }
   }
 }
 
@@ -144,22 +91,31 @@ pub fn update_tab_by_tab_label(
     library_manager_schema.ViewConfigScalar,
   ),
 ) -> Result(#(library_manager_schema.Tab, dsl.MagicFields), sqlight.Error) {
-  let now = api_help.unix_seconds_now()
-  let db_order = api_help.opt_float_for_db(order)
-  use rows <- result.try(sqlight.query(
-    update_tab_by_tab_label_sql,
-    on: conn,
-    with: [
-      sqlight.float(db_order),
-      sqlight.text(row.view_config_scalar_to_db_string(view_config)),
-      sqlight.int(now),
-      sqlight.text(label),
-    ],
-    expecting: row.tab_with_magic_row_decoder(),
-  ))
-  case rows {
-    [r, ..] -> Ok(r)
-    [] -> Error(not_found_tab_tab_label_error("update_tab_by_tab_label"))
+  use existing <- result.try(get.get_tab_by_tab_label(conn, label: label))
+  case existing {
+    option.None ->
+      Error(not_found_tab_tab_label_error("update_tab_by_tab_label"))
+    option.Some(_) -> {
+      case
+        cmd.execute_tab_cmds(conn, [
+          cmd.UpdateTabByTabLabel(
+            label: label,
+            order: order,
+            view_config: view_config,
+          ),
+        ])
+      {
+        Error(#(_, e)) -> Error(e)
+        Ok(Nil) -> {
+          use row_opt <- result.try(get.get_tab_by_tab_label(conn, label: label))
+          case row_opt {
+            option.Some(r) -> Ok(r)
+            option.None ->
+              Error(not_found_tab_tab_label_error("update_tab_by_tab_label"))
+          }
+        }
+      }
+    }
   }
 }
 
@@ -172,28 +128,28 @@ pub fn upsert_tab_by_tab_label(
     library_manager_schema.ViewConfigScalar,
   ),
 ) -> Result(#(library_manager_schema.Tab, dsl.MagicFields), sqlight.Error) {
-  let now = api_help.unix_seconds_now()
-  let db_order = api_help.opt_float_for_db(order)
-  use rows <- result.try(sqlight.query(
-    upsert_tab_by_tab_label_sql,
-    on: conn,
-    with: [
-      sqlight.text(label),
-      sqlight.float(db_order),
-      sqlight.text(row.view_config_scalar_to_db_string(view_config)),
-      sqlight.int(now),
-      sqlight.int(now),
-    ],
-    expecting: row.tab_with_magic_row_decoder(),
-  ))
-  case rows {
-    [r, ..] -> Ok(r)
-    [] ->
-      Error(sqlight.SqlightError(
-        sqlight.GenericError,
-        "upsert returned no row",
-        -1,
-      ))
+  case
+    cmd.execute_tab_cmds(conn, [
+      cmd.UpsertTabByTabLabel(
+        label: label,
+        order: order,
+        view_config: view_config,
+      ),
+    ])
+  {
+    Error(#(_, e)) -> Error(e)
+    Ok(Nil) -> {
+      use row_opt <- result.try(get.get_tab_by_tab_label(conn, label: label))
+      case row_opt {
+        option.Some(r) -> Ok(r)
+        option.None ->
+          Error(sqlight.SqlightError(
+            sqlight.GenericError,
+            "upsert returned no row",
+            -1,
+          ))
+      }
+    }
   }
 }
 
@@ -211,23 +167,27 @@ pub fn update_trackbucket_by_id(
   #(library_manager_schema.TrackBucket, dsl.MagicFields),
   sqlight.Error,
 ) {
-  let now = api_help.unix_seconds_now()
-  let db_title = api_help.opt_text_for_db(title)
-  let db_artist = api_help.opt_text_for_db(artist)
-  use rows <- result.try(sqlight.query(
-    update_trackbucket_by_id_sql,
-    on: conn,
-    with: [
-      sqlight.text(db_title),
-      sqlight.text(db_artist),
-      sqlight.int(now),
-      sqlight.int(id),
-    ],
-    expecting: row.trackbucket_with_magic_row_decoder(),
-  ))
-  case rows {
-    [r, ..] -> Ok(r)
-    [] -> Error(not_found_trackbucket_id_error("update_trackbucket_by_id"))
+  use existing <- result.try(get.get_trackbucket_by_id(conn, id))
+  case existing {
+    option.None ->
+      Error(not_found_trackbucket_id_error("update_trackbucket_by_id"))
+    option.Some(_) -> {
+      case
+        cmd.execute_trackbucket_cmds(conn, [
+          cmd.UpdateTrackBucketById(id: id, title: title, artist: artist),
+        ])
+      {
+        Error(#(_, e)) -> Error(e)
+        Ok(Nil) -> {
+          use row_opt <- result.try(get.get_trackbucket_by_id(conn, id))
+          case row_opt {
+            option.Some(r) -> Ok(r)
+            option.None ->
+              Error(not_found_trackbucket_id_error("update_trackbucket_by_id"))
+          }
+        }
+      }
+    }
   }
 }
 
@@ -281,23 +241,44 @@ pub fn update_trackbucket_by_bucket_title_and_artist(
   #(library_manager_schema.TrackBucket, dsl.MagicFields),
   sqlight.Error,
 ) {
-  let now = api_help.unix_seconds_now()
-  use rows <- result.try(sqlight.query(
-    update_trackbucket_by_bucket_title_and_artist_sql,
-    on: conn,
-    with: [
-      sqlight.int(now),
-      sqlight.text(title),
-      sqlight.text(artist),
-    ],
-    expecting: row.trackbucket_with_magic_row_decoder(),
+  use existing <- result.try(get.get_trackbucket_by_bucket_title_and_artist(
+    conn,
+    title: title,
+    artist: artist,
   ))
-  case rows {
-    [r, ..] -> Ok(r)
-    [] ->
+  case existing {
+    option.None ->
       Error(not_found_trackbucket_bucket_title_and_artist_error(
         "update_trackbucket_by_bucket_title_and_artist",
       ))
+    option.Some(_) -> {
+      case
+        cmd.execute_trackbucket_cmds(conn, [
+          cmd.UpdateTrackBucketByBucketTitleAndArtist(
+            title: title,
+            artist: artist,
+          ),
+        ])
+      {
+        Error(#(_, e)) -> Error(e)
+        Ok(Nil) -> {
+          use row_opt <- result.try(
+            get.get_trackbucket_by_bucket_title_and_artist(
+              conn,
+              title: title,
+              artist: artist,
+            ),
+          )
+          case row_opt {
+            option.Some(r) -> Ok(r)
+            option.None ->
+              Error(not_found_trackbucket_bucket_title_and_artist_error(
+                "update_trackbucket_by_bucket_title_and_artist",
+              ))
+          }
+        }
+      }
+    }
   }
 }
 
@@ -310,26 +291,28 @@ pub fn upsert_trackbucket_by_bucket_title_and_artist(
   #(library_manager_schema.TrackBucket, dsl.MagicFields),
   sqlight.Error,
 ) {
-  let now = api_help.unix_seconds_now()
-  use rows <- result.try(sqlight.query(
-    upsert_trackbucket_by_bucket_title_and_artist_sql,
-    on: conn,
-    with: [
-      sqlight.text(title),
-      sqlight.text(artist),
-      sqlight.int(now),
-      sqlight.int(now),
-    ],
-    expecting: row.trackbucket_with_magic_row_decoder(),
-  ))
-  case rows {
-    [r, ..] -> Ok(r)
-    [] ->
-      Error(sqlight.SqlightError(
-        sqlight.GenericError,
-        "upsert returned no row",
-        -1,
+  case
+    cmd.execute_trackbucket_cmds(conn, [
+      cmd.UpsertTrackBucketByBucketTitleAndArtist(title: title, artist: artist),
+    ])
+  {
+    Error(#(_, e)) -> Error(e)
+    Ok(Nil) -> {
+      use row_opt <- result.try(get.get_trackbucket_by_bucket_title_and_artist(
+        conn,
+        title: title,
+        artist: artist,
       ))
+      case row_opt {
+        option.Some(r) -> Ok(r)
+        option.None ->
+          Error(sqlight.SqlightError(
+            sqlight.GenericError,
+            "upsert returned no row",
+            -1,
+          ))
+      }
+    }
   }
 }
 
@@ -350,23 +333,25 @@ pub fn update_tag_by_id(
   label label: option.Option(String),
   emoji emoji: option.Option(String),
 ) -> Result(#(library_manager_schema.Tag, dsl.MagicFields), sqlight.Error) {
-  let now = api_help.unix_seconds_now()
-  let db_label = api_help.opt_text_for_db(label)
-  let db_emoji = api_help.opt_text_for_db(emoji)
-  use rows <- result.try(sqlight.query(
-    update_tag_by_id_sql,
-    on: conn,
-    with: [
-      sqlight.text(db_label),
-      sqlight.text(db_emoji),
-      sqlight.int(now),
-      sqlight.int(id),
-    ],
-    expecting: row.tag_with_magic_row_decoder(),
-  ))
-  case rows {
-    [r, ..] -> Ok(r)
-    [] -> Error(not_found_tag_id_error("update_tag_by_id"))
+  use existing <- result.try(get.get_tag_by_id(conn, id))
+  case existing {
+    option.None -> Error(not_found_tag_id_error("update_tag_by_id"))
+    option.Some(_) -> {
+      case
+        cmd.execute_tag_cmds(conn, [
+          cmd.UpdateTagById(id: id, label: label, emoji: emoji),
+        ])
+      {
+        Error(#(_, e)) -> Error(e)
+        Ok(Nil) -> {
+          use row_opt <- result.try(get.get_tag_by_id(conn, id))
+          case row_opt {
+            option.Some(r) -> Ok(r)
+            option.None -> Error(not_found_tag_id_error("update_tag_by_id"))
+          }
+        }
+      }
+    }
   }
 }
 
@@ -400,21 +385,27 @@ pub fn update_tag_by_tag_label(
   label label: String,
   emoji emoji: option.Option(String),
 ) -> Result(#(library_manager_schema.Tag, dsl.MagicFields), sqlight.Error) {
-  let now = api_help.unix_seconds_now()
-  let db_emoji = api_help.opt_text_for_db(emoji)
-  use rows <- result.try(sqlight.query(
-    update_tag_by_tag_label_sql,
-    on: conn,
-    with: [
-      sqlight.text(db_emoji),
-      sqlight.int(now),
-      sqlight.text(label),
-    ],
-    expecting: row.tag_with_magic_row_decoder(),
-  ))
-  case rows {
-    [r, ..] -> Ok(r)
-    [] -> Error(not_found_tag_tag_label_error("update_tag_by_tag_label"))
+  use existing <- result.try(get.get_tag_by_tag_label(conn, label: label))
+  case existing {
+    option.None ->
+      Error(not_found_tag_tag_label_error("update_tag_by_tag_label"))
+    option.Some(_) -> {
+      case
+        cmd.execute_tag_cmds(conn, [
+          cmd.UpdateTagByTagLabel(label: label, emoji: emoji),
+        ])
+      {
+        Error(#(_, e)) -> Error(e)
+        Ok(Nil) -> {
+          use row_opt <- result.try(get.get_tag_by_tag_label(conn, label: label))
+          case row_opt {
+            option.Some(r) -> Ok(r)
+            option.None ->
+              Error(not_found_tag_tag_label_error("update_tag_by_tag_label"))
+          }
+        }
+      }
+    }
   }
 }
 
@@ -424,27 +415,24 @@ pub fn upsert_tag_by_tag_label(
   label label: String,
   emoji emoji: option.Option(String),
 ) -> Result(#(library_manager_schema.Tag, dsl.MagicFields), sqlight.Error) {
-  let now = api_help.unix_seconds_now()
-  let db_emoji = api_help.opt_text_for_db(emoji)
-  use rows <- result.try(sqlight.query(
-    upsert_tag_by_tag_label_sql,
-    on: conn,
-    with: [
-      sqlight.text(label),
-      sqlight.text(db_emoji),
-      sqlight.int(now),
-      sqlight.int(now),
-    ],
-    expecting: row.tag_with_magic_row_decoder(),
-  ))
-  case rows {
-    [r, ..] -> Ok(r)
-    [] ->
-      Error(sqlight.SqlightError(
-        sqlight.GenericError,
-        "upsert returned no row",
-        -1,
-      ))
+  case
+    cmd.execute_tag_cmds(conn, [
+      cmd.UpsertTagByTagLabel(label: label, emoji: emoji),
+    ])
+  {
+    Error(#(_, e)) -> Error(e)
+    Ok(Nil) -> {
+      use row_opt <- result.try(get.get_tag_by_tag_label(conn, label: label))
+      case row_opt {
+        option.Some(r) -> Ok(r)
+        option.None ->
+          Error(sqlight.SqlightError(
+            sqlight.GenericError,
+            "upsert returned no row",
+            -1,
+          ))
+      }
+    }
   }
 }
 
@@ -463,25 +451,34 @@ pub fn update_importedtrack_by_id(
   #(library_manager_schema.ImportedTrack, dsl.MagicFields),
   sqlight.Error,
 ) {
-  let now = api_help.unix_seconds_now()
-  let db_title = api_help.opt_text_for_db(title)
-  let db_artist = api_help.opt_text_for_db(artist)
-  let db_file_path = api_help.opt_text_for_db(file_path)
-  use rows <- result.try(sqlight.query(
-    update_importedtrack_by_id_sql,
-    on: conn,
-    with: [
-      sqlight.text(db_title),
-      sqlight.text(db_artist),
-      sqlight.text(db_file_path),
-      sqlight.int(now),
-      sqlight.int(id),
-    ],
-    expecting: row.importedtrack_with_magic_row_decoder(),
-  ))
-  case rows {
-    [r, ..] -> Ok(r)
-    [] -> Error(not_found_importedtrack_id_error("update_importedtrack_by_id"))
+  use existing <- result.try(get.get_importedtrack_by_id(conn, id))
+  case existing {
+    option.None ->
+      Error(not_found_importedtrack_id_error("update_importedtrack_by_id"))
+    option.Some(_) -> {
+      case
+        cmd.execute_importedtrack_cmds(conn, [
+          cmd.UpdateImportedTrackById(
+            id: id,
+            title: title,
+            artist: artist,
+            file_path: file_path,
+          ),
+        ])
+      {
+        Error(#(_, e)) -> Error(e)
+        Ok(Nil) -> {
+          use row_opt <- result.try(get.get_importedtrack_by_id(conn, id))
+          case row_opt {
+            option.Some(r) -> Ok(r)
+            option.None ->
+              Error(not_found_importedtrack_id_error(
+                "update_importedtrack_by_id",
+              ))
+          }
+        }
+      }
+    }
   }
 }
 
@@ -541,26 +538,41 @@ pub fn update_importedtrack_by_file_path(
   #(library_manager_schema.ImportedTrack, dsl.MagicFields),
   sqlight.Error,
 ) {
-  let now = api_help.unix_seconds_now()
-  let db_title = api_help.opt_text_for_db(title)
-  let db_artist = api_help.opt_text_for_db(artist)
-  use rows <- result.try(sqlight.query(
-    update_importedtrack_by_file_path_sql,
-    on: conn,
-    with: [
-      sqlight.text(db_title),
-      sqlight.text(db_artist),
-      sqlight.int(now),
-      sqlight.text(file_path),
-    ],
-    expecting: row.importedtrack_with_magic_row_decoder(),
+  use existing <- result.try(get.get_importedtrack_by_file_path(
+    conn,
+    file_path: file_path,
   ))
-  case rows {
-    [r, ..] -> Ok(r)
-    [] ->
+  case existing {
+    option.None ->
       Error(not_found_importedtrack_file_path_error(
         "update_importedtrack_by_file_path",
       ))
+    option.Some(_) -> {
+      case
+        cmd.execute_importedtrack_cmds(conn, [
+          cmd.UpdateImportedTrackByFilePath(
+            file_path: file_path,
+            title: title,
+            artist: artist,
+          ),
+        ])
+      {
+        Error(#(_, e)) -> Error(e)
+        Ok(Nil) -> {
+          use row_opt <- result.try(get.get_importedtrack_by_file_path(
+            conn,
+            file_path: file_path,
+          ))
+          case row_opt {
+            option.Some(r) -> Ok(r)
+            option.None ->
+              Error(not_found_importedtrack_file_path_error(
+                "update_importedtrack_by_file_path",
+              ))
+          }
+        }
+      }
+    }
   }
 }
 
@@ -574,29 +586,31 @@ pub fn upsert_importedtrack_by_file_path(
   #(library_manager_schema.ImportedTrack, dsl.MagicFields),
   sqlight.Error,
 ) {
-  let now = api_help.unix_seconds_now()
-  let db_title = api_help.opt_text_for_db(title)
-  let db_artist = api_help.opt_text_for_db(artist)
-  use rows <- result.try(sqlight.query(
-    upsert_importedtrack_by_file_path_sql,
-    on: conn,
-    with: [
-      sqlight.text(db_title),
-      sqlight.text(db_artist),
-      sqlight.text(file_path),
-      sqlight.int(now),
-      sqlight.int(now),
-    ],
-    expecting: row.importedtrack_with_magic_row_decoder(),
-  ))
-  case rows {
-    [r, ..] -> Ok(r)
-    [] ->
-      Error(sqlight.SqlightError(
-        sqlight.GenericError,
-        "upsert returned no row",
-        -1,
+  case
+    cmd.execute_importedtrack_cmds(conn, [
+      cmd.UpsertImportedTrackByFilePath(
+        file_path: file_path,
+        title: title,
+        artist: artist,
+      ),
+    ])
+  {
+    Error(#(_, e)) -> Error(e)
+    Ok(Nil) -> {
+      use row_opt <- result.try(get.get_importedtrack_by_file_path(
+        conn,
+        file_path: file_path,
       ))
+      case row_opt {
+        option.Some(r) -> Ok(r)
+        option.None ->
+          Error(sqlight.SqlightError(
+            sqlight.GenericError,
+            "upsert returned no row",
+            -1,
+          ))
+      }
+    }
   }
 }
 
@@ -656,25 +670,43 @@ pub fn update_importedtrack_by_title_and_artist(
   #(library_manager_schema.ImportedTrack, dsl.MagicFields),
   sqlight.Error,
 ) {
-  let now = api_help.unix_seconds_now()
-  let db_file_path = api_help.opt_text_for_db(file_path)
-  use rows <- result.try(sqlight.query(
-    update_importedtrack_by_title_and_artist_sql,
-    on: conn,
-    with: [
-      sqlight.text(db_file_path),
-      sqlight.int(now),
-      sqlight.text(title),
-      sqlight.text(artist),
-    ],
-    expecting: row.importedtrack_with_magic_row_decoder(),
+  use existing <- result.try(get.get_importedtrack_by_title_and_artist(
+    conn,
+    title: title,
+    artist: artist,
   ))
-  case rows {
-    [r, ..] -> Ok(r)
-    [] ->
+  case existing {
+    option.None ->
       Error(not_found_importedtrack_title_and_artist_error(
         "update_importedtrack_by_title_and_artist",
       ))
+    option.Some(_) -> {
+      case
+        cmd.execute_importedtrack_cmds(conn, [
+          cmd.UpdateImportedTrackByTitleAndArtist(
+            title: title,
+            artist: artist,
+            file_path: file_path,
+          ),
+        ])
+      {
+        Error(#(_, e)) -> Error(e)
+        Ok(Nil) -> {
+          use row_opt <- result.try(get.get_importedtrack_by_title_and_artist(
+            conn,
+            title: title,
+            artist: artist,
+          ))
+          case row_opt {
+            option.Some(r) -> Ok(r)
+            option.None ->
+              Error(not_found_importedtrack_title_and_artist_error(
+                "update_importedtrack_by_title_and_artist",
+              ))
+          }
+        }
+      }
+    }
   }
 }
 
@@ -688,28 +720,32 @@ pub fn upsert_importedtrack_by_title_and_artist(
   #(library_manager_schema.ImportedTrack, dsl.MagicFields),
   sqlight.Error,
 ) {
-  let now = api_help.unix_seconds_now()
-  let db_file_path = api_help.opt_text_for_db(file_path)
-  use rows <- result.try(sqlight.query(
-    upsert_importedtrack_by_title_and_artist_sql,
-    on: conn,
-    with: [
-      sqlight.text(title),
-      sqlight.text(artist),
-      sqlight.text(db_file_path),
-      sqlight.int(now),
-      sqlight.int(now),
-    ],
-    expecting: row.importedtrack_with_magic_row_decoder(),
-  ))
-  case rows {
-    [r, ..] -> Ok(r)
-    [] ->
-      Error(sqlight.SqlightError(
-        sqlight.GenericError,
-        "upsert returned no row",
-        -1,
+  case
+    cmd.execute_importedtrack_cmds(conn, [
+      cmd.UpsertImportedTrackByTitleAndArtist(
+        title: title,
+        artist: artist,
+        file_path: file_path,
+      ),
+    ])
+  {
+    Error(#(_, e)) -> Error(e)
+    Ok(Nil) -> {
+      use row_opt <- result.try(get.get_importedtrack_by_title_and_artist(
+        conn,
+        title: title,
+        artist: artist,
       ))
+      case row_opt {
+        option.Some(r) -> Ok(r)
+        option.None ->
+          Error(sqlight.SqlightError(
+            sqlight.GenericError,
+            "upsert returned no row",
+            -1,
+          ))
+      }
+    }
   }
 }
 

@@ -1,33 +1,26 @@
-import gleam/dynamic/decode
+import case_studies/hippo_db/cmd
+import case_studies/hippo_db/get
+import gleam/option
 import gleam/result
 import gleam/time/calendar
 import sqlight
-import swil/api_help
-
-const soft_delete_human_by_email_sql = "update \"human\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"email\" = ? and \"deleted_at\" is null returning \"email\";"
-
-const soft_delete_hippo_by_name_and_date_of_birth_sql = "update \"hippo\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"name\" = ? and \"date_of_birth\" = ? and \"deleted_at\" is null returning \"name\", \"date_of_birth\";"
 
 /// Delete a human by the `ByEmail` identity.
 pub fn delete_human_by_email(
   conn: sqlight.Connection,
   email email: String,
 ) -> Result(Nil, sqlight.Error) {
-  let now = api_help.unix_seconds_now()
-  use rows <- result.try(
-    sqlight.query(
-      soft_delete_human_by_email_sql,
-      on: conn,
-      with: [sqlight.int(now), sqlight.int(now), sqlight.text(email)],
-      expecting: {
-        use _n <- decode.field(0, decode.string)
-        decode.success(Nil)
-      },
-    ),
-  )
-  case rows {
-    [Nil, ..] -> Ok(Nil)
-    [] -> Error(not_found_human_email_error("delete_human_by_email"))
+  use existing <- result.try(get.get_human_by_email(conn, email: email))
+  case existing {
+    option.None -> Error(not_found_human_email_error("delete_human_by_email"))
+    option.Some(_) -> {
+      case
+        cmd.execute_human_cmds(conn, [cmd.DeleteHumanByEmail(email: email)])
+      {
+        Ok(Nil) -> Ok(Nil)
+        Error(#(_, e)) -> Error(e)
+      }
+    }
   }
 }
 
@@ -45,29 +38,29 @@ pub fn delete_hippo_by_name_and_date_of_birth(
   name name: String,
   date_of_birth date_of_birth: calendar.Date,
 ) -> Result(Nil, sqlight.Error) {
-  let now = api_help.unix_seconds_now()
-  use rows <- result.try(
-    sqlight.query(
-      soft_delete_hippo_by_name_and_date_of_birth_sql,
-      on: conn,
-      with: [
-        sqlight.int(now),
-        sqlight.int(now),
-        sqlight.text(name),
-        sqlight.text(api_help.date_to_db_string(date_of_birth)),
-      ],
-      expecting: {
-        use _n <- decode.field(0, decode.string)
-        decode.success(Nil)
-      },
-    ),
-  )
-  case rows {
-    [Nil, ..] -> Ok(Nil)
-    [] ->
+  use existing <- result.try(get.get_hippo_by_name_and_date_of_birth(
+    conn,
+    name: name,
+    date_of_birth: date_of_birth,
+  ))
+  case existing {
+    option.None ->
       Error(not_found_hippo_name_and_date_of_birth_error(
         "delete_hippo_by_name_and_date_of_birth",
       ))
+    option.Some(_) -> {
+      case
+        cmd.execute_hippo_cmds(conn, [
+          cmd.DeleteHippoByNameAndDateOfBirth(
+            name: name,
+            date_of_birth: date_of_birth,
+          ),
+        ])
+      {
+        Ok(Nil) -> Ok(Nil)
+        Error(#(_, e)) -> Error(e)
+      }
+    }
   }
 }
 

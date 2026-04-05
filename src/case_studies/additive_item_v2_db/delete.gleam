@@ -1,11 +1,8 @@
-import gleam/dynamic/decode
+import case_studies/additive_item_v2_db/cmd
+import case_studies/additive_item_v2_db/get
+import gleam/option
 import gleam/result
 import sqlight
-import swil/api_help
-
-const soft_delete_item_by_name_and_age_sql = "update \"item\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"name\" = ? and \"age\" = ? and \"deleted_at\" is null returning \"name\", \"age\";"
-
-const soft_delete_item_by_name_sql = "update \"item\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"name\" = ? and \"deleted_at\" is null returning \"name\";"
 
 /// Delete a item by the `ByNameAndAge` identity.
 pub fn delete_item_by_name_and_age(
@@ -13,27 +10,24 @@ pub fn delete_item_by_name_and_age(
   name name: String,
   age age: Int,
 ) -> Result(Nil, sqlight.Error) {
-  let now = api_help.unix_seconds_now()
-  use rows <- result.try(
-    sqlight.query(
-      soft_delete_item_by_name_and_age_sql,
-      on: conn,
-      with: [
-        sqlight.int(now),
-        sqlight.int(now),
-        sqlight.text(name),
-        sqlight.int(age),
-      ],
-      expecting: {
-        use _n <- decode.field(0, decode.string)
-        decode.success(Nil)
-      },
-    ),
-  )
-  case rows {
-    [Nil, ..] -> Ok(Nil)
-    [] ->
+  use existing <- result.try(get.get_item_by_name_and_age(
+    conn,
+    name: name,
+    age: age,
+  ))
+  case existing {
+    option.None ->
       Error(not_found_item_name_and_age_error("delete_item_by_name_and_age"))
+    option.Some(_) -> {
+      case
+        cmd.execute_item_cmds(conn, [
+          cmd.DeleteItemByNameAndAge(name: name, age: age),
+        ])
+      {
+        Ok(Nil) -> Ok(Nil)
+        Error(#(_, e)) -> Error(e)
+      }
+    }
   }
 }
 
@@ -46,21 +40,15 @@ pub fn delete_item_by_name(
   conn: sqlight.Connection,
   name name: String,
 ) -> Result(Nil, sqlight.Error) {
-  let now = api_help.unix_seconds_now()
-  use rows <- result.try(
-    sqlight.query(
-      soft_delete_item_by_name_sql,
-      on: conn,
-      with: [sqlight.int(now), sqlight.int(now), sqlight.text(name)],
-      expecting: {
-        use _n <- decode.field(0, decode.string)
-        decode.success(Nil)
-      },
-    ),
-  )
-  case rows {
-    [Nil, ..] -> Ok(Nil)
-    [] -> Error(not_found_item_name_error("delete_item_by_name"))
+  use existing <- result.try(get.get_item_by_name(conn, name: name))
+  case existing {
+    option.None -> Error(not_found_item_name_error("delete_item_by_name"))
+    option.Some(_) -> {
+      case cmd.execute_item_cmds(conn, [cmd.DeleteItemByName(name: name)]) {
+        Ok(Nil) -> Ok(Nil)
+        Error(#(_, e)) -> Error(e)
+      }
+    }
   }
 }
 

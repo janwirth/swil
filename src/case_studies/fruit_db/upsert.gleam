@@ -1,25 +1,11 @@
-import case_studies/fruit_db/row
+import case_studies/fruit_db/cmd
+import case_studies/fruit_db/get
 import case_studies/fruit_schema
 import gleam/list
 import gleam/option
 import gleam/result
 import sqlight
-import swil/api_help
 import swil/dsl/dsl
-
-const update_fruit_by_id_sql = "update \"fruit\" set \"name\" = ?, \"color\" = ?, \"price\" = ?, \"quantity\" = ?, \"updated_at\" = ? where \"id\" = ? and \"deleted_at\" is null returning \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
-
-const update_fruit_by_name_sql = "update \"fruit\" set \"color\" = ?, \"price\" = ?, \"quantity\" = ?, \"updated_at\" = ? where \"name\" = ? and \"deleted_at\" is null returning \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
-
-const upsert_fruit_by_name_sql = "insert into \"fruit\" (\"name\", \"color\", \"price\", \"quantity\", \"created_at\", \"updated_at\", \"deleted_at\")
-values (?, ?, ?, ?, ?, ?, null)
-on conflict(\"name\") do update set
-  \"color\" = excluded.\"color\",
-  \"price\" = excluded.\"price\",
-  \"quantity\" = excluded.\"quantity\",
-  \"updated_at\" = excluded.\"updated_at\",
-  \"deleted_at\" = null
-returning \"name\", \"color\", \"price\", \"quantity\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
 
 /// Update a fruit by row id (all scalar columns, including natural-key fields).
 pub fn update_fruit_by_id(
@@ -30,27 +16,31 @@ pub fn update_fruit_by_id(
   price price: option.Option(Float),
   quantity quantity: option.Option(Int),
 ) -> Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error) {
-  let now = api_help.unix_seconds_now()
-  let db_name = api_help.opt_text_for_db(name)
-  let db_color = api_help.opt_text_for_db(color)
-  let db_price = api_help.opt_float_for_db(price)
-  let db_quantity = api_help.opt_int_for_db(quantity)
-  use rows <- result.try(sqlight.query(
-    update_fruit_by_id_sql,
-    on: conn,
-    with: [
-      sqlight.text(db_name),
-      sqlight.text(db_color),
-      sqlight.float(db_price),
-      sqlight.int(db_quantity),
-      sqlight.int(now),
-      sqlight.int(id),
-    ],
-    expecting: row.fruit_with_magic_row_decoder(),
-  ))
-  case rows {
-    [r, ..] -> Ok(r)
-    [] -> Error(not_found_fruit_id_error("update_fruit_by_id"))
+  use existing <- result.try(get.get_fruit_by_id(conn, id))
+  case existing {
+    option.None -> Error(not_found_fruit_id_error("update_fruit_by_id"))
+    option.Some(_) -> {
+      case
+        cmd.execute_fruit_cmds(conn, [
+          cmd.UpdateFruitById(
+            id: id,
+            name: name,
+            color: color,
+            price: price,
+            quantity: quantity,
+          ),
+        ])
+      {
+        Error(#(_, e)) -> Error(e)
+        Ok(Nil) -> {
+          use row_opt <- result.try(get.get_fruit_by_id(conn, id))
+          case row_opt {
+            option.Some(r) -> Ok(r)
+            option.None -> Error(not_found_fruit_id_error("update_fruit_by_id"))
+          }
+        }
+      }
+    }
   }
 }
 
@@ -101,25 +91,31 @@ pub fn update_fruit_by_name(
   price price: option.Option(Float),
   quantity quantity: option.Option(Int),
 ) -> Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error) {
-  let now = api_help.unix_seconds_now()
-  let db_color = api_help.opt_text_for_db(color)
-  let db_price = api_help.opt_float_for_db(price)
-  let db_quantity = api_help.opt_int_for_db(quantity)
-  use rows <- result.try(sqlight.query(
-    update_fruit_by_name_sql,
-    on: conn,
-    with: [
-      sqlight.text(db_color),
-      sqlight.float(db_price),
-      sqlight.int(db_quantity),
-      sqlight.int(now),
-      sqlight.text(name),
-    ],
-    expecting: row.fruit_with_magic_row_decoder(),
-  ))
-  case rows {
-    [r, ..] -> Ok(r)
-    [] -> Error(not_found_fruit_name_error("update_fruit_by_name"))
+  use existing <- result.try(get.get_fruit_by_name(conn, name: name))
+  case existing {
+    option.None -> Error(not_found_fruit_name_error("update_fruit_by_name"))
+    option.Some(_) -> {
+      case
+        cmd.execute_fruit_cmds(conn, [
+          cmd.UpdateFruitByName(
+            name: name,
+            color: color,
+            price: price,
+            quantity: quantity,
+          ),
+        ])
+      {
+        Error(#(_, e)) -> Error(e)
+        Ok(Nil) -> {
+          use row_opt <- result.try(get.get_fruit_by_name(conn, name: name))
+          case row_opt {
+            option.Some(r) -> Ok(r)
+            option.None ->
+              Error(not_found_fruit_name_error("update_fruit_by_name"))
+          }
+        }
+      }
+    }
   }
 }
 
@@ -131,31 +127,29 @@ pub fn upsert_fruit_by_name(
   price price: option.Option(Float),
   quantity quantity: option.Option(Int),
 ) -> Result(#(fruit_schema.Fruit, dsl.MagicFields), sqlight.Error) {
-  let now = api_help.unix_seconds_now()
-  let db_color = api_help.opt_text_for_db(color)
-  let db_price = api_help.opt_float_for_db(price)
-  let db_quantity = api_help.opt_int_for_db(quantity)
-  use rows <- result.try(sqlight.query(
-    upsert_fruit_by_name_sql,
-    on: conn,
-    with: [
-      sqlight.text(name),
-      sqlight.text(db_color),
-      sqlight.float(db_price),
-      sqlight.int(db_quantity),
-      sqlight.int(now),
-      sqlight.int(now),
-    ],
-    expecting: row.fruit_with_magic_row_decoder(),
-  ))
-  case rows {
-    [r, ..] -> Ok(r)
-    [] ->
-      Error(sqlight.SqlightError(
-        sqlight.GenericError,
-        "upsert returned no row",
-        -1,
-      ))
+  case
+    cmd.execute_fruit_cmds(conn, [
+      cmd.UpsertFruitByName(
+        name: name,
+        color: color,
+        price: price,
+        quantity: quantity,
+      ),
+    ])
+  {
+    Error(#(_, e)) -> Error(e)
+    Ok(Nil) -> {
+      use row_opt <- result.try(get.get_fruit_by_name(conn, name: name))
+      case row_opt {
+        option.Some(r) -> Ok(r)
+        option.None ->
+          Error(sqlight.SqlightError(
+            sqlight.GenericError,
+            "upsert returned no row",
+            -1,
+          ))
+      }
+    }
   }
 }
 

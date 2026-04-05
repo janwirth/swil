@@ -1,3 +1,4 @@
+import generators/api/api_cmd
 import generators/api/api_chunks
 import generators/api/api_decoders as dec
 import generators/api/api_facade as facade
@@ -165,6 +166,7 @@ pub type ApiDbOutputs {
     delete: String,
     query: String,
     api: String,
+    cmd: String,
   )
 }
 
@@ -485,57 +487,9 @@ pub fn generate_api_db_outputs(
       fn() { fold_fn_chunks(row_chunks, gmod.eof()) },
     )
 
-  let upsert_const_entries =
-    list.flat_map(def.entities, fn(e) {
-      let id_e = schema_context.find_identity(def, e)
-      let table_e = string.lowercase(e.type_name)
-      let entity_snake_e = string.lowercase(e.type_name)
-      let data_cols_e =
-        api_sql.entity_data_fields(e)
-        |> list.map(fn(f) { f.label })
-      let returning_e = api_sql.full_row_columns(data_cols_e)
-      let variant_sql =
-        list.map(id_e.variants, fn(variant_e) {
-          let id_snake_e = case
-            string.starts_with(variant_e.variant_name, "By")
-          {
-            True ->
-              api_naming.pascal_to_snake(string.drop_start(
-                variant_e.variant_name,
-                2,
-              ))
-            False -> api_naming.pascal_to_snake(variant_e.variant_name)
-          }
-          let id_cols_e = list.map(variant_e.fields, fn(f) { f.label })
-          [
-            #(
-              "upsert_" <> entity_snake_e <> "_by_" <> id_snake_e <> "_sql",
-              Some(api_sql.upsert_sql(
-                table_e,
-                data_cols_e,
-                id_cols_e,
-                returning_e,
-              )),
-            ),
-            #(
-              "update_" <> entity_snake_e <> "_by_" <> id_snake_e <> "_sql",
-              Some(api_sql.update_by_identity_sql(
-                table_e,
-                data_cols_e,
-                id_cols_e,
-                returning_e,
-              )),
-            ),
-          ]
-        })
-        |> list.flatten
-      list.append(variant_sql, [
-        #(
-          "update_" <> entity_snake_e <> "_by_id_sql",
-          Some(api_sql.update_by_row_id_sql(table_e, data_cols_e, returning_e)),
-        ),
-      ])
-    })
+  // Entity upsert/update/delete SQL lives in `cmd.gleam` (exec-only); these
+  // APIs delegate to `execute_*_cmds` and reload rows via `get`.
+  let upsert_const_entries = []
   let upsert_fn_chunks =
     list.flat_map(def.entities, fn(e) {
       let id_e = schema_context.find_identity(def, e)
@@ -676,30 +630,7 @@ pub fn generate_api_db_outputs(
       },
     )
 
-  let delete_const_entries =
-    list.flat_map(def.entities, fn(e) {
-      let table_e = string.lowercase(e.type_name)
-      let id_e = schema_context.find_identity(def, e)
-      list.map(id_e.variants, fn(variant_e) {
-        let id_snake_e = case string.starts_with(variant_e.variant_name, "By") {
-          True ->
-            api_naming.pascal_to_snake(string.drop_start(
-              variant_e.variant_name,
-              2,
-            ))
-          False -> api_naming.pascal_to_snake(variant_e.variant_name)
-        }
-        let id_cols_e = list.map(variant_e.fields, fn(f) { f.label })
-        #(
-          "soft_delete_" <> table_e <> "_by_" <> id_snake_e <> "_sql",
-          Some(api_sql.soft_delete_by_identity_sql(
-            table_e,
-            id_cols_e,
-            api_sql.soft_delete_returning(id_cols_e),
-          )),
-        )
-      })
-    })
+  let delete_const_entries = []
   let delete_fn_chunks =
     list.flat_map(def.entities, fn(e) {
       let id_e = schema_context.find_identity(def, e)
@@ -723,12 +654,12 @@ pub fn generate_api_db_outputs(
         [
           api_chunks.not_found_private_chunk(entity_snake_e, not_found_fn_name),
           ud.delete_fn_chunk(
+            e,
             entity_snake_e,
             id_snake_e,
             variant_e,
             get_params_e,
             sql_err,
-            "soft_delete_" <> entity_snake_e <> "_by_" <> id_snake_e <> "_sql",
             not_found_fn_name,
           ),
         ]
@@ -991,6 +922,8 @@ pub fn generate_api_db_outputs(
     |> result.map(strip_option_import_if_unused),
   )
   use api_text <- result.try(gleam_fmt.format_generated_source(api_text))
+  let cmd_raw = api_cmd.generate_cmd_module(schema_path, def)
+  use cmd_text <- result.try(gleam_fmt.format_generated_source(cmd_raw))
   Ok(ApiDbOutputs(
     row: row_text,
     get: get_text,
@@ -998,6 +931,7 @@ pub fn generate_api_db_outputs(
     delete: delete_text,
     query: query_text,
     api: api_text,
+    cmd: cmd_text,
   ))
 }
 

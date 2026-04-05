@@ -1,25 +1,11 @@
-import case_studies/imported_track_evolution_v1_db/row
+import case_studies/imported_track_evolution_v1_db/cmd
+import case_studies/imported_track_evolution_v1_db/get
 import case_studies/imported_track_evolution_v1_schema
 import gleam/list
 import gleam/option
 import gleam/result
 import sqlight
-import swil/api_help
 import swil/dsl/dsl
-
-const update_importedtrack_by_id_sql = "update \"importedtrack\" set \"title\" = ?, \"artist\" = ?, \"service\" = ?, \"source_id\" = ?, \"external_source_url\" = ?, \"updated_at\" = ? where \"id\" = ? and \"deleted_at\" is null returning \"title\", \"artist\", \"service\", \"source_id\", \"external_source_url\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
-
-const update_importedtrack_by_service_and_source_id_sql = "update \"importedtrack\" set \"title\" = ?, \"artist\" = ?, \"external_source_url\" = ?, \"updated_at\" = ? where \"service\" = ? and \"source_id\" = ? and \"deleted_at\" is null returning \"title\", \"artist\", \"service\", \"source_id\", \"external_source_url\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
-
-const upsert_importedtrack_by_service_and_source_id_sql = "insert into \"importedtrack\" (\"title\", \"artist\", \"service\", \"source_id\", \"external_source_url\", \"created_at\", \"updated_at\", \"deleted_at\")
-values (?, ?, ?, ?, ?, ?, ?, null)
-on conflict(\"service\", \"source_id\") do update set
-  \"title\" = excluded.\"title\",
-  \"artist\" = excluded.\"artist\",
-  \"external_source_url\" = excluded.\"external_source_url\",
-  \"updated_at\" = excluded.\"updated_at\",
-  \"deleted_at\" = null
-returning \"title\", \"artist\", \"service\", \"source_id\", \"external_source_url\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
 
 /// Update a importedtrack by row id (all scalar columns, including natural-key fields).
 pub fn update_importedtrack_by_id(
@@ -34,29 +20,36 @@ pub fn update_importedtrack_by_id(
   #(imported_track_evolution_v1_schema.ImportedTrack, dsl.MagicFields),
   sqlight.Error,
 ) {
-  let now = api_help.unix_seconds_now()
-  let db_title = api_help.opt_text_for_db(title)
-  let db_artist = api_help.opt_text_for_db(artist)
-  let db_service = api_help.opt_text_for_db(service)
-  let db_source_id = api_help.opt_text_for_db(source_id)
-  let db_external_source_url = api_help.opt_text_for_db(external_source_url)
-  use rows <- result.try(sqlight.query(
-    update_importedtrack_by_id_sql,
-    on: conn,
-    with: [
-      sqlight.text(db_title),
-      sqlight.text(db_artist),
-      sqlight.text(db_service),
-      sqlight.text(db_source_id),
-      sqlight.text(db_external_source_url),
-      sqlight.int(now),
-      sqlight.int(id),
-    ],
-    expecting: row.importedtrack_with_magic_row_decoder(),
-  ))
-  case rows {
-    [r, ..] -> Ok(r)
-    [] -> Error(not_found_importedtrack_id_error("update_importedtrack_by_id"))
+  use existing <- result.try(get.get_importedtrack_by_id(conn, id))
+  case existing {
+    option.None ->
+      Error(not_found_importedtrack_id_error("update_importedtrack_by_id"))
+    option.Some(_) -> {
+      case
+        cmd.execute_importedtrack_cmds(conn, [
+          cmd.UpdateImportedTrackById(
+            id: id,
+            title: title,
+            artist: artist,
+            service: service,
+            source_id: source_id,
+            external_source_url: external_source_url,
+          ),
+        ])
+      {
+        Error(#(_, e)) -> Error(e)
+        Ok(Nil) -> {
+          use row_opt <- result.try(get.get_importedtrack_by_id(conn, id))
+          case row_opt {
+            option.Some(r) -> Ok(r)
+            option.None ->
+              Error(not_found_importedtrack_id_error(
+                "update_importedtrack_by_id",
+              ))
+          }
+        }
+      }
+    }
   }
 }
 
@@ -128,29 +121,47 @@ pub fn update_importedtrack_by_service_and_source_id(
   #(imported_track_evolution_v1_schema.ImportedTrack, dsl.MagicFields),
   sqlight.Error,
 ) {
-  let now = api_help.unix_seconds_now()
-  let db_title = api_help.opt_text_for_db(title)
-  let db_artist = api_help.opt_text_for_db(artist)
-  let db_external_source_url = api_help.opt_text_for_db(external_source_url)
-  use rows <- result.try(sqlight.query(
-    update_importedtrack_by_service_and_source_id_sql,
-    on: conn,
-    with: [
-      sqlight.text(db_title),
-      sqlight.text(db_artist),
-      sqlight.text(db_external_source_url),
-      sqlight.int(now),
-      sqlight.text(service),
-      sqlight.text(source_id),
-    ],
-    expecting: row.importedtrack_with_magic_row_decoder(),
+  use existing <- result.try(get.get_importedtrack_by_service_and_source_id(
+    conn,
+    service: service,
+    source_id: source_id,
   ))
-  case rows {
-    [r, ..] -> Ok(r)
-    [] ->
+  case existing {
+    option.None ->
       Error(not_found_importedtrack_service_and_source_id_error(
         "update_importedtrack_by_service_and_source_id",
       ))
+    option.Some(_) -> {
+      case
+        cmd.execute_importedtrack_cmds(conn, [
+          cmd.UpdateImportedTrackByServiceAndSourceId(
+            service: service,
+            source_id: source_id,
+            title: title,
+            artist: artist,
+            external_source_url: external_source_url,
+          ),
+        ])
+      {
+        Error(#(_, e)) -> Error(e)
+        Ok(Nil) -> {
+          use row_opt <- result.try(
+            get.get_importedtrack_by_service_and_source_id(
+              conn,
+              service: service,
+              source_id: source_id,
+            ),
+          )
+          case row_opt {
+            option.Some(r) -> Ok(r)
+            option.None ->
+              Error(not_found_importedtrack_service_and_source_id_error(
+                "update_importedtrack_by_service_and_source_id",
+              ))
+          }
+        }
+      }
+    }
   }
 }
 
@@ -166,32 +177,34 @@ pub fn upsert_importedtrack_by_service_and_source_id(
   #(imported_track_evolution_v1_schema.ImportedTrack, dsl.MagicFields),
   sqlight.Error,
 ) {
-  let now = api_help.unix_seconds_now()
-  let db_title = api_help.opt_text_for_db(title)
-  let db_artist = api_help.opt_text_for_db(artist)
-  let db_external_source_url = api_help.opt_text_for_db(external_source_url)
-  use rows <- result.try(sqlight.query(
-    upsert_importedtrack_by_service_and_source_id_sql,
-    on: conn,
-    with: [
-      sqlight.text(db_title),
-      sqlight.text(db_artist),
-      sqlight.text(service),
-      sqlight.text(source_id),
-      sqlight.text(db_external_source_url),
-      sqlight.int(now),
-      sqlight.int(now),
-    ],
-    expecting: row.importedtrack_with_magic_row_decoder(),
-  ))
-  case rows {
-    [r, ..] -> Ok(r)
-    [] ->
-      Error(sqlight.SqlightError(
-        sqlight.GenericError,
-        "upsert returned no row",
-        -1,
+  case
+    cmd.execute_importedtrack_cmds(conn, [
+      cmd.UpsertImportedTrackByServiceAndSourceId(
+        service: service,
+        source_id: source_id,
+        title: title,
+        artist: artist,
+        external_source_url: external_source_url,
+      ),
+    ])
+  {
+    Error(#(_, e)) -> Error(e)
+    Ok(Nil) -> {
+      use row_opt <- result.try(get.get_importedtrack_by_service_and_source_id(
+        conn,
+        service: service,
+        source_id: source_id,
       ))
+      case row_opt {
+        option.Some(r) -> Ok(r)
+        option.None ->
+          Error(sqlight.SqlightError(
+            sqlight.GenericError,
+            "upsert returned no row",
+            -1,
+          ))
+      }
+    }
   }
 }
 

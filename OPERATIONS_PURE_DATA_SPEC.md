@@ -153,8 +153,8 @@ Pilot the full vertical slice on the smallest case study. **Read `fruit_schema.g
 
 ### Step 4 — Generalize (after review)
 
-- [ ] Extend code generation so other case studies / entities get commands without hand-copying the fruit/hippo pilot.
-- [ ] Refactor existing `conn`-first APIs to build a command and delegate to `execute_*_cmds` where desired.
+- [x] Extend code generation so other case studies / entities get commands without hand-copying the fruit/hippo pilot. (`swil` now emits `cmd.gleam` next to other `*_db` modules; see `generators/api/api_cmd.gleam` and `api_sql` exec-only SQL helpers.)
+- [x] Refactor existing `conn`-first APIs to build a command and delegate to `execute_*_cmds` where desired. (Generated `upsert.gleam` / `delete.gleam`: mutations call `cmd.execute_<entity>_cmds([...])`, then `get.*` reloads rows and preserves not-found semantics; see `generators/api/api_update_delete.gleam`.)
 - [ ] Short developer note (README or guide): pass one command as `[cmd]` vs many; batching is automatic inside `execute_*_cmds`.
 - [ ] Track out-of-scope items (parameter-limit chunking, serialization) for a later spec if needed.
 

@@ -3,9 +3,7 @@ import generators/api/api_params as aparam
 import generators/api/api_sql
 import generators/gleamgen_emit
 import generators/sql_types
-import glance
 import gleam/list
-import gleam/option.{None}
 import gleam/string
 import gleamgen/expression as gexpr
 import gleamgen/function as gfun
@@ -32,211 +30,147 @@ pub fn sql_bind_expr(
   }
 }
 
-/// Bind a value already normalized for SQL (e.g. `db_label` strings from `let` lines).
-fn sql_bind_prepped_value(f: FieldDefinition, value: String) -> String {
-  case sql_types.sql_type(f.type_) {
-    "int" -> "sqlight.int(" <> value <> ")"
-    "real" -> "sqlight.float(" <> value <> ")"
-    _ -> "sqlight.text(" <> value <> ")"
-  }
+fn identity_get_call_args(variant: IdentityVariantDefinition) -> String {
+  list.map(variant.fields, fn(f) { f.label <> ": " <> f.label })
+  |> string.join(", ")
 }
 
-fn non_id_temp_var(f: FieldDefinition, _scalar_names: List(String)) -> String {
-  "db_" <> f.label
+fn upsert_cmd_field_args(
+  entity: EntityDefinition,
+  variant: IdentityVariantDefinition,
+) -> String {
+  list.map(aparam.upsert_ordered_data_fields(entity, variant), fn(f) {
+    f.label <> ": " <> f.label
+  })
+  |> string.join(", ")
 }
 
-fn render_type_plain(f: FieldDefinition, scalar_names: List(String)) -> String {
-  case f.type_ {
-    glance.NamedType(_, "Option", _, [inner]) ->
-      render_type_plain_field(inner, scalar_names)
-    _ -> render_type_plain_field(f.type_, scalar_names)
-  }
+fn update_by_id_cmd_args(entity: EntityDefinition) -> String {
+  let data = api_sql.entity_data_fields(entity)
+  let parts =
+    list.map(data, fn(f) { f.label <> ": " <> f.label })
+  "id: id, " <> string.join(parts, ", ")
 }
 
-fn render_type_plain_field(t: glance.Type, scalar_names: List(String)) -> String {
-  case t {
-    glance.NamedType(_, "Int", None, []) -> "Int"
-    glance.NamedType(_, "Float", None, []) -> "Float"
-    glance.NamedType(_, "String", None, []) -> "String"
-    glance.NamedType(_, "Timestamp", _, []) -> "Timestamp"
-    glance.NamedType(_, name, _, []) ->
-      case list.contains(scalar_names, name) {
-        True -> name
-        False -> "String"
-      }
-    _ -> "String"
-  }
-}
-
-fn is_option_scalar(f: FieldDefinition, scalar_names: List(String)) -> Bool {
-  case f.type_ {
-    glance.NamedType(_, "Option", _, [glance.NamedType(_, n, _, [])]) ->
-      list.contains(scalar_names, n)
-    _ -> False
-  }
-}
-
-fn scalar_name_from_option_field(f: FieldDefinition) -> String {
-  case f.type_ {
-    glance.NamedType(_, "Option", _, [glance.NamedType(_, n, _, [])]) -> n
-    _ -> panic as "api_update_delete: expected Option(scalar) field"
-  }
-}
-
-pub fn upsert_fn_body(
+/// Uses `cmd.execute_*_cmds` + `get.*` so mutations share the command planner.
+pub fn upsert_via_cmd_fn_body(
   entity: EntityDefinition,
   variant: IdentityVariantDefinition,
   entity_snake: String,
+  entity_type: String,
   id_snake: String,
-  op_prefix: String,
-  scalar_names: List(String),
-  row_qualifier: String,
-  sql_const_name: String,
+) -> String {
+  let upsert_cmd = "Upsert" <> entity_type <> variant.variant_name
+  let cmd_args = upsert_cmd_field_args(entity, variant)
+  let get_fn = "get.get_" <> entity_snake <> "_by_" <> id_snake
+  let get_args = identity_get_call_args(variant)
+  "case cmd.execute_"
+  <> entity_snake
+  <> "_cmds(conn, [cmd."
+  <> upsert_cmd
+  <> "("
+  <> cmd_args
+  <> ")]) {\n  Error(#(_, e)) -> Error(e)\n  Ok(Nil) -> {\n    use row_opt <- result.try("
+  <> get_fn
+  <> "(conn, "
+  <> get_args
+  <> "))\n    case row_opt {\n      option.Some(r) -> Ok(r)\n      option.None ->\n        Error(sqlight.SqlightError(\n          sqlight.GenericError,\n          \"upsert returned no row\",\n          -1,\n        ))\n    }\n  }\n}"
+}
+
+pub fn update_by_identity_via_cmd_fn_body(
+  entity: EntityDefinition,
+  variant: IdentityVariantDefinition,
+  entity_snake: String,
+  entity_type: String,
+  id_snake: String,
   not_found_fn_name: String,
 ) -> String {
-  let labels = dec.id_labels_list(variant)
-  let data_fields = api_sql.entity_data_fields(entity)
-  let non_id =
-    list.filter(data_fields, fn(f) { !list.contains(labels, f.label) })
-  let let_lines =
-    list.map(non_id, fn(f) {
-      case is_option_scalar(f, scalar_names) {
-        True -> ""
-        False -> {
-          let v = non_id_temp_var(f, scalar_names)
-          case dec.field_is_calendar_date(f) {
-            True ->
-              "  let "
-              <> v
-              <> " = case "
-              <> f.label
-              <> " { option.Some(d) -> api_help.date_to_db_string(d) option.None -> \"\" }\n"
-            False ->
-              case render_type_plain(f, scalar_names) {
-                "String" ->
-                  "  let "
-                  <> v
-                  <> " = api_help.opt_text_for_db("
-                  <> f.label
-                  <> ")\n"
-                "Float" ->
-                  "  let "
-                  <> v
-                  <> " = api_help.opt_float_for_db("
-                  <> f.label
-                  <> ")\n"
-                "Int" ->
-                  "  let "
-                  <> v
-                  <> " = api_help.opt_int_for_db("
-                  <> f.label
-                  <> ")\n"
-                "Timestamp" ->
-                  "  let "
-                  <> v
-                  <> " = api_help.opt_timestamp_for_db("
-                  <> f.label
-                  <> ")\n"
-                _ ->
-                  "  let "
-                  <> v
-                  <> " = api_help.opt_text_for_db("
-                  <> f.label
-                  <> ")\n"
-              }
-          }
-        }
-      }
-    })
-    |> string.concat
-  let with_list = case op_prefix {
-    "upsert" -> {
-      let row_bind = fn(col: String) -> String {
-        case list.find(variant.fields, fn(f) { f.label == col }) {
-          Ok(f) -> "      " <> sql_bind_expr(f, f.label, row_qualifier) <> ","
-          Error(_) -> {
-            let assert Ok(f) = list.find(non_id, fn(x) { x.label == col })
-            let value = case is_option_scalar(f, scalar_names) {
-              True ->
-                row_qualifier
-                <> "."
-                <> dec.scalar_to_db_fn_name(scalar_name_from_option_field(f))
-                <> "("
-                <> f.label
-                <> ")"
-              False -> non_id_temp_var(f, scalar_names)
-            }
-            let bind = case is_option_scalar(f, scalar_names) {
-              True -> sql_bind_expr(f, value, row_qualifier)
-              False -> sql_bind_prepped_value(f, value)
-            }
-            "      " <> bind <> ","
-          }
-        }
-      }
-      let id_part =
-        list.map(list.map(data_fields, fn(f) { f.label }), row_bind)
-        |> string.join("\n")
-      string.trim_end(
-        id_part <> "\n      sqlight.int(now),\n      sqlight.int(now),",
-      )
-    }
-    _ -> {
-      let extras =
-        list.map(non_id, fn(f) {
-          let value = case is_option_scalar(f, scalar_names) {
-            True ->
-              row_qualifier
-              <> "."
-              <> dec.scalar_to_db_fn_name(scalar_name_from_option_field(f))
-              <> "("
-              <> f.label
-              <> ")"
-            False -> non_id_temp_var(f, scalar_names)
-          }
-          let bind = case is_option_scalar(f, scalar_names) {
-            True -> sql_bind_expr(f, value, row_qualifier)
-            False -> sql_bind_prepped_value(f, value)
-          }
-          "      " <> bind <> ","
-        })
-        |> string.join("\n")
-      let id_tail =
-        list.map(variant.fields, fn(f) {
-          "      " <> sql_bind_expr(f, f.label, row_qualifier) <> ","
-        })
-        |> string.join("\n")
-      string.trim_end(extras <> "\n      sqlight.int(now),\n" <> id_tail)
-    }
-  }
-  let case_rows = case op_prefix {
-    "upsert" ->
-      "  case rows {\n    [r, ..] -> Ok(r)\n    [] ->\n      Error(sqlight.SqlightError(\n        sqlight.GenericError,\n        \"upsert returned no row\",\n        -1,\n      ))\n  }"
-    _ ->
-      "  case rows {\n    [r, ..] -> Ok(r)\n    [] -> Error("
-      <> not_found_fn_name
-      <> "(\"update_"
-      <> entity_snake
-      <> "_by_"
-      <> id_snake
-      <> "\"))\n  }"
-  }
-  let let_block = case let_lines {
-    "" -> ""
-    s -> s
-  }
-  "let now = api_help.unix_seconds_now()\n"
-  <> let_block
-  <> "  use rows <- result.try(sqlight.query(\n    "
-  <> sql_const_name
-  <> ",\n    on: conn,\n    with: [\n"
-  <> with_list
-  <> "\n    ],\n    expecting: "
-  <> row_qualifier
-  <> "."
+  let update_cmd = "Update" <> entity_type <> variant.variant_name
+  let cmd_args = upsert_cmd_field_args(entity, variant)
+  let get_fn = "get.get_" <> entity_snake <> "_by_" <> id_snake
+  let get_args = identity_get_call_args(variant)
+  let op = "\"update_" <> entity_snake <> "_by_" <> id_snake <> "\""
+  "use existing <- result.try("
+  <> get_fn
+  <> "(conn, "
+  <> get_args
+  <> "))\ncase existing {\n  option.None -> Error("
+  <> not_found_fn_name
+  <> "("
+  <> op
+  <> "))\n  option.Some(_) -> {\n    case cmd.execute_"
   <> entity_snake
-  <> "_with_magic_row_decoder(),\n  ))\n"
-  <> case_rows
+  <> "_cmds(conn, [cmd."
+  <> update_cmd
+  <> "("
+  <> cmd_args
+  <> ")]) {\n      Error(#(_, e)) -> Error(e)\n      Ok(Nil) -> {\n        use row_opt <- result.try("
+  <> get_fn
+  <> "(conn, "
+  <> get_args
+  <> "))\n        case row_opt {\n          option.Some(r) -> Ok(r)\n          option.None -> Error("
+  <> not_found_fn_name
+  <> "("
+  <> op
+  <> "))\n        }\n      }\n    }\n  }\n}"
+}
+
+pub fn update_by_id_via_cmd_fn_body(
+  entity: EntityDefinition,
+  entity_snake: String,
+  entity_type: String,
+  not_found_fn_name: String,
+) -> String {
+  let cmd_args = update_by_id_cmd_args(entity)
+  let update_cmd = "Update" <> entity_type <> "ById"
+  let op = "\"update_" <> entity_snake <> "_by_id\""
+  "use existing <- result.try(get.get_"
+  <> entity_snake
+  <> "_by_id(conn, id))\ncase existing {\n  option.None -> Error("
+  <> not_found_fn_name
+  <> "("
+  <> op
+  <> "))\n  option.Some(_) -> {\n    case cmd.execute_"
+  <> entity_snake
+  <> "_cmds(conn, [cmd."
+  <> update_cmd
+  <> "("
+  <> cmd_args
+  <> ")]) {\n      Error(#(_, e)) -> Error(e)\n      Ok(Nil) -> {\n        use row_opt <- result.try(get.get_"
+  <> entity_snake
+  <> "_by_id(conn, id))\n        case row_opt {\n          option.Some(r) -> Ok(r)\n          option.None -> Error("
+  <> not_found_fn_name
+  <> "("
+  <> op
+  <> "))\n        }\n      }\n    }\n  }\n}"
+}
+
+pub fn delete_via_cmd_fn_body(
+  variant: IdentityVariantDefinition,
+  entity_snake: String,
+  entity_type: String,
+  id_snake: String,
+  not_found_fn_name: String,
+) -> String {
+  let del_cmd = "Delete" <> entity_type <> variant.variant_name
+  let get_fn = "get.get_" <> entity_snake <> "_by_" <> id_snake
+  let get_args = identity_get_call_args(variant)
+  let op = "\"delete_" <> entity_snake <> "_by_" <> id_snake <> "\""
+  "use existing <- result.try("
+  <> get_fn
+  <> "(conn, "
+  <> get_args
+  <> "))\ncase existing {\n  option.None -> Error("
+  <> not_found_fn_name
+  <> "("
+  <> op
+  <> "))\n  option.Some(_) -> {\n    case cmd.execute_"
+  <> entity_snake
+  <> "_cmds(conn, [cmd."
+  <> del_cmd
+  <> "("
+  <> get_args
+  <> ")]) {\n      Ok(Nil) -> Ok(Nil)\n      Error(#(_, e)) -> Error(e)\n    }\n  }\n}"
 }
 
 pub fn upsert_many_fn_body(
@@ -265,47 +199,13 @@ pub fn upsert_many_fn_body(
   <> ") }\n    each(item, upsert_row)\n  })"
 }
 
-pub fn delete_fn_body(
-  variant: IdentityVariantDefinition,
-  entity_snake: String,
-  id_snake: String,
-  row_qualifier: String,
-  sql_const_name: String,
-  not_found_fn_name: String,
-) -> String {
-  let id_binds =
-    list.map(variant.fields, fn(f) { sql_bind_expr(f, f.label, row_qualifier) })
-  let with_elems =
-    list.flatten([["sqlight.int(now)", "sqlight.int(now)"], id_binds])
-  let with_part = case list.length(variant.fields) > 1 {
-    True -> {
-      let lines =
-        list.map(with_elems, fn(e) { "        " <> e <> "," })
-        |> string.join("\n")
-      "[\n" <> lines <> "\n      ]"
-    }
-    False -> "[" <> string.join(with_elems, ", ") <> "]"
-  }
-  "let now = api_help.unix_seconds_now()\n  use rows <- result.try(\n    sqlight.query(\n      "
-  <> sql_const_name
-  <> ",\n      on: conn,\n      with: "
-  <> with_part
-  <> ",\n      expecting: {\n        use _n <- decode.field(0, decode.string)\n        decode.success(Nil)\n      },\n    ),\n  )\n  case rows {\n    [Nil, ..] -> Ok(Nil)\n    [] -> Error("
-  <> not_found_fn_name
-  <> "(\"delete_"
-  <> entity_snake
-  <> "_by_"
-  <> id_snake
-  <> "\"))\n  }"
-}
-
 pub fn delete_fn_chunk(
+  entity: EntityDefinition,
   entity_snake: String,
   id_snake: String,
   variant: IdentityVariantDefinition,
   get_params: List(gparam.Parameter(gtypes.Dynamic)),
   sql_err: gtypes.GeneratedType(e),
-  sql_const_name: String,
   not_found_fn_name: String,
 ) -> #(gdef.Definition, gfun.Function(gtypes.Dynamic, gtypes.Dynamic)) {
   #(
@@ -318,12 +218,11 @@ pub fn delete_fn_chunk(
         <> "` identity.\n",
       ),
     gfun.new_raw(get_params, gtypes.result(gtypes.nil, sql_err), fn(_) {
-      gexpr.raw(delete_fn_body(
+      gexpr.raw(delete_via_cmd_fn_body(
         variant,
         entity_snake,
+        entity.type_name,
         id_snake,
-        "row",
-        sql_const_name,
         not_found_fn_name,
       ))
     })
@@ -339,7 +238,7 @@ pub fn update_fn_chunk(
   upsert_params: List(gparam.Parameter(gtypes.Dynamic)),
   row_t: gtypes.GeneratedType(r),
   sql_err: gtypes.GeneratedType(e),
-  scalar_names: List(String),
+  _scalar_names: List(String),
   not_found_fn_name: String,
 ) -> #(gdef.Definition, gfun.Function(gtypes.Dynamic, gtypes.Dynamic)) {
   #(
@@ -352,123 +251,17 @@ pub fn update_fn_chunk(
         <> "` identity.\n",
       ),
     gfun.new_raw(upsert_params, gtypes.result(row_t, sql_err), fn(_) {
-      gexpr.raw(upsert_fn_body(
+      gexpr.raw(update_by_identity_via_cmd_fn_body(
         entity,
         variant,
         entity_snake,
+        entity.type_name,
         id_snake,
-        "update",
-        scalar_names,
-        "row",
-        "update_" <> entity_snake <> "_by_" <> id_snake <> "_sql",
         not_found_fn_name,
       ))
     })
       |> gfun.to_dynamic,
   )
-}
-
-pub fn update_by_id_fn_body(
-  entity: EntityDefinition,
-  entity_snake: String,
-  scalar_names: List(String),
-  row_qualifier: String,
-  sql_const_name: String,
-  not_found_fn_name: String,
-) -> String {
-  let data_fields = api_sql.entity_data_fields(entity)
-  let let_lines =
-    list.map(data_fields, fn(f) {
-      case is_option_scalar(f, scalar_names) {
-        True -> ""
-        False -> {
-          let v = non_id_temp_var(f, scalar_names)
-          case dec.field_is_calendar_date(f) {
-            True ->
-              "  let "
-              <> v
-              <> " = case "
-              <> f.label
-              <> " { option.Some(d) -> api_help.date_to_db_string(d) option.None -> \"\" }\n"
-            False ->
-              case render_type_plain(f, scalar_names) {
-                "String" ->
-                  "  let "
-                  <> v
-                  <> " = api_help.opt_text_for_db("
-                  <> f.label
-                  <> ")\n"
-                "Float" ->
-                  "  let "
-                  <> v
-                  <> " = api_help.opt_float_for_db("
-                  <> f.label
-                  <> ")\n"
-                "Int" ->
-                  "  let "
-                  <> v
-                  <> " = api_help.opt_int_for_db("
-                  <> f.label
-                  <> ")\n"
-                "Timestamp" ->
-                  "  let "
-                  <> v
-                  <> " = api_help.opt_timestamp_for_db("
-                  <> f.label
-                  <> ")\n"
-                _ ->
-                  "  let "
-                  <> v
-                  <> " = api_help.opt_text_for_db("
-                  <> f.label
-                  <> ")\n"
-              }
-          }
-        }
-      }
-    })
-    |> string.concat
-  let with_list =
-    list.map(data_fields, fn(f) {
-      let value = case is_option_scalar(f, scalar_names) {
-        True ->
-          row_qualifier
-          <> "."
-          <> dec.scalar_to_db_fn_name(scalar_name_from_option_field(f))
-          <> "("
-          <> f.label
-          <> ")"
-        False -> non_id_temp_var(f, scalar_names)
-      }
-      let bind = case is_option_scalar(f, scalar_names) {
-        True -> sql_bind_expr(f, value, row_qualifier)
-        False -> sql_bind_prepped_value(f, value)
-      }
-      "      " <> bind <> ","
-    })
-    |> string.join("\n")
-    |> string.append("\n      sqlight.int(now),\n      sqlight.int(id),")
-    |> string.trim_end
-  let let_block = case let_lines {
-    "" -> ""
-    s -> s
-  }
-  "let now = api_help.unix_seconds_now()\n"
-  <> let_block
-  <> "  use rows <- result.try(sqlight.query(\n    "
-  <> sql_const_name
-  <> ",\n    on: conn,\n    with: [\n"
-  <> with_list
-  <> "\n    ],\n    expecting: "
-  <> row_qualifier
-  <> "."
-  <> entity_snake
-  <> "_with_magic_row_decoder(),\n  ))\n"
-  <> "  case rows {\n    [r, ..] -> Ok(r)\n    [] -> Error("
-  <> not_found_fn_name
-  <> "(\"update_"
-  <> entity_snake
-  <> "_by_id\"))\n  }"
 }
 
 pub fn update_by_id_fn_chunk(
@@ -477,7 +270,7 @@ pub fn update_by_id_fn_chunk(
   params: List(gparam.Parameter(gtypes.Dynamic)),
   row_t: gtypes.GeneratedType(r),
   sql_err: gtypes.GeneratedType(e),
-  scalar_names: List(String),
+  _scalar_names: List(String),
   not_found_fn_name: String,
 ) -> #(gdef.Definition, gfun.Function(gtypes.Dynamic, gtypes.Dynamic)) {
   #(
@@ -488,12 +281,10 @@ pub fn update_by_id_fn_chunk(
         <> " by row id (all scalar columns, including natural-key fields).\n",
       ),
     gfun.new_raw(params, gtypes.result(row_t, sql_err), fn(_) {
-      gexpr.raw(update_by_id_fn_body(
+      gexpr.raw(update_by_id_via_cmd_fn_body(
         entity,
         entity_snake,
-        scalar_names,
-        "row",
-        "update_" <> entity_snake <> "_by_id_sql",
+        entity.type_name,
         not_found_fn_name,
       ))
     })

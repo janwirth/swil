@@ -13,14 +13,15 @@ pub fn update_by_id_emitted_for_all_entities_test() {
       def,
     )
 
-  assert string.contains(out.upsert, "const update_tag_by_id_sql")
+  assert string.contains(out.cmd, "const tag_update_by_id_sql")
   assert string.contains(
-    out.upsert,
+    out.cmd,
     "set \\\"label\\\" = ?, \\\"emoji\\\" = ?, \\\"updated_at\\\" = ? where \\\"id\\\" = ?",
   )
+  assert string.contains(out.upsert, "cmd.execute_tag_cmds(conn, [")
   assert string.contains(
     out.upsert,
-    "let db_label = api_help.opt_text_for_db(label)",
+    "cmd.UpdateTagById(id: id, label: label, emoji: emoji)",
   )
   assert string.contains(out.upsert, "pub fn update_tag_by_id(")
   assert string.contains(
@@ -33,10 +34,10 @@ pub fn update_by_id_emitted_for_all_entities_test() {
     "upsert.update_tag_by_id(conn, id: id, label: label, emoji: emoji)",
   )
 
-  assert string.contains(out.upsert, "const update_tab_by_id_sql")
+  assert string.contains(out.cmd, "const tab_update_by_id_sql")
   assert string.contains(out.upsert, "pub fn update_tab_by_id(")
 
-  assert string.contains(out.upsert, "const update_importedtrack_by_id_sql")
+  assert string.contains(out.cmd, "const importedtrack_update_by_id_sql")
   assert string.contains(out.upsert, "pub fn update_importedtrack_by_id(")
 
   assert string.contains(out.api, "pub fn upsert_one_tag(")
@@ -57,4 +58,3 @@ pub fn update_by_id_emitted_for_all_entities_test() {
   assert !string.contains(out.api, "pub fn upsert_tag_by_tag_label(")
   assert !string.contains(out.api, "pub fn upsert_many_tag_by_tag_label(")
 }
-

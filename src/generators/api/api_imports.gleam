@@ -1,4 +1,5 @@
 import generators/api/schema_context
+import generators/migration/migration as pragma_migration
 import gleam/list
 import gleam/string
 import gleamgen/import_ as gimport
@@ -151,58 +152,105 @@ pub fn with_upsert_module_imports(
 ) -> gmod.Module {
   let sch_parts = string.split(schema_path, "/")
   let db_parts = string.split(db_module_path, "/")
-  let row_parts = list.append(db_parts, ["row"])
-  use _ <- gmod.with_import(import_pre(row_parts))
-  use _ <- gmod.with_import(import_pre(["swil", "api_help"]))
-  use _ <- gmod.with_import(import_pre(sch_parts))
-  use _ <- gmod.with_import(import_pre_alias(["swil", "dsl", "dsl"], "dsl"))
-  use _ <- gmod.with_import(import_pre(["gleam", "option"]))
-  use _ <- gmod.with_import(import_pre(["gleam", "result"]))
-  use _ <- gmod.with_import(import_pre(["sqlight"]))
-  case schema_context.schema_uses_calendar_date(def) {
-    False -> {
-      case schema_context.schema_uses_timestamp(def) {
-        True ->
-          gmod.with_import(
-            import_pre_exposing(
-              ["gleam", "time", "timestamp"],
-              "type Timestamp",
-            ),
-            fn(_) { inner() },
+  let cmd_parts = list.append(db_parts, ["cmd"])
+  let get_parts = list.append(db_parts, ["get"])
+  let need_junction_decode = pragma_migration.schema_has_junction_upserts(def)
+  use _ <- gmod.with_import(import_pre(cmd_parts))
+  use _ <- gmod.with_import(import_pre(get_parts))
+  case need_junction_decode {
+    True -> {
+      use _ <- gmod.with_import(import_pre(["gleam", "dynamic", "decode"]))
+      use _ <- gmod.with_import(import_pre(sch_parts))
+      use _ <- gmod.with_import(import_pre_alias(["swil", "dsl", "dsl"], "dsl"))
+      use _ <- gmod.with_import(import_pre(["gleam", "option"]))
+      use _ <- gmod.with_import(import_pre(["gleam", "result"]))
+      use _ <- gmod.with_import(import_pre(["sqlight"]))
+      case schema_context.schema_uses_calendar_date(def) {
+        False -> {
+          case schema_context.schema_uses_timestamp(def) {
+            True ->
+              gmod.with_import(
+                import_pre_exposing(
+                  ["gleam", "time", "timestamp"],
+                  "type Timestamp",
+                ),
+                fn(_) { inner() },
+              )
+            False -> inner()
+          }
+        }
+        True -> {
+          use _ <- gmod.with_import(
+            import_pre(["gleam", "time", "calendar"]),
           )
-        False -> inner()
+          case schema_context.schema_uses_timestamp(def) {
+            True ->
+              gmod.with_import(
+                import_pre_exposing(
+                  ["gleam", "time", "timestamp"],
+                  "type Timestamp",
+                ),
+                fn(_) { inner() },
+              )
+            False -> inner()
+          }
+        }
       }
     }
-    True -> {
-      use _ <- gmod.with_import(
-        import_pre(["gleam", "time", "calendar"]),
-      )
-      case schema_context.schema_uses_timestamp(def) {
-        True ->
-          gmod.with_import(
-            import_pre_exposing(
-              ["gleam", "time", "timestamp"],
-              "type Timestamp",
-            ),
-            fn(_) { inner() },
+    False -> {
+      use _ <- gmod.with_import(import_pre(sch_parts))
+      use _ <- gmod.with_import(import_pre_alias(["swil", "dsl", "dsl"], "dsl"))
+      use _ <- gmod.with_import(import_pre(["gleam", "option"]))
+      use _ <- gmod.with_import(import_pre(["gleam", "result"]))
+      use _ <- gmod.with_import(import_pre(["sqlight"]))
+      case schema_context.schema_uses_calendar_date(def) {
+        False -> {
+          case schema_context.schema_uses_timestamp(def) {
+            True ->
+              gmod.with_import(
+                import_pre_exposing(
+                  ["gleam", "time", "timestamp"],
+                  "type Timestamp",
+                ),
+                fn(_) { inner() },
+              )
+            False -> inner()
+          }
+        }
+        True -> {
+          use _ <- gmod.with_import(
+            import_pre(["gleam", "time", "calendar"]),
           )
-        False -> inner()
+          case schema_context.schema_uses_timestamp(def) {
+            True ->
+              gmod.with_import(
+                import_pre_exposing(
+                  ["gleam", "time", "timestamp"],
+                  "type Timestamp",
+                ),
+                fn(_) { inner() },
+              )
+            False -> inner()
+          }
+        }
       }
     }
   }
 }
 
 pub fn with_delete_module_imports(
-  _db_module_path: String,
+  db_module_path: String,
   _schema_path: String,
   def: SchemaDefinition,
   _exposing: String,
   inner: fn() -> gmod.Module,
 ) -> gmod.Module {
-  use _ <- gmod.with_import(import_pre(["swil", "api_help"]))
-  use _ <- gmod.with_import(
-    import_pre(["gleam", "dynamic", "decode"]),
-  )
+  let db_parts = string.split(db_module_path, "/")
+  let cmd_parts = list.append(db_parts, ["cmd"])
+  let get_parts = list.append(db_parts, ["get"])
+  use _ <- gmod.with_import(import_pre(cmd_parts))
+  use _ <- gmod.with_import(import_pre(get_parts))
+  use _ <- gmod.with_import(import_pre(["gleam", "option"]))
   use _ <- gmod.with_import(import_pre(["gleam", "result"]))
   use _ <- gmod.with_import(import_pre(["sqlight"]))
   case schema_context.schema_uses_calendar_date(def) {

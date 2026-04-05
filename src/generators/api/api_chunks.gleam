@@ -87,16 +87,12 @@ pub fn upsert_module_fn_chunks(
             <> "` identity.\n",
           ),
         gfun.new_raw(upsert_params, gtypes.result(row_t, sql_err), fn(_) {
-          gexpr.raw(ud.upsert_fn_body(
+          gexpr.raw(ud.upsert_via_cmd_fn_body(
             entity,
             variant,
             entity_snake,
+            entity.type_name,
             id_snake,
-            "upsert",
-            scalar_names,
-            "row",
-            "upsert_" <> entity_snake <> "_by_" <> id_snake <> "_sql",
-            not_found_fn,
           ))
         })
           |> gfun.to_dynamic,

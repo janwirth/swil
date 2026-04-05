@@ -339,6 +339,14 @@ fn find_junction_specs(schema: SchemaDefinition) -> List(JunctionSpec) {
   })
 }
 
+/// True when junction `upsert_*` helpers are appended to `*_db/upsert.gleam`.
+pub fn schema_has_junction_upserts(schema: SchemaDefinition) -> Bool {
+  case find_junction_specs(schema) {
+    [] -> False
+    [_, ..] -> True
+  }
+}
+
 fn junction_field_base_sql_type(t: glance.Type) -> String {
   case t {
     glance.NamedType(_, "Int", _, _) -> "integer"

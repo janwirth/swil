@@ -1,38 +1,24 @@
-import gleam/dynamic/decode
+import case_studies/library_manager_advanced_db/cmd
+import case_studies/library_manager_advanced_db/get
+import gleam/option
 import gleam/result
 import sqlight
-import swil/api_help
-
-const soft_delete_tab_by_tab_label_sql = "update \"tab\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"label\" = ? and \"deleted_at\" is null returning \"label\";"
-
-const soft_delete_trackbucket_by_bucket_title_and_artist_sql = "update \"trackbucket\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"title\" = ? and \"artist\" = ? and \"deleted_at\" is null returning \"title\", \"artist\";"
-
-const soft_delete_tag_by_tag_label_sql = "update \"tag\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"label\" = ? and \"deleted_at\" is null returning \"label\";"
-
-const soft_delete_importedtrack_by_file_path_sql = "update \"importedtrack\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"file_path\" = ? and \"deleted_at\" is null returning \"file_path\";"
-
-const soft_delete_importedtrack_by_title_and_artist_sql = "update \"importedtrack\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"title\" = ? and \"artist\" = ? and \"deleted_at\" is null returning \"title\", \"artist\";"
 
 /// Delete a tab by the `ByTabLabel` identity.
 pub fn delete_tab_by_tab_label(
   conn: sqlight.Connection,
   label label: String,
 ) -> Result(Nil, sqlight.Error) {
-  let now = api_help.unix_seconds_now()
-  use rows <- result.try(
-    sqlight.query(
-      soft_delete_tab_by_tab_label_sql,
-      on: conn,
-      with: [sqlight.int(now), sqlight.int(now), sqlight.text(label)],
-      expecting: {
-        use _n <- decode.field(0, decode.string)
-        decode.success(Nil)
-      },
-    ),
-  )
-  case rows {
-    [Nil, ..] -> Ok(Nil)
-    [] -> Error(not_found_tab_tab_label_error("delete_tab_by_tab_label"))
+  use existing <- result.try(get.get_tab_by_tab_label(conn, label: label))
+  case existing {
+    option.None ->
+      Error(not_found_tab_tab_label_error("delete_tab_by_tab_label"))
+    option.Some(_) -> {
+      case cmd.execute_tab_cmds(conn, [cmd.DeleteTabByTabLabel(label: label)]) {
+        Ok(Nil) -> Ok(Nil)
+        Error(#(_, e)) -> Error(e)
+      }
+    }
   }
 }
 
@@ -46,29 +32,29 @@ pub fn delete_trackbucket_by_bucket_title_and_artist(
   title title: String,
   artist artist: String,
 ) -> Result(Nil, sqlight.Error) {
-  let now = api_help.unix_seconds_now()
-  use rows <- result.try(
-    sqlight.query(
-      soft_delete_trackbucket_by_bucket_title_and_artist_sql,
-      on: conn,
-      with: [
-        sqlight.int(now),
-        sqlight.int(now),
-        sqlight.text(title),
-        sqlight.text(artist),
-      ],
-      expecting: {
-        use _n <- decode.field(0, decode.string)
-        decode.success(Nil)
-      },
-    ),
-  )
-  case rows {
-    [Nil, ..] -> Ok(Nil)
-    [] ->
+  use existing <- result.try(get.get_trackbucket_by_bucket_title_and_artist(
+    conn,
+    title: title,
+    artist: artist,
+  ))
+  case existing {
+    option.None ->
       Error(not_found_trackbucket_bucket_title_and_artist_error(
         "delete_trackbucket_by_bucket_title_and_artist",
       ))
+    option.Some(_) -> {
+      case
+        cmd.execute_trackbucket_cmds(conn, [
+          cmd.DeleteTrackBucketByBucketTitleAndArtist(
+            title: title,
+            artist: artist,
+          ),
+        ])
+      {
+        Ok(Nil) -> Ok(Nil)
+        Error(#(_, e)) -> Error(e)
+      }
+    }
   }
 }
 
@@ -87,21 +73,16 @@ pub fn delete_tag_by_tag_label(
   conn: sqlight.Connection,
   label label: String,
 ) -> Result(Nil, sqlight.Error) {
-  let now = api_help.unix_seconds_now()
-  use rows <- result.try(
-    sqlight.query(
-      soft_delete_tag_by_tag_label_sql,
-      on: conn,
-      with: [sqlight.int(now), sqlight.int(now), sqlight.text(label)],
-      expecting: {
-        use _n <- decode.field(0, decode.string)
-        decode.success(Nil)
-      },
-    ),
-  )
-  case rows {
-    [Nil, ..] -> Ok(Nil)
-    [] -> Error(not_found_tag_tag_label_error("delete_tag_by_tag_label"))
+  use existing <- result.try(get.get_tag_by_tag_label(conn, label: label))
+  case existing {
+    option.None ->
+      Error(not_found_tag_tag_label_error("delete_tag_by_tag_label"))
+    option.Some(_) -> {
+      case cmd.execute_tag_cmds(conn, [cmd.DeleteTagByTagLabel(label: label)]) {
+        Ok(Nil) -> Ok(Nil)
+        Error(#(_, e)) -> Error(e)
+      }
+    }
   }
 }
 
@@ -114,24 +95,25 @@ pub fn delete_importedtrack_by_file_path(
   conn: sqlight.Connection,
   file_path file_path: String,
 ) -> Result(Nil, sqlight.Error) {
-  let now = api_help.unix_seconds_now()
-  use rows <- result.try(
-    sqlight.query(
-      soft_delete_importedtrack_by_file_path_sql,
-      on: conn,
-      with: [sqlight.int(now), sqlight.int(now), sqlight.text(file_path)],
-      expecting: {
-        use _n <- decode.field(0, decode.string)
-        decode.success(Nil)
-      },
-    ),
-  )
-  case rows {
-    [Nil, ..] -> Ok(Nil)
-    [] ->
+  use existing <- result.try(get.get_importedtrack_by_file_path(
+    conn,
+    file_path: file_path,
+  ))
+  case existing {
+    option.None ->
       Error(not_found_importedtrack_file_path_error(
         "delete_importedtrack_by_file_path",
       ))
+    option.Some(_) -> {
+      case
+        cmd.execute_importedtrack_cmds(conn, [
+          cmd.DeleteImportedTrackByFilePath(file_path: file_path),
+        ])
+      {
+        Ok(Nil) -> Ok(Nil)
+        Error(#(_, e)) -> Error(e)
+      }
+    }
   }
 }
 
@@ -149,29 +131,26 @@ pub fn delete_importedtrack_by_title_and_artist(
   title title: String,
   artist artist: String,
 ) -> Result(Nil, sqlight.Error) {
-  let now = api_help.unix_seconds_now()
-  use rows <- result.try(
-    sqlight.query(
-      soft_delete_importedtrack_by_title_and_artist_sql,
-      on: conn,
-      with: [
-        sqlight.int(now),
-        sqlight.int(now),
-        sqlight.text(title),
-        sqlight.text(artist),
-      ],
-      expecting: {
-        use _n <- decode.field(0, decode.string)
-        decode.success(Nil)
-      },
-    ),
-  )
-  case rows {
-    [Nil, ..] -> Ok(Nil)
-    [] ->
+  use existing <- result.try(get.get_importedtrack_by_title_and_artist(
+    conn,
+    title: title,
+    artist: artist,
+  ))
+  case existing {
+    option.None ->
       Error(not_found_importedtrack_title_and_artist_error(
         "delete_importedtrack_by_title_and_artist",
       ))
+    option.Some(_) -> {
+      case
+        cmd.execute_importedtrack_cmds(conn, [
+          cmd.DeleteImportedTrackByTitleAndArtist(title: title, artist: artist),
+        ])
+      {
+        Ok(Nil) -> Ok(Nil)
+        Error(#(_, e)) -> Error(e)
+      }
+    }
   }
 }
 

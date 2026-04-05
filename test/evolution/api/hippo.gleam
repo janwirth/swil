@@ -32,4 +32,5 @@ pub fn hippo_api_generation_test() {
   assert_diff(read("src/case_studies/hippo_db/upsert.gleam"), norm(out.upsert))
   assert_diff(read("src/case_studies/hippo_db/delete.gleam"), norm(out.delete))
   assert_diff(read("src/case_studies/hippo_db/query.gleam"), norm(out.query))
+  assert_diff(read("src/case_studies/hippo_db/cmd.gleam"), norm(out.cmd))
 }

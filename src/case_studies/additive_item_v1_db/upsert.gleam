@@ -1,22 +1,11 @@
-import case_studies/additive_item_v1_db/row
+import case_studies/additive_item_v1_db/cmd
+import case_studies/additive_item_v1_db/get
 import case_studies/additive_item_v1_schema
 import gleam/list
 import gleam/option
 import gleam/result
 import sqlight
-import swil/api_help
 import swil/dsl/dsl
-
-const update_item_by_id_sql = "update \"item\" set \"name\" = ?, \"age\" = ?, \"updated_at\" = ? where \"id\" = ? and \"deleted_at\" is null returning \"name\", \"age\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
-
-const update_item_by_name_and_age_sql = "update \"item\" set \"updated_at\" = ? where \"name\" = ? and \"age\" = ? and \"deleted_at\" is null returning \"name\", \"age\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
-
-const upsert_item_by_name_and_age_sql = "insert into \"item\" (\"name\", \"age\", \"created_at\", \"updated_at\", \"deleted_at\")
-values (?, ?, ?, ?, null)
-on conflict(\"name\", \"age\") do update set
-  \"updated_at\" = excluded.\"updated_at\",
-  \"deleted_at\" = null
-returning \"name\", \"age\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\";"
 
 /// Update a item by row id (all scalar columns, including natural-key fields).
 pub fn update_item_by_id(
@@ -25,23 +14,25 @@ pub fn update_item_by_id(
   name name: option.Option(String),
   age age: option.Option(Int),
 ) -> Result(#(additive_item_v1_schema.Item, dsl.MagicFields), sqlight.Error) {
-  let now = api_help.unix_seconds_now()
-  let db_name = api_help.opt_text_for_db(name)
-  let db_age = api_help.opt_int_for_db(age)
-  use rows <- result.try(sqlight.query(
-    update_item_by_id_sql,
-    on: conn,
-    with: [
-      sqlight.text(db_name),
-      sqlight.int(db_age),
-      sqlight.int(now),
-      sqlight.int(id),
-    ],
-    expecting: row.item_with_magic_row_decoder(),
-  ))
-  case rows {
-    [r, ..] -> Ok(r)
-    [] -> Error(not_found_item_id_error("update_item_by_id"))
+  use existing <- result.try(get.get_item_by_id(conn, id))
+  case existing {
+    option.None -> Error(not_found_item_id_error("update_item_by_id"))
+    option.Some(_) -> {
+      case
+        cmd.execute_item_cmds(conn, [
+          cmd.UpdateItemById(id: id, name: name, age: age),
+        ])
+      {
+        Error(#(_, e)) -> Error(e)
+        Ok(Nil) -> {
+          use row_opt <- result.try(get.get_item_by_id(conn, id))
+          case row_opt {
+            option.Some(r) -> Ok(r)
+            option.None -> Error(not_found_item_id_error("update_item_by_id"))
+          }
+        }
+      }
+    }
   }
 }
 
@@ -78,21 +69,37 @@ pub fn update_item_by_name_and_age(
   name name: String,
   age age: Int,
 ) -> Result(#(additive_item_v1_schema.Item, dsl.MagicFields), sqlight.Error) {
-  let now = api_help.unix_seconds_now()
-  use rows <- result.try(sqlight.query(
-    update_item_by_name_and_age_sql,
-    on: conn,
-    with: [
-      sqlight.int(now),
-      sqlight.text(name),
-      sqlight.int(age),
-    ],
-    expecting: row.item_with_magic_row_decoder(),
+  use existing <- result.try(get.get_item_by_name_and_age(
+    conn,
+    name: name,
+    age: age,
   ))
-  case rows {
-    [r, ..] -> Ok(r)
-    [] ->
+  case existing {
+    option.None ->
       Error(not_found_item_name_and_age_error("update_item_by_name_and_age"))
+    option.Some(_) -> {
+      case
+        cmd.execute_item_cmds(conn, [
+          cmd.UpdateItemByNameAndAge(name: name, age: age),
+        ])
+      {
+        Error(#(_, e)) -> Error(e)
+        Ok(Nil) -> {
+          use row_opt <- result.try(get.get_item_by_name_and_age(
+            conn,
+            name: name,
+            age: age,
+          ))
+          case row_opt {
+            option.Some(r) -> Ok(r)
+            option.None ->
+              Error(not_found_item_name_and_age_error(
+                "update_item_by_name_and_age",
+              ))
+          }
+        }
+      }
+    }
   }
 }
 
@@ -102,26 +109,28 @@ pub fn upsert_item_by_name_and_age(
   name name: String,
   age age: Int,
 ) -> Result(#(additive_item_v1_schema.Item, dsl.MagicFields), sqlight.Error) {
-  let now = api_help.unix_seconds_now()
-  use rows <- result.try(sqlight.query(
-    upsert_item_by_name_and_age_sql,
-    on: conn,
-    with: [
-      sqlight.text(name),
-      sqlight.int(age),
-      sqlight.int(now),
-      sqlight.int(now),
-    ],
-    expecting: row.item_with_magic_row_decoder(),
-  ))
-  case rows {
-    [r, ..] -> Ok(r)
-    [] ->
-      Error(sqlight.SqlightError(
-        sqlight.GenericError,
-        "upsert returned no row",
-        -1,
+  case
+    cmd.execute_item_cmds(conn, [
+      cmd.UpsertItemByNameAndAge(name: name, age: age),
+    ])
+  {
+    Error(#(_, e)) -> Error(e)
+    Ok(Nil) -> {
+      use row_opt <- result.try(get.get_item_by_name_and_age(
+        conn,
+        name: name,
+        age: age,
       ))
+      case row_opt {
+        option.Some(r) -> Ok(r)
+        option.None ->
+          Error(sqlight.SqlightError(
+            sqlight.GenericError,
+            "upsert returned no row",
+            -1,
+          ))
+      }
+    }
   }
 }
 
