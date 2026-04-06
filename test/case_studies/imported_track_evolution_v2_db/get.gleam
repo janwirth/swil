@@ -1,9 +1,9 @@
 import case_studies/imported_track_evolution_v2_db/row
 import case_studies/imported_track_evolution_v2_schema
 import gleam/option
+import gleam/result
 import sqlight
 import swil/dsl/dsl
-import swil/runtime/query
 
 const select_importedtrack_by_id_sql = "select \"title\", \"artist\", \"service\", \"source_id\", \"added_to_library_at\", \"external_source_url\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"importedtrack\" where \"id\" = ? and \"deleted_at\" is null;"
 
@@ -19,12 +19,16 @@ pub fn get_importedtrack_by_id(
   ),
   sqlight.Error,
 ) {
-  query.one(
-    conn,
+  use rows <- result.try(sqlight.query(
     select_importedtrack_by_id_sql,
-    [sqlight.int(id)],
-    row.importedtrack_with_magic_row_decoder(),
-  )
+    on: conn,
+    with: [sqlight.int(id)],
+    expecting: row.importedtrack_with_magic_row_decoder(),
+  ))
+  case rows {
+    [] -> Ok(option.None)
+    [r, ..] -> Ok(option.Some(r))
+  }
 }
 
 /// Get a importedtrack by the `ByServiceAndSourceId` identity.
@@ -38,10 +42,17 @@ pub fn get_importedtrack_by_service_and_source_id(
   ),
   sqlight.Error,
 ) {
-  query.one(
-    conn,
+  use rows <- result.try(sqlight.query(
     select_importedtrack_by_service_and_source_id_sql,
-    [sqlight.text(service), sqlight.text(source_id)],
-    row.importedtrack_with_magic_row_decoder(),
-  )
+    on: conn,
+    with: [
+      sqlight.text(service),
+      sqlight.text(source_id),
+    ],
+    expecting: row.importedtrack_with_magic_row_decoder(),
+  ))
+  case rows {
+    [] -> Ok(option.None)
+    [r, ..] -> Ok(option.Some(r))
+  }
 }

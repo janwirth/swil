@@ -1,8 +1,9 @@
+import gleam/list
 import gleam/option
+import gleam/string
 import sqlight
 import swil/runtime/api_help
 import swil/runtime/cmd_runner
-import swil/runtime/patch
 
 /// Commands-as-pure-data for this schema's entities.
 /// Generated — do not edit by hand.
@@ -102,30 +103,94 @@ fn plan_fruit(
         sqlight.text(name),
       ],
     )
-    PatchFruitByName(name:, color:, price:, quantity:) ->
-      patch.new()
-      |> patch.add_text("color", color)
-      |> patch.add_float("price", price)
-      |> patch.add_int("quantity", quantity)
-      |> patch.always_int("updated_at", now)
-      |> patch.build("fruit", "\"name\" = ? and \"deleted_at\" is null;", [
-        sqlight.text(name),
+    PatchFruitByName(name:, color:, price:, quantity:) -> {
+      let #(set_parts, binds) = #([], [])
+      let #(set_parts, binds) = case color {
+        option.None -> #(set_parts, binds)
+        option.Some(color_pv) -> #(["\"color\" = ?", ..set_parts], [
+          sqlight.text(color_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = case price {
+        option.None -> #(set_parts, binds)
+        option.Some(price_pv) -> #(["\"price\" = ?", ..set_parts], [
+          sqlight.float(price_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = case quantity {
+        option.None -> #(set_parts, binds)
+        option.Some(quantity_pv) -> #(["\"quantity\" = ?", ..set_parts], [
+          sqlight.int(quantity_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
+        sqlight.int(now),
+        ..binds
       ])
+      let set_sql = string.join(list.reverse(set_parts), ", ")
+      let sql =
+        "update \"fruit\" set "
+        <> set_sql
+        <> " where \"name\" = ? and \"deleted_at\" is null;"
+      let binds =
+        list.flatten([
+          list.reverse(binds),
+          [
+            sqlight.text(name),
+          ],
+        ])
+      #(sql, binds)
+    }
     DeleteFruitByName(name:) -> #(fruit_delete_by_name_sql, [
       sqlight.int(now),
       sqlight.int(now),
       sqlight.text(name),
     ])
-    PatchFruitById(id:, name:, color:, price:, quantity:) ->
-      patch.new()
-      |> patch.add_text("name", name)
-      |> patch.add_text("color", color)
-      |> patch.add_float("price", price)
-      |> patch.add_int("quantity", quantity)
-      |> patch.always_int("updated_at", now)
-      |> patch.build("fruit", "\"id\" = ? and \"deleted_at\" is null;", [
-        sqlight.int(id),
+    PatchFruitById(id:, name:, color:, price:, quantity:) -> {
+      let #(set_parts, binds) = #([], [])
+      let #(set_parts, binds) = case name {
+        option.None -> #(set_parts, binds)
+        option.Some(name_pv) -> #(["\"name\" = ?", ..set_parts], [
+          sqlight.text(name_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = case color {
+        option.None -> #(set_parts, binds)
+        option.Some(color_pv) -> #(["\"color\" = ?", ..set_parts], [
+          sqlight.text(color_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = case price {
+        option.None -> #(set_parts, binds)
+        option.Some(price_pv) -> #(["\"price\" = ?", ..set_parts], [
+          sqlight.float(price_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = case quantity {
+        option.None -> #(set_parts, binds)
+        option.Some(quantity_pv) -> #(["\"quantity\" = ?", ..set_parts], [
+          sqlight.int(quantity_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
+        sqlight.int(now),
+        ..binds
       ])
+      let set_sql = string.join(list.reverse(set_parts), ", ")
+      let sql =
+        "update \"fruit\" set "
+        <> set_sql
+        <> " where \"id\" = ? and \"deleted_at\" is null;"
+      let binds = list.flatten([list.reverse(binds), [sqlight.int(id)]])
+      #(sql, binds)
+    }
     UpdateFruitById(id:, name:, color:, price:, quantity:) -> #(
       fruit_update_by_id_sql,
       [
