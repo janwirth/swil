@@ -12,7 +12,7 @@ Built-in “where and how we open SQLite” for generated `*_db` APIs — **spec
 
 ## DSL: connection type
 
-Add a small union in `swil/dsl/dsl` (or equivalent schema-adjacent module) describing **how** to connect:
+Add a small union in `swil/dsl` (or equivalent schema-adjacent module) describing **how** to connect:
 
 ```gleam
 pub type DbConnection {
