@@ -1,7 +1,7 @@
 import case_studies/fruit_schema
 import gleam/dynamic/decode
 import gleam/option
-import swil/dsl/dsl
+import swil/dsl
 import swil/runtime/api_help
 
 pub fn fruit_with_magic_row_decoder() -> decode.Decoder(

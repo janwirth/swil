@@ -2,7 +2,7 @@ import case_studies/library_manager_schema
 import gleam/dynamic/decode
 import gleam/json
 import gleam/option
-import swil/dsl/dsl
+import swil/dsl
 import swil/runtime/api_help
 
 pub fn view_config_scalar_from_db_string(

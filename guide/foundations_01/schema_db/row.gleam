@@ -1,7 +1,7 @@
 import gleam/dynamic/decode
 import gleam/option
 import guide/foundations_01/schema
-import swil/dsl/dsl
+import swil/dsl
 import swil/runtime/api_help
 
 pub fn guide01item_with_magic_row_decoder() -> decode.Decoder(

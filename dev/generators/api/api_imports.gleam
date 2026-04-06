@@ -106,7 +106,7 @@ pub fn with_api_imports(
   use _ <- gmod.with_import(gimport.new(mig_parts))
   use _ <- gmod.with_import(import_pre(["swil", "runtime", "api_help"]))
   use _ <- gmod.with_import(import_pre_exposing(sch_parts, exposing))
-  use _ <- gmod.with_import(import_pre_alias(["swil", "dsl", "dsl"], "dsl"))
+  use _ <- gmod.with_import(import_pre_alias(["swil", "dsl"], "dsl"))
   use _ <- gmod.with_import(import_pre(["gleam", "dynamic", "decode"]))
   use _ <- gmod.with_import(
     import_pre_exposing(["gleam", "option"], "type Option, None, Some"),
@@ -125,7 +125,7 @@ pub fn with_row_module_imports(
   let sch_parts = string.split(schema_path, "/")
   use _ <- gmod.with_import(import_pre(["swil", "runtime", "api_help"]))
   use _ <- gmod.with_import(import_pre(sch_parts))
-  use _ <- gmod.with_import(import_pre_alias(["swil", "dsl", "dsl"], "dsl"))
+  use _ <- gmod.with_import(import_pre_alias(["swil", "dsl"], "dsl"))
   use _ <- gmod.with_import(
     import_pre(["gleam", "dynamic", "decode"]),
   )
@@ -154,7 +154,7 @@ pub fn with_query_module_imports(
   let row_parts = list.append(db_parts, ["row"])
   use _ <- gmod.with_import(import_pre(row_parts))
   use _ <- gmod.with_import(import_pre(sch_parts))
-  use _ <- gmod.with_import(import_pre_alias(["swil", "dsl", "dsl"], "dsl"))
+  use _ <- gmod.with_import(import_pre_alias(["swil", "dsl"], "dsl"))
   use _ <- gmod.with_import(import_pre(["gleam", "option"]))
   use _ <- gmod.with_import(import_pre(["sqlight"]))
   inner()
@@ -173,7 +173,7 @@ pub fn with_get_module_imports(
   let finish = fn() {
     use _ <- gmod.with_import(import_pre(row_parts))
     use _ <- gmod.with_import(import_pre(sch_parts))
-    use _ <- gmod.with_import(import_pre_alias(["swil", "dsl", "dsl"], "dsl"))
+    use _ <- gmod.with_import(import_pre_alias(["swil", "dsl"], "dsl"))
     use _ <- gmod.with_import(import_pre(["gleam", "option"]))
     use _ <- gmod.with_import(import_pre(["gleam", "result"]))
     use _ <- gmod.with_import(import_pre(["sqlight"]))
@@ -214,7 +214,7 @@ pub fn with_facade_module_imports(
   let needs_row = schema_context.api_facade_imports_row_module(def)
   let after_submodules = fn() {
     use _ <- gmod.with_import(import_pre(sch_parts))
-    use _ <- gmod.with_import(import_pre_alias(["swil", "dsl", "dsl"], "dsl"))
+    use _ <- gmod.with_import(import_pre_alias(["swil", "dsl"], "dsl"))
     use _ <- gmod.with_import(import_pre(["gleam", "option"]))
     use _ <- gmod.with_import(import_pre(["sqlight"]))
     case schema_context.schema_uses_calendar_date(def) {

@@ -27,7 +27,7 @@ import schema_definition/schema_definition.{
   CustomOrder, Eq, ExcludeIfMissing, ExcludeIfMissingFn, Field, Ge, Gt, Le, Lt,
   Ne, NullableFn, Param, Predicate, Query,
 }
-import swil/dsl/dsl
+import swil/dsl
 
 fn quote_ident(s: String) -> String {
   "\"" <> s <> "\""
@@ -187,13 +187,13 @@ fn ensure_api_help_import(text: String) -> String {
 
 /// gleamgen may omit `dsl` when return types only use `dsl.` inside raw strings.
 fn ensure_dsl_import(text: String) -> String {
-  case string.contains(text, "dsl.") && !string.contains(text, "dsl/dsl") {
+  case string.contains(text, "dsl.") && !string.contains(text, "dsl") {
     False -> text
     True -> {
       case string.split(text, "\n") {
         [] -> text
         [first, ..rest] ->
-          first <> "\nimport swil/dsl/dsl as dsl\n" <> string.join(rest, "\n")
+          first <> "\nimport swil/dsl as dsl\n" <> string.join(rest, "\n")
       }
     }
   }

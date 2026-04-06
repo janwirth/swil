@@ -6,7 +6,7 @@
 
 import gleam/option
 import gleam/time/calendar.{type Date}
-import swil/dsl/dsl.{
+import swil/dsl.{
   type BacklinkWith, type BelongsTo, age, exclude_if_missing, nullable,
 }
 

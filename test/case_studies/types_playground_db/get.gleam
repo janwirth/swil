@@ -3,7 +3,7 @@ import case_studies/types_playground_schema
 import gleam/option
 import gleam/result
 import sqlight
-import swil/dsl/dsl
+import swil/dsl
 
 const select_mytrack_by_id_sql = "select \"added_to_playlist_at\", \"name\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"mytrack\" where \"id\" = ? and \"deleted_at\" is null;"
 

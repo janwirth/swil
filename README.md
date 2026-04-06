@@ -22,7 +22,7 @@ The first argument is the schema file path (with or without `.gleam`). Paths wit
 
 ```gleam
 // hippo_schema.gleam
-import swil/dsl/dsl.{
+import swil/dsl.{
   type BacklinkWith, type BelongsTo, type Mutual, age, exclude_if_missing,
   nullable,
 }

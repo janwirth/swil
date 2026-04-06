@@ -1,7 +1,7 @@
 import case_studies/imported_track_evolution_v0_db/row
 import case_studies/imported_track_evolution_v0_schema
 import sqlight
-import swil/dsl/dsl
+import swil/dsl
 
 const last_100_importedtrack_sql = "select \"title\", \"artist\", \"service\", \"source_id\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"importedtrack\" where \"deleted_at\" is null order by \"updated_at\" desc limit 100;"
 

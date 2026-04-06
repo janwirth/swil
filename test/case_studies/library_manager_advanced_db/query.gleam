@@ -4,7 +4,7 @@ import gleam/dynamic/decode
 import gleam/list
 import gleam/string
 import sqlight
-import swil/dsl/dsl
+import swil/dsl
 
 const last_100_tab_sql = "select \"label\", \"order\", \"view_config\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"tab\" where \"deleted_at\" is null order by \"updated_at\" desc limit 100;"
 

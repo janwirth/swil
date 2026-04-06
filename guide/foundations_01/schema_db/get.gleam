@@ -3,7 +3,7 @@ import gleam/result
 import guide/foundations_01/schema
 import guide/foundations_01/schema_db/row
 import sqlight
-import swil/dsl/dsl
+import swil/dsl
 
 const select_guide01item_by_id_sql = "select \"name\", \"note\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"guide01item\" where \"id\" = ? and \"deleted_at\" is null;"
 

@@ -3,7 +3,7 @@ import case_studies/imported_track_evolution_v2_schema
 import gleam/option
 import gleam/result
 import sqlight
-import swil/dsl/dsl
+import swil/dsl
 
 const select_importedtrack_by_id_sql = "select \"title\", \"artist\", \"service\", \"source_id\", \"added_to_library_at\", \"external_source_url\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"importedtrack\" where \"id\" = ? and \"deleted_at\" is null;"
 

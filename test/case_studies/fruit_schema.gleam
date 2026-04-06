@@ -1,5 +1,5 @@
 import gleam/option
-import swil/dsl/dsl
+import swil/dsl
 
 pub type Fruit {
   Fruit(

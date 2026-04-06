@@ -24,7 +24,7 @@ import schema_definition/parse_error.{
   type ParseError, UnsupportedSchema, hint_public_function_prefixes,
 }
 import schema_definition/schema_definition as sd
-import swil/dsl/dsl
+import swil/dsl
 
 /// Extracted metadata for a public `query_*` function: its name, parameter list, and parsed query.
 pub type QuerySpecDefinition {

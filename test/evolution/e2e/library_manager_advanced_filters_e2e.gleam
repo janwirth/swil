@@ -20,7 +20,7 @@ import gleam/option.{None, Some}
 import gleam/string
 import sql/pragma_assert
 import sqlight
-import swil/dsl/dsl
+import swil/dsl
 
 // =============================================================================
 // Setup helpers

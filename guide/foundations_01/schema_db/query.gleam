@@ -1,7 +1,7 @@
 import guide/foundations_01/schema
 import guide/foundations_01/schema_db/row
 import sqlight
-import swil/dsl/dsl
+import swil/dsl
 
 const last_100_guide01item_sql = "select \"name\", \"note\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"guide01item\" where \"deleted_at\" is null order by \"updated_at\" desc limit 100;"
 

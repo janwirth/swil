@@ -1,7 +1,7 @@
 import case_studies/types_playground_db/row
 import case_studies/types_playground_schema
 import sqlight
-import swil/dsl/dsl
+import swil/dsl
 
 const last_100_mytrack_sql = "select \"added_to_playlist_at\", \"name\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"mytrack\" where \"deleted_at\" is null order by \"updated_at\" desc limit 100;"
 

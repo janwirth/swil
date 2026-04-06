@@ -5,7 +5,7 @@
 
 import gleam/option
 import gleam/string
-import swil/dsl/dsl
+import swil/dsl
 
 pub type Guide03Note {
   Guide03Note(

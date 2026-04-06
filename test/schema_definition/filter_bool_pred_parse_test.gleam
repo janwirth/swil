@@ -84,7 +84,7 @@ pub fn filter_bool_hippo_age_gt_parse_test() {
   })
 }
 
-const not_filter_module = "import swil/dsl/dsl
+const not_filter_module = "import swil/dsl
 import gleam/option
 
 pub type Widget {
@@ -119,7 +119,7 @@ pub fn filter_bool_not_parse_test() {
   })
 }
 
-const or_filter_module = "import swil/dsl/dsl
+const or_filter_module = "import swil/dsl
 import gleam/option
 
 pub type Duo {

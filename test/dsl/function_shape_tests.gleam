@@ -14,7 +14,7 @@ import gleeunit
 import schema_definition/parser as schema_parser
 import schema_definition/schema_definition
 import simplifile
-import swil/dsl/dsl
+import swil/dsl
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -22,7 +22,7 @@ pub fn main() -> Nil {
 
 pub fn documented_shape_query_tail_call_parses_test() {
   let input =
-    "import swil/dsl/dsl as dsl
+    "import swil/dsl as dsl
 import gleam/option
 
 pub type Row {
@@ -48,7 +48,7 @@ pub fn query_by_key(row: Row, _magic: dsl.MagicFields, _k: Int) {
 
 pub fn documented_shape_query_return_annotation_parses_test() {
   let input =
-    "import swil/dsl/dsl as dsl
+    "import swil/dsl as dsl
 import gleam/option
 
 pub type Row {
@@ -74,7 +74,7 @@ pub fn query_by_key(row: Row, _magic: dsl.MagicFields, _k: Int) {
 
 pub fn public_function_without_allowed_prefix_rejected_includes_hint_test() {
   let input =
-    "import swil/dsl/dsl as dsl
+    "import swil/dsl as dsl
 import gleam/option
 
 pub type Row {
@@ -104,7 +104,7 @@ pub fn get_by_key(row: Row, _magic: dsl.MagicFields, _k: Int) {
 
 pub fn public_query_function_wrong_prefix_rejected_includes_hint_test() {
   let input =
-    "import swil/dsl/dsl as dsl
+    "import swil/dsl as dsl
 import gleam/option
 
 pub type Row {
@@ -135,7 +135,7 @@ pub fn fetch_by_key(row: Row, _magic: dsl.MagicFields, _k: Int) {
 
 pub fn public_predicate_boolean_filter_helper_parses_test() {
   let input =
-    "import swil/dsl/dsl as dsl
+    "import swil/dsl as dsl
 import gleam/option
 
 pub type Row {
@@ -158,7 +158,7 @@ pub fn predicate_always_true(_row: Row) -> dsl.BooleanFilter(Int) {
 /// `dsl.BooleanFilter` — full advanced query bodies (e.g. `complex_filter` in `filter`) are not inferred yet.
 pub fn query_and_predicate_naming_mini_module_parses_test() {
   let input =
-    "import swil/dsl/dsl as dsl
+    "import swil/dsl as dsl
 import gleam/option
 
 pub type Row {

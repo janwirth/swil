@@ -5,7 +5,7 @@ import case_studies/imported_track_evolution_v1_db/query
 import case_studies/imported_track_evolution_v1_schema
 import gleam/option
 import sqlight
-import swil/dsl/dsl
+import swil/dsl
 
 pub fn migrate(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   migration.migration(conn)
