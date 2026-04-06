@@ -1,9 +1,8 @@
-import gleam/list
 import gleam/option
-import gleam/string
 import sqlight
 import swil/runtime/api_help
 import swil/runtime/cmd_runner
+import swil/runtime/patch
 
 /// Commands-as-pure-data for this schema's entities.
 /// Generated — do not edit by hand.
@@ -127,48 +126,17 @@ fn plan_importedtrack(
       title:,
       artist:,
       external_source_url:,
-    ) -> {
-      let #(set_parts, binds) = #([], [])
-      let #(set_parts, binds) = case title {
-        option.None -> #(set_parts, binds)
-        option.Some(title_pv) -> #(["\"title\" = ?", ..set_parts], [
-          sqlight.text(title_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = case artist {
-        option.None -> #(set_parts, binds)
-        option.Some(artist_pv) -> #(["\"artist\" = ?", ..set_parts], [
-          sqlight.text(artist_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = case external_source_url {
-        option.None -> #(set_parts, binds)
-        option.Some(external_source_url_pv) -> #(
-          ["\"external_source_url\" = ?", ..set_parts],
-          [sqlight.text(external_source_url_pv), ..binds],
-        )
-      }
-      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
-        sqlight.int(now),
-        ..binds
-      ])
-      let set_sql = string.join(list.reverse(set_parts), ", ")
-      let sql =
-        "update \"importedtrack\" set "
-        <> set_sql
-        <> " where \"service\" = ? and \"source_id\" = ? and \"deleted_at\" is null;"
-      let binds =
-        list.flatten([
-          list.reverse(binds),
-          [
-            sqlight.text(service),
-            sqlight.text(source_id),
-          ],
-        ])
-      #(sql, binds)
-    }
+    ) ->
+      patch.new()
+      |> patch.add_text("title", title)
+      |> patch.add_text("artist", artist)
+      |> patch.add_text("external_source_url", external_source_url)
+      |> patch.always_int("updated_at", now)
+      |> patch.build(
+        "importedtrack",
+        "\"service\" = ? and \"source_id\" = ? and \"deleted_at\" is null;",
+        [sqlight.text(service), sqlight.text(source_id)],
+      )
     DeleteImportedTrackByServiceAndSourceId(service:, source_id:) -> #(
       importedtrack_delete_by_service_and_source_id_sql,
       [
@@ -185,55 +153,17 @@ fn plan_importedtrack(
       service:,
       source_id:,
       external_source_url:,
-    ) -> {
-      let #(set_parts, binds) = #([], [])
-      let #(set_parts, binds) = case title {
-        option.None -> #(set_parts, binds)
-        option.Some(title_pv) -> #(["\"title\" = ?", ..set_parts], [
-          sqlight.text(title_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = case artist {
-        option.None -> #(set_parts, binds)
-        option.Some(artist_pv) -> #(["\"artist\" = ?", ..set_parts], [
-          sqlight.text(artist_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = case service {
-        option.None -> #(set_parts, binds)
-        option.Some(service_pv) -> #(["\"service\" = ?", ..set_parts], [
-          sqlight.text(service_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = case source_id {
-        option.None -> #(set_parts, binds)
-        option.Some(source_id_pv) -> #(["\"source_id\" = ?", ..set_parts], [
-          sqlight.text(source_id_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = case external_source_url {
-        option.None -> #(set_parts, binds)
-        option.Some(external_source_url_pv) -> #(
-          ["\"external_source_url\" = ?", ..set_parts],
-          [sqlight.text(external_source_url_pv), ..binds],
-        )
-      }
-      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
-        sqlight.int(now),
-        ..binds
+    ) ->
+      patch.new()
+      |> patch.add_text("title", title)
+      |> patch.add_text("artist", artist)
+      |> patch.add_text("service", service)
+      |> patch.add_text("source_id", source_id)
+      |> patch.add_text("external_source_url", external_source_url)
+      |> patch.always_int("updated_at", now)
+      |> patch.build("importedtrack", "\"id\" = ? and \"deleted_at\" is null;", [
+        sqlight.int(id),
       ])
-      let set_sql = string.join(list.reverse(set_parts), ", ")
-      let sql =
-        "update \"importedtrack\" set "
-        <> set_sql
-        <> " where \"id\" = ? and \"deleted_at\" is null;"
-      let binds = list.flatten([list.reverse(binds), [sqlight.int(id)]])
-      #(sql, binds)
-    }
     UpdateImportedTrackById(
       id:,
       title:,

@@ -1,13 +1,12 @@
 import case_studies/library_manager_advanced_db/row
 import case_studies/library_manager_advanced_schema
 import gleam/dynamic/decode
-import gleam/list
 import gleam/option
 import gleam/result
-import gleam/string
 import sqlight
 import swil/runtime/api_help
 import swil/runtime/cmd_runner
+import swil/runtime/patch
 
 pub type TabCommand {
   UpsertTabByTabLabel(
@@ -93,84 +92,38 @@ fn plan_tab(cmd cmd: TabCommand, now now: Int) -> #(String, List(sqlight.Value))
         sqlight.text(label),
       ],
     )
-    PatchTabByTabLabel(label:, order:, view_config:) -> {
-      let #(set_parts, binds) = #([], [])
-      let #(set_parts, binds) = case order {
-        option.None -> #(set_parts, binds)
-        option.Some(order_pv) -> #(["\"order\" = ?", ..set_parts], [
-          sqlight.float(order_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = case view_config {
-        option.None -> #(set_parts, binds)
-        option.Some(view_config_pv) -> #(["\"view_config\" = ?", ..set_parts], [
-          sqlight.text(
-            row.view_config_scalar_to_db_string(option.Some(view_config_pv)),
-          ),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
-        sqlight.int(now),
-        ..binds
+    PatchTabByTabLabel(label:, order:, view_config:) ->
+      patch.new()
+      |> patch.add_float("order", order)
+      |> patch.add_text(
+        "view_config",
+        option.map(view_config, fn(vc) {
+          row.view_config_scalar_to_db_string(option.Some(vc))
+        }),
+      )
+      |> patch.always_int("updated_at", now)
+      |> patch.build("tab", "\"label\" = ? and \"deleted_at\" is null;", [
+        sqlight.text(label),
       ])
-      let set_sql = string.join(list.reverse(set_parts), ", ")
-      let sql =
-        "update \"tab\" set "
-        <> set_sql
-        <> " where \"label\" = ? and \"deleted_at\" is null;"
-      let binds =
-        list.flatten([
-          list.reverse(binds),
-          [
-            sqlight.text(label),
-          ],
-        ])
-      #(sql, binds)
-    }
     DeleteTabByTabLabel(label:) -> #(tab_delete_by_tab_label_sql, [
       sqlight.int(now),
       sqlight.int(now),
       sqlight.text(label),
     ])
-    PatchTabById(id:, label:, order:, view_config:) -> {
-      let #(set_parts, binds) = #([], [])
-      let #(set_parts, binds) = case label {
-        option.None -> #(set_parts, binds)
-        option.Some(label_pv) -> #(["\"label\" = ?", ..set_parts], [
-          sqlight.text(label_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = case order {
-        option.None -> #(set_parts, binds)
-        option.Some(order_pv) -> #(["\"order\" = ?", ..set_parts], [
-          sqlight.float(order_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = case view_config {
-        option.None -> #(set_parts, binds)
-        option.Some(view_config_pv) -> #(["\"view_config\" = ?", ..set_parts], [
-          sqlight.text(
-            row.view_config_scalar_to_db_string(option.Some(view_config_pv)),
-          ),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
-        sqlight.int(now),
-        ..binds
+    PatchTabById(id:, label:, order:, view_config:) ->
+      patch.new()
+      |> patch.add_text("label", label)
+      |> patch.add_float("order", order)
+      |> patch.add_text(
+        "view_config",
+        option.map(view_config, fn(vc) {
+          row.view_config_scalar_to_db_string(option.Some(vc))
+        }),
+      )
+      |> patch.always_int("updated_at", now)
+      |> patch.build("tab", "\"id\" = ? and \"deleted_at\" is null;", [
+        sqlight.int(id),
       ])
-      let set_sql = string.join(list.reverse(set_parts), ", ")
-      let sql =
-        "update \"tab\" set "
-        <> set_sql
-        <> " where \"id\" = ? and \"deleted_at\" is null;"
-      let binds = list.flatten([list.reverse(binds), [sqlight.int(id)]])
-      #(sql, binds)
-    }
     UpdateTabById(id:, label:, order:, view_config:) -> #(tab_update_by_id_sql, [
       sqlight.text(api_help.opt_text_for_db(label)),
       sqlight.float(api_help.opt_float_for_db(order)),
@@ -250,27 +203,14 @@ fn plan_trackbucket(
         sqlight.text(artist),
       ],
     )
-    PatchTrackBucketByBucketTitleAndArtist(title:, artist:) -> {
-      let #(set_parts, binds) = #([], [])
-      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
-        sqlight.int(now),
-        ..binds
-      ])
-      let set_sql = string.join(list.reverse(set_parts), ", ")
-      let sql =
-        "update \"trackbucket\" set "
-        <> set_sql
-        <> " where \"title\" = ? and \"artist\" = ? and \"deleted_at\" is null;"
-      let binds =
-        list.flatten([
-          list.reverse(binds),
-          [
-            sqlight.text(title),
-            sqlight.text(artist),
-          ],
-        ])
-      #(sql, binds)
-    }
+    PatchTrackBucketByBucketTitleAndArtist(title:, artist:) ->
+      patch.new()
+      |> patch.always_int("updated_at", now)
+      |> patch.build(
+        "trackbucket",
+        "\"title\" = ? and \"artist\" = ? and \"deleted_at\" is null;",
+        [sqlight.text(title), sqlight.text(artist)],
+      )
     DeleteTrackBucketByBucketTitleAndArtist(title:, artist:) -> #(
       trackbucket_delete_by_bucket_title_and_artist_sql,
       [
@@ -280,34 +220,14 @@ fn plan_trackbucket(
         sqlight.text(artist),
       ],
     )
-    PatchTrackBucketById(id:, title:, artist:) -> {
-      let #(set_parts, binds) = #([], [])
-      let #(set_parts, binds) = case title {
-        option.None -> #(set_parts, binds)
-        option.Some(title_pv) -> #(["\"title\" = ?", ..set_parts], [
-          sqlight.text(title_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = case artist {
-        option.None -> #(set_parts, binds)
-        option.Some(artist_pv) -> #(["\"artist\" = ?", ..set_parts], [
-          sqlight.text(artist_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
-        sqlight.int(now),
-        ..binds
+    PatchTrackBucketById(id:, title:, artist:) ->
+      patch.new()
+      |> patch.add_text("title", title)
+      |> patch.add_text("artist", artist)
+      |> patch.always_int("updated_at", now)
+      |> patch.build("trackbucket", "\"id\" = ? and \"deleted_at\" is null;", [
+        sqlight.int(id),
       ])
-      let set_sql = string.join(list.reverse(set_parts), ", ")
-      let sql =
-        "update \"trackbucket\" set "
-        <> set_sql
-        <> " where \"id\" = ? and \"deleted_at\" is null;"
-      let binds = list.flatten([list.reverse(binds), [sqlight.int(id)]])
-      #(sql, binds)
-    }
     UpdateTrackBucketById(id:, title:, artist:) -> #(
       trackbucket_update_by_id_sql,
       [
@@ -381,66 +301,26 @@ fn plan_tag(cmd cmd: TagCommand, now now: Int) -> #(String, List(sqlight.Value))
       sqlight.int(now),
       sqlight.text(label),
     ])
-    PatchTagByTagLabel(label:, emoji:) -> {
-      let #(set_parts, binds) = #([], [])
-      let #(set_parts, binds) = case emoji {
-        option.None -> #(set_parts, binds)
-        option.Some(emoji_pv) -> #(["\"emoji\" = ?", ..set_parts], [
-          sqlight.text(emoji_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
-        sqlight.int(now),
-        ..binds
+    PatchTagByTagLabel(label:, emoji:) ->
+      patch.new()
+      |> patch.add_text("emoji", emoji)
+      |> patch.always_int("updated_at", now)
+      |> patch.build("tag", "\"label\" = ? and \"deleted_at\" is null;", [
+        sqlight.text(label),
       ])
-      let set_sql = string.join(list.reverse(set_parts), ", ")
-      let sql =
-        "update \"tag\" set "
-        <> set_sql
-        <> " where \"label\" = ? and \"deleted_at\" is null;"
-      let binds =
-        list.flatten([
-          list.reverse(binds),
-          [
-            sqlight.text(label),
-          ],
-        ])
-      #(sql, binds)
-    }
     DeleteTagByTagLabel(label:) -> #(tag_delete_by_tag_label_sql, [
       sqlight.int(now),
       sqlight.int(now),
       sqlight.text(label),
     ])
-    PatchTagById(id:, label:, emoji:) -> {
-      let #(set_parts, binds) = #([], [])
-      let #(set_parts, binds) = case label {
-        option.None -> #(set_parts, binds)
-        option.Some(label_pv) -> #(["\"label\" = ?", ..set_parts], [
-          sqlight.text(label_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = case emoji {
-        option.None -> #(set_parts, binds)
-        option.Some(emoji_pv) -> #(["\"emoji\" = ?", ..set_parts], [
-          sqlight.text(emoji_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
-        sqlight.int(now),
-        ..binds
+    PatchTagById(id:, label:, emoji:) ->
+      patch.new()
+      |> patch.add_text("label", label)
+      |> patch.add_text("emoji", emoji)
+      |> patch.always_int("updated_at", now)
+      |> patch.build("tag", "\"id\" = ? and \"deleted_at\" is null;", [
+        sqlight.int(id),
       ])
-      let set_sql = string.join(list.reverse(set_parts), ", ")
-      let sql =
-        "update \"tag\" set "
-        <> set_sql
-        <> " where \"id\" = ? and \"deleted_at\" is null;"
-      let binds = list.flatten([list.reverse(binds), [sqlight.int(id)]])
-      #(sql, binds)
-    }
     UpdateTagById(id:, label:, emoji:) -> #(tag_update_by_id_sql, [
       sqlight.text(api_help.opt_text_for_db(label)),
       sqlight.text(api_help.opt_text_for_db(emoji)),
@@ -576,34 +456,15 @@ fn plan_importedtrack(
         sqlight.text(artist),
       ],
     )
-    PatchImportedTrackByTitleAndArtist(title:, artist:, file_path:) -> {
-      let #(set_parts, binds) = #([], [])
-      let #(set_parts, binds) = case file_path {
-        option.None -> #(set_parts, binds)
-        option.Some(file_path_pv) -> #(["\"file_path\" = ?", ..set_parts], [
-          sqlight.text(file_path_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
-        sqlight.int(now),
-        ..binds
-      ])
-      let set_sql = string.join(list.reverse(set_parts), ", ")
-      let sql =
-        "update \"importedtrack\" set "
-        <> set_sql
-        <> " where \"title\" = ? and \"artist\" = ? and \"deleted_at\" is null;"
-      let binds =
-        list.flatten([
-          list.reverse(binds),
-          [
-            sqlight.text(title),
-            sqlight.text(artist),
-          ],
-        ])
-      #(sql, binds)
-    }
+    PatchImportedTrackByTitleAndArtist(title:, artist:, file_path:) ->
+      patch.new()
+      |> patch.add_text("file_path", file_path)
+      |> patch.always_int("updated_at", now)
+      |> patch.build(
+        "importedtrack",
+        "\"title\" = ? and \"artist\" = ? and \"deleted_at\" is null;",
+        [sqlight.text(title), sqlight.text(artist)],
+      )
     DeleteImportedTrackByTitleAndArtist(title:, artist:) -> #(
       importedtrack_delete_by_title_and_artist_sql,
       [
@@ -632,40 +493,16 @@ fn plan_importedtrack(
         sqlight.text(file_path),
       ],
     )
-    PatchImportedTrackByFilePath(file_path:, title:, artist:) -> {
-      let #(set_parts, binds) = #([], [])
-      let #(set_parts, binds) = case title {
-        option.None -> #(set_parts, binds)
-        option.Some(title_pv) -> #(["\"title\" = ?", ..set_parts], [
-          sqlight.text(title_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = case artist {
-        option.None -> #(set_parts, binds)
-        option.Some(artist_pv) -> #(["\"artist\" = ?", ..set_parts], [
-          sqlight.text(artist_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
-        sqlight.int(now),
-        ..binds
-      ])
-      let set_sql = string.join(list.reverse(set_parts), ", ")
-      let sql =
-        "update \"importedtrack\" set "
-        <> set_sql
-        <> " where \"file_path\" = ? and \"deleted_at\" is null;"
-      let binds =
-        list.flatten([
-          list.reverse(binds),
-          [
-            sqlight.text(file_path),
-          ],
-        ])
-      #(sql, binds)
-    }
+    PatchImportedTrackByFilePath(file_path:, title:, artist:) ->
+      patch.new()
+      |> patch.add_text("title", title)
+      |> patch.add_text("artist", artist)
+      |> patch.always_int("updated_at", now)
+      |> patch.build(
+        "importedtrack",
+        "\"file_path\" = ? and \"deleted_at\" is null;",
+        [sqlight.text(file_path)],
+      )
     DeleteImportedTrackByFilePath(file_path:) -> #(
       importedtrack_delete_by_file_path_sql,
       [
@@ -674,41 +511,15 @@ fn plan_importedtrack(
         sqlight.text(file_path),
       ],
     )
-    PatchImportedTrackById(id:, title:, artist:, file_path:) -> {
-      let #(set_parts, binds) = #([], [])
-      let #(set_parts, binds) = case title {
-        option.None -> #(set_parts, binds)
-        option.Some(title_pv) -> #(["\"title\" = ?", ..set_parts], [
-          sqlight.text(title_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = case artist {
-        option.None -> #(set_parts, binds)
-        option.Some(artist_pv) -> #(["\"artist\" = ?", ..set_parts], [
-          sqlight.text(artist_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = case file_path {
-        option.None -> #(set_parts, binds)
-        option.Some(file_path_pv) -> #(["\"file_path\" = ?", ..set_parts], [
-          sqlight.text(file_path_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
-        sqlight.int(now),
-        ..binds
+    PatchImportedTrackById(id:, title:, artist:, file_path:) ->
+      patch.new()
+      |> patch.add_text("title", title)
+      |> patch.add_text("artist", artist)
+      |> patch.add_text("file_path", file_path)
+      |> patch.always_int("updated_at", now)
+      |> patch.build("importedtrack", "\"id\" = ? and \"deleted_at\" is null;", [
+        sqlight.int(id),
       ])
-      let set_sql = string.join(list.reverse(set_parts), ", ")
-      let sql =
-        "update \"importedtrack\" set "
-        <> set_sql
-        <> " where \"id\" = ? and \"deleted_at\" is null;"
-      let binds = list.flatten([list.reverse(binds), [sqlight.int(id)]])
-      #(sql, binds)
-    }
     UpdateImportedTrackById(id:, title:, artist:, file_path:) -> #(
       importedtrack_update_by_id_sql,
       [

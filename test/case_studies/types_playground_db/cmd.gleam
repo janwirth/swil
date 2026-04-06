@@ -1,10 +1,9 @@
-import gleam/list
 import gleam/option
-import gleam/string
 import gleam/time/timestamp.{type Timestamp}
 import sqlight
 import swil/runtime/api_help
 import swil/runtime/cmd_runner
+import swil/runtime/patch
 
 /// Commands-as-pure-data for this schema's entities.
 /// Generated — do not edit by hand.
@@ -88,84 +87,38 @@ fn plan_mytrack(
         sqlight.text(name),
       ],
     )
-    PatchMyTrackByName(name:, added_to_playlist_at:) -> {
-      let #(set_parts, binds) = #([], [])
-      let #(set_parts, binds) = case added_to_playlist_at {
-        option.None -> #(set_parts, binds)
-        option.Some(added_to_playlist_at_pv) -> #(
-          ["\"added_to_playlist_at\" = ?", ..set_parts],
-          [
-            sqlight.int({
-              let #(s, _) =
-                timestamp.to_unix_seconds_and_nanoseconds(
-                  added_to_playlist_at_pv,
-                )
-              s
-            }),
-            ..binds
-          ],
-        )
-      }
-      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
-        sqlight.int(now),
-        ..binds
+    PatchMyTrackByName(name:, added_to_playlist_at:) ->
+      patch.new()
+      |> patch.add_int(
+        "added_to_playlist_at",
+        option.map(added_to_playlist_at, fn(t) {
+          let #(s, _) = timestamp.to_unix_seconds_and_nanoseconds(t)
+          s
+        }),
+      )
+      |> patch.always_int("updated_at", now)
+      |> patch.build("mytrack", "\"name\" = ? and \"deleted_at\" is null;", [
+        sqlight.text(name),
       ])
-      let set_sql = string.join(list.reverse(set_parts), ", ")
-      let sql =
-        "update \"mytrack\" set "
-        <> set_sql
-        <> " where \"name\" = ? and \"deleted_at\" is null;"
-      let binds =
-        list.flatten([
-          list.reverse(binds),
-          [
-            sqlight.text(name),
-          ],
-        ])
-      #(sql, binds)
-    }
     DeleteMyTrackByName(name:) -> #(mytrack_delete_by_name_sql, [
       sqlight.int(now),
       sqlight.int(now),
       sqlight.text(name),
     ])
-    PatchMyTrackById(id:, added_to_playlist_at:, name:) -> {
-      let #(set_parts, binds) = #([], [])
-      let #(set_parts, binds) = case added_to_playlist_at {
-        option.None -> #(set_parts, binds)
-        option.Some(added_to_playlist_at_pv) -> #(
-          ["\"added_to_playlist_at\" = ?", ..set_parts],
-          [
-            sqlight.int({
-              let #(s, _) =
-                timestamp.to_unix_seconds_and_nanoseconds(
-                  added_to_playlist_at_pv,
-                )
-              s
-            }),
-            ..binds
-          ],
-        )
-      }
-      let #(set_parts, binds) = case name {
-        option.None -> #(set_parts, binds)
-        option.Some(name_pv) -> #(["\"name\" = ?", ..set_parts], [
-          sqlight.text(name_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
-        sqlight.int(now),
-        ..binds
+    PatchMyTrackById(id:, added_to_playlist_at:, name:) ->
+      patch.new()
+      |> patch.add_int(
+        "added_to_playlist_at",
+        option.map(added_to_playlist_at, fn(t) {
+          let #(s, _) = timestamp.to_unix_seconds_and_nanoseconds(t)
+          s
+        }),
+      )
+      |> patch.add_text("name", name)
+      |> patch.always_int("updated_at", now)
+      |> patch.build("mytrack", "\"id\" = ? and \"deleted_at\" is null;", [
+        sqlight.int(id),
       ])
-      let set_sql = string.join(list.reverse(set_parts), ", ")
-      let sql =
-        "update \"mytrack\" set "
-        <> set_sql
-        <> " where \"id\" = ? and \"deleted_at\" is null;"
-      let binds = list.flatten([list.reverse(binds), [sqlight.int(id)]])
-      #(sql, binds)
-    }
     UpdateMyTrackById(id:, added_to_playlist_at:, name:) -> #(
       mytrack_update_by_id_sql,
       [

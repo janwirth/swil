@@ -1,9 +1,8 @@
-import gleam/list
 import gleam/option
-import gleam/string
 import sqlight
 import swil/runtime/api_help
 import swil/runtime/cmd_runner
+import swil/runtime/patch
 
 /// Commands-as-pure-data for this schema's entities.
 /// Generated — do not edit by hand.
@@ -63,61 +62,28 @@ fn plan_item(
       sqlight.text(name),
       sqlight.int(age),
     ])
-    PatchItemByNameAndAge(name:, age:) -> {
-      let #(set_parts, binds) = #([], [])
-      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
-        sqlight.int(now),
-        ..binds
-      ])
-      let set_sql = string.join(list.reverse(set_parts), ", ")
-      let sql =
-        "update \"item\" set "
-        <> set_sql
-        <> " where \"name\" = ? and \"age\" = ? and \"deleted_at\" is null;"
-      let binds =
-        list.flatten([
-          list.reverse(binds),
-          [
-            sqlight.text(name),
-            sqlight.int(age),
-          ],
-        ])
-      #(sql, binds)
-    }
+    PatchItemByNameAndAge(name:, age:) ->
+      patch.new()
+      |> patch.always_int("updated_at", now)
+      |> patch.build(
+        "item",
+        "\"name\" = ? and \"age\" = ? and \"deleted_at\" is null;",
+        [sqlight.text(name), sqlight.int(age)],
+      )
     DeleteItemByNameAndAge(name:, age:) -> #(item_delete_by_name_and_age_sql, [
       sqlight.int(now),
       sqlight.int(now),
       sqlight.text(name),
       sqlight.int(age),
     ])
-    PatchItemById(id:, name:, age:) -> {
-      let #(set_parts, binds) = #([], [])
-      let #(set_parts, binds) = case name {
-        option.None -> #(set_parts, binds)
-        option.Some(name_pv) -> #(["\"name\" = ?", ..set_parts], [
-          sqlight.text(name_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = case age {
-        option.None -> #(set_parts, binds)
-        option.Some(age_pv) -> #(["\"age\" = ?", ..set_parts], [
-          sqlight.int(age_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
-        sqlight.int(now),
-        ..binds
+    PatchItemById(id:, name:, age:) ->
+      patch.new()
+      |> patch.add_text("name", name)
+      |> patch.add_int("age", age)
+      |> patch.always_int("updated_at", now)
+      |> patch.build("item", "\"id\" = ? and \"deleted_at\" is null;", [
+        sqlight.int(id),
       ])
-      let set_sql = string.join(list.reverse(set_parts), ", ")
-      let sql =
-        "update \"item\" set "
-        <> set_sql
-        <> " where \"id\" = ? and \"deleted_at\" is null;"
-      let binds = list.flatten([list.reverse(binds), [sqlight.int(id)]])
-      #(sql, binds)
-    }
     UpdateItemById(id:, name:, age:) -> #(item_update_by_id_sql, [
       sqlight.text(api_help.opt_text_for_db(name)),
       sqlight.int(api_help.opt_int_for_db(age)),

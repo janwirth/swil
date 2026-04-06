@@ -1,12 +1,11 @@
 import case_studies/hippo_db/row
 import case_studies/hippo_schema
-import gleam/list
 import gleam/option
-import gleam/string
 import gleam/time/calendar
 import sqlight
 import swil/runtime/api_help
 import swil/runtime/cmd_runner
+import swil/runtime/patch
 
 pub type HumanCommand {
   UpsertHumanByEmail(email: String, name: option.Option(String))
@@ -72,66 +71,26 @@ fn plan_human(
       sqlight.int(now),
       sqlight.text(email),
     ])
-    PatchHumanByEmail(email:, name:) -> {
-      let #(set_parts, binds) = #([], [])
-      let #(set_parts, binds) = case name {
-        option.None -> #(set_parts, binds)
-        option.Some(name_pv) -> #(["\"name\" = ?", ..set_parts], [
-          sqlight.text(name_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
-        sqlight.int(now),
-        ..binds
+    PatchHumanByEmail(email:, name:) ->
+      patch.new()
+      |> patch.add_text("name", name)
+      |> patch.always_int("updated_at", now)
+      |> patch.build("human", "\"email\" = ? and \"deleted_at\" is null;", [
+        sqlight.text(email),
       ])
-      let set_sql = string.join(list.reverse(set_parts), ", ")
-      let sql =
-        "update \"human\" set "
-        <> set_sql
-        <> " where \"email\" = ? and \"deleted_at\" is null;"
-      let binds =
-        list.flatten([
-          list.reverse(binds),
-          [
-            sqlight.text(email),
-          ],
-        ])
-      #(sql, binds)
-    }
     DeleteHumanByEmail(email:) -> #(human_delete_by_email_sql, [
       sqlight.int(now),
       sqlight.int(now),
       sqlight.text(email),
     ])
-    PatchHumanById(id:, name:, email:) -> {
-      let #(set_parts, binds) = #([], [])
-      let #(set_parts, binds) = case name {
-        option.None -> #(set_parts, binds)
-        option.Some(name_pv) -> #(["\"name\" = ?", ..set_parts], [
-          sqlight.text(name_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = case email {
-        option.None -> #(set_parts, binds)
-        option.Some(email_pv) -> #(["\"email\" = ?", ..set_parts], [
-          sqlight.text(email_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
-        sqlight.int(now),
-        ..binds
+    PatchHumanById(id:, name:, email:) ->
+      patch.new()
+      |> patch.add_text("name", name)
+      |> patch.add_text("email", email)
+      |> patch.always_int("updated_at", now)
+      |> patch.build("human", "\"id\" = ? and \"deleted_at\" is null;", [
+        sqlight.int(id),
       ])
-      let set_sql = string.join(list.reverse(set_parts), ", ")
-      let sql =
-        "update \"human\" set "
-        <> set_sql
-        <> " where \"id\" = ? and \"deleted_at\" is null;"
-      let binds = list.flatten([list.reverse(binds), [sqlight.int(id)]])
-      #(sql, binds)
-    }
     UpdateHumanById(id:, name:, email:) -> #(human_update_by_id_sql, [
       sqlight.text(api_help.opt_text_for_db(name)),
       sqlight.text(api_help.opt_text_for_db(email)),
@@ -230,34 +189,23 @@ fn plan_hippo(
         sqlight.text(api_help.date_to_db_string(date_of_birth)),
       ],
     )
-    PatchHippoByNameAndDateOfBirth(name:, date_of_birth:, gender:) -> {
-      let #(set_parts, binds) = #([], [])
-      let #(set_parts, binds) = case gender {
-        option.None -> #(set_parts, binds)
-        option.Some(gender_pv) -> #(["\"gender\" = ?", ..set_parts], [
-          sqlight.text(row.gender_scalar_to_db_string(option.Some(gender_pv))),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
-        sqlight.int(now),
-        ..binds
-      ])
-      let set_sql = string.join(list.reverse(set_parts), ", ")
-      let sql =
-        "update \"hippo\" set "
-        <> set_sql
-        <> " where \"name\" = ? and \"date_of_birth\" = ? and \"deleted_at\" is null;"
-      let binds =
-        list.flatten([
-          list.reverse(binds),
-          [
-            sqlight.text(name),
-            sqlight.text(api_help.date_to_db_string(date_of_birth)),
-          ],
-        ])
-      #(sql, binds)
-    }
+    PatchHippoByNameAndDateOfBirth(name:, date_of_birth:, gender:) ->
+      patch.new()
+      |> patch.add_text(
+        "gender",
+        option.map(gender, fn(g) {
+          row.gender_scalar_to_db_string(option.Some(g))
+        }),
+      )
+      |> patch.always_int("updated_at", now)
+      |> patch.build(
+        "hippo",
+        "\"name\" = ? and \"date_of_birth\" = ? and \"deleted_at\" is null;",
+        [
+          sqlight.text(name),
+          sqlight.text(api_help.date_to_db_string(date_of_birth)),
+        ],
+      )
     DeleteHippoByNameAndDateOfBirth(name:, date_of_birth:) -> #(
       hippo_delete_by_name_and_date_of_birth_sql,
       [
@@ -267,41 +215,23 @@ fn plan_hippo(
         sqlight.text(api_help.date_to_db_string(date_of_birth)),
       ],
     )
-    PatchHippoById(id:, name:, gender:, date_of_birth:) -> {
-      let #(set_parts, binds) = #([], [])
-      let #(set_parts, binds) = case name {
-        option.None -> #(set_parts, binds)
-        option.Some(name_pv) -> #(["\"name\" = ?", ..set_parts], [
-          sqlight.text(name_pv),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = case gender {
-        option.None -> #(set_parts, binds)
-        option.Some(gender_pv) -> #(["\"gender\" = ?", ..set_parts], [
-          sqlight.text(row.gender_scalar_to_db_string(option.Some(gender_pv))),
-          ..binds
-        ])
-      }
-      let #(set_parts, binds) = case date_of_birth {
-        option.None -> #(set_parts, binds)
-        option.Some(date_of_birth_pv) -> #(
-          ["\"date_of_birth\" = ?", ..set_parts],
-          [sqlight.text(api_help.date_to_db_string(date_of_birth_pv)), ..binds],
-        )
-      }
-      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
-        sqlight.int(now),
-        ..binds
+    PatchHippoById(id:, name:, gender:, date_of_birth:) ->
+      patch.new()
+      |> patch.add_text("name", name)
+      |> patch.add_text(
+        "gender",
+        option.map(gender, fn(g) {
+          row.gender_scalar_to_db_string(option.Some(g))
+        }),
+      )
+      |> patch.add_text(
+        "date_of_birth",
+        option.map(date_of_birth, api_help.date_to_db_string),
+      )
+      |> patch.always_int("updated_at", now)
+      |> patch.build("hippo", "\"id\" = ? and \"deleted_at\" is null;", [
+        sqlight.int(id),
       ])
-      let set_sql = string.join(list.reverse(set_parts), ", ")
-      let sql =
-        "update \"hippo\" set "
-        <> set_sql
-        <> " where \"id\" = ? and \"deleted_at\" is null;"
-      let binds = list.flatten([list.reverse(binds), [sqlight.int(id)]])
-      #(sql, binds)
-    }
     UpdateHippoById(id:, name:, gender:, date_of_birth:) -> #(
       hippo_update_by_id_sql,
       [

@@ -1,9 +1,9 @@
 import case_studies/library_manager_advanced_db/row
 import case_studies/library_manager_advanced_schema
 import gleam/option
-import gleam/result
 import sqlight
 import swil/dsl/dsl
+import swil/runtime/query
 
 const select_tab_by_id_sql = "select \"label\", \"order\", \"view_config\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"tab\" where \"id\" = ? and \"deleted_at\" is null;"
 
@@ -31,16 +31,7 @@ pub fn get_tab_by_id(
   option.Option(#(library_manager_advanced_schema.Tab, dsl.MagicFields)),
   sqlight.Error,
 ) {
-  use rows <- result.try(sqlight.query(
-    select_tab_by_id_sql,
-    on: conn,
-    with: [sqlight.int(id)],
-    expecting: row.tab_with_magic_row_decoder(),
-  ))
-  case rows {
-    [] -> Ok(option.None)
-    [r, ..] -> Ok(option.Some(r))
-  }
+  query.one(conn, select_tab_by_id_sql, [sqlight.int(id)], row.tab_with_magic_row_decoder())
 }
 
 /// Get a tab by the `ByTabLabel` identity.
@@ -51,16 +42,7 @@ pub fn get_tab_by_tab_label(
   option.Option(#(library_manager_advanced_schema.Tab, dsl.MagicFields)),
   sqlight.Error,
 ) {
-  use rows <- result.try(sqlight.query(
-    select_tab_by_tab_label_sql,
-    on: conn,
-    with: [sqlight.text(label)],
-    expecting: row.tab_with_magic_row_decoder(),
-  ))
-  case rows {
-    [] -> Ok(option.None)
-    [r, ..] -> Ok(option.Some(r))
-  }
+  query.one(conn, select_tab_by_tab_label_sql, [sqlight.text(label)], row.tab_with_magic_row_decoder())
 }
 
 /// Get a trackbucket by row id.
@@ -71,16 +53,7 @@ pub fn get_trackbucket_by_id(
   option.Option(#(library_manager_advanced_schema.TrackBucket, dsl.MagicFields)),
   sqlight.Error,
 ) {
-  use rows <- result.try(sqlight.query(
-    select_trackbucket_by_id_sql,
-    on: conn,
-    with: [sqlight.int(id)],
-    expecting: row.trackbucket_with_magic_row_decoder(),
-  ))
-  case rows {
-    [] -> Ok(option.None)
-    [r, ..] -> Ok(option.Some(r))
-  }
+  query.one(conn, select_trackbucket_by_id_sql, [sqlight.int(id)], row.trackbucket_with_magic_row_decoder())
 }
 
 /// Get a trackbucket by the `ByBucketTitleAndArtist` identity.
@@ -92,19 +65,12 @@ pub fn get_trackbucket_by_bucket_title_and_artist(
   option.Option(#(library_manager_advanced_schema.TrackBucket, dsl.MagicFields)),
   sqlight.Error,
 ) {
-  use rows <- result.try(sqlight.query(
+  query.one(
+    conn,
     select_trackbucket_by_bucket_title_and_artist_sql,
-    on: conn,
-    with: [
-      sqlight.text(title),
-      sqlight.text(artist),
-    ],
-    expecting: row.trackbucket_with_magic_row_decoder(),
-  ))
-  case rows {
-    [] -> Ok(option.None)
-    [r, ..] -> Ok(option.Some(r))
-  }
+    [sqlight.text(title), sqlight.text(artist)],
+    row.trackbucket_with_magic_row_decoder(),
+  )
 }
 
 /// Get a tag by row id.
@@ -115,16 +81,7 @@ pub fn get_tag_by_id(
   option.Option(#(library_manager_advanced_schema.Tag, dsl.MagicFields)),
   sqlight.Error,
 ) {
-  use rows <- result.try(sqlight.query(
-    select_tag_by_id_sql,
-    on: conn,
-    with: [sqlight.int(id)],
-    expecting: row.tag_with_magic_row_decoder(),
-  ))
-  case rows {
-    [] -> Ok(option.None)
-    [r, ..] -> Ok(option.Some(r))
-  }
+  query.one(conn, select_tag_by_id_sql, [sqlight.int(id)], row.tag_with_magic_row_decoder())
 }
 
 /// Get a tag by the `ByTagLabel` identity.
@@ -135,16 +92,7 @@ pub fn get_tag_by_tag_label(
   option.Option(#(library_manager_advanced_schema.Tag, dsl.MagicFields)),
   sqlight.Error,
 ) {
-  use rows <- result.try(sqlight.query(
-    select_tag_by_tag_label_sql,
-    on: conn,
-    with: [sqlight.text(label)],
-    expecting: row.tag_with_magic_row_decoder(),
-  ))
-  case rows {
-    [] -> Ok(option.None)
-    [r, ..] -> Ok(option.Some(r))
-  }
+  query.one(conn, select_tag_by_tag_label_sql, [sqlight.text(label)], row.tag_with_magic_row_decoder())
 }
 
 /// Get a importedtrack by the `ByFilePath` identity.
@@ -157,16 +105,7 @@ pub fn get_importedtrack_by_file_path(
   ),
   sqlight.Error,
 ) {
-  use rows <- result.try(sqlight.query(
-    select_importedtrack_by_file_path_sql,
-    on: conn,
-    with: [sqlight.text(file_path)],
-    expecting: row.importedtrack_with_magic_row_decoder(),
-  ))
-  case rows {
-    [] -> Ok(option.None)
-    [r, ..] -> Ok(option.Some(r))
-  }
+  query.one(conn, select_importedtrack_by_file_path_sql, [sqlight.text(file_path)], row.importedtrack_with_magic_row_decoder())
 }
 
 /// Get a importedtrack by row id.
@@ -179,16 +118,7 @@ pub fn get_importedtrack_by_id(
   ),
   sqlight.Error,
 ) {
-  use rows <- result.try(sqlight.query(
-    select_importedtrack_by_id_sql,
-    on: conn,
-    with: [sqlight.int(id)],
-    expecting: row.importedtrack_with_magic_row_decoder(),
-  ))
-  case rows {
-    [] -> Ok(option.None)
-    [r, ..] -> Ok(option.Some(r))
-  }
+  query.one(conn, select_importedtrack_by_id_sql, [sqlight.int(id)], row.importedtrack_with_magic_row_decoder())
 }
 
 /// Get a importedtrack by the `ByTitleAndArtist` identity.
@@ -202,17 +132,10 @@ pub fn get_importedtrack_by_title_and_artist(
   ),
   sqlight.Error,
 ) {
-  use rows <- result.try(sqlight.query(
+  query.one(
+    conn,
     select_importedtrack_by_title_and_artist_sql,
-    on: conn,
-    with: [
-      sqlight.text(title),
-      sqlight.text(artist),
-    ],
-    expecting: row.importedtrack_with_magic_row_decoder(),
-  ))
-  case rows {
-    [] -> Ok(option.None)
-    [r, ..] -> Ok(option.Some(r))
-  }
+    [sqlight.text(title), sqlight.text(artist)],
+    row.importedtrack_with_magic_row_decoder(),
+  )
 }

@@ -1,16 +1,5 @@
-//// Blueprint for a generated `migrate`: introspect user tables and `mytrack` columns /
-//// indexes, then move to the desired state using `ALTER TABLE` only (add / drop column),
-//// never `DROP TABLE` / `CREATE TABLE` for shape fixes once `mytrack` exists.
-
-import sql/sqlite_ident
-
-import gleam/dynamic/decode
-import gleam/list
-import gleam/option.{type Option, None, Some}
-import gleam/result
-import gleam/string
-import sql/pragma_assert.{type TableInfoRow} as sqlite_pragma_assert
 import sqlight
+import swil/runtime/migration as mig
 
 const create_mytrack_table_sql = "create table \"mytrack\" (
   \"id\" integer primary key autoincrement not null,
@@ -37,257 +26,24 @@ const expected_index_list = "seq	name	unique	origin	partial
 const expected_index_info = "seqno	cid	name
 0	2	name"
 
-type MyTrackCol {
-  MyTrackCol(name: String, type_: String, notnull: Int, pk: Int)
-}
-
-const mytrack_columns_wanted = [
-  MyTrackCol("id", "INTEGER", 1, 1),
-  MyTrackCol("added_to_playlist_at", "INTEGER", 0, 0),
-  MyTrackCol("name", "TEXT", 0, 0),
-  MyTrackCol("created_at", "INTEGER", 1, 0),
-  MyTrackCol("updated_at", "INTEGER", 1, 0),
-  MyTrackCol("deleted_at", "INTEGER", 0, 0),
-]
-
-fn pragma_index_name_origin_rows(
-  conn: sqlight.Connection,
-  table: String,
-) -> Result(List(#(String, String)), sqlight.Error) {
-  sqlight.query(
-    "pragma index_list(" <> table <> ")",
-    on: conn,
-    with: [],
-    expecting: {
-      use name <- decode.field(1, decode.string)
-      use origin <- decode.field(3, decode.string)
-      decode.success(#(name, origin))
-    },
-  )
-}
-
-fn drop_surplus_user_indexes_on_mytrack(
-  conn: sqlight.Connection,
-) -> Result(Nil, sqlight.Error) {
-  use rows <- result.try(pragma_index_name_origin_rows(conn, "mytrack"))
-  list.try_each(rows, fn(pair) {
-    let #(name, origin) = pair
-    case origin == "c" && name != "mytrack_by_name" {
-      True -> sqlight.exec("drop index if exists " <> name <> ";", conn)
-      False -> Ok(Nil)
-    }
-  })
-}
-
-fn type_matches(expected: String, got: String) -> Bool {
-  string.uppercase(got) == expected
-}
-
-fn mytrack_row_matches(want: MyTrackCol, got: TableInfoRow) -> Bool {
-  want.name == got.name
-  && type_matches(want.type_, got.type_)
-  && want.notnull == got.notnull
-  && want.pk == got.pk
-  && case want.notnull {
-    0 -> got.dflt == None || got.dflt == Some("")
-    _ -> True
-  }
-}
-
-fn first_surplus_column(
-  rows: List(TableInfoRow),
-  wanted: List(MyTrackCol),
-) -> Option(String) {
-  case
-    list.find(rows, fn(r) { !list.any(wanted, fn(w) { w.name == r.name }) })
-  {
-    Ok(r) -> Some(r.name)
-    Error(Nil) -> None
-  }
-}
-
-fn first_mismatched_column_name(
-  rows: List(TableInfoRow),
-  wanted: List(MyTrackCol),
-) -> Option(String) {
-  case
-    list.find_map(wanted, fn(w) {
-      case list.find(rows, fn(r) { r.name == w.name }) {
-        Error(Nil) -> Error(Nil)
-        Ok(row) ->
-          case mytrack_row_matches(w, row) {
-            True -> Error(Nil)
-            False -> Ok(w.name)
-          }
-      }
-    })
-  {
-    Ok(name) -> Some(name)
-    Error(Nil) -> None
-  }
-}
-
-fn first_missing_column(
-  rows: List(TableInfoRow),
-  wanted: List(MyTrackCol),
-) -> Option(MyTrackCol) {
-  case
-    list.find(wanted, fn(w) { !list.any(rows, fn(r) { r.name == w.name }) })
-  {
-    Ok(w) -> Some(w)
-    Error(Nil) -> None
-  }
-}
-
-fn alter_add_mytrack_column_sql(w: MyTrackCol) -> String {
-  let fragment = case w.name {
-    "id" -> "integer primary key autoincrement not null"
-    "deleted_at" -> "integer"
-    _ ->
-      case string.uppercase(w.type_) {
-        "INTEGER" -> "integer"
-        "TEXT" -> "text"
-        "REAL" -> "real"
-        _ -> "text"
-      }
-      <> case w.notnull {
-        1 -> " not null"
-        _ -> ""
-      }
-  }
-  "alter table "
-  <> sqlite_ident.quote("mytrack")
-  <> " add column "
-  <> sqlite_ident.quote(w.name)
-  <> " "
-  <> fragment
-  <> ";"
-}
-
-fn apply_one_mytrack_column_fix(
-  conn: sqlight.Connection,
-  rows: List(TableInfoRow),
-) -> Result(Nil, sqlight.Error) {
-  case first_surplus_column(rows, mytrack_columns_wanted) {
-    Some(name) ->
-      sqlight.exec(
-        "alter table "
-          <> sqlite_ident.quote("mytrack")
-          <> " drop column "
-          <> sqlite_ident.quote(name)
-          <> ";",
-        conn,
-      )
-    None ->
-      case first_mismatched_column_name(rows, mytrack_columns_wanted) {
-        Some(name) ->
-          sqlight.exec(
-            "alter table "
-              <> sqlite_ident.quote("mytrack")
-              <> " drop column "
-              <> sqlite_ident.quote(name)
-              <> ";",
-            conn,
-          )
-        None ->
-          case first_missing_column(rows, mytrack_columns_wanted) {
-            Some(w) -> sqlight.exec(alter_add_mytrack_column_sql(w), conn)
-            None ->
-              panic as "case_studies/types_playground_db/migration: no column fix applies"
-          }
-      }
-  }
-}
-
-fn reconcile_mytrack_columns_loop(
-  conn: sqlight.Connection,
-  iter: Int,
-) -> Result(Nil, sqlight.Error) {
-  case iter > 64 {
-    True ->
-      panic as "case_studies/types_playground_db/migration: column reconcile did not converge"
-    False -> {
-      use rows <- result.try(sqlite_pragma_assert.table_info_rows(
-        conn,
-        "mytrack",
-      ))
-      case
-        list.length(rows) == list.length(mytrack_columns_wanted)
-        && list.all(mytrack_columns_wanted, fn(w) {
-          case list.find(rows, fn(r) { r.name == w.name }) {
-            Ok(row) -> mytrack_row_matches(w, row)
-            Error(Nil) -> False
-          }
-        })
-      {
-        True -> Ok(Nil)
-        False -> {
-          use _ <- result.try(apply_one_mytrack_column_fix(conn, rows))
-          reconcile_mytrack_columns_loop(conn, iter + 1)
-        }
-      }
-    }
-  }
-}
-
-fn ensure_mytrack_table(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
-  use tables <- result.try(sqlite_pragma_assert.user_table_names(conn))
-  case list.contains(tables, "mytrack") {
-    False -> sqlight.exec(create_mytrack_table_sql, conn)
-    True -> {
-      use _ <- result.try(sqlight.exec(
-        "drop index if exists mytrack_by_name;",
-        conn,
-      ))
-      reconcile_mytrack_columns_loop(conn, 0)
-    }
-  }
-}
-
-fn ensure_mytrack_indexes(
-  conn: sqlight.Connection,
-) -> Result(Nil, sqlight.Error) {
-  use _ <- result.try(drop_surplus_user_indexes_on_mytrack(conn))
-  case
-    sqlite_pragma_assert.index_list_tsv(conn, "mytrack"),
-    sqlite_pragma_assert.index_info_tsv(conn, "mytrack_by_name")
-  {
-    Ok(list_tsv), Ok(info_tsv) ->
-      case list_tsv == expected_index_list && info_tsv == expected_index_info {
-        True -> Ok(Nil)
-        False -> {
-          use _ <- result.try(sqlight.exec(
-            "drop index if exists mytrack_by_name;",
-            conn,
-          ))
-          sqlight.exec(create_mytrack_by_name_index_sql, conn)
-        }
-      }
-    _, _ -> {
-      use _ <- result.try(sqlight.exec(
-        "drop index if exists mytrack_by_name;",
-        conn,
-      ))
-      sqlight.exec(create_mytrack_by_name_index_sql, conn)
-    }
-  }
-}
+const mytrack_spec = mig.TableSpec(
+  table: "mytrack",
+  columns: [
+    mig.ColumnSpec("id", "INTEGER", 1, 1),
+    mig.ColumnSpec("added_to_playlist_at", "INTEGER", 0, 0),
+    mig.ColumnSpec("name", "TEXT", 0, 0),
+    mig.ColumnSpec("created_at", "INTEGER", 1, 0),
+    mig.ColumnSpec("updated_at", "INTEGER", 1, 0),
+    mig.ColumnSpec("deleted_at", "INTEGER", 0, 0),
+  ],
+  create_table_sql: create_mytrack_table_sql,
+  indexes: [
+    mig.IndexSpec("mytrack_by_name", create_mytrack_by_name_index_sql, expected_index_info),
+  ],
+  expected_table_info: expected_table_info,
+  expected_index_list: expected_index_list,
+)
 
 pub fn migration(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
-  use _ <- result.try(sqlite_pragma_assert.drop_user_tables_except(
-    conn,
-    "mytrack",
-  ))
-  use _ <- result.try(ensure_mytrack_table(conn))
-  use _ <- result.try(ensure_mytrack_indexes(conn))
-  sqlite_pragma_assert.assert_pragma_snapshot(
-    conn,
-    ["mytrack"],
-    "mytrack",
-    expected_table_info,
-    expected_index_list,
-    "mytrack_by_name",
-    expected_index_info,
-  )
-  Ok(Nil)
+  mig.run(conn, [mytrack_spec])
 }

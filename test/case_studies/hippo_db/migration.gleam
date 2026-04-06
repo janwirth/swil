@@ -1,16 +1,5 @@
-//// Blueprint for a generated `migrate`: introspect user tables `hippo`, `human`
-//// columns / indexes, then move to the desired state using `ALTER TABLE` only
-//// (add / drop column), never `DROP TABLE` / `CREATE TABLE` for shape fixes once those tables exist.
-
-import sql/sqlite_ident
-
-import gleam/dynamic/decode
-import gleam/list
-import gleam/option.{type Option, None, Some}
-import gleam/result
-import gleam/string
-import sql/pragma_assert.{type TableInfoRow} as sqlite_pragma_assert
 import sqlight
+import swil/runtime/migration as mig
 
 const create_hippo_table_sql = "create table \"hippo\" (
   \"id\" integer primary key autoincrement not null,
@@ -42,242 +31,6 @@ const expected_hippo_index_info = "seqno	cid	name
 0	1	name
 1	3	date_of_birth"
 
-type HippoCol {
-  HippoCol(name: String, type_: String, notnull: Int, pk: Int)
-}
-
-const hippo_columns_wanted = [
-  HippoCol("id", "INTEGER", 1, 1),
-  HippoCol("name", "TEXT", 0, 0),
-  HippoCol("gender", "TEXT", 0, 0),
-  HippoCol("date_of_birth", "TEXT", 0, 0),
-  HippoCol("created_at", "INTEGER", 1, 0),
-  HippoCol("updated_at", "INTEGER", 1, 0),
-  HippoCol("owner_human_id", "INTEGER", 0, 0),
-  HippoCol("deleted_at", "INTEGER", 0, 0),
-]
-
-fn pragma_index_name_origin_rows(
-  conn: sqlight.Connection,
-  table: String,
-) -> Result(List(#(String, String)), sqlight.Error) {
-  sqlight.query(
-    "pragma index_list(" <> table <> ")",
-    on: conn,
-    with: [],
-    expecting: {
-      use name <- decode.field(1, decode.string)
-      use origin <- decode.field(3, decode.string)
-      decode.success(#(name, origin))
-    },
-  )
-}
-
-fn type_matches(expected: String, got: String) -> Bool {
-  string.uppercase(got) == expected
-}
-
-fn drop_surplus_user_indexes_on_hippo(
-  conn: sqlight.Connection,
-) -> Result(Nil, sqlight.Error) {
-  use rows <- result.try(pragma_index_name_origin_rows(conn, "hippo"))
-  list.try_each(rows, fn(pair) {
-    let #(name, origin) = pair
-    case origin == "c" && name != "hippo_by_name_date_of_birth" {
-      True -> sqlight.exec("drop index if exists " <> name <> ";", conn)
-      False -> Ok(Nil)
-    }
-  })
-}
-
-fn hippo_row_matches(want: HippoCol, got: TableInfoRow) -> Bool {
-  want.name == got.name
-  && type_matches(want.type_, got.type_)
-  && want.notnull == got.notnull
-  && want.pk == got.pk
-  && case want.notnull {
-    0 -> got.dflt == None || got.dflt == Some("")
-    _ -> True
-  }
-}
-
-fn first_surplus_column_hippo(
-  rows: List(TableInfoRow),
-  wanted: List(HippoCol),
-) -> Option(String) {
-  case
-    list.find(rows, fn(r) { !list.any(wanted, fn(w) { w.name == r.name }) })
-  {
-    Ok(r) -> Some(r.name)
-    Error(Nil) -> None
-  }
-}
-
-fn first_mismatched_column_name_hippo(
-  rows: List(TableInfoRow),
-  wanted: List(HippoCol),
-) -> Option(String) {
-  case
-    list.find_map(wanted, fn(w) {
-      case list.find(rows, fn(r) { r.name == w.name }) {
-        Error(Nil) -> Error(Nil)
-        Ok(row) ->
-          case hippo_row_matches(w, row) {
-            True -> Error(Nil)
-            False -> Ok(w.name)
-          }
-      }
-    })
-  {
-    Ok(name) -> Some(name)
-    Error(Nil) -> None
-  }
-}
-
-fn first_missing_column_hippo(
-  rows: List(TableInfoRow),
-  wanted: List(HippoCol),
-) -> Option(HippoCol) {
-  case
-    list.find(wanted, fn(w) { !list.any(rows, fn(r) { r.name == w.name }) })
-  {
-    Ok(w) -> Some(w)
-    Error(Nil) -> None
-  }
-}
-
-fn alter_add_hippo_column_sql(w: HippoCol) -> String {
-  let fragment = case w.name {
-    "id" -> "integer primary key autoincrement not null"
-    "deleted_at" -> "integer"
-    _ ->
-      case string.uppercase(w.type_) {
-        "INTEGER" -> "integer"
-        "TEXT" -> "text"
-        "REAL" -> "real"
-        _ -> "text"
-      }
-      <> case w.notnull {
-        1 -> " not null"
-        _ -> ""
-      }
-  }
-  "alter table "
-  <> sqlite_ident.quote("hippo")
-  <> " add column "
-  <> sqlite_ident.quote(w.name)
-  <> " "
-  <> fragment
-  <> ";"
-}
-
-fn apply_one_hippo_column_fix(
-  conn: sqlight.Connection,
-  rows: List(TableInfoRow),
-) -> Result(Nil, sqlight.Error) {
-  case first_surplus_column_hippo(rows, hippo_columns_wanted) {
-    Some(name) ->
-      sqlight.exec(
-        "alter table "
-          <> sqlite_ident.quote("hippo")
-          <> " drop column "
-          <> sqlite_ident.quote(name)
-          <> ";",
-        conn,
-      )
-    None ->
-      case first_mismatched_column_name_hippo(rows, hippo_columns_wanted) {
-        Some(name) ->
-          sqlight.exec(
-            "alter table "
-              <> sqlite_ident.quote("hippo")
-              <> " drop column "
-              <> sqlite_ident.quote(name)
-              <> ";",
-            conn,
-          )
-        None ->
-          case first_missing_column_hippo(rows, hippo_columns_wanted) {
-            Some(w) -> sqlight.exec(alter_add_hippo_column_sql(w), conn)
-            None ->
-              panic as "case_studies/hippo_db/migration: no column fix applies"
-          }
-      }
-  }
-}
-
-fn reconcile_hippo_columns_loop(
-  conn: sqlight.Connection,
-  iter: Int,
-) -> Result(Nil, sqlight.Error) {
-  case iter > 64 {
-    True ->
-      panic as "case_studies/hippo_db/migration: column reconcile did not converge"
-    False -> {
-      use rows <- result.try(sqlite_pragma_assert.table_info_rows(conn, "hippo"))
-      case
-        list.length(rows) == list.length(hippo_columns_wanted)
-        && list.all(hippo_columns_wanted, fn(w) {
-          case list.find(rows, fn(r) { r.name == w.name }) {
-            Ok(row) -> hippo_row_matches(w, row)
-            Error(Nil) -> False
-          }
-        })
-      {
-        True -> Ok(Nil)
-        False -> {
-          use _ <- result.try(apply_one_hippo_column_fix(conn, rows))
-          reconcile_hippo_columns_loop(conn, iter + 1)
-        }
-      }
-    }
-  }
-}
-
-fn ensure_hippo_table(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
-  use tables <- result.try(sqlite_pragma_assert.user_table_names(conn))
-  case list.contains(tables, "hippo") {
-    False -> sqlight.exec(create_hippo_table_sql, conn)
-    True -> {
-      use _ <- result.try(sqlight.exec(
-        "drop index if exists hippo_by_name_date_of_birth;",
-        conn,
-      ))
-      reconcile_hippo_columns_loop(conn, 0)
-    }
-  }
-}
-
-fn ensure_hippo_indexes(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
-  use _ <- result.try(drop_surplus_user_indexes_on_hippo(conn))
-  case
-    sqlite_pragma_assert.index_list_tsv(conn, "hippo"),
-    sqlite_pragma_assert.index_info_tsv(conn, "hippo_by_name_date_of_birth")
-  {
-    Ok(list_tsv), Ok(info_tsv) ->
-      case
-        list_tsv == expected_hippo_index_list
-        && info_tsv == expected_hippo_index_info
-      {
-        True -> Ok(Nil)
-        False -> {
-          use _ <- result.try(sqlight.exec(
-            "drop index if exists hippo_by_name_date_of_birth;",
-            conn,
-          ))
-          sqlight.exec(create_hippo_by_name_date_of_birth_index_sql, conn)
-        }
-      }
-    _, _ -> {
-      use _ <- result.try(sqlight.exec(
-        "drop index if exists hippo_by_name_date_of_birth;",
-        conn,
-      ))
-      sqlight.exec(create_hippo_by_name_date_of_birth_index_sql, conn)
-    }
-  }
-}
-
 const create_human_table_sql = "create table \"human\" (
   \"id\" integer primary key autoincrement not null,
   \"name\" text,
@@ -303,245 +56,48 @@ const expected_human_index_list = "seq	name	unique	origin	partial
 const expected_human_index_info = "seqno	cid	name
 0	2	email"
 
-type HumanCol {
-  HumanCol(name: String, type_: String, notnull: Int, pk: Int)
-}
+const hippo_spec = mig.TableSpec(
+  table: "hippo",
+  columns: [
+    mig.ColumnSpec("id", "INTEGER", 1, 1),
+    mig.ColumnSpec("name", "TEXT", 0, 0),
+    mig.ColumnSpec("gender", "TEXT", 0, 0),
+    mig.ColumnSpec("date_of_birth", "TEXT", 0, 0),
+    mig.ColumnSpec("created_at", "INTEGER", 1, 0),
+    mig.ColumnSpec("updated_at", "INTEGER", 1, 0),
+    mig.ColumnSpec("owner_human_id", "INTEGER", 0, 0),
+    mig.ColumnSpec("deleted_at", "INTEGER", 0, 0),
+  ],
+  create_table_sql: create_hippo_table_sql,
+  indexes: [
+    mig.IndexSpec(
+      "hippo_by_name_date_of_birth",
+      create_hippo_by_name_date_of_birth_index_sql,
+      expected_hippo_index_info,
+    ),
+  ],
+  expected_table_info: expected_hippo_table_info,
+  expected_index_list: expected_hippo_index_list,
+)
 
-const human_columns_wanted = [
-  HumanCol("id", "INTEGER", 1, 1),
-  HumanCol("name", "TEXT", 0, 0),
-  HumanCol("email", "TEXT", 0, 0),
-  HumanCol("created_at", "INTEGER", 1, 0),
-  HumanCol("updated_at", "INTEGER", 1, 0),
-  HumanCol("deleted_at", "INTEGER", 0, 0),
-]
-
-fn drop_surplus_user_indexes_on_human(
-  conn: sqlight.Connection,
-) -> Result(Nil, sqlight.Error) {
-  use rows <- result.try(pragma_index_name_origin_rows(conn, "human"))
-  list.try_each(rows, fn(pair) {
-    let #(name, origin) = pair
-    case origin == "c" && name != "human_by_email" {
-      True -> sqlight.exec("drop index if exists " <> name <> ";", conn)
-      False -> Ok(Nil)
-    }
-  })
-}
-
-fn human_row_matches(want: HumanCol, got: TableInfoRow) -> Bool {
-  want.name == got.name
-  && type_matches(want.type_, got.type_)
-  && want.notnull == got.notnull
-  && want.pk == got.pk
-  && case want.notnull {
-    0 -> got.dflt == None || got.dflt == Some("")
-    _ -> True
-  }
-}
-
-fn first_surplus_column_human(
-  rows: List(TableInfoRow),
-  wanted: List(HumanCol),
-) -> Option(String) {
-  case
-    list.find(rows, fn(r) { !list.any(wanted, fn(w) { w.name == r.name }) })
-  {
-    Ok(r) -> Some(r.name)
-    Error(Nil) -> None
-  }
-}
-
-fn first_mismatched_column_name_human(
-  rows: List(TableInfoRow),
-  wanted: List(HumanCol),
-) -> Option(String) {
-  case
-    list.find_map(wanted, fn(w) {
-      case list.find(rows, fn(r) { r.name == w.name }) {
-        Error(Nil) -> Error(Nil)
-        Ok(row) ->
-          case human_row_matches(w, row) {
-            True -> Error(Nil)
-            False -> Ok(w.name)
-          }
-      }
-    })
-  {
-    Ok(name) -> Some(name)
-    Error(Nil) -> None
-  }
-}
-
-fn first_missing_column_human(
-  rows: List(TableInfoRow),
-  wanted: List(HumanCol),
-) -> Option(HumanCol) {
-  case
-    list.find(wanted, fn(w) { !list.any(rows, fn(r) { r.name == w.name }) })
-  {
-    Ok(w) -> Some(w)
-    Error(Nil) -> None
-  }
-}
-
-fn alter_add_human_column_sql(w: HumanCol) -> String {
-  let fragment = case w.name {
-    "id" -> "integer primary key autoincrement not null"
-    "deleted_at" -> "integer"
-    _ ->
-      case string.uppercase(w.type_) {
-        "INTEGER" -> "integer"
-        "TEXT" -> "text"
-        "REAL" -> "real"
-        _ -> "text"
-      }
-      <> case w.notnull {
-        1 -> " not null"
-        _ -> ""
-      }
-  }
-  "alter table "
-  <> sqlite_ident.quote("human")
-  <> " add column "
-  <> sqlite_ident.quote(w.name)
-  <> " "
-  <> fragment
-  <> ";"
-}
-
-fn apply_one_human_column_fix(
-  conn: sqlight.Connection,
-  rows: List(TableInfoRow),
-) -> Result(Nil, sqlight.Error) {
-  case first_surplus_column_human(rows, human_columns_wanted) {
-    Some(name) ->
-      sqlight.exec(
-        "alter table "
-          <> sqlite_ident.quote("human")
-          <> " drop column "
-          <> sqlite_ident.quote(name)
-          <> ";",
-        conn,
-      )
-    None ->
-      case first_mismatched_column_name_human(rows, human_columns_wanted) {
-        Some(name) ->
-          sqlight.exec(
-            "alter table "
-              <> sqlite_ident.quote("human")
-              <> " drop column "
-              <> sqlite_ident.quote(name)
-              <> ";",
-            conn,
-          )
-        None ->
-          case first_missing_column_human(rows, human_columns_wanted) {
-            Some(w) -> sqlight.exec(alter_add_human_column_sql(w), conn)
-            None ->
-              panic as "case_studies/hippo_db/migration: no column fix applies"
-          }
-      }
-  }
-}
-
-fn reconcile_human_columns_loop(
-  conn: sqlight.Connection,
-  iter: Int,
-) -> Result(Nil, sqlight.Error) {
-  case iter > 64 {
-    True ->
-      panic as "case_studies/hippo_db/migration: column reconcile did not converge"
-    False -> {
-      use rows <- result.try(sqlite_pragma_assert.table_info_rows(conn, "human"))
-      case
-        list.length(rows) == list.length(human_columns_wanted)
-        && list.all(human_columns_wanted, fn(w) {
-          case list.find(rows, fn(r) { r.name == w.name }) {
-            Ok(row) -> human_row_matches(w, row)
-            Error(Nil) -> False
-          }
-        })
-      {
-        True -> Ok(Nil)
-        False -> {
-          use _ <- result.try(apply_one_human_column_fix(conn, rows))
-          reconcile_human_columns_loop(conn, iter + 1)
-        }
-      }
-    }
-  }
-}
-
-fn ensure_human_table(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
-  use tables <- result.try(sqlite_pragma_assert.user_table_names(conn))
-  case list.contains(tables, "human") {
-    False -> sqlight.exec(create_human_table_sql, conn)
-    True -> {
-      use _ <- result.try(sqlight.exec(
-        "drop index if exists human_by_email;",
-        conn,
-      ))
-      reconcile_human_columns_loop(conn, 0)
-    }
-  }
-}
-
-fn ensure_human_indexes(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
-  use _ <- result.try(drop_surplus_user_indexes_on_human(conn))
-  case
-    sqlite_pragma_assert.index_list_tsv(conn, "human"),
-    sqlite_pragma_assert.index_info_tsv(conn, "human_by_email")
-  {
-    Ok(list_tsv), Ok(info_tsv) ->
-      case
-        list_tsv == expected_human_index_list
-        && info_tsv == expected_human_index_info
-      {
-        True -> Ok(Nil)
-        False -> {
-          use _ <- result.try(sqlight.exec(
-            "drop index if exists human_by_email;",
-            conn,
-          ))
-          sqlight.exec(create_human_by_email_index_sql, conn)
-        }
-      }
-    _, _ -> {
-      use _ <- result.try(sqlight.exec(
-        "drop index if exists human_by_email;",
-        conn,
-      ))
-      sqlight.exec(create_human_by_email_index_sql, conn)
-    }
-  }
-}
+const human_spec = mig.TableSpec(
+  table: "human",
+  columns: [
+    mig.ColumnSpec("id", "INTEGER", 1, 1),
+    mig.ColumnSpec("name", "TEXT", 0, 0),
+    mig.ColumnSpec("email", "TEXT", 0, 0),
+    mig.ColumnSpec("created_at", "INTEGER", 1, 0),
+    mig.ColumnSpec("updated_at", "INTEGER", 1, 0),
+    mig.ColumnSpec("deleted_at", "INTEGER", 0, 0),
+  ],
+  create_table_sql: create_human_table_sql,
+  indexes: [
+    mig.IndexSpec("human_by_email", create_human_by_email_index_sql, expected_human_index_info),
+  ],
+  expected_table_info: expected_human_table_info,
+  expected_index_list: expected_human_index_list,
+)
 
 pub fn migration(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
-  use _ <- result.try(
-    sqlite_pragma_assert.drop_user_tables_except_any(conn, ["hippo", "human"]),
-  )
-  use _ <- result.try(ensure_hippo_table(conn))
-  use _ <- result.try(ensure_hippo_indexes(conn))
-  use _ <- result.try(ensure_human_table(conn))
-  use _ <- result.try(ensure_human_indexes(conn))
-  sqlite_pragma_assert.assert_pragma_snapshot(
-    conn,
-    ["hippo", "human"],
-    "hippo",
-    expected_hippo_table_info,
-    expected_hippo_index_list,
-    "hippo_by_name_date_of_birth",
-    expected_hippo_index_info,
-  )
-  sqlite_pragma_assert.assert_pragma_snapshot(
-    conn,
-    ["hippo", "human"],
-    "human",
-    expected_human_table_info,
-    expected_human_index_list,
-    "human_by_email",
-    expected_human_index_info,
-  )
-  Ok(Nil)
+  mig.run(conn, [hippo_spec, human_spec])
 }
