@@ -1,5 +1,11 @@
 # Swil
 
+> [!CAUTION]
+> Use with great caution, never in production. Swil violates foundational principles of gleam.
+> The main characteristics of Gleam code are: typed, sound, magic-free
+> This is a research-stage compiler that takes a gleam file with unsound stuff inside
+> And then generates sound gleam code from it that allows you to interact with the database.
+
 _a cute squeal_
 
 <a href="https://www.youtube.com/shorts/tw9_khiwNZU" target="_blank">
@@ -19,6 +25,9 @@ gleam run -- test/case_studies/hippo_schema.gleam
 ```
 
 The first argument is the schema file path (with or without `.gleam`). Paths without a leading `src/` or `/` are resolved under `src/`, matching [`swil.gleam`](src/swil.gleam).
+
+> [!WARNING]
+> The schema file is not meant to be a runnable gleam module. Here you define your data types and pseudocode around it.
 
 ```gleam
 // hippo_schema.gleam
