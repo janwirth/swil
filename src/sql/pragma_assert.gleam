@@ -112,6 +112,27 @@ pub fn index_info_tsv(
   Ok(format_index_info_tsv(rows))
 }
 
+/// Strips `cid` from `pragma index_info` rows so that `ALTER TABLE … ADD COLUMN`
+/// (which changes column cids for subsequent columns) does not break index assertions.
+/// Only `seqno` and `name` are compared — sufficient to verify which columns are indexed
+/// and in what order.
+fn normalize_index_info_tsv(tsv: String) -> String {
+  let lines = string.split(tsv, "\n")
+  case lines {
+    [] -> tsv
+    [_header, ..rest] -> {
+      let body =
+        list.filter_map(rest, fn(line) {
+          case string.split(line, "\t") {
+            [seqno, _cid, name] -> Ok(seqno <> "\t" <> name)
+            _ -> Error(Nil)
+          }
+        })
+      string.join(["seqno\tname", ..body], "\n")
+    }
+  }
+}
+
 /// Sorts `pragma table_info` body rows by column name and renumbers `cid` 0..n-1 so
 /// `ALTER TABLE … ADD COLUMN` (always appends in SQLite) still matches the logical shape
 /// from `CREATE TABLE` (canonical column order in fixtures).
@@ -175,9 +196,19 @@ pub fn assert_pragma_snapshot(
   let assert True =
     normalize_table_info_tsv(got_info) == normalize_table_info_tsv(expected_table_info)
   let assert True = got_list == expected_indexes
-  let assert True = got_ix == expected_index_info
+  let assert True = case
+    normalize_index_info_tsv(got_ix) == normalize_index_info_tsv(expected_index_info)
+  {
+    True -> True
+    False -> {
+      io.println("got_ix: " <> got_ix)
+      io.println("expected_index_info: " <> expected_index_info)
+      False
+    }
+  }
   Nil
 }
+import gleam/io
 
 fn table_info_row_decoder() -> decode.Decoder(
   #(Int, String, String, Int, Option(String), Int),
