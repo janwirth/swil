@@ -61,6 +61,7 @@ pub fn importedtrack_with_magic_row_decoder() -> decode.Decoder(
       ),
       relationships: tuna_schema.ImportedTrackRelationships(
         tags: dsl.BelongsTo([]),
+        track_bucket: dsl.BelongsTo(option.None),
       ),
     )
   decode.success(#(
