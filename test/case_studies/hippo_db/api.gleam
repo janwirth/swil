@@ -3,7 +3,6 @@ import case_studies/hippo_db/get
 import case_studies/hippo_db/migration
 import case_studies/hippo_db/query
 import case_studies/hippo_db/row.{type HippoRow, type HumanRow}
-import case_studies/hippo_db/row.{type HippoRow, type HumanRow}
 import case_studies/hippo_schema
 import gleam/option
 import gleam/time/calendar

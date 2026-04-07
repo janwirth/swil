@@ -2,7 +2,9 @@ import case_studies/tuna_db/cmd
 import case_studies/tuna_db/get
 import case_studies/tuna_db/migration
 import case_studies/tuna_db/query
-import case_studies/tuna_db/row.{type ImportedTrackRow, type TagRow, type TrackBucketRow}
+import case_studies/tuna_db/row.{
+  type ImportedTrackRow, type TagRow, type TrackBucketRow,
+}
 import case_studies/tuna_schema
 import gleam/option
 import sqlight

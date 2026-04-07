@@ -1,4 +1,4 @@
-# Row-Derived Types + Strict `BelongsTo`
+# Row-Derived Types + Connection-Wrapped Cardinality
 
 ## Goal
 
@@ -12,35 +12,40 @@ For each schema entity `E`:
 - Include all scalar/data fields from `E`.
 - Exclude `identities`.
 - If `E` has `relationships: ERelationships`, flatten relationship fields into the row-local type as top-level fields.
-- Preserve relationship field types (subject to the `BelongsTo` schema rule below).
+- Preserve relationship field types (subject to the connection shape rule below).
 
-## `BelongsTo` Schema Rule
+## Connection Shape Rule
 
 Inside `*Relationships` containers:
 
-- `dsl.BelongsTo` first type argument must be either `Option(T)` or `List(T)`.
-- Bare/non-optional/non-list targets are invalid.
+- `BelongsTo` and `Mutual` are the top-level connection types.
+- Cardinality/nullability is encoded in their first type parameter (`List(T)` or `option.Option(T)`).
+- Outer wrapping like `option.Option(BelongsTo(...))` / `option.Option(Mutual(...))` is invalid.
 
 Examples:
 
+- Invalid: `option.Option(BelongsTo(TrackBucket, Nil))`
+- Invalid: `option.Option(Mutual(Hippo, FriendshipAttributes))`
 - Invalid: `dsl.BelongsTo(TrackBucket, Nil)`
-- Valid: `dsl.BelongsTo(Option(TrackBucket), Nil)`
+- Valid: `dsl.BelongsTo(option.Option(TrackBucket), Nil)`
 - Valid: `dsl.BelongsTo(List(Tag), AppliedTagRelationshipAttributes)`
+- Valid: `dsl.Mutual(option.Option(Hippo), FriendshipAttributes)`
+- Valid: `dsl.Mutual(List(Hippo), FriendshipAttributes)`
 
 ## Enforcement
 
 ### Schema-level parser enforcement
 
 - Validate `*Relationships` field types.
-- Reject invalid `BelongsTo` first arguments with a parse error.
+- Reject invalid `BelongsTo` / `Mutual` shapes with a parse error.
 
 ### Row codegen enforcement
 
 - Build row-local generated type from entity data fields plus flattened relationships.
 - Decode DB rows into that row-local type.
-- Use relationship placeholders that match the first `BelongsTo` argument shape:
-  - `List(_)` -> `dsl.BelongsTo([])`
-  - `Option(_)` -> `dsl.BelongsTo(option.None)`
+- Use flattened defaults that match the connection cardinality:
+  - `BelongsTo(List(_), _)` / `Mutual(List(_), _)` -> `[]`
+  - `BelongsTo(option.Option(_), _)` / `Mutual(option.Option(_), _)` -> `option.None`
 
 ## Expected Generated Type Example
 

@@ -21,9 +21,9 @@ pub type Hippo {
 
 pub type HippoRelationships {
   HippoRelationships(
-    friends: option.Option(Mutual(List(Hippo), FriendshipAttributes)),
-    best_friend: option.Option(Mutual(Hippo, FriendshipAttributes)),
-    owner: option.Option(BelongsTo(Human, Nil)),
+    friends: Mutual(List(Hippo), FriendshipAttributes),
+    best_friend: Mutual(option.Option(Hippo), FriendshipAttributes),
+    owner: BelongsTo(option.Option(Human), Nil),
   )
 }
 
@@ -69,7 +69,7 @@ pub fn query_old_hippos_owner_emails(
   dsl.query(hippo)
   |> dsl.shape(#(
     #("age", age(exclude_if_missing(hippo.date_of_birth))),
-    #("owner_email", nullable(hippo.relationships.owner).item.email),
+    #("owner_email", nullable(hippo.relationships.owner.item).email),
   ))
   |> dsl.filter_bool(age(exclude_if_missing(hippo.date_of_birth)) > min_age)
   |> dsl.order_by(age(exclude_if_missing(hippo.date_of_birth)), dsl.Desc)
@@ -84,7 +84,7 @@ pub fn query_old_hippos_owner_names(
   dsl.query(hippo)
   |> dsl.shape(#(
     #("age", age(exclude_if_missing(hippo.date_of_birth))),
-    #("owner_email", nullable(hippo.relationships.owner).item.email),
+    #("owner_email", nullable(hippo.relationships.owner.item).email),
   ))
   |> dsl.filter_bool(age(exclude_if_missing(hippo.date_of_birth)) > min_age)
   |> dsl.order_by(age(exclude_if_missing(hippo.date_of_birth)), dsl.Desc)

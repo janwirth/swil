@@ -23,8 +23,7 @@ const create_importedtrack_table_sql = "create table \"importedtrack\" (
   \"external_source_url\" text,
   \"created_at\" integer not null,
   \"updated_at\" integer not null,
-  \"tags_list_id\" integer,
-  \"track_bucket_option_id\" integer,
+  \"track_bucket_trackbucket_id\" integer,
   \"deleted_at\" integer
 );"
 
@@ -41,9 +40,8 @@ const expected_importedtrack_table_info = "cid	name	type	notnull	dflt_value	pk
 7	external_source_url	TEXT	0	NULL	0
 8	created_at	INTEGER	1	NULL	0
 9	updated_at	INTEGER	1	NULL	0
-10	tags_list_id	INTEGER	0	NULL	0
-11	track_bucket_option_id	INTEGER	0	NULL	0
-12	deleted_at	INTEGER	0	NULL	0"
+10	track_bucket_trackbucket_id	INTEGER	0	NULL	0
+11	deleted_at	INTEGER	0	NULL	0"
 
 const expected_importedtrack_index_list = "seq	name	unique	origin	partial
 0	importedtrack_by_from_source_root_service_source_id	1	c	0"
@@ -68,8 +66,7 @@ const importedtrack_columns_wanted = [
   ImportedTrackCol("external_source_url", "TEXT", 0, 0),
   ImportedTrackCol("created_at", "INTEGER", 1, 0),
   ImportedTrackCol("updated_at", "INTEGER", 1, 0),
-  ImportedTrackCol("tags_list_id", "INTEGER", 0, 0),
-  ImportedTrackCol("track_bucket_option_id", "INTEGER", 0, 0),
+  ImportedTrackCol("track_bucket_trackbucket_id", "INTEGER", 0, 0),
   ImportedTrackCol("deleted_at", "INTEGER", 0, 0),
 ]
 

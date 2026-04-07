@@ -2,14 +2,12 @@ pub type HippoRow {
   HippoRow(
     name: option.Option(String),
     gender: option.Option(hippo_schema.GenderScalar),
-    date_of_birth: option.Option(calendar.Date),
-    friends: option.Option(
-      List(#(hippo_schema.Hippo, hippo_schema.FriendshipAttributes)),
-    ),
+    date_of_birth: option.Option(Date),
+    friends: List(#(hippo_schema.Hippo, hippo_schema.FriendshipAttributes)),
     best_friend: option.Option(
       #(hippo_schema.Hippo, hippo_schema.FriendshipAttributes),
     ),
-    owner: option.Option(BelongsTo(hippo_schema.Human, Nil)),
+    owner: option.Option(hippo_schema.Human),
   )
 }
 
@@ -89,7 +87,7 @@ pub fn hippo_with_magic_row_decoder() -> decode.Decoder(
       name:,
       gender:,
       date_of_birth:,
-      friends: option.None,
+      friends: [],
       best_friend: option.None,
       owner: option.None,
     )

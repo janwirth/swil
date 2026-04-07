@@ -98,15 +98,26 @@ fn belongs_to_fk_column_names(rel_fields: List(FieldDefinition)) -> List(String)
   list.filter_map(rel_fields, fn(field) {
     let t = unwrap_option_type(field.type_)
     case t {
-      glance.NamedType(
-        _,
-        "BelongsTo",
-        _,
-        [glance.NamedType(_, target, _, _), _],
-      ) -> Ok(field.label <> "_" <> string.lowercase(target) <> "_id")
+      glance.NamedType(_, "BelongsTo", _, [first, _])
+      | glance.NamedType(_, "dsl.BelongsTo", _, [first, _]) ->
+        case belongs_to_target_name(first) {
+          Some(target) ->
+            Ok(field.label <> "_" <> string.lowercase(target) <> "_id")
+          None -> Error(Nil)
+        }
       _ -> Error(Nil)
     }
   })
+}
+
+fn belongs_to_target_name(t: glance.Type) -> Option(String) {
+  case t {
+    glance.NamedType(_, target, _, []) -> Some(target)
+    glance.NamedType(_, "Option", _, [inner])
+    | glance.NamedType(_, "option.Option", _, [inner]) ->
+      belongs_to_target_name(inner)
+    _ -> None
+  }
 }
 
 /// Expected `PRAGMA table_info` TSV (header + rows) for pragma-based migration tests.

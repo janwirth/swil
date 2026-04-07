@@ -310,46 +310,14 @@ fn ensure_result_import(text: String) -> String {
   }
 }
 
-fn ensure_row_types_import(
-  text: String,
-  db_path: String,
-  def: SchemaDefinition,
-) -> String {
-  let row_types =
-    def.entities
-    |> list.map(fn(e) { "type " <> e.type_name <> "Row" })
-    |> string.join(", ")
-  let row_import_line =
-    "import " <> db_path <> "/row.{" <> row_types <> "}\n"
-  case string.split(text, "\n") {
-    [] -> text
-    [first, ..rest] ->
-      first <> "\n" <> row_import_line <> string.join(rest, "\n")
-  }
-}
-
 fn ensure_row_relationship_type_qualifiers(text: String) -> String {
   text
+  |> string.replace("BelongsTo(", "dsl.BelongsTo(")
+  |> string.replace("Mutual(", "dsl.Mutual(")
+  |> string.replace("BacklinkWith(", "dsl.BacklinkWith(")
   |> string.replace("option.Option(BelongsTo(", "option.Option(dsl.BelongsTo(")
   |> string.replace("option.Option(Mutual(", "option.Option(dsl.Mutual(")
   |> string.replace("option.Option(BacklinkWith(", "option.Option(dsl.BacklinkWith(")
-}
-
-fn ensure_calendar_alias_import_for_row(text: String) -> String {
-  case
-    string.contains(text, "calendar.Date")
-    && !string.contains(text, "import gleam/time/calendar as calendar")
-  {
-    False -> text
-    True ->
-      case string.split(text, "\n") {
-        [] -> text
-        [first, ..rest] ->
-          first
-          <> "\nimport gleam/time/calendar as calendar\n"
-          <> string.join(rest, "\n")
-      }
-  }
 }
 
 fn format_parse_error(e: schema_definition.ParseError) -> String {
@@ -608,12 +576,11 @@ pub fn generate_api_db_outputs(
     )
 
   let row_text =
-    dec.row_types_appendage(def, ctx)
+    string.replace(dec.row_types_appendage(def, ctx), "calendar.Date", "Date")
     <> "\n"
     <> render_module(row_mod)
     <> dec.subset_output_appendage(generated_query_specs)
   let row_text = ensure_row_relationship_type_qualifiers(row_text)
-  let row_text = ensure_calendar_alias_import_for_row(row_text)
   let row_text = ensure_api_help_import(row_text)
   let row_text = ensure_decode_import(row_text)
   let row_text = ensure_option_import(row_text)
@@ -758,7 +725,6 @@ pub fn generate_api_db_outputs(
 
   let api_text =
     render_module(api_mod)
-    |> ensure_row_types_import(db_path, def)
     |> ensure_option_import
     |> ensure_dsl_import
     |> ensure_list_import
