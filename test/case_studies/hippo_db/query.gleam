@@ -1,4 +1,4 @@
-import case_studies/hippo_db/row
+import case_studies/hippo_db/row.{type HippoRow, type HumanRow}
 import case_studies/hippo_schema
 import gleam/option
 import sqlight
@@ -23,7 +23,7 @@ const last_100_hippo_sql = "select \"name\", \"gender\", \"date_of_birth\", \"id
 pub fn query_hippos_by_gender(
   conn: sqlight.Connection,
   gender_to_match gender_to_match: hippo_schema.GenderScalar,
-) -> Result(List(#(hippo_schema.Hippo, dsl.MagicFields)), sqlight.Error) {
+) -> Result(List(#(HippoRow, dsl.MagicFields)), sqlight.Error) {
   sqlight.query(
     hippos_by_gender_sql,
     on: conn,
@@ -63,7 +63,7 @@ pub fn page_edited_human(
   conn: sqlight.Connection,
   limit limit: Int,
   offset offset: Int,
-) -> Result(List(#(hippo_schema.Human, dsl.MagicFields)), sqlight.Error) {
+) -> Result(List(#(HumanRow, dsl.MagicFields)), sqlight.Error) {
   sqlight.query(
     page_edited_human_sql,
     on: conn,
@@ -75,7 +75,7 @@ pub fn page_edited_human(
 /// List up to 100 recently edited human rows.
 pub fn last_100_edited_human(
   conn: sqlight.Connection,
-) -> Result(List(#(hippo_schema.Human, dsl.MagicFields)), sqlight.Error) {
+) -> Result(List(#(HumanRow, dsl.MagicFields)), sqlight.Error) {
   sqlight.query(
     last_100_human_sql,
     on: conn,
@@ -89,7 +89,7 @@ pub fn page_edited_hippo(
   conn: sqlight.Connection,
   limit limit: Int,
   offset offset: Int,
-) -> Result(List(#(hippo_schema.Hippo, dsl.MagicFields)), sqlight.Error) {
+) -> Result(List(#(HippoRow, dsl.MagicFields)), sqlight.Error) {
   sqlight.query(
     page_edited_hippo_sql,
     on: conn,
@@ -101,7 +101,7 @@ pub fn page_edited_hippo(
 /// List up to 100 recently edited hippo rows.
 pub fn last_100_edited_hippo(
   conn: sqlight.Connection,
-) -> Result(List(#(hippo_schema.Hippo, dsl.MagicFields)), sqlight.Error) {
+) -> Result(List(#(HippoRow, dsl.MagicFields)), sqlight.Error) {
   sqlight.query(
     last_100_hippo_sql,
     on: conn,

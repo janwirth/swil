@@ -2,7 +2,8 @@ import case_studies/hippo_db/cmd
 import case_studies/hippo_db/get
 import case_studies/hippo_db/migration
 import case_studies/hippo_db/query
-import case_studies/hippo_db/row
+import case_studies/hippo_db/row.{type HippoRow, type HumanRow}
+import case_studies/hippo_db/row.{type HippoRow, type HumanRow}
 import case_studies/hippo_schema
 import gleam/option
 import gleam/time/calendar
@@ -28,7 +29,7 @@ pub fn gender_scalar_from_db_string(
 pub fn query_hippos_by_gender(
   conn: sqlight.Connection,
   gender_to_match gender_to_match: hippo_schema.GenderScalar,
-) -> Result(List(#(hippo_schema.Hippo, dsl.MagicFields)), sqlight.Error) {
+) -> Result(List(#(HippoRow, dsl.MagicFields)), sqlight.Error) {
   query.query_hippos_by_gender(conn, gender_to_match: gender_to_match)
 }
 
@@ -50,7 +51,7 @@ pub fn page_edited_human(
   conn: sqlight.Connection,
   limit limit: Int,
   offset offset: Int,
-) -> Result(List(#(hippo_schema.Human, dsl.MagicFields)), sqlight.Error) {
+) -> Result(List(#(HumanRow, dsl.MagicFields)), sqlight.Error) {
   query.page_edited_human(conn, limit: limit, offset: offset)
 }
 
@@ -58,49 +59,40 @@ pub fn page_edited_hippo(
   conn: sqlight.Connection,
   limit limit: Int,
   offset offset: Int,
-) -> Result(List(#(hippo_schema.Hippo, dsl.MagicFields)), sqlight.Error) {
+) -> Result(List(#(HippoRow, dsl.MagicFields)), sqlight.Error) {
   query.page_edited_hippo(conn, limit: limit, offset: offset)
 }
 
 pub fn last_100_edited_human(
   conn: sqlight.Connection,
-) -> Result(List(#(hippo_schema.Human, dsl.MagicFields)), sqlight.Error) {
+) -> Result(List(#(HumanRow, dsl.MagicFields)), sqlight.Error) {
   query.last_100_edited_human(conn)
 }
 
 pub fn last_100_edited_hippo(
   conn: sqlight.Connection,
-) -> Result(List(#(hippo_schema.Hippo, dsl.MagicFields)), sqlight.Error) {
+) -> Result(List(#(HippoRow, dsl.MagicFields)), sqlight.Error) {
   query.last_100_edited_hippo(conn)
 }
 
 pub fn get_human_by_id(
   conn: sqlight.Connection,
   id id: Int,
-) -> Result(
-  option.Option(#(hippo_schema.Human, dsl.MagicFields)),
-  sqlight.Error,
-) {
+) -> Result(option.Option(#(HumanRow, dsl.MagicFields)), sqlight.Error) {
   get.get_human_by_id(conn, id: id)
 }
 
 pub fn get_hippo_by_id(
   conn: sqlight.Connection,
   id id: Int,
-) -> Result(
-  option.Option(#(hippo_schema.Hippo, dsl.MagicFields)),
-  sqlight.Error,
-) {
+) -> Result(option.Option(#(HippoRow, dsl.MagicFields)), sqlight.Error) {
   get.get_hippo_by_id(conn, id: id)
 }
 
 pub fn get_human_by_email(
   conn: sqlight.Connection,
   email email: String,
-) -> Result(
-  option.Option(#(hippo_schema.Human, dsl.MagicFields)),
-  sqlight.Error,
-) {
+) -> Result(option.Option(#(HumanRow, dsl.MagicFields)), sqlight.Error) {
   get.get_human_by_email(conn, email: email)
 }
 
@@ -115,10 +107,7 @@ pub fn get_hippo_by_name_and_date_of_birth(
   conn: sqlight.Connection,
   name name: String,
   date_of_birth date_of_birth: calendar.Date,
-) -> Result(
-  option.Option(#(hippo_schema.Hippo, dsl.MagicFields)),
-  sqlight.Error,
-) {
+) -> Result(option.Option(#(HippoRow, dsl.MagicFields)), sqlight.Error) {
   get.get_hippo_by_name_and_date_of_birth(
     conn,
     name: name,

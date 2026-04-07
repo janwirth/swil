@@ -1,11 +1,35 @@
+pub type HippoRow {
+  HippoRow(
+    name: option.Option(String),
+    gender: option.Option(hippo_schema.GenderScalar),
+    date_of_birth: option.Option(calendar.Date),
+    friends: option.Option(
+      List(#(hippo_schema.Hippo, hippo_schema.FriendshipAttributes)),
+    ),
+    best_friend: option.Option(
+      #(hippo_schema.Hippo, hippo_schema.FriendshipAttributes),
+    ),
+    owner: option.Option(BelongsTo(hippo_schema.Human, Nil)),
+  )
+}
+
+pub type HumanRow {
+  HumanRow(
+    name: option.Option(String),
+    email: option.Option(String),
+    hippos: List(#(hippo_schema.Hippo, hippo_schema.FriendshipAttributes)),
+  )
+}
+
 import case_studies/hippo_schema
 import gleam/dynamic/decode
 import gleam/option
+import gleam/time/calendar.{type Date}
 import swil/dsl
 import swil/runtime/api_help
 
 pub fn human_with_magic_row_decoder() -> decode.Decoder(
-  #(hippo_schema.Human, dsl.MagicFields),
+  #(HumanRow, dsl.MagicFields),
 ) {
   use name_raw <- decode.field(0, decode.string)
   use email_raw <- decode.field(1, decode.string)
@@ -15,19 +39,9 @@ pub fn human_with_magic_row_decoder() -> decode.Decoder(
   use deleted_at_raw <- decode.field(5, decode.optional(decode.int))
   let name = api_help.opt_string_from_db(name_raw)
   let email = api_help.opt_string_from_db(email_raw)
-  let human =
-    hippo_schema.Human(
-      name:,
-      email:,
-      hippos: [],
-      identities: hippo_schema.ByEmail(email: email_raw),
-      relationships: hippo_schema.HumanRelationships(hippos: dsl.BacklinkWith(
-        [],
-        option.None,
-      )),
-    )
+  let human_row = HumanRow(name:, email:, hippos: [])
   decode.success(#(
-    human,
+    human_row,
     api_help.magic_from_db_row(id, created_at, updated_at, deleted_at_raw),
   ))
 }
@@ -54,7 +68,7 @@ pub fn gender_scalar_from_db_string(
 }
 
 pub fn hippo_with_magic_row_decoder() -> decode.Decoder(
-  #(hippo_schema.Hippo, dsl.MagicFields),
+  #(HippoRow, dsl.MagicFields),
 ) {
   use name_raw <- decode.field(0, decode.string)
   use gender_raw <- decode.field(1, decode.string)
@@ -70,23 +84,17 @@ pub fn hippo_with_magic_row_decoder() -> decode.Decoder(
     s -> option.Some(api_help.date_from_db_string(s))
   }
   let assert option.Some(dob_identity) = date_of_birth
-  let hippo =
-    hippo_schema.Hippo(
+  let hippo_row =
+    HippoRow(
       name:,
       gender:,
       date_of_birth:,
-      identities: hippo_schema.ByNameAndDateOfBirth(
-        name: name_raw,
-        date_of_birth: dob_identity,
-      ),
-      relationships: hippo_schema.HippoRelationships(
-        friends: option.None,
-        best_friend: option.None,
-        owner: option.None,
-      ),
+      friends: option.None,
+      best_friend: option.None,
+      owner: option.None,
     )
   decode.success(#(
-    hippo,
+    hippo_row,
     api_help.magic_from_db_row(id, created_at, updated_at, deleted_at_raw),
   ))
 }

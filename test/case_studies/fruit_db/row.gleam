@@ -1,3 +1,12 @@
+pub type FruitRow {
+  FruitRow(
+    name: option.Option(String),
+    color: option.Option(String),
+    price: option.Option(Float),
+    quantity: option.Option(Int),
+  )
+}
+
 import case_studies/fruit_schema
 import gleam/dynamic/decode
 import gleam/option
@@ -5,7 +14,7 @@ import swil/dsl
 import swil/runtime/api_help
 
 pub fn fruit_with_magic_row_decoder() -> decode.Decoder(
-  #(fruit_schema.Fruit, dsl.MagicFields),
+  #(FruitRow, dsl.MagicFields),
 ) {
   use name <- decode.field(0, decode.string)
   use color <- decode.field(1, decode.optional(decode.string))
@@ -15,16 +24,15 @@ pub fn fruit_with_magic_row_decoder() -> decode.Decoder(
   use created_at <- decode.field(5, decode.int)
   use updated_at <- decode.field(6, decode.int)
   use deleted_at_raw <- decode.field(7, decode.optional(decode.int))
-  let fruit =
-    fruit_schema.Fruit(
+  let fruit_row =
+    FruitRow(
       name: option.Some(name),
       color: api_help.option_string_from_optional_db(color),
       price: price,
       quantity: quantity,
-      identities: fruit_schema.ByName(name:),
     )
   decode.success(#(
-    fruit,
+    fruit_row,
     api_help.magic_from_db_row(id, created_at, updated_at, deleted_at_raw),
   ))
 }

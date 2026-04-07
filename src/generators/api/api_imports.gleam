@@ -146,13 +146,23 @@ pub fn with_row_module_imports(
       False -> inner2()
     }
   }
+  let with_optional_calendar = fn(inner2: fn() -> gmod.Module) {
+    case schema_context.schema_uses_calendar_date(def) {
+      True ->
+        gmod.with_import(
+          import_pre_exposing(["gleam", "time", "calendar"], "type Date"),
+          fn(_) { inner2() },
+        )
+      False -> inner2()
+    }
+  }
   let with_optional_json = fn() {
     case schema_context.schema_uses_non_enum_scalars(def) {
       True ->
         gmod.with_import(import_pre(["gleam", "json"]), fn(_) {
-          with_optional_timestamp(inner)
+          with_optional_timestamp(fn() { with_optional_calendar(inner) })
         })
-      False -> with_optional_timestamp(inner)
+      False -> with_optional_timestamp(fn() { with_optional_calendar(inner) })
     }
   }
   with_optional_json()

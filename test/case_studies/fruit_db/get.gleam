@@ -1,4 +1,4 @@
-import case_studies/fruit_db/row
+import case_studies/fruit_db/row.{type FruitRow}
 import case_studies/fruit_schema
 import gleam/option
 import gleam/result
@@ -13,10 +13,7 @@ const select_fruit_by_name_sql = "select \"name\", \"color\", \"price\", \"quant
 pub fn get_fruit_by_id(
   conn: sqlight.Connection,
   id id: Int,
-) -> Result(
-  option.Option(#(fruit_schema.Fruit, dsl.MagicFields)),
-  sqlight.Error,
-) {
+) -> Result(option.Option(#(FruitRow, dsl.MagicFields)), sqlight.Error) {
   use rows <- result.try(sqlight.query(
     select_fruit_by_id_sql,
     on: conn,
@@ -33,10 +30,7 @@ pub fn get_fruit_by_id(
 pub fn get_fruit_by_name(
   conn: sqlight.Connection,
   name name: String,
-) -> Result(
-  option.Option(#(fruit_schema.Fruit, dsl.MagicFields)),
-  sqlight.Error,
-) {
+) -> Result(option.Option(#(FruitRow, dsl.MagicFields)), sqlight.Error) {
   use rows <- result.try(sqlight.query(
     select_fruit_by_name_sql,
     on: conn,

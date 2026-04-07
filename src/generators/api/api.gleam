@@ -315,23 +315,40 @@ fn ensure_row_types_import(
   db_path: String,
   def: SchemaDefinition,
 ) -> String {
-  let needs_row_types = string.contains(text, "Row, dsl.MagicFields")
-  let row_import_prefix = "import " <> db_path <> "/row"
-  case needs_row_types && !string.contains(text, row_import_prefix) {
+  let row_types =
+    def.entities
+    |> list.map(fn(e) { "type " <> e.type_name <> "Row" })
+    |> string.join(", ")
+  let row_import_line =
+    "import " <> db_path <> "/row.{" <> row_types <> "}\n"
+  case string.split(text, "\n") {
+    [] -> text
+    [first, ..rest] ->
+      first <> "\n" <> row_import_line <> string.join(rest, "\n")
+  }
+}
+
+fn ensure_row_relationship_type_qualifiers(text: String) -> String {
+  text
+  |> string.replace("option.Option(BelongsTo(", "option.Option(dsl.BelongsTo(")
+  |> string.replace("option.Option(Mutual(", "option.Option(dsl.Mutual(")
+  |> string.replace("option.Option(BacklinkWith(", "option.Option(dsl.BacklinkWith(")
+}
+
+fn ensure_calendar_alias_import_for_row(text: String) -> String {
+  case
+    string.contains(text, "calendar.Date")
+    && !string.contains(text, "import gleam/time/calendar as calendar")
+  {
     False -> text
-    True -> {
-      let row_types =
-        def.entities
-        |> list.map(fn(e) { "type " <> e.type_name <> "Row" })
-        |> string.join(", ")
-      let row_import_line =
-        row_import_prefix <> ".{" <> row_types <> "}\n"
+    True ->
       case string.split(text, "\n") {
         [] -> text
         [first, ..rest] ->
-          first <> "\n" <> row_import_line <> string.join(rest, "\n")
+          first
+          <> "\nimport gleam/time/calendar as calendar\n"
+          <> string.join(rest, "\n")
       }
-    }
   }
 }
 
@@ -595,6 +612,8 @@ pub fn generate_api_db_outputs(
     <> "\n"
     <> render_module(row_mod)
     <> dec.subset_output_appendage(generated_query_specs)
+  let row_text = ensure_row_relationship_type_qualifiers(row_text)
+  let row_text = ensure_calendar_alias_import_for_row(row_text)
   let row_text = ensure_api_help_import(row_text)
   let row_text = ensure_decode_import(row_text)
   let row_text = ensure_option_import(row_text)

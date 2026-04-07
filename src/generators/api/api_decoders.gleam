@@ -119,7 +119,7 @@ pub fn render_type(t: glance.Type, ctx: TypeCtx) -> String {
     glance.NamedType(_, "Int", None, []) -> "Int"
     glance.NamedType(_, "Float", None, []) -> "Float"
     glance.NamedType(_, "Bool", None, []) -> "Bool"
-    glance.NamedType(_, "Date", _, []) -> "calendar.Date"
+    glance.NamedType(_, "Date", _, []) -> "Date"
     glance.NamedType(_, "Timestamp", _, []) -> "Timestamp"
     glance.NamedType(_, "Option", _, [inner]) ->
       "option.Option(" <> render_type(inner, ctx) <> ")"
@@ -350,8 +350,79 @@ fn tuple_type(a: String, b: String) -> String {
   "#(" <> a <> ", " <> b <> ")"
 }
 
+fn normalize_relationship_fallback(rendered: String) -> String {
+  case
+    string.starts_with(rendered, "BelongsTo(")
+    || string.starts_with(rendered, "Mutual(")
+    || string.starts_with(rendered, "BacklinkWith(")
+  {
+    True -> "dsl." <> rendered
+    False -> rendered
+  }
+}
+
 fn relationship_row_type(rel_t: glance.Type, ctx: TypeCtx) -> String {
   case rel_t {
+    glance.NamedType(_, "Option", _, [glance.NamedType(_, "BelongsTo", _, [first, attributes])]) ->
+      case render_type(attributes, ctx) == "Nil" {
+        True -> "option.Option(" <> render_type(first, ctx) <> ")"
+        False ->
+          "option.Option("
+          <> tuple_type(render_type(first, ctx), render_type(attributes, ctx))
+          <> ")"
+      }
+    glance.NamedType(_, "Option", _, [glance.NamedType(_, "dsl.BelongsTo", _, [first, attributes])]) ->
+      case render_type(attributes, ctx) == "Nil" {
+        True -> "option.Option(" <> render_type(first, ctx) <> ")"
+        False ->
+          "option.Option("
+          <> tuple_type(render_type(first, ctx), render_type(attributes, ctx))
+          <> ")"
+      }
+    glance.NamedType(_, "Option", _, [inner]) ->
+      "option.Option(" <> relationship_row_type(inner, ctx) <> ")"
+    glance.NamedType(_, "option.Option", _, [inner]) ->
+      "option.Option(" <> relationship_row_type(inner, ctx) <> ")"
+    glance.NamedType(_, "Mutual", _, [inner, attributes]) ->
+      case inner {
+        glance.NamedType(_, "List", _, [target]) ->
+          "List("
+          <> tuple_type(render_type(target, ctx), render_type(attributes, ctx))
+          <> ")"
+        _ ->
+          tuple_type(render_type(inner, ctx), render_type(attributes, ctx))
+      }
+    glance.NamedType(_, "dsl.Mutual", _, [inner, attributes]) ->
+      case inner {
+        glance.NamedType(_, "List", _, [target]) ->
+          "List("
+          <> tuple_type(render_type(target, ctx), render_type(attributes, ctx))
+          <> ")"
+        _ ->
+          tuple_type(render_type(inner, ctx), render_type(attributes, ctx))
+      }
+    glance.NamedType(_, "BacklinkWith", _, [inner, attributes]) ->
+      case inner {
+        glance.NamedType(_, "List", _, [target]) ->
+          "List("
+          <> tuple_type(render_type(target, ctx), render_type(attributes, ctx))
+          <> ")"
+        _ ->
+          "List("
+          <> tuple_type(render_type(inner, ctx), render_type(attributes, ctx))
+          <> ")"
+      }
+    glance.NamedType(_, "dsl.BacklinkWith", _, [inner, attributes]) ->
+      case inner {
+        glance.NamedType(_, "List", _, [target]) ->
+          "List("
+          <> tuple_type(render_type(target, ctx), render_type(attributes, ctx))
+          <> ")"
+        _ ->
+          "List("
+          <> tuple_type(render_type(inner, ctx), render_type(attributes, ctx))
+          <> ")"
+      }
     glance.NamedType(_, "BelongsTo", _, [first, attributes]) ->
       case first {
         glance.NamedType(_, "List", _, [inner]) ->
@@ -366,15 +437,65 @@ fn relationship_row_type(rel_t: glance.Type, ctx: TypeCtx) -> String {
               <> tuple_type(render_type(inner, ctx), render_type(attributes, ctx))
               <> ")"
           }
-        _ -> render_type(rel_t, ctx)
+        _ ->
+          case render_type(attributes, ctx) == "Nil" {
+            True -> "option.Option(" <> render_type(first, ctx) <> ")"
+            False ->
+              "option.Option("
+              <> tuple_type(render_type(first, ctx), render_type(attributes, ctx))
+              <> ")"
+          }
       }
-    _ -> render_type(rel_t, ctx)
+    glance.NamedType(_, "dsl.BelongsTo", _, [first, attributes]) ->
+      case first {
+        glance.NamedType(_, "List", _, [inner]) ->
+          "List("
+          <> tuple_type(render_type(inner, ctx), render_type(attributes, ctx))
+          <> ")"
+        glance.NamedType(_, "Option", _, [inner]) ->
+          case render_type(attributes, ctx) == "Nil" {
+            True -> "option.Option(" <> render_type(inner, ctx) <> ")"
+            False ->
+              "option.Option("
+              <> tuple_type(render_type(inner, ctx), render_type(attributes, ctx))
+              <> ")"
+          }
+        _ ->
+          case render_type(attributes, ctx) == "Nil" {
+            True -> "option.Option(" <> render_type(first, ctx) <> ")"
+            False ->
+              "option.Option("
+              <> tuple_type(render_type(first, ctx), render_type(attributes, ctx))
+              <> ")"
+          }
+      }
+    _ -> normalize_relationship_fallback(render_type(rel_t, ctx))
   }
 }
 
 fn relationship_row_default_expr(rel_t: glance.Type) -> String {
   case rel_t {
+    glance.NamedType(_, "Option", _, _) -> "option.None"
+    glance.NamedType(_, "option.Option", _, _) -> "option.None"
+    glance.NamedType(_, "Mutual", _, [inner, _]) ->
+      case inner {
+        glance.NamedType(_, "List", _, _) -> "[]"
+        _ -> "option.None"
+      }
+    glance.NamedType(_, "dsl.Mutual", _, [inner, _]) ->
+      case inner {
+        glance.NamedType(_, "List", _, _) -> "[]"
+        _ -> "option.None"
+      }
+    glance.NamedType(_, "BacklinkWith", _, _) -> "[]"
+    glance.NamedType(_, "dsl.BacklinkWith", _, _) -> "[]"
     glance.NamedType(_, "BelongsTo", _, [first, _]) ->
+      case first {
+        glance.NamedType(_, "List", _, _) -> "[]"
+        glance.NamedType(_, "Option", _, _) -> "option.None"
+        _ -> "option.None"
+      }
+    glance.NamedType(_, "dsl.BelongsTo", _, [first, _]) ->
       case first {
         glance.NamedType(_, "List", _, _) -> "[]"
         glance.NamedType(_, "Option", _, _) -> "option.None"

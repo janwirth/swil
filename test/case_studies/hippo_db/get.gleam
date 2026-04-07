@@ -1,4 +1,4 @@
-import case_studies/hippo_db/row
+import case_studies/hippo_db/row.{type HippoRow, type HumanRow}
 import case_studies/hippo_schema
 import gleam/option
 import gleam/result
@@ -19,10 +19,7 @@ const select_hippo_by_name_and_date_of_birth_sql = "select \"name\", \"gender\",
 pub fn get_human_by_id(
   conn: sqlight.Connection,
   id id: Int,
-) -> Result(
-  option.Option(#(hippo_schema.Human, dsl.MagicFields)),
-  sqlight.Error,
-) {
+) -> Result(option.Option(#(HumanRow, dsl.MagicFields)), sqlight.Error) {
   use rows <- result.try(sqlight.query(
     select_human_by_id_sql,
     on: conn,
@@ -39,10 +36,7 @@ pub fn get_human_by_id(
 pub fn get_human_by_email(
   conn: sqlight.Connection,
   email email: String,
-) -> Result(
-  option.Option(#(hippo_schema.Human, dsl.MagicFields)),
-  sqlight.Error,
-) {
+) -> Result(option.Option(#(HumanRow, dsl.MagicFields)), sqlight.Error) {
   use rows <- result.try(sqlight.query(
     select_human_by_email_sql,
     on: conn,
@@ -59,10 +53,7 @@ pub fn get_human_by_email(
 pub fn get_hippo_by_id(
   conn: sqlight.Connection,
   id id: Int,
-) -> Result(
-  option.Option(#(hippo_schema.Hippo, dsl.MagicFields)),
-  sqlight.Error,
-) {
+) -> Result(option.Option(#(HippoRow, dsl.MagicFields)), sqlight.Error) {
   use rows <- result.try(sqlight.query(
     select_hippo_by_id_sql,
     on: conn,
@@ -80,10 +71,7 @@ pub fn get_hippo_by_name_and_date_of_birth(
   conn: sqlight.Connection,
   name name: String,
   date_of_birth date_of_birth: calendar.Date,
-) -> Result(
-  option.Option(#(hippo_schema.Hippo, dsl.MagicFields)),
-  sqlight.Error,
-) {
+) -> Result(option.Option(#(HippoRow, dsl.MagicFields)), sqlight.Error) {
   use rows <- result.try(sqlight.query(
     select_hippo_by_name_and_date_of_birth_sql,
     on: conn,
