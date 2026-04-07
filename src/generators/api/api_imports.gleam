@@ -57,6 +57,12 @@ fn exposing_items(s: String) -> List(gimport.ExposedItem) {
   |> list.map(parse_exposing_piece)
 }
 
+fn row_types_exposing(def: SchemaDefinition) -> String {
+  def.entities
+  |> list.map(fn(e) { "type " <> e.type_name <> "Row" })
+  |> string.join(", ")
+}
+
 fn with_gleam_timestamp_type_if_needed(
   def: SchemaDefinition,
   inner: fn() -> gmod.Module,
@@ -130,13 +136,23 @@ pub fn with_row_module_imports(
     import_pre(["gleam", "dynamic", "decode"]),
   )
   use _ <- gmod.with_import(import_pre(["gleam", "option"]))
+  let with_optional_timestamp = fn(inner2: fn() -> gmod.Module) {
+    case schema_context.schema_uses_timestamp(def) {
+      True ->
+        gmod.with_import(
+          import_pre_exposing(["gleam", "time", "timestamp"], "type Timestamp"),
+          fn(_) { inner2() },
+        )
+      False -> inner2()
+    }
+  }
   let with_optional_json = fn() {
     case schema_context.schema_uses_non_enum_scalars(def) {
       True ->
         gmod.with_import(import_pre(["gleam", "json"]), fn(_) {
-          inner()
+          with_optional_timestamp(inner)
         })
-      False -> inner()
+      False -> with_optional_timestamp(inner)
     }
   }
   with_optional_json()
@@ -145,14 +161,17 @@ pub fn with_row_module_imports(
 pub fn with_query_module_imports(
   db_module_path: String,
   schema_path: String,
-  _def: SchemaDefinition,
+  def: SchemaDefinition,
   _exposing: String,
   inner: fn() -> gmod.Module,
 ) -> gmod.Module {
   let sch_parts = string.split(schema_path, "/")
   let db_parts = string.split(db_module_path, "/")
   let row_parts = list.append(db_parts, ["row"])
-  use _ <- gmod.with_import(import_pre(row_parts))
+  use _ <- gmod.with_import(import_pre_exposing(
+    row_parts,
+    row_types_exposing(def),
+  ))
   use _ <- gmod.with_import(import_pre(sch_parts))
   use _ <- gmod.with_import(import_pre_alias(["swil", "dsl"], "dsl"))
   use _ <- gmod.with_import(import_pre(["gleam", "option"]))
@@ -171,7 +190,10 @@ pub fn with_get_module_imports(
   let db_parts = string.split(db_module_path, "/")
   let row_parts = list.append(db_parts, ["row"])
   let finish = fn() {
-    use _ <- gmod.with_import(import_pre(row_parts))
+    use _ <- gmod.with_import(import_pre_exposing(
+      row_parts,
+      row_types_exposing(def),
+    ))
     use _ <- gmod.with_import(import_pre(sch_parts))
     use _ <- gmod.with_import(import_pre_alias(["swil", "dsl"], "dsl"))
     use _ <- gmod.with_import(import_pre(["gleam", "option"]))
@@ -211,7 +233,6 @@ pub fn with_facade_module_imports(
   let get_parts = list.append(db_parts, ["get"])
   let cmd_parts = list.append(db_parts, ["cmd"])
   let query_parts = list.append(db_parts, ["query"])
-  let needs_row = schema_context.api_facade_imports_row_module(def)
   let after_submodules = fn() {
     use _ <- gmod.with_import(import_pre(sch_parts))
     use _ <- gmod.with_import(import_pre_alias(["swil", "dsl"], "dsl"))
@@ -234,11 +255,8 @@ pub fn with_facade_module_imports(
     after_submodules()
   }
   use _ <- gmod.with_import(gimport.new(mig_parts))
-  case needs_row {
-    True ->
-      gmod.with_import(import_pre(row_parts), fn(_) {
-        after_row_optional()
-      })
-    False -> after_row_optional()
-  }
+  gmod.with_import(
+    import_pre_exposing(row_parts, row_types_exposing(def)),
+    fn(_) { after_row_optional() },
+  )
 }

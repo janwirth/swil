@@ -245,38 +245,6 @@ fn ensure_option_import(text: String) -> String {
   }
 }
 
-/// gleamgen may omit `type Entity` when the value constructor shares the same name, but row decoders need the type in scope.
-fn ensure_row_schema_entity_type_imports(
-  text: String,
-  def: SchemaDefinition,
-) -> String {
-  list.fold(def.entities, text, fn(acc, ent) {
-    let name = ent.type_name
-    let typ = "type " <> name
-    case string.contains(acc, typ) {
-      True -> acc
-      False -> {
-        let open_comma = "{" <> name <> ","
-        let open_solo = "{" <> name <> "}"
-        case string.contains(acc, open_comma) {
-          True ->
-            string.replace(acc, open_comma, "{" <> typ <> ", " <> name <> ",")
-          False ->
-            case string.contains(acc, open_solo) {
-              True ->
-                string.replace(
-                  acc,
-                  open_solo,
-                  "{" <> typ <> ", " <> name <> "}",
-                )
-              False -> acc
-            }
-        }
-      }
-    }
-  })
-}
-
 /// gleamgen drops `import gleam/dynamic/decode` when only raw decoder pipelines reference `decode`.
 fn ensure_decode_import(text: String) -> String {
   case
@@ -337,6 +305,31 @@ fn ensure_result_import(text: String) -> String {
         [] -> text
         [first, ..rest] ->
           first <> "\nimport gleam/result\n" <> string.join(rest, "\n")
+      }
+    }
+  }
+}
+
+fn ensure_row_types_import(
+  text: String,
+  db_path: String,
+  def: SchemaDefinition,
+) -> String {
+  let needs_row_types = string.contains(text, "Row, dsl.MagicFields")
+  let row_import_prefix = "import " <> db_path <> "/row"
+  case needs_row_types && !string.contains(text, row_import_prefix) {
+    False -> text
+    True -> {
+      let row_types =
+        def.entities
+        |> list.map(fn(e) { "type " <> e.type_name <> "Row" })
+        |> string.join(", ")
+      let row_import_line =
+        row_import_prefix <> ".{" <> row_types <> "}\n"
+      case string.split(text, "\n") {
+        [] -> text
+        [first, ..rest] ->
+          first <> "\n" <> row_import_line <> string.join(rest, "\n")
       }
     }
   }
@@ -597,14 +590,15 @@ pub fn generate_api_db_outputs(
       fn() { fold_fn_chunks(facade_chunks, gmod.eof()) },
     )
 
-  let row_text = render_module(row_mod)
   let row_text =
-    row_text <> dec.subset_output_appendage(generated_query_specs)
+    dec.row_types_appendage(def, ctx)
+    <> "\n"
+    <> render_module(row_mod)
+    <> dec.subset_output_appendage(generated_query_specs)
   let row_text = ensure_api_help_import(row_text)
   let row_text = ensure_decode_import(row_text)
   let row_text = ensure_option_import(row_text)
   let row_text = ensure_dsl_import(row_text)
-  let row_text = ensure_row_schema_entity_type_imports(row_text, def)
   let get_text = ensure_dsl_import(render_module(get_mod))
 
   // Build raw query text and append complex filter code.
@@ -745,6 +739,7 @@ pub fn generate_api_db_outputs(
 
   let api_text =
     render_module(api_mod)
+    |> ensure_row_types_import(db_path, def)
     |> ensure_option_import
     |> ensure_dsl_import
     |> ensure_list_import

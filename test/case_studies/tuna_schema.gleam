@@ -33,7 +33,7 @@ pub type ImportedTrack {
 pub type ImportedTrackRelationships {
   ImportedTrackRelationships(
     tags: dsl.BelongsTo(List(Tag), AppliedTagRelationshipAttributes),
-    track_bucket: dsl.BelongsTo(TrackBucket, Nil),
+    track_bucket: dsl.BelongsTo(option.Option(TrackBucket), Nil),
   )
 }
 

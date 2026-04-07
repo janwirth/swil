@@ -110,6 +110,145 @@ fn plan_tag(cmd cmd: TagCommand, now now: Int) -> #(String, List(sqlight.Value))
   }
 }
 
+pub type TrackBucketCommand {
+  UpsertTrackBucketByTitleAndArtist(title: String, artist: String)
+  UpdateTrackBucketByTitleAndArtist(title: String, artist: String)
+  PatchTrackBucketByTitleAndArtist(title: String, artist: String)
+  DeleteTrackBucketByTitleAndArtist(title: String, artist: String)
+  UpdateTrackBucketById(
+    id: Int,
+    title: option.Option(String),
+    artist: option.Option(String),
+  )
+  PatchTrackBucketById(
+    id: Int,
+    title: option.Option(String),
+    artist: option.Option(String),
+  )
+}
+
+const trackbucket_upsert_by_title_and_artist_sql = "insert into \"trackbucket\" (\"title\", \"artist\", \"created_at\", \"updated_at\", \"deleted_at\")
+values (?, ?, ?, ?, null)
+on conflict(\"title\", \"artist\") do update set
+  \"updated_at\" = excluded.\"updated_at\",
+  \"deleted_at\" = null;"
+
+const trackbucket_update_by_title_and_artist_sql = "update \"trackbucket\" set \"updated_at\" = ? where \"title\" = ? and \"artist\" = ? and \"deleted_at\" is null;"
+
+const trackbucket_delete_by_title_and_artist_sql = "update \"trackbucket\" set \"deleted_at\" = ?, \"updated_at\" = ? where \"title\" = ? and \"artist\" = ? and \"deleted_at\" is null;"
+
+const trackbucket_update_by_id_sql = "update \"trackbucket\" set \"title\" = ?, \"artist\" = ?, \"updated_at\" = ? where \"id\" = ? and \"deleted_at\" is null;"
+
+pub fn execute_trackbucket_cmds(
+  conn conn: sqlight.Connection,
+  commands commands: List(TrackBucketCommand),
+) -> Result(Nil, #(Int, sqlight.Error)) {
+  cmd_runner.run_cmds(conn, commands, trackbucket_variant_tag, plan_trackbucket)
+}
+
+fn trackbucket_variant_tag(cmd cmd: TrackBucketCommand) -> Int {
+  case cmd {
+    UpsertTrackBucketByTitleAndArtist(..) -> 0
+    UpdateTrackBucketByTitleAndArtist(..) -> 1
+    PatchTrackBucketByTitleAndArtist(..) -> 2
+    DeleteTrackBucketByTitleAndArtist(..) -> 3
+    PatchTrackBucketById(..) -> 4
+    UpdateTrackBucketById(..) -> 5
+  }
+}
+
+fn plan_trackbucket(
+  cmd cmd: TrackBucketCommand,
+  now now: Int,
+) -> #(String, List(sqlight.Value)) {
+  case cmd {
+    UpsertTrackBucketByTitleAndArtist(title:, artist:) -> #(
+      trackbucket_upsert_by_title_and_artist_sql,
+      [
+        sqlight.text(title),
+        sqlight.text(artist),
+        sqlight.int(now),
+        sqlight.int(now),
+      ],
+    )
+    UpdateTrackBucketByTitleAndArtist(title:, artist:) -> #(
+      trackbucket_update_by_title_and_artist_sql,
+      [
+        sqlight.int(now),
+        sqlight.text(title),
+        sqlight.text(artist),
+      ],
+    )
+    PatchTrackBucketByTitleAndArtist(title:, artist:) -> {
+      let #(set_parts, binds) = #([], [])
+      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
+        sqlight.int(now),
+        ..binds
+      ])
+      let set_sql = string.join(list.reverse(set_parts), ", ")
+      let sql =
+        "update \"trackbucket\" set "
+        <> set_sql
+        <> " where \"title\" = ? and \"artist\" = ? and \"deleted_at\" is null;"
+      let binds =
+        list.flatten([
+          list.reverse(binds),
+          [
+            sqlight.text(title),
+            sqlight.text(artist),
+          ],
+        ])
+      #(sql, binds)
+    }
+    DeleteTrackBucketByTitleAndArtist(title:, artist:) -> #(
+      trackbucket_delete_by_title_and_artist_sql,
+      [
+        sqlight.int(now),
+        sqlight.int(now),
+        sqlight.text(title),
+        sqlight.text(artist),
+      ],
+    )
+    PatchTrackBucketById(id:, title:, artist:) -> {
+      let #(set_parts, binds) = #([], [])
+      let #(set_parts, binds) = case title {
+        option.None -> #(set_parts, binds)
+        option.Some(title_pv) -> #(["\"title\" = ?", ..set_parts], [
+          sqlight.text(title_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = case artist {
+        option.None -> #(set_parts, binds)
+        option.Some(artist_pv) -> #(["\"artist\" = ?", ..set_parts], [
+          sqlight.text(artist_pv),
+          ..binds
+        ])
+      }
+      let #(set_parts, binds) = #(["\"updated_at\" = ?", ..set_parts], [
+        sqlight.int(now),
+        ..binds
+      ])
+      let set_sql = string.join(list.reverse(set_parts), ", ")
+      let sql =
+        "update \"trackbucket\" set "
+        <> set_sql
+        <> " where \"id\" = ? and \"deleted_at\" is null;"
+      let binds = list.flatten([list.reverse(binds), [sqlight.int(id)]])
+      #(sql, binds)
+    }
+    UpdateTrackBucketById(id:, title:, artist:) -> #(
+      trackbucket_update_by_id_sql,
+      [
+        sqlight.text(api_help.opt_text_for_db(title)),
+        sqlight.text(api_help.opt_text_for_db(artist)),
+        sqlight.int(now),
+        sqlight.int(id),
+      ],
+    )
+  }
+}
+
 /// Commands-as-pure-data for this schema's entities.
 /// Generated — do not edit by hand.
 /// Execute via `execute_<entity>_cmds`; see `swil/runtime/cmd_runner` for batching.

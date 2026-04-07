@@ -1,4 +1,4 @@
-//// Blueprint for a generated `migrate`: introspect user tables `importedtrack`, `tag`
+//// Blueprint for a generated `migrate`: introspect user tables `importedtrack`, `tag`, `trackbucket`
 //// columns / indexes, then move to the desired state using `ALTER TABLE` only
 //// (add / drop column), never `DROP TABLE` / `CREATE TABLE` for shape fixes once those tables exist.
 
@@ -24,6 +24,7 @@ const create_importedtrack_table_sql = "create table \"importedtrack\" (
   \"created_at\" integer not null,
   \"updated_at\" integer not null,
   \"tags_list_id\" integer,
+  \"track_bucket_option_id\" integer,
   \"deleted_at\" integer
 );"
 
@@ -41,7 +42,8 @@ const expected_importedtrack_table_info = "cid	name	type	notnull	dflt_value	pk
 8	created_at	INTEGER	1	NULL	0
 9	updated_at	INTEGER	1	NULL	0
 10	tags_list_id	INTEGER	0	NULL	0
-11	deleted_at	INTEGER	0	NULL	0"
+11	track_bucket_option_id	INTEGER	0	NULL	0
+12	deleted_at	INTEGER	0	NULL	0"
 
 const expected_importedtrack_index_list = "seq	name	unique	origin	partial
 0	importedtrack_by_from_source_root_service_source_id	1	c	0"
@@ -67,6 +69,7 @@ const importedtrack_columns_wanted = [
   ImportedTrackCol("created_at", "INTEGER", 1, 0),
   ImportedTrackCol("updated_at", "INTEGER", 1, 0),
   ImportedTrackCol("tags_list_id", "INTEGER", 0, 0),
+  ImportedTrackCol("track_bucket_option_id", "INTEGER", 0, 0),
   ImportedTrackCol("deleted_at", "INTEGER", 0, 0),
 ]
 
@@ -556,20 +559,277 @@ fn ensure_tag_indexes(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   }
 }
 
+const create_trackbucket_table_sql = "create table \"trackbucket\" (
+  \"id\" integer primary key autoincrement not null,
+  \"title\" text,
+  \"artist\" text,
+  \"created_at\" integer not null,
+  \"updated_at\" integer not null,
+  \"deleted_at\" integer
+);"
+
+const create_trackbucket_by_title_artist_index_sql = "create unique index trackbucket_by_title_artist on \"trackbucket\"(\"title\", \"artist\");"
+
+const expected_trackbucket_table_info = "cid	name	type	notnull	dflt_value	pk
+0	id	INTEGER	1	NULL	1
+1	title	TEXT	0	NULL	0
+2	artist	TEXT	0	NULL	0
+3	created_at	INTEGER	1	NULL	0
+4	updated_at	INTEGER	1	NULL	0
+5	deleted_at	INTEGER	0	NULL	0"
+
+const expected_trackbucket_index_list = "seq	name	unique	origin	partial
+0	trackbucket_by_title_artist	1	c	0"
+
+const expected_trackbucket_index_info = "seqno	cid	name
+0	1	title
+1	2	artist"
+
+type TrackBucketCol {
+  TrackBucketCol(name: String, type_: String, notnull: Int, pk: Int)
+}
+
+const trackbucket_columns_wanted = [
+  TrackBucketCol("id", "INTEGER", 1, 1),
+  TrackBucketCol("title", "TEXT", 0, 0),
+  TrackBucketCol("artist", "TEXT", 0, 0),
+  TrackBucketCol("created_at", "INTEGER", 1, 0),
+  TrackBucketCol("updated_at", "INTEGER", 1, 0),
+  TrackBucketCol("deleted_at", "INTEGER", 0, 0),
+]
+
+fn drop_surplus_user_indexes_on_trackbucket(
+  conn: sqlight.Connection,
+) -> Result(Nil, sqlight.Error) {
+  use rows <- result.try(pragma_index_name_origin_rows(conn, "trackbucket"))
+  list.try_each(rows, fn(pair) {
+    let #(name, origin) = pair
+    case origin == "c" && name != "trackbucket_by_title_artist" {
+      True -> sqlight.exec("drop index if exists " <> name <> ";", conn)
+      False -> Ok(Nil)
+    }
+  })
+}
+
+fn trackbucket_row_matches(want: TrackBucketCol, got: TableInfoRow) -> Bool {
+  want.name == got.name
+  && type_matches(want.type_, got.type_)
+  && want.notnull == got.notnull
+  && want.pk == got.pk
+  && case want.notnull {
+    0 -> got.dflt == None || got.dflt == Some("")
+    _ -> True
+  }
+}
+
+fn first_surplus_column_trackbucket(
+  rows: List(TableInfoRow),
+  wanted: List(TrackBucketCol),
+) -> Option(String) {
+  case
+    list.find(rows, fn(r) { !list.any(wanted, fn(w) { w.name == r.name }) })
+  {
+    Ok(r) -> Some(r.name)
+    Error(Nil) -> None
+  }
+}
+
+fn first_mismatched_column_name_trackbucket(
+  rows: List(TableInfoRow),
+  wanted: List(TrackBucketCol),
+) -> Option(String) {
+  case
+    list.find_map(wanted, fn(w) {
+      case list.find(rows, fn(r) { r.name == w.name }) {
+        Error(Nil) -> Error(Nil)
+        Ok(row) ->
+          case trackbucket_row_matches(w, row) {
+            True -> Error(Nil)
+            False -> Ok(w.name)
+          }
+      }
+    })
+  {
+    Ok(name) -> Some(name)
+    Error(Nil) -> None
+  }
+}
+
+fn first_missing_column_trackbucket(
+  rows: List(TableInfoRow),
+  wanted: List(TrackBucketCol),
+) -> Option(TrackBucketCol) {
+  case
+    list.find(wanted, fn(w) { !list.any(rows, fn(r) { r.name == w.name }) })
+  {
+    Ok(w) -> Some(w)
+    Error(Nil) -> None
+  }
+}
+
+fn alter_add_trackbucket_column_sql(w: TrackBucketCol) -> String {
+  let fragment = case w.name {
+    "id" -> "integer primary key autoincrement not null"
+    "deleted_at" -> "integer"
+    _ ->
+      case string.uppercase(w.type_) {
+        "INTEGER" -> "integer"
+        "TEXT" -> "text"
+        "REAL" -> "real"
+        _ -> "text"
+      }
+      <> case w.notnull {
+        1 -> " not null"
+        _ -> ""
+      }
+  }
+  "alter table "
+  <> sqlite_ident.quote("trackbucket")
+  <> " add column "
+  <> sqlite_ident.quote(w.name)
+  <> " "
+  <> fragment
+  <> ";"
+}
+
+fn apply_one_trackbucket_column_fix(
+  conn: sqlight.Connection,
+  rows: List(TableInfoRow),
+) -> Result(Nil, sqlight.Error) {
+  case first_surplus_column_trackbucket(rows, trackbucket_columns_wanted) {
+    Some(name) ->
+      sqlight.exec(
+        "alter table "
+          <> sqlite_ident.quote("trackbucket")
+          <> " drop column "
+          <> sqlite_ident.quote(name)
+          <> ";",
+        conn,
+      )
+    None ->
+      case
+        first_mismatched_column_name_trackbucket(
+          rows,
+          trackbucket_columns_wanted,
+        )
+      {
+        Some(name) ->
+          sqlight.exec(
+            "alter table "
+              <> sqlite_ident.quote("trackbucket")
+              <> " drop column "
+              <> sqlite_ident.quote(name)
+              <> ";",
+            conn,
+          )
+        None ->
+          case
+            first_missing_column_trackbucket(rows, trackbucket_columns_wanted)
+          {
+            Some(w) -> sqlight.exec(alter_add_trackbucket_column_sql(w), conn)
+            None ->
+              panic as "case_studies/tuna_db/migration: no column fix applies"
+          }
+      }
+  }
+}
+
+fn reconcile_trackbucket_columns_loop(
+  conn: sqlight.Connection,
+  iter: Int,
+) -> Result(Nil, sqlight.Error) {
+  case iter > 64 {
+    True ->
+      panic as "case_studies/tuna_db/migration: column reconcile did not converge"
+    False -> {
+      use rows <- result.try(sqlite_pragma_assert.table_info_rows(
+        conn,
+        "trackbucket",
+      ))
+      case
+        list.length(rows) == list.length(trackbucket_columns_wanted)
+        && list.all(trackbucket_columns_wanted, fn(w) {
+          case list.find(rows, fn(r) { r.name == w.name }) {
+            Ok(row) -> trackbucket_row_matches(w, row)
+            Error(Nil) -> False
+          }
+        })
+      {
+        True -> Ok(Nil)
+        False -> {
+          use _ <- result.try(apply_one_trackbucket_column_fix(conn, rows))
+          reconcile_trackbucket_columns_loop(conn, iter + 1)
+        }
+      }
+    }
+  }
+}
+
+fn ensure_trackbucket_table(
+  conn: sqlight.Connection,
+) -> Result(Nil, sqlight.Error) {
+  use tables <- result.try(sqlite_pragma_assert.user_table_names(conn))
+  case list.contains(tables, "trackbucket") {
+    False -> sqlight.exec(create_trackbucket_table_sql, conn)
+    True -> {
+      use _ <- result.try(sqlight.exec(
+        "drop index if exists trackbucket_by_title_artist;",
+        conn,
+      ))
+      reconcile_trackbucket_columns_loop(conn, 0)
+    }
+  }
+}
+
+fn ensure_trackbucket_indexes(
+  conn: sqlight.Connection,
+) -> Result(Nil, sqlight.Error) {
+  use _ <- result.try(drop_surplus_user_indexes_on_trackbucket(conn))
+  case
+    sqlite_pragma_assert.index_list_tsv(conn, "trackbucket"),
+    sqlite_pragma_assert.index_info_tsv(conn, "trackbucket_by_title_artist")
+  {
+    Ok(list_tsv), Ok(info_tsv) ->
+      case
+        list_tsv == expected_trackbucket_index_list
+        && info_tsv == expected_trackbucket_index_info
+      {
+        True -> Ok(Nil)
+        False -> {
+          use _ <- result.try(sqlight.exec(
+            "drop index if exists trackbucket_by_title_artist;",
+            conn,
+          ))
+          sqlight.exec(create_trackbucket_by_title_artist_index_sql, conn)
+        }
+      }
+    _, _ -> {
+      use _ <- result.try(sqlight.exec(
+        "drop index if exists trackbucket_by_title_artist;",
+        conn,
+      ))
+      sqlight.exec(create_trackbucket_by_title_artist_index_sql, conn)
+    }
+  }
+}
+
 pub fn migration(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   use _ <- result.try(
     sqlite_pragma_assert.drop_user_tables_except_any(conn, [
       "importedtrack",
       "tag",
+      "trackbucket",
     ]),
   )
   use _ <- result.try(ensure_importedtrack_table(conn))
   use _ <- result.try(ensure_importedtrack_indexes(conn))
   use _ <- result.try(ensure_tag_table(conn))
   use _ <- result.try(ensure_tag_indexes(conn))
+  use _ <- result.try(ensure_trackbucket_table(conn))
+  use _ <- result.try(ensure_trackbucket_indexes(conn))
   sqlite_pragma_assert.assert_pragma_snapshot(
     conn,
-    ["importedtrack", "tag"],
+    ["importedtrack", "tag", "trackbucket"],
     "importedtrack",
     expected_importedtrack_table_info,
     expected_importedtrack_index_list,
@@ -578,12 +838,21 @@ pub fn migration(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   )
   sqlite_pragma_assert.assert_pragma_snapshot(
     conn,
-    ["importedtrack", "tag"],
+    ["importedtrack", "tag", "trackbucket"],
     "tag",
     expected_tag_table_info,
     expected_tag_index_list,
     "tag_by_label",
     expected_tag_index_info,
+  )
+  sqlite_pragma_assert.assert_pragma_snapshot(
+    conn,
+    ["importedtrack", "tag", "trackbucket"],
+    "trackbucket",
+    expected_trackbucket_table_info,
+    expected_trackbucket_index_list,
+    "trackbucket_by_title_artist",
+    expected_trackbucket_index_info,
   )
   Ok(Nil)
 }
