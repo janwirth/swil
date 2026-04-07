@@ -46,6 +46,22 @@ pub fn query_old_hippos_owner_emails(
   query.query_old_hippos_owner_emails(conn, min_age: min_age)
 }
 
+pub fn page_edited_human(
+  conn: sqlight.Connection,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(List(#(hippo_schema.Human, dsl.MagicFields)), sqlight.Error) {
+  query.page_edited_human(conn, limit: limit, offset: offset)
+}
+
+pub fn page_edited_hippo(
+  conn: sqlight.Connection,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(List(#(hippo_schema.Hippo, dsl.MagicFields)), sqlight.Error) {
+  query.page_edited_hippo(conn, limit: limit, offset: offset)
+}
+
 pub fn last_100_edited_human(
   conn: sqlight.Connection,
 ) -> Result(List(#(hippo_schema.Human, dsl.MagicFields)), sqlight.Error) {

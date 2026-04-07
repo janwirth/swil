@@ -21,7 +21,7 @@ import swil/dsl
 ///   dsl.query(fruit)
 ///   |> dsl.shape(fruit)
 ///   |> dsl.filter(dsl.exclude_if_missing(fruit.price) <. max_price)
-///   |> dsl.order(fruit.price, dsl.Asc)
+///   |> dsl.order_by(fruit.price, dsl.Asc)
 /// }
 /// ```
 pub type SchemaDefinition {
@@ -177,7 +177,13 @@ pub type QuerySpecDefinition {
 }
 
 pub type Query {
-  Query(shape: Shape, filter: Option(Filter), order: Order)
+  Query(
+    shape: Shape,
+    filter: Option(Filter),
+    order: Order,
+    limit: Option(Expr),
+    offset: Option(Expr),
+  )
 }
 
 /// Expression AST for query shape/filter/order.
@@ -264,7 +270,7 @@ pub type Operator {
 // dsl.query(fruit)
 // |> dsl.shape(fruit)
 // |> dsl.filter(dsl.exclude_if_missing(fruit.price) <. max_price)
-// |> dsl.order(fruit.price, dsl.Asc)
+// |> dsl.order_by(fruit.price, dsl.Asc)
 // ```
 // pub type QueryCodegen {
 //   Unsupported

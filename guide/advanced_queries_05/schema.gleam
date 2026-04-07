@@ -56,5 +56,5 @@ pub fn query_guide05_old_pets_owner_emails(
     nullable(pet.relationships.owner).item.email,
   ))
   |> dsl.filter_bool(age(exclude_if_missing(pet.born_on)) > min_age)
-  |> dsl.order(age(exclude_if_missing(pet.born_on)), dsl.Desc)
+  |> dsl.order_by(age(exclude_if_missing(pet.born_on)), dsl.Desc)
 }

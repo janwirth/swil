@@ -83,7 +83,7 @@ pub type TabIdentities {
 pub fn query_tabs_for_tab_bar(tab: Tab, tab_meta: dsl.MagicFields, _limit: Int) {
   dsl.query(tab)
   |> dsl.shape(option.None)
-  |> dsl.order(tab_meta.updated_at, dsl.Desc)
+  |> dsl.order_by(tab_meta.updated_at, dsl.Desc)
 }
 
 pub fn query_tracks_by_view_config(
@@ -98,7 +98,7 @@ pub fn query_tracks_by_view_config(
     complex_tag_filter_expression,
     predicate_complex_tags_filter,
   )
-  |> dsl.order(dsl.MagicFields, dsl.Desc)
+  |> dsl.order_by(dsl.MagicFields, dsl.Desc)
 }
 
 // encodable type

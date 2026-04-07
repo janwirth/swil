@@ -131,6 +131,7 @@ pub fn get_module_fn_chunks(
 pub fn query_module_fn_chunks(
   entity_snake: String,
   last_100_sql_const_name: String,
+  page_edited_sql_const_name: String,
   row_t,
   sql_err,
   ctx: dec.TypeCtx,
@@ -150,6 +151,30 @@ pub fn query_module_fn_chunks(
             gexpr.raw(crud_bodies.last_fn_body(
               entity_snake,
               last_100_sql_const_name,
+              "row",
+            ))
+          },
+        )
+          |> gfun.to_dynamic,
+      ),
+      #(
+        gleamgen_emit.pub_def("page_edited_" <> entity_snake)
+          |> gdef.with_text_before(
+            "/// List recently edited "
+            <> entity_snake
+            <> " rows with pagination.\n",
+          ),
+        gfun.new_raw(
+          [
+            api_params.conn_param(),
+            api_params.consumer_param("limit", gtypes.int),
+            api_params.consumer_param("offset", gtypes.int),
+          ],
+          gtypes.result(gtypes.list(row_t), sql_err),
+          fn(_) {
+            gexpr.raw(crud_bodies.page_edited_fn_body(
+              entity_snake,
+              page_edited_sql_const_name,
               "row",
             ))
           },

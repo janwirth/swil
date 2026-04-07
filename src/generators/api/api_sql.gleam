@@ -283,6 +283,18 @@ pub fn last_100_sql(table: String, returning_cols: List(String)) -> String {
   <> " desc limit 100;"
 }
 
+pub fn page_edited_sql(table: String, returning_cols: List(String)) -> String {
+  "select "
+  <> comma_join_q(returning_cols)
+  <> " from "
+  <> q(table)
+  <> " where "
+  <> q("deleted_at")
+  <> " is null order by "
+  <> q("updated_at")
+  <> " desc limit ? offset ?;"
+}
+
 pub fn lt_column_asc_sql(
   table: String,
   returning_cols: List(String),

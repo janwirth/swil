@@ -31,5 +31,5 @@ pub fn query_guide03_notes_by_title_prefix(
     option.Some(t) -> string.starts_with(t, prefix)
     option.None -> False
   })
-  |> dsl.order(note.title, dsl.Asc)
+  |> dsl.order_by(note.title, dsl.Asc)
 }

@@ -11,6 +11,17 @@ pub fn migrate(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   migration.migration(conn)
 }
 
+pub fn page_edited_mytrack(
+  conn: sqlight.Connection,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(
+  List(#(types_playground_schema.MyTrack, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  query.page_edited_mytrack(conn, limit: limit, offset: offset)
+}
+
 pub fn last_100_edited_mytrack(
   conn: sqlight.Connection,
 ) -> Result(

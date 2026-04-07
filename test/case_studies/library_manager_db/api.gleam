@@ -11,6 +11,44 @@ pub fn migrate(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   migration.migration(conn)
 }
 
+pub fn page_edited_tab(
+  conn: sqlight.Connection,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(List(#(library_manager_schema.Tab, dsl.MagicFields)), sqlight.Error) {
+  query.page_edited_tab(conn, limit: limit, offset: offset)
+}
+
+pub fn page_edited_trackbucket(
+  conn: sqlight.Connection,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(
+  List(#(library_manager_schema.TrackBucket, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  query.page_edited_trackbucket(conn, limit: limit, offset: offset)
+}
+
+pub fn page_edited_tag(
+  conn: sqlight.Connection,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(List(#(library_manager_schema.Tag, dsl.MagicFields)), sqlight.Error) {
+  query.page_edited_tag(conn, limit: limit, offset: offset)
+}
+
+pub fn page_edited_importedtrack(
+  conn: sqlight.Connection,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(
+  List(#(library_manager_schema.ImportedTrack, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  query.page_edited_importedtrack(conn, limit: limit, offset: offset)
+}
+
 pub fn last_100_edited_tab(
   conn: sqlight.Connection,
 ) -> Result(List(#(library_manager_schema.Tab, dsl.MagicFields)), sqlight.Error) {

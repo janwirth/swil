@@ -251,6 +251,20 @@ pub fn facade_fn_chunks(
         sql_err,
       )
     }),
+    list.map(def.entities, fn(e) {
+      let e_snake = string.lowercase(e.type_name)
+      forward_fn(
+        "query",
+        "page_edited_" <> e_snake,
+        [
+          api_params.conn_param(),
+          api_params.consumer_param("limit", gtypes.int),
+          api_params.consumer_param("offset", gtypes.int),
+        ],
+        gtypes.list(gtypes.raw(dec.entity_row_tuple_type(ctx, e.type_name))),
+        sql_err,
+      )
+    }),
     list.map(generated_query_specs, fn(s) {
       query_spec_forward_chunk(s, first_row_t, sql_err, ctx)
     }),

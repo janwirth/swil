@@ -3,7 +3,26 @@ import case_studies/additive_item_v1_schema
 import sqlight
 import swil/dsl
 
+const page_edited_item_sql = "select \"name\", \"age\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"item\" where \"deleted_at\" is null order by \"updated_at\" desc limit ? offset ?;"
+
 const last_100_item_sql = "select \"name\", \"age\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"item\" where \"deleted_at\" is null order by \"updated_at\" desc limit 100;"
+
+/// List recently edited item rows with pagination.
+pub fn page_edited_item(
+  conn: sqlight.Connection,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(
+  List(#(additive_item_v1_schema.Item, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  sqlight.query(
+    page_edited_item_sql,
+    on: conn,
+    with: [sqlight.int(limit), sqlight.int(offset)],
+    expecting: row.item_with_magic_row_decoder(),
+  )
+}
 
 /// List up to 100 recently edited item rows.
 pub fn last_100_edited_item(

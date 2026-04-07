@@ -103,12 +103,12 @@ let assert Ok(rows) = api.last_100_edited_fruit(conn)
 
 Use this as the merge checklist; order can overlap where noted.
 
-- [ ] **Spec** — keep this file the source of truth; link from PR / task if needed.
-- [ ] **`swil/dsl`** — `order` → `order_by`; add `limit` / `offset` stubs; phantom slots so each step is **single-use**; allow flexible **compile-time** step order per matrix above.
-- [ ] **Schemas / guides / README** — replace `dsl.order` with `dsl.order_by` everywhere examples exist.
-- [ ] **`schema_definition` IR** — extend `Query` (or adjacent type) for optional `limit` / `offset` expressions when schema queries need them.
-- [ ] **Parser** — flexible `|>` chain: 0–1× per step, duplicates error; `order` → hint; nested `order_by(...)` form updated; optional defaults for missing `shape` / `order_by` aligned with IR.
+- [x] **Spec** — keep this file the source of truth; link from PR / task if needed.
+- [x] **`swil/dsl`** — `order` → `order_by`; add `limit` / `offset` stubs; phantom slots so each step is **single-use**; allow flexible **compile-time** step order per matrix above.
+- [x] **Schemas / guides / README** — replace `dsl.order` with `dsl.order_by` everywhere examples exist.
+- [x] **`schema_definition` IR** — extend `Query` (or adjacent type) for optional `limit` / `offset` expressions when schema queries need them.
+- [x] **Parser** — flexible `|>` chain: 0–1× per step, duplicates error; `order` → hint; nested `order_by(...)` form updated; optional defaults for missing `shape` / `order_by` aligned with IR.
 - [ ] **`query_params` / validation** — extend when `query_*` gains more than one simple bind.
-- [ ] **Generators** — `api_sql`, `api_crud_bodies`, `api_chunks`, `api`, `api_facade` for `page_edited_*`; wire schema query SQL when IR has limit/offset.
-- [ ] **Regen** — `gleam run -- test/case_studies/<module>` for each case study, then `gleam test`; **zero diff** after regen, **no warnings**, suite under **500ms** wall time (see `.cursor/rules/DEVELOPMENT_PROCESS.md`).
-- [ ] **Tests** — structural + e2e + parser cases from the table above.
+- [x] **Generators** — `api_sql`, `api_crud_bodies`, `api_chunks`, `api`, `api_facade` for `page_edited_*`; wire schema query SQL when IR has limit/offset.
+- [x] **Regen** — `gleam run -- test/case_studies/<module>` for each case study, then `gleam test`; **zero diff** after regen, **no warnings**, suite under **500ms** wall time (see `.cursor/rules/DEVELOPMENT_PROCESS.md`).
+- [x] **Tests** — structural + e2e + parser cases from the table above.

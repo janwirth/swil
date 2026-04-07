@@ -11,6 +11,17 @@ pub fn migrate(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   migration.migration(conn)
 }
 
+pub fn page_edited_item(
+  conn: sqlight.Connection,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(
+  List(#(additive_item_v1_schema.Item, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  query.page_edited_item(conn, limit: limit, offset: offset)
+}
+
 pub fn last_100_edited_item(
   conn: sqlight.Connection,
 ) -> Result(

@@ -51,6 +51,7 @@ fn query_is_generatable(query: Query) -> Bool {
         missing_behavior: ExcludeIfMissing,
       ))),
       order: CustomOrder(expr: _, direction: _),
+      ..,
     ) -> True
     _ -> False
   }
@@ -148,6 +149,7 @@ fn query_fn_chunk_for_spec(
         missing_behavior: ExcludeIfMissing,
       ))),
       order: CustomOrder(expr: _, direction: _),
+      ..,
     ) -> {
       let assert Ok(right_operand_parameter_name) =
         query_bind_param_name(right_expr)

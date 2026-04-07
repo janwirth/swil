@@ -99,7 +99,7 @@ pub fn query_widget_active(w: Widget, _magic_fields: dsl.MagicFields, want: Bool
   dsl.query(w)
   |> dsl.shape(w)
   |> dsl.filter_bool(!{ dsl.exclude_if_missing(w.flag) == want })
-  |> dsl.order(w.flag, dsl.Asc)
+  |> dsl.order_by(w.flag, dsl.Asc)
 }
 "
 
@@ -140,7 +140,7 @@ pub fn query_duo_any_above(d: Duo, _magic_fields: dsl.MagicFields, t: Int) {
   |> dsl.filter_bool(
     dsl.exclude_if_missing(d.a) >. t || dsl.exclude_if_missing(d.b) >. t,
   )
-  |> dsl.order(d.a, dsl.Asc)
+  |> dsl.order_by(d.a, dsl.Asc)
 }
 "
 

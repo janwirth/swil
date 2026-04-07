@@ -194,7 +194,7 @@ pub fn by_key(k: Int) {
   dsl.query(Row(identities: RowIdentities.ByKey(key: \"\")))
   |> dsl.shape(option.None)
   |> dsl.filter_bool(option.None)
-  |> dsl.order(option.None, dsl.Desc)
+  |> dsl.order_by(option.None, dsl.Desc)
 }
 "
   case schema_parser.parse_module(input) {
@@ -222,7 +222,7 @@ pub fn query_by_key(row: Row, _magic: dsl.MagicFields, k: Int) {
   dsl.query(row)
   |> dsl.shape(row)
   |> dsl.filter_bool(x > 0)
-  |> dsl.order(option.None, dsl.Desc)
+  |> dsl.order_by(option.None, dsl.Desc)
 }
 "
   case schema_parser.parse_module(input) {

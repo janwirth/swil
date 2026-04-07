@@ -93,6 +93,7 @@ fn custom_query_sql(
         missing_behavior: ExcludeIfMissing,
       ))),
       order: CustomOrder(expr: order_expr, direction: direction),
+      ..,
     ) -> {
       let use_owner_join =
         expr_needs_owner_join(left_expr) || expr_needs_owner_join(order_expr)
@@ -499,16 +500,22 @@ pub fn generate_api_db_outputs(
 
   let query_const_entries =
     list.append(
-      list.map(def.entities, fn(e) {
+      list.flat_map(def.entities, fn(e) {
         let table_e = string.lowercase(e.type_name)
         let data_cols_e =
           api_sql.entity_data_fields(e)
           |> list.map(fn(f) { f.label })
         let returning_e = api_sql.full_row_columns(data_cols_e)
-        #(
-          "last_100_" <> table_e <> "_sql",
-          Some(api_sql.last_100_sql(table_e, returning_e)),
-        )
+        [
+          #(
+            "last_100_" <> table_e <> "_sql",
+            Some(api_sql.last_100_sql(table_e, returning_e)),
+          ),
+          #(
+            "page_edited_" <> table_e <> "_sql",
+            Some(api_sql.page_edited_sql(table_e, returning_e)),
+          ),
+        ]
       }),
       list.map(generated_query_specs, fn(spec) {
         #(
@@ -525,6 +532,7 @@ pub fn generate_api_db_outputs(
         api_chunks.query_module_fn_chunks(
           entity_snake_e,
           "last_100_" <> entity_snake_e <> "_sql",
+          "page_edited_" <> entity_snake_e <> "_sql",
           row_t_e,
           sql_err,
           ctx,

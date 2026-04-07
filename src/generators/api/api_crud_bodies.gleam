@@ -55,6 +55,20 @@ pub fn last_fn_body(
   <> "_with_magic_row_decoder(),\n  )"
 }
 
+pub fn page_edited_fn_body(
+  entity_snake: String,
+  sql_const_name: String,
+  decoder_qualifier: String,
+) -> String {
+  "sqlight.query(\n    "
+  <> sql_const_name
+  <> ",\n    on: conn,\n    with: [sqlight.int(limit), sqlight.int(offset)],\n    expecting: "
+  <> decoder_qualifier
+  <> "."
+  <> entity_snake
+  <> "_with_magic_row_decoder(),\n  )"
+}
+
 pub fn get_by_id_fn_body(
   entity_snake: String,
   decoder_qualifier: String,

@@ -37,7 +37,7 @@ pub fn query_by_key(row: Row, _magic: dsl.MagicFields, _k: Int) {
   dsl.query(row)
   |> dsl.shape(row)
   |> dsl.filter_bool(option.None)
-  |> dsl.order(option.None, dsl.Desc)
+  |> dsl.order_by(option.None, dsl.Desc)
 }
 "
   let assert Ok(def) = schema_parser.parse_module(input)
@@ -63,7 +63,7 @@ pub fn query_by_key(row: Row, _magic: dsl.MagicFields, _k: Int) {
   dsl.query(row)
   |> dsl.shape(row)
   |> dsl.filter_bool(option.None)
-  |> dsl.order(option.None, dsl.Desc)
+  |> dsl.order_by(option.None, dsl.Desc)
 }
 "
   let assert Ok(def) = schema_parser.parse_module(input)
@@ -89,7 +89,7 @@ pub fn get_by_key(row: Row, _magic: dsl.MagicFields, _k: Int) {
   dsl.query(row)
   |> dsl.shape(row)
   |> dsl.filter_bool(option.None)
-  |> dsl.order(option.None, dsl.Desc)
+  |> dsl.order_by(option.None, dsl.Desc)
 }
 "
   case schema_parser.parse_module(input) {
@@ -119,7 +119,7 @@ pub fn fetch_by_key(row: Row, _magic: dsl.MagicFields, _k: Int) {
   dsl.query(row)
   |> dsl.shape(row)
   |> dsl.filter_bool(option.None)
-  |> dsl.order(option.None, dsl.Desc)
+  |> dsl.order_by(option.None, dsl.Desc)
 }
 "
   case schema_parser.parse_module(input) {
@@ -173,7 +173,7 @@ pub fn query_rows(r: Row, _m: dsl.MagicFields, _x: Int) {
   dsl.query(r)
   |> dsl.shape(option.None)
   |> dsl.filter_bool(option.None)
-  |> dsl.order(r, dsl.Asc)
+  |> dsl.order_by(r, dsl.Asc)
 }
 
 pub fn predicate_complex_tags_filter(_r: Row) -> dsl.BooleanFilter(Int) {
@@ -189,7 +189,7 @@ pub fn fruit_schema_query_infers_lt_missing_field_asc_test() {
   let assert Ok(def) = schema_parser.parse_module(src)
   let assert [q] = def.queries
   assert q.name == "query_cheap_fruit"
-  let schema_definition.Query(shape: shape, filter: filter, order: order) =
+  let schema_definition.Query(shape: shape, filter: filter, order: order, ..) =
     q.query
   assert shape == schema_definition.NoneOrBase
   let assert Some(schema_definition.Predicate(schema_definition.Compare(

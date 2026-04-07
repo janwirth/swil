@@ -24,6 +24,50 @@ pub fn query_tracks_by_view_config(
   )
 }
 
+pub fn page_edited_tab(
+  conn: sqlight.Connection,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(
+  List(#(library_manager_advanced_schema.Tab, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  query.page_edited_tab(conn, limit: limit, offset: offset)
+}
+
+pub fn page_edited_trackbucket(
+  conn: sqlight.Connection,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(
+  List(#(library_manager_advanced_schema.TrackBucket, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  query.page_edited_trackbucket(conn, limit: limit, offset: offset)
+}
+
+pub fn page_edited_tag(
+  conn: sqlight.Connection,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(
+  List(#(library_manager_advanced_schema.Tag, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  query.page_edited_tag(conn, limit: limit, offset: offset)
+}
+
+pub fn page_edited_importedtrack(
+  conn: sqlight.Connection,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(
+  List(#(library_manager_advanced_schema.ImportedTrack, dsl.MagicFields)),
+  sqlight.Error,
+) {
+  query.page_edited_importedtrack(conn, limit: limit, offset: offset)
+}
+
 pub fn last_100_edited_tab(
   conn: sqlight.Connection,
 ) -> Result(

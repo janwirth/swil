@@ -10,7 +10,11 @@ const old_hippos_owner_names_sql = "select \"name\", \"gender\", \"date_of_birth
 
 const old_hippos_owner_emails_sql = "select \"name\", \"gender\", \"date_of_birth\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"hippo\" where \"deleted_at\" is null and cast((julianday('now') - julianday(\"date_of_birth\")) / 365.25 as int) > ? order by cast((julianday('now') - julianday(\"date_of_birth\")) / 365.25 as int) desc;"
 
+const page_edited_human_sql = "select \"name\", \"email\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"human\" where \"deleted_at\" is null order by \"updated_at\" desc limit ? offset ?;"
+
 const last_100_human_sql = "select \"name\", \"email\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"human\" where \"deleted_at\" is null order by \"updated_at\" desc limit 100;"
+
+const page_edited_hippo_sql = "select \"name\", \"gender\", \"date_of_birth\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"hippo\" where \"deleted_at\" is null order by \"updated_at\" desc limit ? offset ?;"
 
 const last_100_hippo_sql = "select \"name\", \"gender\", \"date_of_birth\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"hippo\" where \"deleted_at\" is null order by \"updated_at\" desc limit 100;"
 
@@ -52,6 +56,20 @@ pub fn query_old_hippos_owner_emails(
   )
 }
 
+/// List recently edited human rows with pagination.
+pub fn page_edited_human(
+  conn: sqlight.Connection,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(List(#(hippo_schema.Human, dsl.MagicFields)), sqlight.Error) {
+  sqlight.query(
+    page_edited_human_sql,
+    on: conn,
+    with: [sqlight.int(limit), sqlight.int(offset)],
+    expecting: row.human_with_magic_row_decoder(),
+  )
+}
+
 /// List up to 100 recently edited human rows.
 pub fn last_100_edited_human(
   conn: sqlight.Connection,
@@ -61,6 +79,20 @@ pub fn last_100_edited_human(
     on: conn,
     with: [],
     expecting: row.human_with_magic_row_decoder(),
+  )
+}
+
+/// List recently edited hippo rows with pagination.
+pub fn page_edited_hippo(
+  conn: sqlight.Connection,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(List(#(hippo_schema.Hippo, dsl.MagicFields)), sqlight.Error) {
+  sqlight.query(
+    page_edited_hippo_sql,
+    on: conn,
+    with: [sqlight.int(limit), sqlight.int(offset)],
+    expecting: row.hippo_with_magic_row_decoder(),
   )
 }
 

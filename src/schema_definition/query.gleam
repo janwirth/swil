@@ -10,7 +10,7 @@
 //// not emitted as query specs.
 ////
 //// **Inference:** the body’s final expression must be a query pipeline:
-//// `query(...) |> shape(...) |> order(...)`, with an optional filter step:
+//// `query(...) |> shape(...) |> order_by(...)`, with an optional filter step:
 //// `dsl.filter(...)`, `dsl.filter_bool(...)`, or `dsl.filter_complex(..., predicate_fn)`.
 //// Supported shapes are detected structurally (for example
 //// `LtMissingFieldAsc` for `exclude_if_missing` + float threshold + ascending `order` on the same field).
@@ -194,7 +194,7 @@ fn validate_query_parameters_strict(
   }
 }
 
-/// Optional filter step between `shape` and `order` (see [`parse_query_pipeline_tail`](#parse_query_pipeline_tail)).
+/// Optional filter step between `shape` and `order_by` (see [`parse_query_pipeline_tail`](#parse_query_pipeline_tail)).
 type PipelineFilter {
   BoolFilter(glance.Expression)
   ComplexFilter(glance.Expression, glance.Expression)
@@ -206,6 +206,8 @@ type ParsedPipeline {
     filter_: Option(PipelineFilter),
     order_field: glance.Expression,
     order_direction: glance.Expression,
+    limit: Option(glance.Expression),
+    offset: Option(glance.Expression),
   )
 }
 
@@ -219,30 +221,55 @@ fn infer_query(f: glance.Function) -> Result(sd.Query, ParseError) {
         "query " <> f.name <> " must end with a query pipeline expression",
       ))
     Some(tail) ->
-      case parse_query_pipeline_tail(tail) {
-        None ->
+      case detect_old_order_name(tail) {
+        True ->
           Error(UnsupportedSchema(
             Some(f.location),
             [],
             "query "
               <> f.name
-              <> " must match `query |> shape |> [dsl.filter | dsl.filter_bool | dsl.filter_complex]? |> dsl.order(field, direction)`",
+              <> " uses `dsl.order(...)` which has been renamed — use `dsl.order_by(field, direction)` instead",
           ))
-        Some(parts) -> {
-          use shape <- result.try(parse_shape_expr(f, parts.shape_value))
-          use filter <- result.try(case parts.filter_ {
-            None -> Ok(None)
-            Some(BoolFilter(e)) -> parse_filter_expr(f, e)
-            Some(ComplexFilter(spec, pred)) ->
-              parse_filter_complex(f, spec, pred)
-          })
-          use order <- result.try(parse_order_expr(
-            f,
-            parts.order_field,
-            parts.order_direction,
-          ))
-          Ok(sd.Query(shape: shape, filter: filter, order: order))
-        }
+        False ->
+          case parse_query_pipeline_tail(tail) {
+            None ->
+              Error(UnsupportedSchema(
+                Some(f.location),
+                [],
+                "query "
+                  <> f.name
+                  <> " must match `query |> shape |> [dsl.filter | dsl.filter_bool | dsl.filter_complex]? |> dsl.order_by(field, direction)`",
+              ))
+            Some(parts) -> {
+              use shape <- result.try(parse_shape_expr(f, parts.shape_value))
+              use filter <- result.try(case parts.filter_ {
+                None -> Ok(None)
+                Some(BoolFilter(e)) -> parse_filter_expr(f, e)
+                Some(ComplexFilter(spec, pred)) ->
+                  parse_filter_complex(f, spec, pred)
+              })
+              use order <- result.try(parse_order_expr(
+                f,
+                parts.order_field,
+                parts.order_direction,
+              ))
+              use limit <- result.try(parse_optional_windowing_expr(
+                f,
+                parts.limit,
+              ))
+              use offset <- result.try(parse_optional_windowing_expr(
+                f,
+                parts.offset,
+              ))
+              Ok(sd.Query(
+                shape: shape,
+                filter: filter,
+                order: order,
+                limit: limit,
+                offset: offset,
+              ))
+            }
+          }
       }
   }
 }
@@ -671,7 +698,7 @@ fn normalize_expr(expr: glance.Expression) -> glance.Expression {
   }
 }
 
-/// Parses `dsl.order(inner, field, direction)`; `inner` is the rest of the pipeline.
+/// Parses `dsl.order_by(inner, field, direction)`; `inner` is the rest of the pipeline.
 fn peel_order_call(
   expr: glance.Expression,
 ) -> Option(#(glance.Expression, glance.Expression, glance.Expression)) {
@@ -681,7 +708,7 @@ fn peel_order_call(
         expression_callee_name(order_callee),
         three_unlabelled_args(order_args)
       {
-        Ok("order"), Some(#(before_order, field, dir)) ->
+        Ok("order_by"), Some(#(before_order, field, dir)) ->
           Some(#(before_order, field, dir))
         _, _ -> None
       }
@@ -741,14 +768,14 @@ fn peel_shape_query_call(expr: glance.Expression) -> Option(glance.Expression) {
   }
 }
 
-/// Nested calls: `order( [filter_*]( shape(query(..), val) , ...)? , field , direction )`.
+/// Nested calls: `order_by( [filter_*]( shape(query(..), val) , ...)? , field , direction )`.
 fn query_pipeline_nested_calls(
   expr: glance.Expression,
 ) -> Option(ParsedPipeline) {
   use #(before_order, field, dir) <- then(peel_order_call(expr))
   let #(shape_call, filter_) = peel_optional_filter_before_shape(before_order)
   use shape_value <- then(peel_shape_query_call(shape_call))
-  Some(ParsedPipeline(shape_value, filter_, field, dir))
+  Some(ParsedPipeline(shape_value, filter_, field, dir, None, None))
 }
 
 /// `query(entity) |> shape(..)` segment when the AST still has `|>` (0 or 1 filter steps handled by caller).
@@ -772,6 +799,8 @@ fn finish_pipe_shape_segment(
                 None,
                 order_field,
                 order_direction,
+                None,
+                None,
               ))
             _, _ -> None
           }
@@ -809,6 +838,8 @@ fn collect_pipeline_from_pipe_left(
                           Some(BoolFilter(pred)),
                           base.order_field,
                           base.order_direction,
+                          base.limit,
+                          base.offset,
                         ))
                       Some(_) -> None
                     }
@@ -836,6 +867,8 @@ fn collect_pipeline_from_pipe_left(
                           Some(ComplexFilter(spec, pred)),
                           base.order_field,
                           base.order_direction,
+                          base.limit,
+                          base.offset,
                         ))
                       Some(_) -> None
                     }
@@ -863,13 +896,26 @@ fn collect_pipeline_from_pipe_left(
 fn query_pipeline_pipe_components(
   expr: glance.Expression,
 ) -> Option(ParsedPipeline) {
-  case normalize_expr(expr) {
+  // Peel optional trailing `|> offset(offset: ...)` and `|> limit(limit: ...)`
+  let #(without_offset, offset_expr) = peel_optional_labelled_step(expr, "offset")
+  let #(without_limit, limit_expr) = peel_optional_labelled_step(without_offset, "limit")
+  case normalize_expr(without_limit) {
     glance.BinaryOperator(_, _, left_chain, order_step) -> {
       use #(order_field, order_direction) <- then(two_unlabelled_named_call(
         order_step,
-        "order",
+        "order_by",
       ))
       collect_pipeline_from_pipe_left(left_chain, order_field, order_direction)
+      |> option.map(fn(p) {
+        ParsedPipeline(
+          p.shape_value,
+          p.filter_,
+          p.order_field,
+          p.order_direction,
+          limit_expr,
+          offset_expr,
+        )
+      })
     }
     _ -> None
   }
@@ -896,7 +942,7 @@ fn single_named_call_arg(
   }
 }
 
-/// `name(a, b)` with two unlabelled arguments (e.g. `dsl.order(field, dsl.Asc)` on the RHS of `|>`).
+/// `name(a, b)` with two unlabelled arguments (e.g. `dsl.order_by(field, dsl.Asc)` on the RHS of `|>`).
 fn two_unlabelled_named_call(
   expr: glance.Expression,
   name: String,
@@ -1054,21 +1100,32 @@ fn statements_return_query(body: List(glance.Statement)) -> Bool {
 }
 
 /// Used when there is no return annotation: last expr is query pipeline tail.
+/// Recognises `order_by(...)` nested calls and `|> order_by(...)` pipes,
+/// as well as trailing `|> limit(...)` / `|> offset(...)` steps.
 fn expression_is_query_in_tail(expr: glance.Expression) -> Bool {
   case normalize_expr(expr) {
     glance.Call(_, callee, args) ->
       case expression_callee_name(callee) {
-        Ok("order") ->
+        Ok("order_by") ->
           case three_unlabelled_args(args) {
             Some(_) -> True
             None -> False
           }
         _ -> False
       }
-    glance.BinaryOperator(_, _, _, rhs) ->
-      case two_unlabelled_named_call(rhs, "order") {
+    glance.BinaryOperator(_, _, left, rhs) ->
+      case two_unlabelled_named_call(rhs, "order_by") {
         Some(_) -> True
-        None -> False
+        None ->
+          case normalize_expr(rhs) {
+            glance.Call(_, step_callee, _) ->
+              case expression_callee_name(step_callee) {
+                Ok("limit") | Ok("offset") ->
+                  expression_is_query_in_tail(left)
+                _ -> False
+              }
+            _ -> False
+          }
       }
     glance.Block(_, stmts) -> statements_return_query(stmts)
     _ -> False
@@ -1100,4 +1157,65 @@ fn function_has_query_prefix(name: String) -> Bool {
 /// Public `BooleanFilter` helpers must start with `predicate_`.
 fn function_has_predicate_prefix(name: String) -> Bool {
   string.starts_with(name, "predicate_")
+}
+
+/// Walks an expression looking for any call named `"order"` (the old DSL name).
+/// Returns `True` if found, so `infer_query` can emit a specific migration hint.
+fn detect_old_order_name(expr: glance.Expression) -> Bool {
+  case normalize_expr(expr) {
+    glance.Call(_, callee, args) ->
+      case expression_callee_name(callee) {
+        Ok("order") -> True
+        _ ->
+          list.any(args, fn(a) {
+            case a {
+              glance.UnlabelledField(e) -> detect_old_order_name(e)
+              glance.LabelledField(item: e, ..) -> detect_old_order_name(e)
+              glance.ShorthandField(..) -> False
+            }
+          })
+      }
+    glance.BinaryOperator(_, _, left, right) ->
+      detect_old_order_name(left) || detect_old_order_name(right)
+    _ -> False
+  }
+}
+
+/// Peels a trailing `|> step_name(step_name: value)` labelled pipe step from `expr`.
+/// Returns the expression without the step and the labelled arg value if found.
+fn peel_optional_labelled_step(
+  expr: glance.Expression,
+  step_name: String,
+) -> #(glance.Expression, Option(glance.Expression)) {
+  case normalize_expr(expr) {
+    glance.BinaryOperator(_, _, left, rhs) ->
+      case normalize_expr(rhs) {
+        glance.Call(_, callee, args) ->
+          case expression_callee_name(callee) {
+            Ok(name) if name == step_name ->
+              case args {
+                [glance.LabelledField(label: label, item: value, ..)]
+                  if label == step_name
+                -> #(left, Some(value))
+                _ -> #(expr, None)
+              }
+            _ -> #(expr, None)
+          }
+        _ -> #(expr, None)
+      }
+    _ -> #(expr, None)
+  }
+}
+
+/// Parses an optional windowing expression (limit or offset param reference) into an IR `Expr`.
+fn parse_optional_windowing_expr(
+  f: glance.Function,
+  opt: Option(glance.Expression),
+) -> Result(Option(sd.Expr), ParseError) {
+  case opt {
+    None -> Ok(None)
+    Some(e) ->
+      parse_expr(f, e)
+      |> result.map(Some)
+  }
 }

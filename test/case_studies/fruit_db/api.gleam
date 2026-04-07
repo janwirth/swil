@@ -18,6 +18,14 @@ pub fn query_cheap_fruit(
   query.query_cheap_fruit(conn, max_price: max_price)
 }
 
+pub fn page_edited_fruit(
+  conn: sqlight.Connection,
+  limit limit: Int,
+  offset offset: Int,
+) -> Result(List(#(fruit_schema.Fruit, dsl.MagicFields)), sqlight.Error) {
+  query.page_edited_fruit(conn, limit: limit, offset: offset)
+}
+
 pub fn last_100_edited_fruit(
   conn: sqlight.Connection,
 ) -> Result(List(#(fruit_schema.Fruit, dsl.MagicFields)), sqlight.Error) {
