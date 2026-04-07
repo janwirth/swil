@@ -69,7 +69,7 @@ pub fn query_old_hippos_owner_emails(
   dsl.query(hippo)
   |> dsl.shape(#(
     #("age", age(exclude_if_missing(hippo.date_of_birth))),
-    nullable(hippo.relationships.owner).item.email,
+    #("owner_email", nullable(hippo.relationships.owner).item.email),
   ))
   |> dsl.filter_bool(age(exclude_if_missing(hippo.date_of_birth)) > min_age)
   |> dsl.order_by(age(exclude_if_missing(hippo.date_of_birth)), dsl.Desc)
@@ -84,7 +84,7 @@ pub fn query_old_hippos_owner_names(
   dsl.query(hippo)
   |> dsl.shape(#(
     #("age", age(exclude_if_missing(hippo.date_of_birth))),
-    nullable(hippo.relationships.owner).item.email,
+    #("owner_email", nullable(hippo.relationships.owner).item.email),
   ))
   |> dsl.filter_bool(age(exclude_if_missing(hippo.date_of_birth)) > min_age)
   |> dsl.order_by(age(exclude_if_missing(hippo.date_of_birth)), dsl.Desc)

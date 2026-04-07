@@ -1,14 +1,17 @@
 import case_studies/hippo_db/row
 import case_studies/hippo_schema
+import gleam/dynamic/decode
 import gleam/option
 import sqlight
 import swil/dsl
 
 const hippos_by_gender_sql = "select \"name\", \"gender\", \"date_of_birth\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"hippo\" where \"deleted_at\" is null and \"gender\" = ? order by \"name\" desc;"
 
-const old_hippos_owner_names_sql = "select \"name\", \"gender\", \"date_of_birth\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"hippo\" where \"deleted_at\" is null and cast((julianday('now') - julianday(\"date_of_birth\")) / 365.25 as int) > ? order by cast((julianday('now') - julianday(\"date_of_birth\")) / 365.25 as int) desc;"
+const old_hippos_owner_names_sql = "select cast((julianday('now') - julianday(\"h\".\"date_of_birth\")) / 365.25 as int), \"hu\".\"email\" from \"hippo\" \"h\"
+left join \"human\" \"hu\" on \"h\".\"owner_human_id\" = \"hu\".\"id\" and \"hu\".\"deleted_at\" is null where \"h\".\"deleted_at\" is null and cast((julianday('now') - julianday(\"h\".\"date_of_birth\")) / 365.25 as int) > ? order by cast((julianday('now') - julianday(\"h\".\"date_of_birth\")) / 365.25 as int) desc;"
 
-const old_hippos_owner_emails_sql = "select \"name\", \"gender\", \"date_of_birth\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"hippo\" where \"deleted_at\" is null and cast((julianday('now') - julianday(\"date_of_birth\")) / 365.25 as int) > ? order by cast((julianday('now') - julianday(\"date_of_birth\")) / 365.25 as int) desc;"
+const old_hippos_owner_emails_sql = "select cast((julianday('now') - julianday(\"h\".\"date_of_birth\")) / 365.25 as int), \"hu\".\"email\" from \"hippo\" \"h\"
+left join \"human\" \"hu\" on \"h\".\"owner_human_id\" = \"hu\".\"id\" and \"hu\".\"deleted_at\" is null where \"h\".\"deleted_at\" is null and cast((julianday('now') - julianday(\"h\".\"date_of_birth\")) / 365.25 as int) > ? order by cast((julianday('now') - julianday(\"h\".\"date_of_birth\")) / 365.25 as int) desc;"
 
 const page_edited_human_sql = "select \"name\", \"email\", \"id\", \"created_at\", \"updated_at\", \"deleted_at\" from \"human\" where \"deleted_at\" is null order by \"updated_at\" desc limit ? offset ?;"
 
@@ -35,24 +38,32 @@ pub fn query_hippos_by_gender(
 pub fn query_old_hippos_owner_names(
   conn: sqlight.Connection,
   min_age min_age: Int,
-) -> Result(List(#(hippo_schema.Hippo, dsl.MagicFields)), sqlight.Error) {
+) -> Result(List(#(Int, option.Option(String))), sqlight.Error) {
   sqlight.query(
     old_hippos_owner_names_sql,
     on: conn,
     with: [sqlight.int(min_age)],
-    expecting: row.hippo_with_magic_row_decoder(),
+    expecting: {
+      use field_0 <- decode.field(0, decode.int)
+      use field_1 <- decode.field(1, decode.optional(decode.string))
+      decode.success(#(field_0, field_1))
+    },
   )
 }
 
 pub fn query_old_hippos_owner_emails(
   conn: sqlight.Connection,
   min_age min_age: Int,
-) -> Result(List(#(hippo_schema.Hippo, dsl.MagicFields)), sqlight.Error) {
+) -> Result(List(#(Int, option.Option(String))), sqlight.Error) {
   sqlight.query(
     old_hippos_owner_emails_sql,
     on: conn,
     with: [sqlight.int(min_age)],
-    expecting: row.hippo_with_magic_row_decoder(),
+    expecting: {
+      use field_0 <- decode.field(0, decode.int)
+      use field_1 <- decode.field(1, decode.optional(decode.string))
+      decode.success(#(field_0, field_1))
+    },
   )
 }
 

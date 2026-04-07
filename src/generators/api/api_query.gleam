@@ -1,5 +1,6 @@
 import generators/api/api_decoders as dec
 import generators/api/api_params
+import generators/api/api_subset
 import generators/gleamgen_emit
 import glance
 import gleam/list
@@ -10,8 +11,8 @@ import gleamgen/function as gfun
 import gleamgen/types as gtypes
 import schema_definition/schema_definition.{
   type EntityDefinition, type Query, type QueryParameter,
-  type QuerySpecDefinition, Compare, CustomOrder, ExcludeIfMissing, Param,
-  Predicate, Query, QueryParameter,
+  type QuerySpecDefinition, Compare, CustomOrder, ExcludeIfMissing, NoneOrBase,
+  Param, Predicate, Query, QueryParameter, Subset,
 }
 
 pub fn query_sql_const_name(spec_name: String) -> String {
@@ -69,6 +70,20 @@ pub fn schema_query_param_name(p: QueryParameter) -> String {
     Some(l) -> l
     None -> p.name
   }
+}
+
+fn subset_query_body(
+  spec_name: String,
+  sql_const: String,
+  match_bind_expr: String,
+) -> String {
+  "sqlight.query(\n    "
+  <> sql_const
+  <> ",\n    on: conn,\n    with: ["
+  <> match_bind_expr
+  <> "],\n    expecting: row."
+  <> api_subset.output_decoder_fn_name(spec_name)
+  <> "(),\n  )"
 }
 
 fn eq_missing_field_order_query_body(
@@ -141,7 +156,7 @@ fn query_fn_chunk_for_spec(
   }
   case query {
     Query(
-      shape: _,
+      shape: query_shape,
       filter: Some(Predicate(Compare(
         left: _,
         operator: _,
@@ -159,7 +174,26 @@ fn query_fn_chunk_for_spec(
           || p.name == right_operand_parameter_name
         })
       case bind_param {
-        Ok(p) ->
+        Ok(p) -> {
+          let sql_const = query_sql_const_name(spec.name)
+          let bind_expr = query_bind_expr_for_param(p)
+          let #(result_row_t, body) = case query_shape {
+            NoneOrBase -> #(
+              gtypes.list(row_t),
+              eq_missing_field_order_query_body(
+                entity_snake,
+                sql_const,
+                bind_expr,
+                "row",
+              ),
+            )
+            Subset(_) -> #(
+              gtypes.list(
+                gtypes.raw("row." <> api_subset.output_type_name(spec.name)),
+              ),
+              subset_query_body(spec.name, sql_const, bind_expr),
+            )
+          }
           Ok(#(
             gleamgen_emit.pub_def(spec.name),
             gfun.new_raw(
@@ -173,18 +207,12 @@ fn query_fn_chunk_for_spec(
                   )
                 }),
               ),
-              gtypes.result(gtypes.list(row_t), sql_err),
-              fn(_) {
-                gexpr.raw(eq_missing_field_order_query_body(
-                  entity_snake,
-                  query_sql_const_name(spec.name),
-                  query_bind_expr_for_param(p),
-                  "row",
-                ))
-              },
+              gtypes.result(result_row_t, sql_err),
+              fn(_) { gexpr.raw(body) },
             )
               |> gfun.to_dynamic,
           ))
+        }
         Error(Nil) -> Error(Nil)
       }
     }

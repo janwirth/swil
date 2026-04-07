@@ -44,15 +44,10 @@ pub fn hippo_relationship_queries_e2e_test() {
 
   let assert Ok(old_rows) =
     hippo_api.query_old_hippos_owner_emails(conn, min_age: 30)
-  let old_names =
-    list.map(old_rows, fn(row) {
-      let #(h, _) = row
-      let assert Some(n) = h.name
-      n
-    })
-  let assert True = list.contains(old_names, "Oldie")
-  let assert True = list.contains(old_names, "Zebra")
-  let assert False = list.contains(old_names, "Youngin")
+  // Returns #(age, owner_email) — two old hippos (Oldie and Zebra), youngin excluded.
+  assert list.length(old_rows) == 2
+  let ages = list.map(old_rows, fn(row) { let #(age, _email) = row age })
+  assert list.all(ages, fn(a) { a > 30 })
 
   let assert Ok(by_gender) =
     hippo_api.query_hippos_by_gender(conn, gender_to_match: Male)

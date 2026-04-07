@@ -12,10 +12,11 @@ import gleamgen/parameter as gparam
 import gleamgen/types as gtypes
 import schema_definition/schema_definition.{
   type EntityDefinition, type QuerySpecDefinition, type SchemaDefinition,
-  QueryParameter,
+  NoneOrBase, QueryParameter, Subset,
 }
 
 import generators/api/api_decoders as dec
+import generators/api/api_subset
 import generators/api/schema_context
 
 fn id_snake(variant_name: String) -> String {
@@ -124,7 +125,14 @@ fn query_spec_forward_chunk(
         },
       ),
     )
-  forward_fn("query", spec.name, fn_params, gtypes.list(row_t), sql_err)
+  let result_row_t = case spec.query.shape {
+    NoneOrBase -> gtypes.list(row_t)
+    Subset(_) ->
+      gtypes.list(
+        gtypes.raw("row." <> api_subset.output_type_name(spec.name)),
+      )
+  }
+  forward_fn("query", spec.name, fn_params, result_row_t, sql_err)
 }
 
 fn entity_name_from_spec_params(

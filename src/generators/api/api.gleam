@@ -25,7 +25,7 @@ import schema_definition/predicate_parser
 import schema_definition/schema_definition.{
   type Query, type SchemaDefinition, AgeFn, Call, Compare, ComplexRecursive,
   CustomOrder, Eq, ExcludeIfMissing, ExcludeIfMissingFn, Field, Ge, Gt, Le, Lt,
-  Ne, NullableFn, Param, Predicate, Query,
+  Ne, NoneOrBase, NullableFn, Param, Predicate, Query, ShapeField, Subset,
 }
 import swil/dsl
 
@@ -85,7 +85,7 @@ fn custom_query_sql(
 ) -> Option(String) {
   case query {
     Query(
-      shape: _,
+      shape: query_shape,
       filter: Some(Predicate(Compare(
         left: left_expr,
         operator: operator,
@@ -95,19 +95,25 @@ fn custom_query_sql(
       order: CustomOrder(expr: order_expr, direction: direction),
       ..,
     ) -> {
+      let shape_needs_join = case query_shape {
+        NoneOrBase -> False
+        Subset(selection) ->
+          list.any(selection, fn(item) {
+            let ShapeField(expr: e, ..) = item
+            expr_needs_owner_join(e)
+          })
+      }
       let use_owner_join =
-        expr_needs_owner_join(left_expr) || expr_needs_owner_join(order_expr)
+        expr_needs_owner_join(left_expr)
+        || expr_needs_owner_join(order_expr)
+        || shape_needs_join
       let base_alias = case use_owner_join {
         True -> "h"
         False -> ""
       }
-      case
-        expr_to_sql(left_expr, base_alias),
-        expr_to_sql(order_expr, base_alias),
-        operator_sql(operator)
-      {
-        Ok(left_sql), Ok(order_sql), Ok(op_sql) -> {
-          let select_cols = case use_owner_join {
+      let select_cols_result = case query_shape {
+        NoneOrBase ->
+          Ok(case use_owner_join {
             True ->
               returning_cols
               |> list.map(fn(c) { "\"h\"." <> quote_ident(c) })
@@ -116,7 +122,21 @@ fn custom_query_sql(
               returning_cols
               |> list.map(quote_ident)
               |> string.join(", ")
-          }
+          })
+        Subset(selection) ->
+          list.try_map(selection, fn(item) {
+            let ShapeField(expr: e, ..) = item
+            expr_to_sql(e, base_alias)
+          })
+          |> result.map(string.join(_, ", "))
+      }
+      case
+        select_cols_result,
+        expr_to_sql(left_expr, base_alias),
+        expr_to_sql(order_expr, base_alias),
+        operator_sql(operator)
+      {
+        Ok(select_cols), Ok(left_sql), Ok(order_sql), Ok(op_sql) -> {
           let order_dir = case direction == dsl.Desc {
             True -> " desc"
             False -> " asc"
@@ -151,7 +171,7 @@ fn custom_query_sql(
             <> ";",
           )
         }
-        _, _, _ -> None
+        _, _, _, _ -> None
       }
     }
     _ -> None
@@ -578,6 +598,8 @@ pub fn generate_api_db_outputs(
     )
 
   let row_text = render_module(row_mod)
+  let row_text =
+    row_text <> dec.subset_output_appendage(generated_query_specs)
   let row_text = ensure_api_help_import(row_text)
   let row_text = ensure_decode_import(row_text)
   let row_text = ensure_option_import(row_text)
