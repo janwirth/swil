@@ -59,10 +59,23 @@ pub fn importedtrack_with_magic_row_decoder() -> decode.Decoder(
         service: service_raw,
         source_id: source_id_raw,
       ),
-      relationships: tuna_schema.ImportedTrackRelationships(tags: option.None),
+      relationships: tuna_schema.ImportedTrackRelationships(
+        tags: dsl.BelongsTo([]),
+      ),
     )
   decode.success(#(
     importedtrack,
     api_help.magic_from_db_row(id, created_at, updated_at, deleted_at_raw),
   ))
+}
+
+pub type QueryTrackTitleBySourceRootOutput {
+  QueryTrackTitleBySourceRootOutput(title: String)
+}
+
+pub fn query_track_title_by_source_root_output_decoder() -> decode.Decoder(
+  QueryTrackTitleBySourceRootOutput,
+) {
+  use title <- decode.field(0, decode.string)
+  decode.success(QueryTrackTitleBySourceRootOutput(title:))
 }

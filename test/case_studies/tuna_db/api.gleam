@@ -2,6 +2,7 @@ import case_studies/tuna_db/cmd
 import case_studies/tuna_db/get
 import case_studies/tuna_db/migration
 import case_studies/tuna_db/query
+import case_studies/tuna_db/row
 import case_studies/tuna_schema
 import gleam/option
 import sqlight
@@ -9,6 +10,13 @@ import swil/dsl
 
 pub fn migrate(conn: sqlight.Connection) -> Result(Nil, sqlight.Error) {
   migration.migration(conn)
+}
+
+pub fn query_track_title_by_source_root(
+  conn: sqlight.Connection,
+  source_root source_root: String,
+) -> Result(List(row.QueryTrackTitleBySourceRootOutput), sqlight.Error) {
+  query.query_track_title_by_source_root(conn, source_root: source_root)
 }
 
 pub fn query_track_by_source_root(

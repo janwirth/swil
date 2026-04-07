@@ -5,7 +5,7 @@ import gleam/option.{None, Some}
 import gleam/string
 import schema_definition/schema_definition.{
   type EntityDefinition, type IdentityTypeDefinition, type ScalarTypeDefinition,
-  type SchemaDefinition,
+  type SchemaDefinition, Subset,
 }
 
 pub fn migration_import_path(schema_path: String) -> String {
@@ -255,14 +255,23 @@ pub fn schema_uses_non_enum_scalars(def: SchemaDefinition) -> Bool {
   list.any(def.scalars, fn(s) { !s.enum_only })
 }
 
-/// True when the API facade forwards enum scalar codec helpers from `row`.
+/// True when the API facade needs `row` in scope (scalar codecs and/or `Subset` query output types).
 pub fn api_facade_imports_row_module(def: SchemaDefinition) -> Bool {
-  list.any(def.entities, fn(e) {
-    case entity_used_enum_scalars(def, e) {
-      [] -> False
-      [_, ..] -> True
-    }
-  })
+  let enum_scalar_codec =
+    list.any(def.entities, fn(e) {
+      case entity_used_enum_scalars(def, e) {
+        [] -> False
+        [_, ..] -> True
+      }
+    })
+  let subset_outputs =
+    list.any(def.queries, fn(q) {
+      case q.query.shape {
+        Subset(_) -> True
+        _ -> False
+      }
+    })
+  enum_scalar_codec || subset_outputs
 }
 
 /// Row decoders use `None` in bodies when JSON-backed scalars or relationship graphs are present.

@@ -222,8 +222,23 @@ fn default_relationships_record(
   ctx.schema_alias <> "." <> rel_type <> "(\n        " <> parts <> ",\n      )"
 }
 
+fn belongs_to_placeholder_item(inner: glance.Type) -> String {
+  case inner {
+    glance.NamedType(_, "List", _, _) -> "[]"
+    glance.NamedType(_, "Option", _, _) -> "option.None"
+    _ -> "option.None"
+  }
+}
+
 fn relationship_default_expr(t: glance.Type) -> String {
   case t {
+    glance.NamedType(_, "BelongsTo", _, args) -> {
+      case args {
+        [first, ..] ->
+          "dsl.BelongsTo(" <> belongs_to_placeholder_item(first) <> ")"
+        _ -> "dsl.BelongsTo(option.None)"
+      }
+    }
     glance.NamedType(_, "Option", _, _) -> "option.None"
     glance.NamedType(_, "BacklinkWith", _, _) ->
       "dsl.BacklinkWith([], option.None)"
