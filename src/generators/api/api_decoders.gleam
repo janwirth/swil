@@ -1,4 +1,5 @@
 import generators/api/api_sql
+import generators/api/api_subset
 import generators/gleamgen_emit
 import generators/sql_types as sql_t
 import glance
@@ -12,7 +13,7 @@ import gleamgen/module/definition as gdef
 import gleamgen/types as gtypes
 import schema_definition/schema_definition.{
   type EntityDefinition, type FieldDefinition, type IdentityVariantDefinition,
-  type SchemaDefinition,
+  type QuerySpecDefinition, type SchemaDefinition,
 }
 
 pub type TypeCtx {
@@ -706,6 +707,10 @@ fn entity_with_magic_decoder_fn(
     True -> entity_rich_row_decoder_fn(schema, entity, v, ctx)
     False -> entity_simple_magic_decoder_fn(entity, v, ctx)
   }
+}
+
+pub fn subset_output_appendage(specs: List(QuerySpecDefinition)) -> String {
+  api_subset.subset_output_appendage(specs)
 }
 
 pub fn row_decode_helpers_fn_chunks(

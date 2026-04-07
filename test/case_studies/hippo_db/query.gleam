@@ -1,6 +1,5 @@
 import case_studies/hippo_db/row
 import case_studies/hippo_schema
-import gleam/dynamic/decode
 import gleam/option
 import sqlight
 import swil/dsl
@@ -38,32 +37,24 @@ pub fn query_hippos_by_gender(
 pub fn query_old_hippos_owner_names(
   conn: sqlight.Connection,
   min_age min_age: Int,
-) -> Result(List(#(Int, option.Option(String))), sqlight.Error) {
+) -> Result(List(row.QueryOldHipposOwnerNamesOutput), sqlight.Error) {
   sqlight.query(
     old_hippos_owner_names_sql,
     on: conn,
     with: [sqlight.int(min_age)],
-    expecting: {
-      use field_0 <- decode.field(0, decode.int)
-      use field_1 <- decode.field(1, decode.optional(decode.string))
-      decode.success(#(field_0, field_1))
-    },
+    expecting: row.query_old_hippos_owner_names_output_decoder(),
   )
 }
 
 pub fn query_old_hippos_owner_emails(
   conn: sqlight.Connection,
   min_age min_age: Int,
-) -> Result(List(#(Int, option.Option(String))), sqlight.Error) {
+) -> Result(List(row.QueryOldHipposOwnerEmailsOutput), sqlight.Error) {
   sqlight.query(
     old_hippos_owner_emails_sql,
     on: conn,
     with: [sqlight.int(min_age)],
-    expecting: {
-      use field_0 <- decode.field(0, decode.int)
-      use field_1 <- decode.field(1, decode.optional(decode.string))
-      decode.success(#(field_0, field_1))
-    },
+    expecting: row.query_old_hippos_owner_emails_output_decoder(),
   )
 }
 

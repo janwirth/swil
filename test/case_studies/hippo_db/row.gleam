@@ -90,3 +90,27 @@ pub fn hippo_with_magic_row_decoder() -> decode.Decoder(
     api_help.magic_from_db_row(id, created_at, updated_at, deleted_at_raw),
   ))
 }
+
+pub type QueryOldHipposOwnerEmailsOutput {
+  QueryOldHipposOwnerEmailsOutput(age: Int, owner_email: option.Option(String))
+}
+
+pub fn query_old_hippos_owner_emails_output_decoder() -> decode.Decoder(
+  QueryOldHipposOwnerEmailsOutput,
+) {
+  use age <- decode.field(0, decode.int)
+  use owner_email <- decode.field(1, decode.optional(decode.string))
+  decode.success(QueryOldHipposOwnerEmailsOutput(age:, owner_email:))
+}
+
+pub type QueryOldHipposOwnerNamesOutput {
+  QueryOldHipposOwnerNamesOutput(age: Int, owner_email: option.Option(String))
+}
+
+pub fn query_old_hippos_owner_names_output_decoder() -> decode.Decoder(
+  QueryOldHipposOwnerNamesOutput,
+) {
+  use age <- decode.field(0, decode.int)
+  use owner_email <- decode.field(1, decode.optional(decode.string))
+  decode.success(QueryOldHipposOwnerNamesOutput(age:, owner_email:))
+}

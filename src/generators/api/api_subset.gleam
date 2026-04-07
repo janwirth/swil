@@ -28,7 +28,7 @@ pub fn output_type_name(spec_name: String) -> String {
     True -> string.drop_start(spec_name, 6)
     False -> spec_name
   }
-  snake_to_pascal(base) <> "Output"
+  "Query" <> snake_to_pascal(base) <> "Output"
 }
 
 /// `query_old_hippos_owner_emails` → `query_old_hippos_owner_emails_output_decoder`
@@ -156,6 +156,66 @@ pub fn fold_subset_output_into_module(
           ct,
           fn(_, _) { with_decoder },
         )
+      }
+    }
+  })
+}
+
+/// Raw Gleam source appended to the rendered `row` module for each `Subset` spec.
+pub fn subset_output_appendage(specs: List(QuerySpecDefinition)) -> String {
+  list.fold(specs, "", fn(acc, spec) {
+    case spec.query.shape {
+      NoneOrBase -> acc
+      Subset(selection) -> {
+        let type_name = output_type_name(spec.name)
+        let decoder_fn_name = output_decoder_fn_name(spec.name)
+        let field_pairs =
+          list.index_map(selection, fn(item, i) {
+            let ShapeField(alias: alias_opt, expr: e) = item
+            let label = alias_or_fallback(alias_opt, i)
+            label <> ": " <> expr_gleam_type(e)
+          })
+        let fields_csv = string.join(field_pairs, ", ")
+        let type_block =
+          "\n\npub type "
+          <> type_name
+          <> " {\n  "
+          <> type_name
+          <> "("
+          <> fields_csv
+          <> ")\n}"
+        let uses =
+          list.index_map(selection, fn(item, i) {
+            let ShapeField(alias: alias_opt, expr: e) = item
+            let label = alias_or_fallback(alias_opt, i)
+            "  use "
+            <> label
+            <> " <- decode.field("
+            <> int.to_string(i)
+            <> ", "
+            <> expr_sql_decoder(e)
+            <> ")"
+          })
+          |> string.join("\n")
+        let ctor_args =
+          list.index_map(selection, fn(item, i) {
+            let ShapeField(alias: alias_opt, ..) = item
+            alias_or_fallback(alias_opt, i) <> ":"
+          })
+          |> string.join(", ")
+        let fn_block =
+          "\n\npub fn "
+          <> decoder_fn_name
+          <> "() -> decode.Decoder("
+          <> type_name
+          <> ") {\n"
+          <> uses
+          <> "\n  decode.success("
+          <> type_name
+          <> "("
+          <> ctor_args
+          <> "))\n}"
+        acc <> type_block <> fn_block
       }
     }
   })

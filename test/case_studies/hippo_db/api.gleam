@@ -35,14 +35,14 @@ pub fn query_hippos_by_gender(
 pub fn query_old_hippos_owner_names(
   conn: sqlight.Connection,
   min_age min_age: Int,
-) -> Result(List(#(Int, option.Option(String))), sqlight.Error) {
+) -> Result(List(row.QueryOldHipposOwnerNamesOutput), sqlight.Error) {
   query.query_old_hippos_owner_names(conn, min_age: min_age)
 }
 
 pub fn query_old_hippos_owner_emails(
   conn: sqlight.Connection,
   min_age min_age: Int,
-) -> Result(List(#(Int, option.Option(String))), sqlight.Error) {
+) -> Result(List(row.QueryOldHipposOwnerEmailsOutput), sqlight.Error) {
   query.query_old_hippos_owner_emails(conn, min_age: min_age)
 }
 

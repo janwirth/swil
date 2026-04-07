@@ -44,9 +44,9 @@ pub fn hippo_relationship_queries_e2e_test() {
 
   let assert Ok(old_rows) =
     hippo_api.query_old_hippos_owner_emails(conn, min_age: 30)
-  // Returns #(age, owner_email) — two old hippos (Oldie and Zebra), youngin excluded.
+  // Subset shape: labelled `age` and `owner_email` — two old hippos, youngin excluded.
   assert list.length(old_rows) == 2
-  let ages = list.map(old_rows, fn(row) { let #(age, _email) = row age })
+  let ages = list.map(old_rows, fn(row) { row.age })
   assert list.all(ages, fn(a) { a > 30 })
 
   let assert Ok(by_gender) =
