@@ -1,6 +1,7 @@
 // Verifies that assert_pragma_snapshot tolerates index_info cid values that differ
 // from the fixture because a column was added via ALTER TABLE ADD COLUMN (which always
 // appends, shifting subsequent column cids relative to a fresh CREATE TABLE).
+import gleam/io
 import sql/pragma_assert
 import sqlight
 
