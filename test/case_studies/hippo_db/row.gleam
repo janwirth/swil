@@ -29,14 +29,14 @@ import swil/runtime/api_help
 pub fn human_with_magic_row_decoder() -> decode.Decoder(
   #(HumanRow, dsl.MagicFields),
 ) {
-  use name_raw <- decode.field(0, decode.string)
-  use email_raw <- decode.field(1, decode.string)
+  use name_raw <- decode.field(0, decode.optional(decode.string))
+  use email_raw <- decode.field(1, decode.optional(decode.string))
   use id <- decode.field(2, decode.int)
   use created_at <- decode.field(3, decode.int)
   use updated_at <- decode.field(4, decode.int)
   use deleted_at_raw <- decode.field(5, decode.optional(decode.int))
-  let name = api_help.opt_string_from_db(name_raw)
-  let email = api_help.opt_string_from_db(email_raw)
+  let name = api_help.option_string_from_optional_db(name_raw)
+  let email = api_help.option_string_from_optional_db(email_raw)
   let human_row = HumanRow(name:, email:, hippos: [])
   decode.success(#(
     human_row,
@@ -68,14 +68,14 @@ pub fn gender_scalar_from_db_string(
 pub fn hippo_with_magic_row_decoder() -> decode.Decoder(
   #(HippoRow, dsl.MagicFields),
 ) {
-  use name_raw <- decode.field(0, decode.string)
+  use name_raw <- decode.field(0, decode.optional(decode.string))
   use gender_raw <- decode.field(1, decode.string)
   use dob_raw <- decode.field(2, decode.string)
   use id <- decode.field(3, decode.int)
   use created_at <- decode.field(4, decode.int)
   use updated_at <- decode.field(5, decode.int)
   use deleted_at_raw <- decode.field(6, decode.optional(decode.int))
-  let name = api_help.opt_string_from_db(name_raw)
+  let name = api_help.option_string_from_optional_db(name_raw)
   let gender = gender_scalar_from_db_string(gender_raw)
   let date_of_birth = case dob_raw {
     "" -> option.None

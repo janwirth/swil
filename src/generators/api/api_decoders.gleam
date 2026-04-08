@@ -178,9 +178,14 @@ fn data_field_raw_decode_name(f: FieldDefinition) -> String {
 }
 
 fn rich_row_data_field_decode_subexpr(f: FieldDefinition) -> String {
-  case sql_t.type_stored_as_unix_int(f.type_) {
-    True -> "decode.int"
-    False -> "decode.string"
+  case f.type_ {
+    glance.NamedType(_, "Option", _, [glance.NamedType(_, "String", None, [])]) ->
+      "decode.optional(decode.string)"
+    _ ->
+      case sql_t.type_stored_as_unix_int(f.type_) {
+        True -> "decode.int"
+        False -> "decode.string"
+      }
   }
 }
 
@@ -193,7 +198,7 @@ fn rich_decode_lets(data_fields: List(FieldDefinition), ctx: TypeCtx) -> String 
           glance.NamedType(_, "String", None, []) ->
             "  let "
             <> f.label
-            <> " = api_help.opt_string_from_db("
+            <> " = api_help.option_string_from_optional_db("
             <> raw(f)
             <> ")"
           glance.NamedType(_, "Date", _, []) ->
